@@ -4,18 +4,21 @@ import { getAuth } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 
 // A configuração do seu app Firebase da web
-// ATENÇÃO: Substitua com as suas credenciais do Firebase!
+// CORREÇÃO: Removidos possíveis caracteres invisíveis e garantida a formatação correta.
 const firebaseConfig = {
-  apiKey: "SUA_API_KEY",
-  authDomain: "SEU_AUTH_DOMAIN",
-  projectId: "SEU_PROJECT_ID",
-  storageBucket: "SEU_STORAGE_BUCKET",
-  messagingSenderId: "SEU_MESSAGING_SENDER_ID",
-  appId: "SEU_APP_ID"
+   apiKey: "AIzaSyD5QTf_loBVvL56v_I5LN-pXNCQXjVfvy4",
+  authDomain: "formbravo-8854e.firebaseapp.com",
+  projectId: "formbravo-8854e",
+  storageBucket: "formbravo-8854e.firebasestorage.app",
+  messagingSenderId: "1047816908015",
+  appId: "1:1047816908015:web:0b812eeee23eca21b6ff1a",
+  measurementId: "G-JEY5W8BHFG"
 };
 
 // Inicializa o Firebase
 let app;
+
+// Evita a reinicialização do app no Next.js em ambiente de desenvolvimento
 if (!getApps().length) {
   app = initializeApp(firebaseConfig);
 } else {
