@@ -6,13 +6,12 @@ import { getFirestore } from "firebase/firestore";
 // A configuração do seu app Firebase da web
 // CORREÇÃO: Removidos possíveis caracteres invisíveis e garantida a formatação correta.
 const firebaseConfig = {
-   apiKey: "AIzaSyD5QTf_loBVvL56v_I5LN-pXNCQXjVfvy4",
+  apiKey: "AIzaSyD5QTf_loBVvL56v_I5LN-pXNCQXjVfvy4",
   authDomain: "formbravo-8854e.firebaseapp.com",
   projectId: "formbravo-8854e",
-  storageBucket: "formbravo-8854e.firebasestorage.app",
+  storageBucket: "formbravo-8854e.appspot.com",
   messagingSenderId: "1047816908015",
-  appId: "1:1047816908015:web:0b812eeee23eca21b6ff1a",
-  measurementId: "G-JEY5W8BHFG"
+  appId: "1:1047816908015:web:0b812eeee23eca21b6ff1a"
 };
 
 // Inicializa o Firebase
