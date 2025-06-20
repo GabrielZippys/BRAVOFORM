@@ -88,4 +88,4 @@ export default function FormEditor({ isOpen, onClose }: FormEditorProps) {
       </div>
     </div>
   );
-}
+}  
