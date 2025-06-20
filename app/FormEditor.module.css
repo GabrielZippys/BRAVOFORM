@@ -1,0 +1,172 @@
+.overlay {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(0, 0, 0, 0.7);
+  z-index: 40;
+}
+
+.panel {
+  position: fixed;
+  top: 0;
+  right: 0;
+  height: 100%;
+  width: 100%;
+  max-width: 60rem; /* 960px */
+  background-color: var(--deco-teal);
+  border-left: 1px solid var(--deco-gold);
+  box-shadow: -5px 0 15px rgba(0,0,0,0.5);
+  display: flex;
+  flex-direction: column;
+  z-index: 50;
+}
+
+.panelHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem;
+  border-bottom: 1px solid var(--deco-brass);
+  flex-shrink: 0;
+}
+
+.panelTitle {
+  font-family: var(--font-display);
+  font-size: 1.25rem;
+  color: var(--deco-gold);
+}
+
+.closeButton {
+  background: transparent;
+  border: none;
+  color: var(--deco-ivory);
+  cursor: pointer;
+}
+.closeButton:hover {
+  color: var(--deco-gold);
+}
+
+.editorGrid {
+  flex-grow: 1;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2rem;
+  overflow: hidden;
+  padding: 1.5rem;
+}
+
+.controlsColumn, .previewColumn {
+  overflow-y: auto;
+  padding-right: 1rem;
+}
+
+.label {
+  display: block;
+  margin-bottom: 0.5rem;
+  color: var(--deco-gold);
+}
+
+.input {
+  width: 100%;
+  padding: 0.5rem;
+  background-color: rgba(10, 46, 54, 0.8);
+  border: 1px solid var(--deco-brass);
+  color: var(--deco-ivory);
+  border-radius: 2px;
+}
+
+.subTitle {
+  font-family: var(--font-display);
+  color: var(--deco-gold);
+  margin-top: 2rem;
+  margin-bottom: 1rem;
+}
+
+.fieldButtons {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem;
+}
+
+.button {
+  padding: 0.5rem;
+  font-family: var(--font-sans);
+  background: transparent;
+  border: 1px solid var(--deco-brass);
+  color: var(--deco-ivory);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  transition: all 0.2s ease;
+}
+.button:hover {
+  background-color: var(--deco-brass);
+  color: var(--deco-dark);
+}
+
+.automationBox {
+  padding: 1rem;
+  background-color: rgba(0,0,0,0.2);
+  border: 1px solid var(--deco-brass);
+}
+
+/* Preview Styles */
+.previewColumn {
+  background-color: var(--deco-dark);
+  padding: 1.5rem;
+}
+.previewFrame {
+  background-color: var(--deco-teal);
+  border: 1px solid var(--deco-brass);
+  padding: 2rem;
+  height: 100%;
+}
+.previewTitle {
+  font-family: var(--font-display);
+  font-size: 1.5rem;
+  color: var(--deco-gold);
+  text-align: center;
+  margin-bottom: 2rem;
+}
+.previewFieldsContainer {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+.previewField {
+    animation: fadeIn 0.3s ease;
+}
+.previewLabel {
+  display: block;
+  margin-bottom: 0.5rem;
+  color: var(--deco-gold);
+}
+.previewInput {
+  height: 2.5rem;
+  background-color: rgba(10, 46, 54, 0.8);
+  border: 1px solid var(--deco-brass);
+}
+.previewAttachment {
+  height: 6rem;
+  border: 2px dashed var(--deco-brass);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--deco-brass);
+}
+.previewSignature {
+  height: 6rem;
+  background-color: rgba(10, 46, 54, 0.8);
+  border: 1px solid var(--deco-brass);
+}
+.previewButton {
+  width: 100%;
+  padding: 0.75rem;
+  margin-top: 2rem;
+  font-family: var(--font-display);
+  font-weight: 700;
+  color: var(--deco-dark);
+  background: linear-gradient(to bottom, var(--deco-gold), var(--deco-brass));
+  border: 1px solid var(--deco-ivory);
+  cursor: pointer;
+}

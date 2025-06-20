@@ -1,0 +1,126 @@
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
+}
+
+.title {
+  font-family: var(--font-display);
+  font-size: 1.5rem;
+  color: var(--deco-gold);
+}
+
+.button {
+  padding: 0.75rem 1rem;
+  font-family: var(--font-display);
+  font-weight: 700;
+  color: var(--deco-dark);
+  background: linear-gradient(to bottom, var(--deco-gold), var(--deco-brass));
+  border: 1px solid var(--deco-ivory);
+  box-shadow: 0 2px 4px rgba(0,0,0,0.5);
+  border-radius: 2px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.button svg {
+    margin-right: 0.5rem;
+    stroke: var(--deco-dark);
+}
+
+.frame {
+  background-color: rgba(7, 72, 91, 0.5);
+  border: 1px solid var(--deco-gold);
+  padding: 1.5rem;
+}
+
+.filters {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+    align-items: flex-end;
+}
+
+.filterGroup label {
+    display: block;
+    margin-bottom: 0.5rem;
+    color: var(--deco-gold);
+}
+
+.filterInput {
+    width: 100%;
+    padding: 0.5rem;
+    background-color: rgba(10, 46, 54, 0.8);
+    border: 1px solid var(--deco-brass);
+    color: var(--deco-ivory);
+    border-radius: 2px;
+}
+
+.cardGrid {
+    margin-top: 1.5rem;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 1.5rem;
+}
+
+.formCard {
+    border: 1px solid var(--deco-brass);
+    background-color: rgba(10, 46, 54, 0.3);
+    padding: 1rem;
+    display: flex;
+    flex-direction: column;
+}
+
+.cardHeader {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+}
+
+.cardTitle {
+    font-family: var(--font-display);
+    color: var(--deco-ivory);
+    font-size: 1.125rem;
+}
+
+.cardStatus {
+    font-size: 0.75rem;
+    padding: 0.25rem 0.5rem;
+    border-radius: 99px;
+    border: 1px solid #2f855a;
+    color: #2f855a;
+}
+
+.cardDescription {
+    font-size: 0.875rem;
+    color: var(--deco-ivory-70);
+    margin-top: 0.25rem;
+    flex-grow: 1;
+}
+
+.cardFooter {
+    margin-top: 1rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--deco-brass);
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.5rem;
+}
+
+.cardButton {
+    background: transparent;
+    border: none;
+    padding: 0.5rem;
+    color: var(--deco-gold);
+    cursor: pointer;
+}
+
+.cardButton:hover {
+    color: var(--deco-ivory);
+}
+
+.cardButton svg {
+    stroke: currentColor;
+}

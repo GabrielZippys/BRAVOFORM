@@ -1,4 +1,10 @@
+
+'use client';
+
+import React from 'react';
 import { Bell } from 'lucide-react';
+// CORREÇÃO: Importando do novo local centralizado em src/styles
+import styles from '../../app/Login.module.css';
 
 interface HeaderProps {
   pageTitle: string;
@@ -6,22 +12,21 @@ interface HeaderProps {
 
 export default function Header({ pageTitle }: HeaderProps) {
   return (
-    <header className="h-16 bg-deco-teal border-b border-deco-brass flex items-center justify-between px-6">
-      <div>
-        <h2 className="font-display text-xl text-deco-gold">{pageTitle}</h2>
-      </div>
-      <div className="flex items-center space-x-4">
-        <button className="p-2 rounded-full text-deco-gold/80 hover:text-deco-gold">
+    <header className={styles.header}>
+      <h2 className={styles.headerTitle}>{pageTitle}</h2>
+      <div className={styles.headerActions}>
+        <button className={styles.headerButton}>
           <Bell />
         </button>
-        <div className="flex items-center">
-          <img src="https://placehold.co/40x40/C5A05C/0A2E36?text=B" alt="Avatar" className="w-10 h-10 rounded-full border-2 border-deco-gold" />
-          <div className="ml-3">
-            <p className="font-semibold text-sm text-deco-ivory">Usuário Bravo</p>
-            <p className="text-xs text-deco-brass">Administrador</p>
+        <div className={styles.userProfile}>
+          <img src="https://placehold.co/40x40/C5A05C/0A2E36?text=B" alt="Avatar" className={styles.userAvatar} />
+          <div className={styles.userInfo}>
+            <h3>Usuário Bravo</h3>
+            <p>Administrador</p>
           </div>
         </div>
       </div>
     </header>
   );
 }
+

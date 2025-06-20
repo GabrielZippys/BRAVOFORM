@@ -1,81 +1,256 @@
-.main {
-  min-height: 100vh;
+/*
+================================================================================
+|
+|   ARQUIVO: src/styles/Dashboard.module.css
+|   (Este é o novo local para o CSS do seu painel)
+|
+================================================================================
+*/
+
+.layout {
+  display: flex;
+  height: 100vh;
+}
+
+/* --- Sidebar --- */
+.sidebar {
+  width: 256px;
+  background-color: var(--deco-teal);
+  border-right: 1px solid var(--deco-brass);
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+}
+
+.sidebarHeader {
+  height: 4rem;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 1rem;
+  border-bottom: 1px solid var(--deco-brass);
+  flex-shrink: 0;
 }
 
-.frame {
-  width: 100%;
-  max-width: 28rem; /* 448px */
-  padding: 2rem;
-  text-align: center;
-  background-color: rgba(7, 72, 91, 0.5);
-  border: 1px solid #C5A05C;
-  box-shadow: inset 0 0 10px rgba(0,0,0,0.5);
+.sidebarTitle {
+  font-family: var(--font-display);
+  font-size: 1.5rem;
+  color: var(--deco-gold);
 }
 
-.title {
-  font-family: 'Cinzel', serif;
-  font-weight: 700;
-  color: #C5A05C;
-  text-shadow: 1px 1px 2px rgba(0,0,0,0.7);
-  font-size: 3rem; /* 48px */
-  margin-bottom: 2rem;
-}
-
-.form {
+.nav {
+  flex: 1;
+  padding: 1.5rem 1rem;
   display: flex;
   flex-direction: column;
+  gap: 0.5rem;
+}
+
+.navLink {
+  display: flex;
+  align-items: center;
+  padding: 0.625rem 1rem;
+  border-radius: 2px;
+  color: rgba(240, 234, 214, 0.8);
+  transition: all 0.2s ease-in-out;
+  text-decoration: none;
+}
+
+.navLink svg {
+  margin-right: 0.75rem;
+  stroke: var(--deco-gold);
+  transition: stroke 0.2s ease-in-out;
+  width: 20px;
+  height: 20px;
+}
+
+.navLink:hover {
+  background-color: var(--deco-gold);
+  color: var(--deco-dark);
+}
+
+.navLink:hover svg {
+  stroke: var(--deco-dark);
+}
+
+.navLinkActive {
+  background-color: var(--deco-gold);
+  color: var(--deco-dark);
+}
+
+.navLinkActive svg {
+  stroke: var(--deco-dark);
+}
+
+.sidebarFooter {
+    padding: 1rem;
+    border-top: 1px solid var(--deco-brass);
+}
+
+/* --- Área de Conteúdo Principal --- */
+.mainContent {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.header {
+  height: 4rem;
+  background-color: var(--deco-teal);
+  border-bottom: 1px solid var(--deco-brass);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 1.5rem;
+  flex-shrink: 0;
+}
+
+.headerTitle {
+  font-family: var(--font-display);
+  font-size: 1.25rem;
+  color: var(--deco-gold);
+}
+
+.headerActions {
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+}
+
+.headerButton {
+    background-color: transparent;
+    border: 1px solid var(--deco-brass);
+    color: var(--deco-gold);
+    border-radius: 2px;
+    padding: 0.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease-in-out;
+}
+
+.headerButton:hover {
+    background-color: var(--deco-gold);
+    color: var(--deco-dark);
+}
+
+.headerButton svg {
+    stroke: currentColor;
+}
+
+.userProfile {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.userAvatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    border: 2px solid var(--deco-gold);
+}
+
+.userInfo h3 {
+    font-weight: 600;
+    font-size: 0.875rem;
+    color: var(--deco-ivory);
+    line-height: 1;
+}
+
+.userInfo p {
+    font-size: 0.75rem;
+    color: var(--deco-brass);
+    line-height: 1;
+}
+
+.pageContainer {
+  flex: 1;
+  overflow-y: auto;
+  padding: 1.5rem;
+}
+
+/* --- Estilos da Página do Dashboard --- */
+.statsGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
   gap: 1.5rem;
 }
 
-.label {
-  display: block;
-  text-align: left;
-  margin-bottom: 0.5rem;
-  color: #C5A05C;
-  font-family: 'Roboto', sans-serif;
+.statCard {
+  background-color: transparent;
+  border: 1px solid var(--deco-brass);
+  padding: 1rem;
 }
 
-.input {
-  background-color: rgba(10, 46, 54, 0.8);
-  border: 1px solid #B18F42;
-  color: #F0EAD6;
-  width: 100%;
-  padding: 0.75rem;
-  border-radius: 2px;
-  transition: all 0.2s ease-in-out;
-  font-family: 'Roboto', sans-serif;
+.statCardTitle {
+  font-family: var(--font-sans);
+  font-size: 0.875rem;
+  color: var(--deco-brass);
+  text-transform: uppercase;
+  margin: 0;
 }
 
-.input:focus {
-  outline: none;
-  border-color: #C5A05C;
-  box-shadow: 0 0 8px rgba(197, 160, 92, 0.5);
+.statCardValue {
+  font-family: var(--font-display);
+  font-size: 2.25rem;
+  color: var(--deco-ivory);
+  margin-top: 0.25rem;
 }
 
-.button {
-  width: 100%;
-  padding: 0.75rem;
-  font-family: 'Cinzel', serif;
+.analysisFrame {
+  background-color: rgba(7, 72, 91, 0.5);
+  border: 1px solid var(--deco-gold);
+  padding: 1.5rem;
+  margin-top: 2rem;
+}
+
+.analysisTitle {
+  font-family: var(--font-display);
   font-weight: 700;
-  color: #0A2E36;
-  background: linear-gradient(to bottom, #C5A05C, #B18F42);
-  border: 1px solid #F0EAD6;
+  color: var(--deco-gold);
+  font-size: 1.25rem;
+  margin-bottom: 1rem;
+}
+
+.filtersContainer {
+  background-color: rgba(0,0,0,0.2);
+  padding: 1rem;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 1.5rem;
+}
+
+.filterGroup {
+  flex: 1;
+  min-width: 200px;
+}
+
+.filterLabel {
+  font-size: 0.875rem;
+  color: var(--deco-gold);
+  margin-bottom: 0.5rem;
+  display: block;
+}
+
+.filterSelect {
+  width: 100%;
+  padding: 0.5rem;
+  background-color: rgba(10, 46, 54, 0.8);
+  border: 1px solid var(--deco-brass);
+  color: var(--deco-ivory);
+  border-radius: 2px;
+}
+
+.filterButton {
+  padding: 0.5rem 1rem;
+  font-family: var(--font-display);
+  color: var(--deco-dark);
+  background: linear-gradient(to bottom, var(--deco-gold), var(--deco-brass));
+  border: 1px solid var(--deco-ivory);
   box-shadow: 0 2px 4px rgba(0,0,0,0.5);
   border-radius: 2px;
-  transition: all 0.2s ease-in-out;
   cursor: pointer;
-}
-
-.button:hover {
-  filter: brightness(1.1);
-}
-
-.error {
-  color: #f87171; /* Cor vermelha para erros */
-  text-align: center;
-  font-family: 'Roboto', sans-serif;
+  height: fit-content;
 }

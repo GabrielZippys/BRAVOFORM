@@ -1,21 +1,58 @@
-/* >>>>> Arquivo: app/globals.css <<<<< */
 
-/* Importa as fontes do Google */
 @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@700&family=Roboto:wght@400;500&display=swap');
 
-/* Estilos Globais */
+:root {
+  --deco-dark: #0A2E36;
+  --deco-teal: #07485B;
+  --deco-gold: #C5A05C;
+  --deco-brass: #B18F42;
+  --deco-ivory: #F0EAD6;
+  --font-display: 'Cinzel', serif;
+  --font-sans: 'Roboto', sans-serif;
+}
+
 body {
-  background-color: #0A2E36;
-  color: #F0EAD6;
-  font-family: 'Roboto', sans-serif;
+  background-color: var(--deco-dark);
+  color: var(--deco-ivory);
+  font-family: var(--font-sans);
   background-image: url('https://www.transparenttextures.com/patterns/subtle-grunge.png');
   margin: 0;
   padding: 0;
   box-sizing: border-box;
+  overflow: hidden;
+}
+@keyframes slideIn {
+  from { transform: translateX(100%); }
+  to { transform: translateX(0); }
 }
 
-h1, h2, h3, h4, h5, h6 {
-  font-family: 'Cinzel', serif;
-  color: #C5A05C;
-  text-shadow: 1px 1px 2px rgba(0,0,0,0.7);
+@keyframes slideOut {
+  from { transform: translateX(0); }
+  to { transform: translateX(100%); }
+}
+
+.slideIn {
+  animation: slideIn 0.4s cubic-bezier(0.25, 1, 0.5, 1) forwards;
+}
+
+.slideOut {
+  animation: slideOut 0.4s cubic-bezier(0.25, 1, 0.5, 1) forwards;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes fadeOut {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+
+.fadeIn {
+    animation: fadeIn 0.4s ease-in-out forwards;
+}
+
+.fadeOut {
+    animation: fadeOut 0.4s ease-in-out forwards;
 }
