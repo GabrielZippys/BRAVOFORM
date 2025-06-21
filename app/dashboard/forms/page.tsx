@@ -1,15 +1,16 @@
 'use client';
 import { useState } from 'react';
-import { Plus } from 'lucide-react';
+import { Plus, Search } from 'lucide-react';
+// CORREÇÃO: Usando o atalho @/ que aponta para a pasta 'src'
+import styles from '../../styles/Forms.module.css'
 import FormEditor from '@/components/FormEditor';
-import styles from '../../Forms.module.css'; // Importa do novo local
 
 export default function FormsPage() {
   const [isEditorOpen, setIsEditorOpen] = useState(false);
 
   return (
     <>
-      <div className="page-content">
+      <div>
         <div className={styles.header}>
           <h2 className={styles.title}>Gerenciar Formulários</h2>
           <button onClick={() => setIsEditorOpen(true)} className={styles.button}>
@@ -34,12 +35,15 @@ export default function FormsPage() {
                 <option>Logística</option>
               </select>
             </div>
-            <button className={styles.button}>Buscar</button>
+            <button className={styles.button} style={{height: '37px'}}>
+                <Search size={16}/>
+                <span>Buscar</span>
+            </button>
           </div>
         </div>
 
         <div className={styles.cardGrid}>
-          {/* Exemplos de cartões de formulário */}
+          {/* Exemplos de cartões de formulário irão aqui */}
         </div>
       </div>
 

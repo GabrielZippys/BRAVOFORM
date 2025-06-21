@@ -1,4 +1,3 @@
-
 'use client';
 
 import React from 'react';
@@ -7,8 +6,8 @@ import Link from 'next/link';
 import { LayoutDashboard, FileText, Users, LogOut } from 'lucide-react';
 import { auth } from '../../firebase/config';
 import { signOut } from 'firebase/auth';
-// CORREÇÃO: Importando do novo local centralizado em src/styles
-import styles from '../../app/Login.module.css';
+import styles from '../../app/styles/Login.module.css';
+import Image from 'next/image';
 
 const navLinks = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -35,8 +34,18 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
     
     return (
         <aside className={styles.sidebar}>
+            {/* CORREÇÃO: Estrutura do header da sidebar com logo e texto */}
             <div className={styles.sidebarHeader}>
-                <h1 className={styles.sidebarTitle}>FORMBRAVO</h1>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <Image 
+                        src="/formbravo-logo.png"
+                        alt="Logo FORMBRAVO"
+                        width={50}  // Largura da imagem
+                        height={60} // Altura baseada na proporção do SVG (100x120)
+                        priority 
+                    />
+                    <h1 className={styles.sidebarTitle} style={{fontSize: '1.25rem'}}>FORMBRAVO</h1>
+                </div>
             </div>
             <nav className={styles.nav}>
                 {navLinks.map((link) => {

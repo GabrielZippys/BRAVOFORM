@@ -5,7 +5,9 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { signInWithEmailAndPassword } from 'firebase/auth';
 import { auth } from '../firebase/config';
-import styles from './Login.module.css';
+import styles from '../app/styles/Login.module.css';
+import Image from 'next/image'; // Importando o componente de Imagem
+
 
 export default function LoginPage() {
   const [email, setEmail] = useState('bravo@formbravo.com');
@@ -29,7 +31,15 @@ export default function LoginPage() {
   return (
       <main className={styles.main}>
         <div className={styles.frame}>
-            <h1 className={styles.title}>FORMBRAVO</h1>
+            {/* Substituindo o H1 pela Logo com animação */}
+            <Image
+              src="/formbravo-logo.png"
+              alt="Logo FORMBRAVO"
+              width={250}
+              height={300} // Mantém a proporção correta do SVG (100x120)
+              priority
+              className={styles.logo}
+            />
             
             <form onSubmit={handleLogin} className={styles.form}>
                 <div>

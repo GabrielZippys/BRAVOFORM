@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { X, Type, Paperclip, PenSquare } from 'lucide-react';
-import styles from '../../app/FormEditor.module.css';
+import styles from '../../app/styles/FormEditor.module.css';
 
 interface FormEditorProps {
   isOpen: boolean;

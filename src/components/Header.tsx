@@ -1,10 +1,9 @@
-
 'use client';
 
 import React from 'react';
 import { Bell } from 'lucide-react';
-// CORREÇÃO: Importando do novo local centralizado em src/styles
-import styles from '../../app/Login.module.css';
+// CORREÇÃO DEFINITIVA: Importando o CSS correto do local correto
+import styles from '../../app/styles/Login.module.css';
 
 interface HeaderProps {
   pageTitle: string;
@@ -29,4 +28,3 @@ export default function Header({ pageTitle }: HeaderProps) {
     </header>
   );
 }
-

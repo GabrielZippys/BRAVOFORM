@@ -1,15 +1,16 @@
 'use client';
 
 import React, { useState } from 'react';
-import Header from '@/components/Header'; // O alias @ agora aponta para src
+import Header from '@/components/Header';
 import Sidebar from '@/components/Sidebar';
-import styles from '../Login.module.css'; // Importa do novo local
+import styles from '../../app/styles/Login.module.css'; 
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const [pageTitle, setPageTitle] = useState('Dashboard');
 
   return (
     <div className={styles.layout}>
+      {/* Agora a propriedade onNavigate é reconhecida pelo Sidebar */}
       <Sidebar onNavigate={setPageTitle} />
       <div className={styles.mainContent}>
         <Header pageTitle={pageTitle} />

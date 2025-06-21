@@ -1,7 +1,7 @@
 
 'use client';
 import { useState } from 'react';
-import styles from '../Login.module.css'; // Importa do novo local
+import styles from '../styles/Login.module.css'; // Importa do novo local
 
 const StatCard = ({ title, value }: { title: string; value: string; }) => (
     <div className={styles.statCard}>
