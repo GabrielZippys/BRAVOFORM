@@ -44,7 +44,6 @@ export default function IntegrationsPage() {
             setStatusLog(prev => [...prev, { type: 'success', text: `Autorização com ${serviceName} concedida!` }]);
             setConnections(prev => ({ ...prev, [service]: true }));
         } catch (error) {
-            // CORREÇÃO: Adicionando tipo para o erro para satisfazer o linter
             const authError = error as AuthError;
             setStatusLog(prev => [...prev, { type: 'error', text: `Falha na autorização: ${authError.code}` }]);
             console.error(`Erro de autenticação com ${serviceName}:`, authError);
@@ -70,7 +69,7 @@ export default function IntegrationsPage() {
             <div className={styles.grid}>
                 <div className={styles.card}>
                     <div className={styles.cardHeader}>
-                        <Image src="https://pngate.com/wp-content/uploads/2025/03/google-drive-logo-main-icon-1.png" width={40} height={40} className={styles.cardIcon} alt="Google Drive"/>
+                        <Image src="https://upload.wikimedia.org/wikipedia/commons/thumb/1/12/Google_Drive_icon_%282020%29.svg/1024px-Google_Drive_icon_%282020%29.svg.png" width={40} height={40} className={styles.cardIcon} alt="Google Drive"/>
                         <h3 className={styles.cardTitle}>Google Drive</h3>
                     </div>
                     <p className={styles.cardDescription}>Salve anexos de formulários em seu Google Drive.</p>
@@ -86,7 +85,7 @@ export default function IntegrationsPage() {
                 </div>
                 <div className={styles.card}>
                     <div className={styles.cardHeader}>
-                        <Image src='https://w7.pngwing.com/pngs/786/952/png-transparent-microsoft-onedrive-drive-office-365-logo-icon-thumbnail.png' width={109} height={34} className={styles.cardIcon} alt="OneDrive"/>
+                        <Image src="https://upload.wikimedia.org/wikipedia/commons/thumb/e/e3/Microsoft_Office_OneDrive_%282019%E2%80%93present%29.svg/1280px-Microsoft_Office_OneDrive_%282019%E2%80%93present%29.svg.png" width={109} height={34} className={styles.cardIcon} alt="OneDrive"/>
                         <h3 className={styles.cardTitle}>OneDrive</h3>
                     </div>
                     <p className={styles.cardDescription}>Sincronize documentos com o seu OneDrive.</p>
