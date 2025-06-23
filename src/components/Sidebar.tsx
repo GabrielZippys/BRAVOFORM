@@ -16,8 +16,8 @@ import styles from '../../app/styles/Login.module.css';
 
 const navLinks = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { href: '/dashboard/forms', label: 'Formulários', icon: FileText },
   { href: '/dashboard/users', label: 'Deptos & Usuários', icon: Users },
+  { href: '/dashboard/forms', label: 'Formulários', icon: FileText },
   { href: '/dashboard/reports', label: 'Relatórios', icon: PieChart },
   { href: '/dashboard/integrations', label: 'Integrações', icon: PlugZap },
 ];

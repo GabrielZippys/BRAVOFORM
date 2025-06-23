@@ -1,26 +1,112 @@
 'use client';
 
-import React, { useState } from 'react';
-import { PlusCircle, UserPlus, Building, Truck, Award } from 'lucide-react';
-import Modal from '@/components/Modal'; // Importando nosso novo componente Modal
+import React, { useState, useEffect } from 'react';
+import { PlusCircle, UserPlus, Building } from 'lucide-react';
+import Modal from '@/components/Modal'; 
 import styles from '../../styles/Users.module.css';
-import modalStyles from '../../styles/Modal.module.css'; // Importando estilos do modal
+import modalStyles from '../../styles/Modal.module.css';
+import { db } from '../../../firebase/config';
+import { collection, addDoc, onSnapshot, query, DocumentData } from 'firebase/firestore';
 
-const companiesData = [
-    { name: 'D&D Frigorífico', depts: [{name: 'Administrativo', icon: Building}, {name: 'Logística', icon: Truck}] },
-    { name: 'IPANEMA FOODS', depts: [{name: 'Qualidade', icon: Award}] },
-    { name: 'APETITO', depts: [] }
-];
+// Definindo os tipos para os nossos dados
+interface Company {
+    id: string;
+    name: string;
+}
 
-const usersData = [
-    { name: 'Douglas Di Giglio', email: 'douglas.digiglio@bravo-ti.com', role: 'Admin', color: 'var(--deco-gold)' },
-    { name: 'Marjah Di Giglio', email: 'marjah.digiglio@bravo-ti.com', role: 'Editor', color: 'var(--deco-ivory)' },
-    { name: 'Wellington Ramos', email: 'wellington.ramos@bravo-ti.com', role: 'Visualizador', color: 'var(--deco-brass)' },
-];
+interface User {
+    id: string;
+    name: string;
+    email: string;
+    role: 'Admin' | 'Editor' | 'Visualizador';
+}
 
 export default function UsersPage() {
+    // Estados para os dados do Firestore
+    const [companies, setCompanies] = useState<Company[]>([]);
+    const [users, setUsers] = useState<User[]>([]);
+    const [loading, setLoading] = useState(true);
+
+    // Estados para os modais e formulários
     const [isCompanyModalOpen, setCompanyModalOpen] = useState(false);
     const [isUserModalOpen, setUserModalOpen] = useState(false);
+    const [newCompanyName, setNewCompanyName] = useState('');
+    const [newUserName, setNewUserName] = useState('');
+    const [newUserEmail, setNewUserEmail] = useState('');
+    const [newUserRole, setNewUserRole] = useState<'Admin' | 'Editor' | 'Visualizador'>('Visualizador');
+    
+    // Efeito para buscar os dados em tempo real do Firestore
+    useEffect(() => {
+        setLoading(true);
+        // Listener para Empresas
+        const qCompanies = query(collection(db, "companies"));
+        const unsubscribeCompanies = onSnapshot(qCompanies, (querySnapshot) => {
+            const companiesData: Company[] = [];
+            querySnapshot.forEach((doc) => {
+                companiesData.push({ id: doc.id, ...doc.data() } as Company);
+            });
+            setCompanies(companiesData);
+            setLoading(false);
+        });
+
+        // Listener para Usuários
+        const qUsers = query(collection(db, "users"));
+        const unsubscribeUsers = onSnapshot(qUsers, (querySnapshot) => {
+            const usersData: User[] = [];
+            querySnapshot.forEach((doc) => {
+                usersData.push({ id: doc.id, ...doc.data() } as User);
+            });
+            setUsers(usersData);
+        });
+
+        // Limpa os listeners quando o componente é desmontado
+        return () => {
+            unsubscribeCompanies();
+            unsubscribeUsers();
+        };
+    }, []);
+
+    const handleAddCompany = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!newCompanyName.trim()) return;
+        
+        try {
+            await addDoc(collection(db, "companies"), {
+                name: newCompanyName
+            });
+            setNewCompanyName('');
+            setCompanyModalOpen(false);
+        } catch (error) {
+            console.error("Erro ao adicionar empresa: ", error);
+        }
+    };
+
+    const handleAddUser = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!newUserName.trim() || !newUserEmail.trim()) return;
+
+        try {
+            await addDoc(collection(db, "users"), {
+                name: newUserName,
+                email: newUserEmail,
+                role: newUserRole
+            });
+            setNewUserName('');
+            setNewUserEmail('');
+            setUserModalOpen(false);
+        } catch (error) {
+            console.error("Erro ao adicionar usuário: ", error);
+        }
+    };
+    
+    const getRoleColor = (role: string) => {
+        switch(role) {
+            case 'Admin': return 'var(--deco-gold)';
+            case 'Editor': return 'var(--deco-ivory)';
+            case 'Visualizador': return 'var(--deco-brass)';
+            default: return 'var(--deco-gray)';
+        }
+    };
 
     return (
         <>
@@ -30,48 +116,41 @@ export default function UsersPage() {
                 </div>
 
                 <div className={styles.grid}>
-                    {/* Coluna de Empresas e Departamentos */}
+                    {/* Coluna de Empresas */}
                     <div className={styles.frame}>
                         <div className={styles.frameHeader}>
-                            <h3 className={styles.frameTitle}>Empresas e Setores</h3>
+                            <h3 className={styles.frameTitle}>Empresas</h3>
                             <button onClick={() => setCompanyModalOpen(true)} className={styles.button}><PlusCircle size={16} /><span>Nova Empresa</span></button>
                         </div>
-                        {companiesData.map(company => (
-                            <div key={company.name} className={styles.companyCard}>
-                                <div className={styles.companyHeader}>
+                        {loading ? <p className={styles.emptyState}>Carregando...</p> : companies.length > 0 ? (
+                            companies.map(company => (
+                                <div key={company.id} className={styles.companyCard}>
                                     <h4 className={styles.companyName}>{company.name}</h4>
-                                    <span className={styles.addDeptButton}>Adicionar Setor</span>
                                 </div>
-                                {company.depts.length > 0 && (
-                                    <div className={styles.deptList}>
-                                        {company.depts.map(dept => {
-                                            const Icon = dept.icon;
-                                            return <p key={dept.name} className={styles.deptItem}><Icon size={14} style={{color: 'var(--deco-brass)'}}/> {dept.name}</p>
-                                        })}
-                                    </div>
-                                )}
-                            </div>
-                        ))}
+                            ))
+                        ) : <p className={styles.emptyState}>Nenhuma empresa criada.</p>}
                     </div>
 
-                    {/* Coluna de Usuários e Permissões */}
+                    {/* Coluna de Usuários */}
                     <div className={styles.frame}>
                         <div className={styles.frameHeader}>
-                            <h3 className={styles.frameTitle}>Usuários e Permissões</h3>
+                            <h3 className={styles.frameTitle}>Usuários</h3>
                             <button onClick={() => setUserModalOpen(true)} className={styles.button}><UserPlus size={16} /><span>Novo Usuário</span></button>
                         </div>
                         <div className={styles.userList}>
-                            {usersData.map(user => (
-                                <div key={user.name} className={styles.userCard}>
+                            {users.length > 0 ? (
+                                users.map(user => (
+                                <div key={user.id} className={styles.userCard}>
                                     <div className={styles.userInfo}>
                                         <h4>{user.name}</h4>
                                         <p>{user.email}</p>
                                     </div>
-                                    <span className={styles.permissionTag} style={{borderColor: user.color, color: user.color}}>
+                                    <span className={styles.permissionTag} style={{borderColor: getRoleColor(user.role), color: getRoleColor(user.role)}}>
                                         {user.role}
                                     </span>
                                 </div>
-                            ))}
+                            ))
+                        ) : <p className={styles.emptyState}>Nenhum usuário criado.</p>}
                         </div>
                     </div>
                 </div>
@@ -79,46 +158,48 @@ export default function UsersPage() {
 
             {/* Modal para adicionar Empresa */}
             <Modal isOpen={isCompanyModalOpen} onClose={() => setCompanyModalOpen(false)} title="Adicionar Nova Empresa">
-                <div className={modalStyles.panelBody}>
-                    <form className={modalStyles.form}>
+                <form onSubmit={handleAddCompany}>
+                    <div className={modalStyles.panelBody}>
                         <div className={modalStyles.formGroup}>
                            <label htmlFor="company-name" className={modalStyles.label}>Nome da Empresa</label>
-                           <input id="company-name" type="text" className={modalStyles.input}/>
+                           <input id="company-name" type="text" value={newCompanyName} onChange={(e) => setNewCompanyName(e.target.value)} className={modalStyles.input} required/>
                         </div>
-                    </form>
-                </div>
-                <div className={modalStyles.buttonContainer}>
-                    <button onClick={() => setCompanyModalOpen(false)} className={modalStyles.button + ' ' + modalStyles.buttonSecondary}>Cancelar</button>
-                    <button className={modalStyles.button + ' ' + modalStyles.buttonPrimary}>Salvar</button>
-                </div>
+                    </div>
+                    <div className={modalStyles.buttonContainer}>
+                        <button type="button" onClick={() => setCompanyModalOpen(false)} className={modalStyles.button + ' ' + modalStyles.buttonSecondary}>Cancelar</button>
+                        <button type="submit" className={modalStyles.button + ' ' + modalStyles.buttonPrimary}>Salvar</button>
+                    </div>
+                </form>
             </Modal>
 
             {/* Modal para adicionar Usuário */}
             <Modal isOpen={isUserModalOpen} onClose={() => setUserModalOpen(false)} title="Adicionar Novo Usuário">
-                 <div className={modalStyles.panelBody}>
-                    <form className={modalStyles.form}>
-                        <div className={modalStyles.formGroup}>
-                           <label htmlFor="user-name" className={modalStyles.label}>Nome do Usuário</label>
-                           <input id="user-name" type="text" className={modalStyles.input}/>
+                 <form onSubmit={handleAddUser}>
+                    <div className={modalStyles.panelBody}>
+                        <div className={modalStyles.form}>
+                            <div className={modalStyles.formGroup}>
+                               <label htmlFor="user-name" className={modalStyles.label}>Nome do Usuário</label>
+                               <input id="user-name" type="text" value={newUserName} onChange={(e) => setNewUserName(e.target.value)} className={modalStyles.input} required/>
+                            </div>
+                             <div className={modalStyles.formGroup}>
+                               <label htmlFor="user-email" className={modalStyles.label}>Email</label>
+                               <input id="user-email" type="email" value={newUserEmail} onChange={(e) => setNewUserEmail(e.target.value)} className={modalStyles.input} required/>
+                            </div>
+                             <div className={modalStyles.formGroup}>
+                               <label htmlFor="user-role" className={modalStyles.label}>Permissão</label>
+                               <select id="user-role" value={newUserRole} onChange={(e) => setNewUserRole(e.target.value as any)} className={modalStyles.input}>
+                                    <option value="Visualizador">Visualizador</option>
+                                    <option value="Editor">Editor</option>
+                                    <option value="Admin">Admin</option>
+                               </select>
+                            </div>
                         </div>
-                         <div className={modalStyles.formGroup}>
-                           <label htmlFor="user-email" className={modalStyles.label}>Email</label>
-                           <input id="user-email" type="email" className={modalStyles.input}/>
-                        </div>
-                         <div className={modalStyles.formGroup}>
-                           <label htmlFor="user-role" className={modalStyles.label}>Permissão</label>
-                           <select id="user-role" className={modalStyles.input}>
-                                <option>Admin</option>
-                                <option>Editor</option>
-                                <option>Visualizador</option>
-                           </select>
-                        </div>
-                    </form>
-                </div>
-                <div className={modalStyles.buttonContainer}>
-                    <button onClick={() => setUserModalOpen(false)} className={modalStyles.button + ' ' + modalStyles.buttonSecondary}>Cancelar</button>
-                    <button className={modalStyles.button + ' ' + modalStyles.buttonPrimary}>Salvar</button>
-                </div>
+                    </div>
+                    <div className={modalStyles.buttonContainer}>
+                        <button type="button" onClick={() => setUserModalOpen(false)} className={modalStyles.button + ' ' + modalStyles.buttonSecondary}>Cancelar</button>
+                        <button type="submit" className={modalStyles.button + ' ' + modalStyles.buttonPrimary}>Salvar</button>
+                    </div>
+                 </form>
             </Modal>
         </>
     );

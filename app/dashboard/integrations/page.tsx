@@ -1,36 +1,85 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
-// CORREÇÃO: Usando o alias para apontar para o local correto do CSS
+import React, { useState } from 'react';
+import { auth } from '../../../firebase/config'; // Usando alias para o caminho correto
+import { signInWithPopup, GoogleAuthProvider, OAuthProvider } from 'firebase/auth';
 import styles from '../../styles/Integrations.module.css';
 
-// Simulação de mensagens para o log de status
-const logMessages = [
-    { type: 'info', text: 'Iniciando sincronização...' },
-    { type: 'success', text: 'Usuário "douglas.digiglio" salvo no DB SQL.' },
-    { type: 'success', text: 'Empresa "IPANEMA FOODS" salva no DB SQL.' },
-    { type: 'success', text: 'Formulário "Checklist Qualidade" salvo no DB SQL.' },
-    { type: 'info', text: 'Aguardando novas respostas...' },
-    { type: 'success', text: 'Nova resposta recebida do formulário #102. Salvando...' },
-];
+// Definindo os tipos para o estado das integrações e logs
+type IntegrationService = 'drive' | 'sheets' | 'oneDrive';
+type LogEntry = {
+    type: 'info' | 'success' | 'error';
+    text: string;
+};
 
 export default function IntegrationsPage() {
-    const [statusLog, setStatusLog] = useState<typeof logMessages>([]);
+    // --- Estados para a Conexão SQL ---
+    const [dbHost, setDbHost] = useState('');
+    const [dbName, setDbName] = useState('');
+    const [dbUser, setDbUser] = useState('');
+    const [dbPass, setDbPass] = useState('');
+    const [statusLog, setStatusLog] = useState<LogEntry[]>([]);
+    const [isDbConnecting, setIsDbConnecting] = useState(false);
 
-    useEffect(() => {
-        // Simula a chegada de novas mensagens no log
-        let i = 0;
-        const interval = setInterval(() => {
-            if (i < logMessages.length) {
-                setStatusLog(prev => [...prev, logMessages[i]]);
-                i++;
-            } else {
-                clearInterval(interval);
-            }
-        }, 1500);
-        return () => clearInterval(interval);
-    }, []);
+    // --- Estado para as integrações em nuvem ---
+    const [connections, setConnections] = useState({
+        drive: false,
+        sheets: false,
+        oneDrive: false,
+    });
 
+    // Função REAL para lidar com a conexão dos serviços de nuvem via Firebase
+    const handleCloudConnect = async (service: IntegrationService) => {
+        let provider;
+        let serviceName = '';
+
+        switch (service) {
+            case 'drive':
+            case 'sheets':
+                provider = new GoogleAuthProvider();
+                provider.addScope('https://www.googleapis.com/auth/drive.file');
+                provider.addScope('https://www.googleapis.com/auth/spreadsheets');
+                serviceName = service === 'drive' ? 'Google Drive' : 'Google Sheets';
+                break;
+            case 'oneDrive':
+                provider = new OAuthProvider('microsoft.com');
+                provider.addScope('Files.ReadWrite');
+                serviceName = 'OneDrive';
+                break;
+            default:
+                return;
+        }
+
+        setStatusLog(prev => [...prev, { type: 'info', text: `Iniciando autenticação com ${serviceName}...` }]);
+
+        try {
+            // Abre o pop-up de autenticação real do Firebase
+            await signInWithPopup(auth, provider);
+            setStatusLog(prev => [...prev, { type: 'success', text: `Autorização com ${serviceName} concedida com sucesso!` }]);
+            setConnections(prev => ({ ...prev, [service]: true }));
+
+        } catch (error: any) {
+            // Se o usuário fechar o pop-up ou ocorrer um erro de autenticação
+            setStatusLog(prev => [...prev, { type: 'error', text: `Falha na autorização com ${serviceName}.` }]);
+            console.error(`Erro de autenticação com ${serviceName}:`, error);
+        }
+    };
+
+    // Função para simular a conexão com o banco de dados SQL
+    const handleTestConnection = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setIsDbConnecting(true);
+        setStatusLog([{ type: 'info', text: `Tentando conectar a ${dbHost}...` }]);
+
+        await new Promise(resolve => setTimeout(resolve, 2000));
+
+        if (dbHost && dbName && dbUser && dbPass) {
+            setStatusLog(prev => [...prev, { type: 'success', text: 'Conexão bem-sucedida!' }]);
+        } else {
+            setStatusLog(prev => [...prev, { type: 'error', text: 'Falha na conexão. Verifique os campos.' }]);
+        }
+        setIsDbConnecting(false);
+    };
 
     return (
         <div>
@@ -38,7 +87,6 @@ export default function IntegrationsPage() {
                 <h2 className={styles.title}>Integrações e Armazenamento</h2>
             </div>
 
-            {/* Cards de Integração em Nuvem */}
             <div className={styles.grid}>
                 <div className={styles.card}>
                     <div className={styles.cardHeader}>
@@ -46,7 +94,12 @@ export default function IntegrationsPage() {
                         <h3 className={styles.cardTitle}>Google Drive</h3>
                     </div>
                     <p className={styles.cardDescription}>Salve anexos de formulários, como imagens e PDFs, diretamente em uma pasta do seu Google Drive.</p>
-                    <button className={`${styles.button} ${styles.connectedButton}`}>Conectado</button>
+                    <button 
+                        onClick={() => handleCloudConnect('drive')}
+                        disabled={connections.drive}
+                        className={`${styles.button} ${connections.drive ? styles.connectedButton : styles.connectButton}`}>
+                        {connections.drive ? 'Conectado' : 'Conectar'}
+                    </button>
                 </div>
                 <div className={styles.card}>
                      <div className={styles.cardHeader}>
@@ -54,46 +107,56 @@ export default function IntegrationsPage() {
                         <h3 className={styles.cardTitle}>Google Sheets</h3>
                     </div>
                     <p className={styles.cardDescription}>Envie os dados de cada formulário preenchido como uma nova linha em uma planilha do Google.</p>
-                    <button className={`${styles.button} ${styles.connectButton}`}>Conectar</button>
+                     <button 
+                        onClick={() => handleCloudConnect('sheets')}
+                        disabled={connections.sheets}
+                        className={`${styles.button} ${connections.sheets ? styles.connectedButton : styles.connectButton}`}>
+                        {connections.sheets ? 'Conectado' : 'Conectar'}
+                    </button>
                 </div>
                 <div className={styles.card}>
                     <div className={styles.cardHeader}>
-                        <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/5/52/OneDrive_logo.svg/2560px-OneDrive_logo.svg.png" className={styles.cardIcon} style={{height: '24px'}} alt="OneDrive"/>
+                        <img src="https://download.logo.wine/logo/OneDrive/OneDrive-Logo.wine.png" className={styles.cardIcon} alt="OneDrive"/>
                         <h3 className={styles.cardTitle}>OneDrive</h3>
                     </div>
                     <p className={styles.cardDescription}>Sincronize automaticamente os documentos gerados com o seu OneDrive for Business.</p>
-                    <button className={`${styles.button} ${styles.connectButton}`}>Conectar</button>
+                     <button 
+                        onClick={() => handleCloudConnect('oneDrive')}
+                        disabled={connections.oneDrive}
+                        className={`${styles.button} ${connections.oneDrive ? styles.connectedButton : styles.connectButton}`}>
+                        {connections.oneDrive ? 'Conectado' : 'Conectar'}
+                    </button>
                 </div>
             </div>
 
-            {/* Seção do Banco de Dados SQL */}
             <div className={styles.sqlFrame}>
                 <h3 className={styles.sqlTitle}>Banco de Dados Externo (SQL)</h3>
                 <p style={{color: 'rgba(240, 234, 214, 0.7)', fontSize: '0.875rem', marginBottom: '1.5rem'}}>
-                  Conecte a um banco de dados SQL para ter um backup robusto e em tempo real de todas as informações da plataforma.
+                  Conecte a um banco de dados para ter um backup robusto de todas as informações.
                 </p>
-                <form className={styles.sqlForm}>
+                <form className={styles.sqlForm} onSubmit={handleTestConnection}>
                     <div className={styles.inputGroup}>
                         <label className={styles.sqlLabel} htmlFor="db-host">Host</label>
-                        <input id="db-host" type="text" placeholder="ex: 127.0.0.1" className={styles.sqlInput} />
+                        <input id="db-host" type="text" value={dbHost} onChange={(e) => setDbHost(e.target.value)} className={styles.sqlInput} required/>
                     </div>
                     <div className={styles.inputGroup}>
                         <label className={styles.sqlLabel} htmlFor="db-name">Database</label>
-                        <input id="db-name" type="text" placeholder="Nome do Banco" className={styles.sqlInput} />
+                        <input id="db-name" type="text" value={dbName} onChange={(e) => setDbName(e.target.value)} className={styles.sqlInput} required/>
                     </div>
                     <div className={styles.inputGroup}>
                         <label className={styles.sqlLabel} htmlFor="db-user">Usuário</label>
-                        <input id="db-user" type="text" className={styles.sqlInput} />
+                        <input id="db-user" type="text" value={dbUser} onChange={(e) => setDbUser(e.target.value)} className={styles.sqlInput} required/>
                     </div>
                     <div className={styles.inputGroup}>
                         <label className={styles.sqlLabel} htmlFor="db-pass">Senha</label>
-                        <input id="db-pass" type="password" className={styles.sqlInput} />
+                        <input id="db-pass" type="password" value={dbPass} onChange={(e) => setDbPass(e.target.value)} className={styles.sqlInput} required/>
                     </div>
-                     <button type="submit" className={styles.sqlButton}>Testar & Salvar</button>
+                     <button type="submit" className={styles.sqlButton} disabled={isDbConnecting}>
+                        {isDbConnecting ? 'Testando...' : 'Testar & Salvar'}
+                     </button>
                 </form>
             </div>
             
-            {/* Log de Status */}
             <div className={styles.statusLog}>
                 <h4 style={{color: 'var(--deco-gold)', marginBottom: '0.5rem'}}>Status de Sincronização:</h4>
                 {statusLog.map((log, index) => (
