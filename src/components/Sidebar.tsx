@@ -4,11 +4,10 @@ import React from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
-import { LayoutDashboard, FileText, Users, PieChart, PlugZap, DatabaseBackup, LogOut } from 'lucide-react'; 
-// CORREÇÃO 1: Usando o alias '@/' para apontar para a pasta src, que é a forma correta
+// CORREÇÃO: Removido o ícone 'DatabaseBackup' que não estava sendo utilizado.
+import { LayoutDashboard, FileText, Users, PieChart, PlugZap, LogOut } from 'lucide-react'; 
 import { auth } from '../../firebase/config';
 import { signOut } from 'firebase/auth';
-// CORREÇÃO 2: Importando o CSS correto (Dashboard.module.css) do local correto (src/styles)
 import styles from '../../app/styles/Login.module.css';
 
 const navLinks = [
