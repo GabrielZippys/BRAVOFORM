@@ -2,8 +2,8 @@
 
 import React, { useState } from 'react';
 import Image from 'next/image'; // CORREÇÃO: Usando o componente Image do Next.js
-import { auth } from '../../../firebase/config'; // Usando alias para o caminho correto
-import { signInWithPopup, GoogleAuthProvider, OAuthProvider, AuthError } from 'firebase/auth';
+import { auth } from '../../../firebase/config';
+import { signInWithPopup, GoogleAuthProvider, OAuthProvider, AuthError } from 'firebase/auth'; // Importando AuthError
 import styles from '../../styles/Integrations.module.css';
 
 type IntegrationService = 'drive' | 'sheets' | 'oneDrive';

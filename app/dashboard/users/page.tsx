@@ -23,13 +23,6 @@ interface User {
     role: 'Admin' | 'Editor' | 'Visualizador';
 }
 
-// Para simulação, já que não temos o CRUD de departamentos ainda
-const companiesData = [
-    { name: 'D&D Frigorífico', depts: [{name: 'Logística', icon: Truck}] },
-    { name: 'IPANEMA FOODS', depts: [{name: 'Qualidade', icon: Award}] },
-    { name: 'APETITO', depts: [] }
-];
-
 export default function UsersPage() {
     // Estados para os dados do Firestore
     const [companies, setCompanies] = useState<Company[]>([]);
@@ -48,11 +41,11 @@ export default function UsersPage() {
         setLoading(true);
         const qCompanies = query(collection(db, "companies"));
         const unsubscribeCompanies = onSnapshot(qCompanies, (querySnapshot) => {
-            const companiesData: Company[] = [];
+            const fetchedCompanies: Company[] = [];
             querySnapshot.forEach((doc) => {
-                companiesData.push({ id: doc.id, ...doc.data() } as Company);
+                fetchedCompanies.push({ id: doc.id, ...doc.data() } as Company);
             });
-            setCompanies(companiesData);
+            setCompanies(fetchedCompanies);
             setLoading(false);
         });
 
@@ -182,7 +175,6 @@ export default function UsersPage() {
                             </div>
                              <div className={modalStyles.formGroup}>
                                <label htmlFor="user-role" className={modalStyles.label}>Permissão</label>
-                               {/* CORREÇÃO: Adicionando o tipo correto para o evento onChange */}
                                <select id="user-role" value={newUserRole} onChange={(e) => setNewUserRole(e.target.value as 'Admin' | 'Editor' | 'Visualizador')} className={modalStyles.input}>
                                     <option value="Visualizador">Visualizador</option>
                                     <option value="Editor">Editor</option>
@@ -200,3 +192,4 @@ export default function UsersPage() {
         </>
     );
 }
+

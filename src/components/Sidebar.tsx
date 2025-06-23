@@ -1,23 +1,19 @@
-// ========================================================================
-// ARQUIVO: src/components/Sidebar.tsx
-// (Substitua o conteúdo do seu arquivo por este)
-// ========================================================================
 'use client';
 
 import React from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
+// CORREÇÃO: Removendo o ícone não utilizado
 import { LayoutDashboard, FileText, Users, PieChart, PlugZap, LogOut } from 'lucide-react'; 
-import { auth } from '../../firebase/config';
+import { auth } from './../../firebase/config';
 import { signOut } from 'firebase/auth';
 import styles from '../../app/styles/Login.module.css';
 
-
 const navLinks = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { href: '/dashboard/users', label: 'Deptos & Usuários', icon: Users },
   { href: '/dashboard/forms', label: 'Formulários', icon: FileText },
+  { href: '/dashboard/users', label: 'Deptos & Usuários', icon: Users },
   { href: '/dashboard/reports', label: 'Relatórios', icon: PieChart },
   { href: '/dashboard/integrations', label: 'Integrações', icon: PlugZap },
 ];
