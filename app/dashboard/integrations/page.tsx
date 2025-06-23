@@ -68,7 +68,8 @@ export default function IntegrationsPage() {
     const handleTestConnection = async (e: React.FormEvent) => {
         e.preventDefault();
         setIsDbConnecting(true);
-        setStatusLog(prevLog => [{ type: 'info', text: `Tentando conectar a ${dbHost}...` }]);
+        // CORREÇÃO: Removido o parâmetro 'prevLog' que não estava sendo usado.
+        setStatusLog([{ type: 'info', text: `Tentando conectar a ${dbHost}...` }]);
 
         await new Promise(resolve => setTimeout(resolve, 2000));
 
