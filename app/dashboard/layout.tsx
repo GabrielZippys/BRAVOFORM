@@ -10,7 +10,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   return (
     <div className={styles.layout}>
-      {/* Agora a propriedade onNavigate é reconhecida pelo Sidebar */}
       <Sidebar onNavigate={setPageTitle} />
       <div className={styles.mainContent}>
         <Header pageTitle={pageTitle} />

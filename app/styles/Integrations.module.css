@@ -1,0 +1,132 @@
+.pageHeader {
+    margin-bottom: 1.5rem;
+}
+
+.title {
+    font-family: var(--font-display);
+    font-size: 1.5rem;
+    color: var(--deco-gold);
+}
+
+.grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 1.5rem;
+    margin-bottom: 2rem;
+}
+
+.card {
+    background-color: rgba(7, 72, 91, 0.5);
+    border: 1px solid var(--deco-brass);
+    padding: 1.5rem;
+    display: flex;
+    flex-direction: column;
+}
+
+.cardHeader {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+
+.cardIcon {
+    width: 40px;
+    height: auto;
+}
+
+.cardTitle {
+    font-family: var(--font-display);
+    font-size: 1.25rem;
+    color: var(--deco-ivory);
+}
+
+.cardDescription {
+    font-size: 0.875rem;
+    color: rgba(240, 234, 214, 0.7);
+    flex-grow: 1;
+    margin-bottom: 1.5rem;
+}
+
+.button {
+  width: 100%;
+  padding: 0.75rem;
+  font-family: var(--font-display);
+  font-weight: 700;
+  border-radius: 2px;
+  cursor: pointer;
+  transition: all 0.2s ease-in-out;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.connectButton {
+    color: var(--deco-dark);
+    background: linear-gradient(to bottom, var(--deco-gold), var(--deco-brass));
+    border: 1px solid var(--deco-ivory);
+}
+.connectButton:hover {
+    filter: brightness(1.1);
+}
+
+.connectedButton {
+    color: var(--deco-ivory);
+    background-color: #2f855a; /* Tom de verde */
+    border: 1px solid #38a169;
+    cursor: default;
+}
+
+.sqlFrame {
+    background-color: rgba(7, 72, 91, 0.5);
+    border: 1px solid var(--deco-gold);
+    padding: 1.5rem;
+}
+
+.sqlTitle {
+  font-family: var(--font-display);
+  font-weight: 700;
+  color: var(--deco-gold);
+  font-size: 1.25rem;
+  margin-bottom: 1.5rem;
+}
+
+.sqlForm {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+    align-items: flex-end;
+}
+
+.inputGroup {
+    display: flex;
+    flex-direction: column;
+}
+
+.sqlLabel {
+    font-size: 0.875rem;
+    color: var(--deco-gold);
+    margin-bottom: 0.5rem;
+    display: block;
+}
+
+.sqlInput {
+  width: 100%;
+  padding: 0.5rem;
+  background-color: rgba(10, 46, 54, 0.8);
+  border: 1px solid var(--deco-brass);
+  color: var(--deco-ivory);
+  border-radius: 2px;
+  box-sizing: border-box;
+}
+
+.sqlButton {
+  padding: 0.5rem 1rem;
+  font-family: var(--font-display);
+  color: var(--deco-dark);
+  background: linear-gradient(to bottom, var(--deco-gold), var(--deco-brass));
+  border: 1px solid var(--deco-ivory);
+  border-radius: 2px;
+  cursor: pointer;
+  height: 37px; /* Mesma altura do input */
+}

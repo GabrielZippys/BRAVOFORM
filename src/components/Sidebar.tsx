@@ -1,18 +1,25 @@
+// ========================================================================
+// ARQUIVO: src/components/Sidebar.tsx
+// (Substitua o conteúdo do seu arquivo por este)
+// ========================================================================
 'use client';
 
 import React from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { LayoutDashboard, FileText, Users, LogOut } from 'lucide-react';
+import Image from 'next/image';
+import { LayoutDashboard, FileText, Users, PieChart, PlugZap, DatabaseBackup, LogOut } from 'lucide-react'; 
 import { auth } from '../../firebase/config';
 import { signOut } from 'firebase/auth';
 import styles from '../../app/styles/Login.module.css';
-import Image from 'next/image';
+
 
 const navLinks = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/dashboard/forms', label: 'Formulários', icon: FileText },
   { href: '/dashboard/users', label: 'Deptos & Usuários', icon: Users },
+  { href: '/dashboard/reports', label: 'Relatórios', icon: PieChart },
+  { href: '/dashboard/integrations', label: 'Integrações', icon: PlugZap },
 ];
 
 interface SidebarProps {
@@ -34,38 +41,40 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
     
     return (
         <aside className={styles.sidebar}>
-            {/* CORREÇÃO: Estrutura do header da sidebar com logo e texto */}
             <div className={styles.sidebarHeader}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                     <Image 
                         src="/formbravo-logo.png"
                         alt="Logo FORMBRAVO"
-                        width={50}  // Largura da imagem
-                        height={60} // Altura baseada na proporção do SVG (100x120)
+                        width={50}
+                        height={60}
                         priority 
                     />
                     <h1 className={styles.sidebarTitle} style={{fontSize: '1.25rem'}}>FORMBRAVO</h1>
                 </div>
             </div>
             <nav className={styles.nav}>
-                {navLinks.map((link) => {
-                    const isActive = pathname === link.href;
+                {navLinks.map((navItem) => {
+                    const IconComponent = navItem.icon;
+                    if (!IconComponent) return null; // Verificação de segurança
+                    
+                    const isActive = pathname === navItem.href;
                     return (
                         <Link
-                            key={link.href}
-                            href={link.href}
-                            onClick={() => onNavigate(link.label)}
+                            key={navItem.href}
+                            href={navItem.href}
+                            onClick={() => onNavigate(navItem.label)}
                             className={`${styles.navLink} ${isActive ? styles.navLinkActive : ''}`}
                         >
-                            <link.icon />
-                            <span>{link.label}</span>
+                            <IconComponent size={20} />
+                            <span>{navItem.label}</span>
                         </Link>
                     );
                 })}
             </nav>
             <div className={styles.sidebarFooter}>
                 <button onClick={handleLogout} className={styles.navLink} style={{width: '100%', justifyContent: 'flex-start'}}>
-                    <LogOut />
+                    <LogOut size={20} />
                     <span>Desconectar</span>
                 </button>
             </div>
