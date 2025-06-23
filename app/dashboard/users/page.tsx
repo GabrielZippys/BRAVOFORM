@@ -1,13 +1,12 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-// CORREÇÃO: Removido o import não utilizado de 'Building'
-import { PlusCircle, UserPlus, Award, Truck } from 'lucide-react'; 
+// CORREÇÃO: Removendo ícones não utilizados para esta página
+import { PlusCircle, UserPlus } from 'lucide-react'; 
 import Modal from '@/components/Modal'; 
 import styles from '../../styles/Users.module.css';
 import modalStyles from '../../styles/Modal.module.css';
 import { db } from '../../../firebase/config';
-// CORREÇÃO: Removido o import não utilizado de 'DocumentData'
 import { collection, addDoc, onSnapshot, query } from 'firebase/firestore'; 
 
 // Definindo os tipos para os nossos dados
@@ -22,6 +21,8 @@ interface User {
     email: string;
     role: 'Admin' | 'Editor' | 'Visualizador';
 }
+
+// CORREÇÃO: Removida a variável 'companiesData' que não estava sendo usada.
 
 export default function UsersPage() {
     // Estados para os dados do Firestore
@@ -192,4 +193,3 @@ export default function UsersPage() {
         </>
     );
 }
-
