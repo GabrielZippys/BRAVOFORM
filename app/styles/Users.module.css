@@ -1,0 +1,136 @@
+.pageHeader {
+    margin-bottom: 1.5rem;
+}
+
+.pageTitle {
+    font-family: var(--font-display);
+    font-size: 1.5rem;
+    color: var(--deco-gold);
+}
+
+.grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+    gap: 1.5rem;
+}
+
+.frame {
+    background-color: rgba(7, 72, 91, 0.5);
+    border: 1px solid var(--deco-gold);
+    padding: 1.5rem;
+}
+
+.frameHeader {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid var(--deco-brass);
+}
+
+.frameTitle {
+    font-family: var(--font-display);
+    font-size: 1.25rem;
+    color: var(--deco-ivory);
+}
+
+.button {
+  padding: 0.5rem 1rem;
+  font-family: var(--font-display);
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--deco-dark);
+  background: linear-gradient(to bottom, var(--deco-gold), var(--deco-brass));
+  border: 1px solid var(--deco-ivory);
+  border-radius: 2px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.button:hover {
+    filter: brightness(1.1);
+}
+
+.button svg {
+    stroke: var(--deco-dark);
+}
+
+.companyCard {
+    background-color: rgba(0,0,0,0.2);
+    border: 1px solid var(--deco-brass);
+    padding: 1rem;
+    margin-bottom: 1rem;
+}
+
+.companyHeader {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.companyName {
+    font-family: var(--font-display);
+    color: var(--deco-gold);
+}
+
+.addDeptButton {
+    font-size: 0.75rem;
+    color: var(--deco-brass);
+    cursor: pointer;
+}
+.addDeptButton:hover {
+    text-decoration: underline;
+}
+
+.deptList {
+    margin-top: 1rem;
+    padding-left: 1rem;
+    border-left: 2px solid var(--deco-brass);
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.deptItem {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.875rem;
+}
+
+.userList {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.userCard {
+    background-color: rgba(0,0,0,0.2);
+    padding: 0.75rem 1rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.userInfo h4 {
+    font-family: var(--font-sans);
+    font-weight: 500;
+    color: var(--deco-ivory);
+    margin: 0;
+}
+
+.userInfo p {
+    font-size: 0.75rem;
+    color: var(--deco-brass);
+    margin: 0;
+}
+
+.permissionTag {
+    font-size: 0.75rem;
+    padding: 0.25rem 0.5rem;
+    border: 1px solid;
+    border-radius: 99px;
+}

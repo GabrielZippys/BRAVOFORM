@@ -340,3 +340,159 @@
 }
 
 
+.main {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  overflow: hidden;
+}
+
+.frame {
+  width: 100%;
+  max-width: 28rem;
+  padding: 2rem;
+  text-align: center;
+  background-color: rgba(7, 72, 91, 0.5);
+  border: 1px solid transparent;
+  box-shadow: inset 0 0 10px rgba(0,0,0,0.5);
+  animation: frameFlickerIn 1.5s ease-out 0.5s forwards;
+}
+
+/* Estilo e animação para a logo */
+.logo {
+  width: 200px;
+  height: auto;
+  margin: 0 auto 2rem auto;
+  position: relative;
+  /* Animação de flicker sutil */
+  animation: textFlicker 7s linear infinite;
+}
+
+/* Pseudo-elementos para o efeito de canal de cor dividido */
+.logo::before,
+.logo::after {
+  content: '';
+  display: block;
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: url('/formbravo-logo.png');
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: center;
+  opacity: 0.8;
+}
+
+.logo::before {
+  /* Canal vermelho, deslocado */
+  filter: hue-rotate(290deg) contrast(1.2);
+  animation: channelShift 4s linear infinite;
+}
+
+.logo::after {
+  /* Canal ciano, deslocado */
+  filter: hue-rotate(90deg) contrast(1.2);
+  animation: channelShift 5s linear infinite reverse;
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+/* Animação escalonada para os campos do formulário */
+.form > * {
+    opacity: 0;
+    animation: fadeIn 0.8s ease-out forwards;
+}
+
+.form > div:nth-child(1) { animation-delay: 1.5s; }
+.form > div:nth-child(2) { animation-delay: 1.7s; }
+.form > .error { animation-delay: 1.9s; }
+.form > button { animation-delay: 1.9s; }
+
+
+.label {
+  display: block;
+  text-align: left;
+  margin-bottom: 0.5rem;
+  color: var(--deco-gold);
+}
+
+.input {
+  background-color: rgba(10, 46, 54, 0.8);
+  border: 1px solid var(--deco-brass);
+  color: var(--deco-ivory);
+  width: 100%;
+  padding: 0.75rem;
+  border-radius: 2px;
+  transition: all 0.2s ease-in-out;
+  box-sizing: border-box;
+}
+
+.input:focus {
+  outline: none;
+  border-color: var(--deco-gold);
+  box-shadow: 0 0 8px rgba(197, 160, 92, 0.5);
+}
+
+.button {
+  width: 100%;
+  padding: 0.75rem;
+  font-family: var(--font-display);
+  font-weight: 700;
+  color: var(--deco-dark);
+  background: linear-gradient(to bottom, var(--deco-gold), var(--deco-brass));
+  border: 1px solid var(--deco-ivory);
+  box-shadow: 0 2px 4px rgba(0,0,0,0.5);
+  border-radius: 2px;
+  transition: all 0.2s ease-in-out;
+  cursor: pointer;
+  margin-top: 0.5rem;
+}
+
+.button:hover {
+  filter: brightness(1.1);
+}
+
+.error {
+  color: #f87171;
+  text-align: center;
+}
+
+/* ANIMAÇÕES NOVAS E REFINADAS */
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(15px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes frameFlickerIn {
+  0%   { opacity: 0; border-color: transparent; }
+  20%  { opacity: 1; border-color: var(--deco-gold); box-shadow: 0 0 15px var(--deco-brass); }
+  25%  { opacity: 0.3; }
+  30%  { opacity: 1; box-shadow: 0 0 5px var(--deco-brass); }
+  100% { opacity: 1; border-color: var(--deco-gold); }
+}
+
+/* Animação sutil de flicker e pequeno "salto" vertical */
+@keyframes textFlicker {
+  0%, 15%, 85%, 100% { opacity: 1; transform: translateY(0); }
+  15.1%, 85.1% { opacity: 0.6; transform: translateY(-1px); }
+  15.2%, 85.2% { opacity: 1; transform: translateY(0); }
+  15.3%, 85.3% { opacity: 0.7; }
+  15.4%, 85.4% { opacity: 1; }
+}
+
+/* Movimento suave e sutil dos canais de cor */
+@keyframes channelShift {
+  0%, 100% { transform: translate(0, 0); }
+  25%  { transform: translate(-1px, 1px); }
+  50%  { transform: translate(1px, -1px); }
+  75%  { transform: translate(-1px, 1px); }
+}
