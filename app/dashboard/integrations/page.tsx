@@ -1,23 +1,35 @@
 'use client';
 
 import React, { useState } from 'react';
-import Image from 'next/image'; // CORREÇÃO: Usando o componente Image do Next.js
+import Image from 'next/image';
 import { auth } from '../../../firebase/config';
-import { signInWithPopup, GoogleAuthProvider, OAuthProvider, AuthError } from 'firebase/auth'; // Importando AuthError
+import { signInWithPopup, GoogleAuthProvider, OAuthProvider, AuthError } from 'firebase/auth';
 import styles from '../../styles/Integrations.module.css';
 
+// Definindo os tipos para os estados
 type IntegrationService = 'drive' | 'sheets' | 'oneDrive';
-type LogEntry = { type: 'info' | 'success' | 'error'; text: string; };
+type LogEntry = {
+    type: 'info' | 'success' | 'error';
+    text: string;
+};
 
 export default function IntegrationsPage() {
+    // --- Estados para a Conexão SQL ---
     const [dbHost, setDbHost] = useState('');
     const [dbName, setDbName] = useState('');
     const [dbUser, setDbUser] = useState('');
     const [dbPass, setDbPass] = useState('');
     const [statusLog, setStatusLog] = useState<LogEntry[]>([]);
     const [isDbConnecting, setIsDbConnecting] = useState(false);
-    const [connections, setConnections] = useState({ drive: false, sheets: false, oneDrive: false });
 
+    // --- Estado para as integrações em nuvem ---
+    const [connections, setConnections] = useState({
+        drive: false,
+        sheets: false,
+        oneDrive: false,
+    });
+
+    // Função REAL para lidar com a conexão dos serviços de nuvem via Firebase
     const handleCloudConnect = async (service: IntegrationService) => {
         let provider;
         let serviceName = '';
@@ -35,13 +47,15 @@ export default function IntegrationsPage() {
                 provider.addScope('Files.ReadWrite');
                 serviceName = 'OneDrive';
                 break;
+            default:
+                return;
         }
 
         setStatusLog(prev => [...prev, { type: 'info', text: `Iniciando autenticação com ${serviceName}...` }]);
 
         try {
             await signInWithPopup(auth, provider);
-            setStatusLog(prev => [...prev, { type: 'success', text: `Autorização com ${serviceName} concedida!` }]);
+            setStatusLog(prev => [...prev, { type: 'success', text: `Autorização com ${serviceName} concedida com sucesso!` }]);
             setConnections(prev => ({ ...prev, [service]: true }));
         } catch (error) {
             const authError = error as AuthError;
@@ -50,11 +64,14 @@ export default function IntegrationsPage() {
         }
     };
 
+    // Função para simular a conexão com o banco de dados SQL
     const handleTestConnection = async (e: React.FormEvent) => {
         e.preventDefault();
         setIsDbConnecting(true);
-        setStatusLog([{ type: 'info', text: `Tentando conectar a ${dbHost}...` }]);
+        setStatusLog(prevLog => [{ type: 'info', text: `Tentando conectar a ${dbHost}...` }]);
+
         await new Promise(resolve => setTimeout(resolve, 2000));
+
         if (dbHost && dbName && dbUser && dbPass) {
             setStatusLog(prev => [...prev, { type: 'success', text: 'Conexão bem-sucedida!' }]);
         } else {
@@ -65,14 +82,17 @@ export default function IntegrationsPage() {
 
     return (
         <div>
-            <div className={styles.pageHeader}><h2 className={styles.title}>Integrações e Armazenamento</h2></div>
+            <div className={styles.pageHeader}>
+                <h2 className={styles.title}>Integrações e Armazenamento</h2>
+            </div>
+
             <div className={styles.grid}>
                 <div className={styles.card}>
                     <div className={styles.cardHeader}>
                         <Image src="https://upload.wikimedia.org/wikipedia/commons/thumb/1/12/Google_Drive_icon_%282020%29.svg/1024px-Google_Drive_icon_%282020%29.svg.png" width={40} height={40} className={styles.cardIcon} alt="Google Drive"/>
                         <h3 className={styles.cardTitle}>Google Drive</h3>
                     </div>
-                    <p className={styles.cardDescription}>Salve anexos de formulários em seu Google Drive.</p>
+                    <p className={styles.cardDescription}>Salve anexos de formulários, como imagens e PDFs, diretamente em uma pasta do seu Google Drive.</p>
                     <button onClick={() => handleCloudConnect('drive')} disabled={connections.drive} className={`${styles.button} ${connections.drive ? styles.connectedButton : styles.connectButton}`}>{connections.drive ? 'Conectado' : 'Conectar'}</button>
                 </div>
                 <div className={styles.card}>
@@ -80,7 +100,7 @@ export default function IntegrationsPage() {
                         <Image src="https://upload.wikimedia.org/wikipedia/commons/thumb/3/30/Google_Sheets_logo_%282014-2020%29.svg/1498px-Google_Sheets_logo_%282014-2020%29.svg.png" width={40} height={40} className={styles.cardIcon} alt="Google Sheets"/>
                         <h3 className={styles.cardTitle}>Google Sheets</h3>
                     </div>
-                    <p className={styles.cardDescription}>Envie dados de formulários para uma planilha.</p>
+                    <p className={styles.cardDescription}>Envie os dados de cada formulário preenchido como uma nova linha em uma planilha do Google.</p>
                      <button onClick={() => handleCloudConnect('sheets')} disabled={connections.sheets} className={`${styles.button} ${connections.sheets ? styles.connectedButton : styles.connectButton}`}>{connections.sheets ? 'Conectado' : 'Conectar'}</button>
                 </div>
                 <div className={styles.card}>
@@ -88,23 +108,44 @@ export default function IntegrationsPage() {
                         <Image src="https://upload.wikimedia.org/wikipedia/commons/thumb/e/e3/Microsoft_Office_OneDrive_%282019%E2%80%93present%29.svg/1280px-Microsoft_Office_OneDrive_%282019%E2%80%93present%29.svg.png" width={109} height={34} className={styles.cardIcon} alt="OneDrive"/>
                         <h3 className={styles.cardTitle}>OneDrive</h3>
                     </div>
-                    <p className={styles.cardDescription}>Sincronize documentos com o seu OneDrive.</p>
+                    <p className={styles.cardDescription}>Sincronize automaticamente os documentos gerados com o seu OneDrive for Business.</p>
                      <button onClick={() => handleCloudConnect('oneDrive')} disabled={connections.oneDrive} className={`${styles.button} ${connections.oneDrive ? styles.connectedButton : styles.connectButton}`}>{connections.oneDrive ? 'Conectado' : 'Conectar'}</button>
                 </div>
             </div>
+
             <div className={styles.sqlFrame}>
                 <h3 className={styles.sqlTitle}>Banco de Dados Externo (SQL)</h3>
+                <p style={{color: 'rgba(240, 234, 214, 0.7)', fontSize: '0.875rem', marginBottom: '1.5rem'}}>
+                  Conecte a um banco de dados para ter um backup robusto de todas as informações.
+                </p>
                 <form className={styles.sqlForm} onSubmit={handleTestConnection}>
-                    <div className={styles.inputGroup}><label className={styles.sqlLabel} htmlFor="db-host">Host</label><input id="db-host" type="text" value={dbHost} onChange={(e) => setDbHost(e.target.value)} className={styles.sqlInput} required/></div>
-                    <div className={styles.inputGroup}><label className={styles.sqlLabel} htmlFor="db-name">Database</label><input id="db-name" type="text" value={dbName} onChange={(e) => setDbName(e.target.value)} className={styles.sqlInput} required/></div>
-                    <div className={styles.inputGroup}><label className={styles.sqlLabel} htmlFor="db-user">Usuário</label><input id="db-user" type="text" value={dbUser} onChange={(e) => setDbUser(e.target.value)} className={styles.sqlInput} required/></div>
-                    <div className={styles.inputGroup}><label className={styles.sqlLabel} htmlFor="db-pass">Senha</label><input id="db-pass" type="password" value={dbPass} onChange={(e) => setDbPass(e.target.value)} className={styles.sqlInput} required/></div>
+                    <div className={styles.inputGroup}>
+                        <label className={styles.sqlLabel} htmlFor="db-host">Host</label>
+                        <input id="db-host" type="text" value={dbHost} onChange={(e) => setDbHost(e.target.value)} className={styles.sqlInput} required/>
+                    </div>
+                    <div className={styles.inputGroup}>
+                        <label className={styles.sqlLabel} htmlFor="db-name">Database</label>
+                        <input id="db-name" type="text" value={dbName} onChange={(e) => setDbName(e.target.value)} className={styles.sqlInput} required/>
+                    </div>
+                    <div className={styles.inputGroup}>
+                        <label className={styles.sqlLabel} htmlFor="db-user">Usuário</label>
+                        <input id="db-user" type="text" value={dbUser} onChange={(e) => setDbUser(e.target.value)} className={styles.sqlInput} required/>
+                    </div>
+                    <div className={styles.inputGroup}>
+                        <label className={styles.sqlLabel} htmlFor="db-pass">Senha</label>
+                        <input id="db-pass" type="password" value={dbPass} onChange={(e) => setDbPass(e.target.value)} className={styles.sqlInput} required/>
+                    </div>
                     <button type="submit" className={styles.sqlButton} disabled={isDbConnecting}>{isDbConnecting ? 'Testando...' : 'Testar & Salvar'}</button>
                 </form>
             </div>
+            
             <div className={styles.statusLog}>
                 <h4 style={{color: 'var(--deco-gold)', marginBottom: '0.5rem'}}>Status de Sincronização:</h4>
-                {statusLog.map((log, index) => (<p key={index} className={`${styles.logEntry} ${log.type === 'success' ? styles.logSuccess : log.type === 'error' ? styles.logError : styles.logInfo}`}>&gt; {log.text}</p>))}
+                {statusLog.map((log, index) => (
+                    <p key={index} className={`${styles.logEntry} ${log.type === 'success' ? styles.logSuccess : log.type === 'error' ? styles.logError : styles.logInfo}`}>
+                       &gt; {log.text}
+                    </p>
+                ))}
             </div>
         </div>
     );
