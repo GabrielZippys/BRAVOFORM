@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-// CORREÇÃO: Removendo ícones não utilizados para esta página
 import { PlusCircle, UserPlus } from 'lucide-react'; 
 import Modal from '@/components/Modal'; 
 import styles from '../../styles/Users.module.css';
