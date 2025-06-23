@@ -11,7 +11,6 @@ import { signOut } from 'firebase/auth';
 // CORREÇÃO 2: Importando o CSS correto (Dashboard.module.css) do local correto (src/styles)
 import styles from '../../app/styles/Login.module.css';
 
-// CORREÇÃO 3: Os caminhos dos links agora incluem o prefixo /dashboard
 const navLinks = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/dashboard/forms', label: 'Formulários', icon: FileText },
