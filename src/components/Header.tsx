@@ -3,7 +3,7 @@
 import React from 'react';
 import { Bell } from 'lucide-react';
 import Image from 'next/image'; // CORREÇÃO: Usando o componente Image
-import styles from '../../styles/Login.module.css';
+import styles from '../../app/styles/Login.module.css';
 
 interface HeaderProps {
   pageTitle: string;
