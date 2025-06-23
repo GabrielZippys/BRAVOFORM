@@ -11,6 +11,13 @@ const nextConfig = {
         port: '',
         pathname: '**',
       },
+      // CORREÇÃO: Adicionando o domínio da Microsoft para a logo do OneDrive
+      {
+        protocol: 'https',
+        hostname: 'img-prod-cms-rt-microsoft-com.akamaized.net',
+        port: '',
+        pathname: '**',
+      },
     ],
   },
 };
