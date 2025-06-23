@@ -1,12 +1,14 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { PlusCircle, UserPlus, Building } from 'lucide-react';
+// CORREÇÃO: Removido o import não utilizado de 'Building'
+import { PlusCircle, UserPlus, Award, Truck } from 'lucide-react'; 
 import Modal from '@/components/Modal'; 
 import styles from '../../styles/Users.module.css';
 import modalStyles from '../../styles/Modal.module.css';
 import { db } from '../../../firebase/config';
-import { collection, addDoc, onSnapshot, query, DocumentData } from 'firebase/firestore';
+// CORREÇÃO: Removido o import não utilizado de 'DocumentData'
+import { collection, addDoc, onSnapshot, query } from 'firebase/firestore'; 
 
 // Definindo os tipos para os nossos dados
 interface Company {
@@ -20,6 +22,13 @@ interface User {
     email: string;
     role: 'Admin' | 'Editor' | 'Visualizador';
 }
+
+// Para simulação, já que não temos o CRUD de departamentos ainda
+const companiesData = [
+    { name: 'D&D Frigorífico', depts: [{name: 'Logística', icon: Truck}] },
+    { name: 'IPANEMA FOODS', depts: [{name: 'Qualidade', icon: Award}] },
+    { name: 'APETITO', depts: [] }
+];
 
 export default function UsersPage() {
     // Estados para os dados do Firestore
@@ -35,10 +44,8 @@ export default function UsersPage() {
     const [newUserEmail, setNewUserEmail] = useState('');
     const [newUserRole, setNewUserRole] = useState<'Admin' | 'Editor' | 'Visualizador'>('Visualizador');
     
-    // Efeito para buscar os dados em tempo real do Firestore
     useEffect(() => {
         setLoading(true);
-        // Listener para Empresas
         const qCompanies = query(collection(db, "companies"));
         const unsubscribeCompanies = onSnapshot(qCompanies, (querySnapshot) => {
             const companiesData: Company[] = [];
@@ -49,7 +56,6 @@ export default function UsersPage() {
             setLoading(false);
         });
 
-        // Listener para Usuários
         const qUsers = query(collection(db, "users"));
         const unsubscribeUsers = onSnapshot(qUsers, (querySnapshot) => {
             const usersData: User[] = [];
@@ -59,7 +65,6 @@ export default function UsersPage() {
             setUsers(usersData);
         });
 
-        // Limpa os listeners quando o componente é desmontado
         return () => {
             unsubscribeCompanies();
             unsubscribeUsers();
@@ -71,9 +76,7 @@ export default function UsersPage() {
         if (!newCompanyName.trim()) return;
         
         try {
-            await addDoc(collection(db, "companies"), {
-                name: newCompanyName
-            });
+            await addDoc(collection(db, "companies"), { name: newCompanyName });
             setNewCompanyName('');
             setCompanyModalOpen(false);
         } catch (error) {
@@ -114,9 +117,7 @@ export default function UsersPage() {
                 <div className={styles.pageHeader}>
                     <h2 className={styles.pageTitle}>Departamentos & Usuários</h2>
                 </div>
-
                 <div className={styles.grid}>
-                    {/* Coluna de Empresas */}
                     <div className={styles.frame}>
                         <div className={styles.frameHeader}>
                             <h3 className={styles.frameTitle}>Empresas</h3>
@@ -130,8 +131,6 @@ export default function UsersPage() {
                             ))
                         ) : <p className={styles.emptyState}>Nenhuma empresa criada.</p>}
                     </div>
-
-                    {/* Coluna de Usuários */}
                     <div className={styles.frame}>
                         <div className={styles.frameHeader}>
                             <h3 className={styles.frameTitle}>Usuários</h3>
@@ -155,8 +154,6 @@ export default function UsersPage() {
                     </div>
                 </div>
             </div>
-
-            {/* Modal para adicionar Empresa */}
             <Modal isOpen={isCompanyModalOpen} onClose={() => setCompanyModalOpen(false)} title="Adicionar Nova Empresa">
                 <form onSubmit={handleAddCompany}>
                     <div className={modalStyles.panelBody}>
@@ -171,8 +168,6 @@ export default function UsersPage() {
                     </div>
                 </form>
             </Modal>
-
-            {/* Modal para adicionar Usuário */}
             <Modal isOpen={isUserModalOpen} onClose={() => setUserModalOpen(false)} title="Adicionar Novo Usuário">
                  <form onSubmit={handleAddUser}>
                     <div className={modalStyles.panelBody}>
@@ -187,7 +182,8 @@ export default function UsersPage() {
                             </div>
                              <div className={modalStyles.formGroup}>
                                <label htmlFor="user-role" className={modalStyles.label}>Permissão</label>
-                               <select id="user-role" value={newUserRole} onChange={(e) => setNewUserRole(e.target.value as any)} className={modalStyles.input}>
+                               {/* CORREÇÃO: Adicionando o tipo correto para o evento onChange */}
+                               <select id="user-role" value={newUserRole} onChange={(e) => setNewUserRole(e.target.value as 'Admin' | 'Editor' | 'Visualizador')} className={modalStyles.input}>
                                     <option value="Visualizador">Visualizador</option>
                                     <option value="Editor">Editor</option>
                                     <option value="Admin">Admin</option>
