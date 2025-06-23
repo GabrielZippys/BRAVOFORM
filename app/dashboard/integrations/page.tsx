@@ -2,8 +2,8 @@
 
 import React, { useState, useEffect } from 'react';
 import Image from 'next/image';
-import { auth, db } from '../../../firebase/config'; // Importando auth e db
-import { doc, getDoc, setDoc } from 'firebase/firestore'; // Funções do Firestore
+import { auth, db } from '../../../firebase/config';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { signInWithPopup, GoogleAuthProvider, OAuthProvider, AuthError, onAuthStateChanged, User } from 'firebase/auth';
 import styles from '../../styles/Integrations.module.css';
 
@@ -23,7 +23,6 @@ export default function IntegrationsPage() {
     const [loading, setLoading] = useState(true);
     const [statusLog, setStatusLog] = useState<LogEntry[]>([]);
     
-    // ... (estados para o formulário SQL)
     const [dbHost, setDbHost] = useState('');
     const [dbName, setDbName] = useState('');
     const [dbUser, setDbUser] = useState('');
@@ -33,23 +32,28 @@ export default function IntegrationsPage() {
     // Efeito para verificar o usuário logado e buscar suas conexões salvas
     useEffect(() => {
         const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
-            if (currentUser) {
-                setUser(currentUser);
-                // Busca as conexões salvas do Firestore
-                const docRef = doc(db, "integrations", currentUser.uid);
-                const docSnap = await getDoc(docRef);
+            try {
+                if (currentUser) {
+                    setUser(currentUser);
+                    const docRef = doc(db, "integrations", currentUser.uid);
+                    const docSnap = await getDoc(docRef);
 
-                if (docSnap.exists()) {
-                    setConnections(docSnap.data() as ConnectionsState);
+                    if (docSnap.exists()) {
+                        setConnections(docSnap.data() as ConnectionsState);
+                    }
+                } else {
+                    setUser(null);
                 }
-            } else {
-                // Usuário não está logado, talvez redirecionar?
-                setUser(null);
+            } catch (error) {
+                console.error("Erro ao buscar dados do Firestore:", error);
+                setStatusLog(prev => [...prev, { type: 'error', text: "Não foi possível carregar as configurações." }]);
+            } finally {
+                // CORREÇÃO: Garante que o loading termine, mesmo se houver erro.
+                setLoading(false); 
             }
-            setLoading(false);
         });
 
-        return () => unsubscribe(); // Limpa o listener
+        return () => unsubscribe();
     }, []);
 
     // Função para conectar e salvar o estado
@@ -81,11 +85,9 @@ export default function IntegrationsPage() {
         try {
             await signInWithPopup(auth, provider);
             
-            // ATUALIZA O ESTADO LOCAL
             const newConnections = { ...connections, [service]: true };
             setConnections(newConnections);
 
-            // SALVA O NOVO ESTADO NO FIRESTORE
             const docRef = doc(db, "integrations", user.uid);
             await setDoc(docRef, newConnections, { merge: true });
 
@@ -115,7 +117,7 @@ export default function IntegrationsPage() {
     };
 
     if (loading) {
-        return <p className={styles.analysisTitle}>Carregando...</p>
+        return <p className={styles.title}>Carregando...</p>
     }
 
     return (
