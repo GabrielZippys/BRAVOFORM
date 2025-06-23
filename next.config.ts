@@ -9,14 +9,7 @@ const nextConfig = {
         protocol: 'https',
         hostname: 'upload.wikimedia.org',
         port: '',
-        pathname: '**',
-      },
-      // CORREÇÃO: Adicionando o domínio da Microsoft para a logo do OneDrive
-      {
-        protocol: 'https',
-        hostname: 'img-prod-cms-rt-microsoft-com.akamaized.net',
-        port: '',
-        pathname: '**',
+        pathname: '/**', // Permite qualquer caminho dentro deste domínio
       },
     ],
   },
