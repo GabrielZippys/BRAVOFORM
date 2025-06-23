@@ -21,7 +21,7 @@ interface User {
     role: 'Admin' | 'Editor' | 'Visualizador';
 }
 
-// CORREÇÃO: Removida a variável 'companiesData' que não estava sendo usada.
+// CORREÇÃO: A variável 'companiesData' que causava o erro de build foi removida.
 
 export default function UsersPage() {
     // Estados para os dados do Firestore

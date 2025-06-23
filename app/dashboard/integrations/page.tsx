@@ -1,194 +1,153 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import { PlusCircle, UserPlus } from 'lucide-react'; 
-import Modal from '@/components/Modal'; 
-import styles from '../../styles/Users.module.css';
-import modalStyles from '../../styles/Modal.module.css';
-import { db } from '../../../firebase/config';
-import { collection, addDoc, onSnapshot, query } from 'firebase/firestore'; 
+import React, { useState } from 'react';
+import Image from 'next/image';
+import { auth } from '../../../firebase/config';
+import { signInWithPopup, GoogleAuthProvider, OAuthProvider, AuthError } from 'firebase/auth';
+import styles from '../../styles/Integrations.module.css';
 
-// Definindo os tipos para os nossos dados
-interface Company {
-    id: string;
-    name: string;
-}
+// Definindo os tipos para os estados
+type IntegrationService = 'drive' | 'sheets' | 'oneDrive';
+type LogEntry = {
+    type: 'info' | 'success' | 'error';
+    text: string;
+};
 
-interface User {
-    id: string;
-    name: string;
-    email: string;
-    role: 'Admin' | 'Editor' | 'Visualizador';
-}
+export default function IntegrationsPage() {
+    // --- Estados para a Conexão SQL ---
+    const [dbHost, setDbHost] = useState('');
+    const [dbName, setDbName] = useState('');
+    const [dbUser, setDbUser] = useState('');
+    const [dbPass, setDbPass] = useState('');
+    const [statusLog, setStatusLog] = useState<LogEntry[]>([]);
+    const [isDbConnecting, setIsDbConnecting] = useState(false);
 
-// CORREÇÃO: A variável 'companiesData' que causava o erro de build foi removida.
+    // --- Estado para as integrações em nuvem ---
+    const [connections, setConnections] = useState({
+        drive: false,
+        sheets: false,
+        oneDrive: false,
+    });
 
-export default function UsersPage() {
-    // Estados para os dados do Firestore
-    const [companies, setCompanies] = useState<Company[]>([]);
-    const [users, setUsers] = useState<User[]>([]);
-    const [loading, setLoading] = useState(true);
+    // Função REAL para lidar com a conexão dos serviços de nuvem via Firebase
+    const handleCloudConnect = async (service: IntegrationService) => {
+        let provider;
+        let serviceName = '';
 
-    // Estados para os modais e formulários
-    const [isCompanyModalOpen, setCompanyModalOpen] = useState(false);
-    const [isUserModalOpen, setUserModalOpen] = useState(false);
-    const [newCompanyName, setNewCompanyName] = useState('');
-    const [newUserName, setNewUserName] = useState('');
-    const [newUserEmail, setNewUserEmail] = useState('');
-    const [newUserRole, setNewUserRole] = useState<'Admin' | 'Editor' | 'Visualizador'>('Visualizador');
-    
-    useEffect(() => {
-        setLoading(true);
-        const qCompanies = query(collection(db, "companies"));
-        const unsubscribeCompanies = onSnapshot(qCompanies, (querySnapshot) => {
-            const fetchedCompanies: Company[] = [];
-            querySnapshot.forEach((doc) => {
-                fetchedCompanies.push({ id: doc.id, ...doc.data() } as Company);
-            });
-            setCompanies(fetchedCompanies);
-            setLoading(false);
-        });
+        switch (service) {
+            case 'drive':
+            case 'sheets':
+                provider = new GoogleAuthProvider();
+                provider.addScope('https://www.googleapis.com/auth/drive.file');
+                provider.addScope('https://www.googleapis.com/auth/spreadsheets');
+                serviceName = service === 'drive' ? 'Google Drive' : 'Google Sheets';
+                break;
+            case 'oneDrive':
+                provider = new OAuthProvider('microsoft.com');
+                provider.addScope('Files.ReadWrite');
+                serviceName = 'OneDrive';
+                break;
+            default:
+                return;
+        }
 
-        const qUsers = query(collection(db, "users"));
-        const unsubscribeUsers = onSnapshot(qUsers, (querySnapshot) => {
-            const usersData: User[] = [];
-            querySnapshot.forEach((doc) => {
-                usersData.push({ id: doc.id, ...doc.data() } as User);
-            });
-            setUsers(usersData);
-        });
+        setStatusLog(prev => [...prev, { type: 'info', text: `Iniciando autenticação com ${serviceName}...` }]);
 
-        return () => {
-            unsubscribeCompanies();
-            unsubscribeUsers();
-        };
-    }, []);
-
-    const handleAddCompany = async (e: React.FormEvent) => {
-        e.preventDefault();
-        if (!newCompanyName.trim()) return;
-        
         try {
-            await addDoc(collection(db, "companies"), { name: newCompanyName });
-            setNewCompanyName('');
-            setCompanyModalOpen(false);
+            await signInWithPopup(auth, provider);
+            setStatusLog(prev => [...prev, { type: 'success', text: `Autorização com ${serviceName} concedida com sucesso!` }]);
+            setConnections(prev => ({ ...prev, [service]: true }));
         } catch (error) {
-            console.error("Erro ao adicionar empresa: ", error);
+            const authError = error as AuthError;
+            setStatusLog(prev => [...prev, { type: 'error', text: `Falha na autorização: ${authError.code}` }]);
+            console.error(`Erro de autenticação com ${serviceName}:`, authError);
         }
     };
 
-    const handleAddUser = async (e: React.FormEvent) => {
+    // Função para simular a conexão com o banco de dados SQL
+    const handleTestConnection = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!newUserName.trim() || !newUserEmail.trim()) return;
+        setIsDbConnecting(true);
+        // CORREÇÃO: Removido o parâmetro 'prevLog' que não estava sendo usado.
+        setStatusLog([{ type: 'info', text: `Tentando conectar a ${dbHost}...` }]);
 
-        try {
-            await addDoc(collection(db, "users"), {
-                name: newUserName,
-                email: newUserEmail,
-                role: newUserRole
-            });
-            setNewUserName('');
-            setNewUserEmail('');
-            setUserModalOpen(false);
-        } catch (error) {
-            console.error("Erro ao adicionar usuário: ", error);
+        await new Promise(resolve => setTimeout(resolve, 2000));
+
+        if (dbHost && dbName && dbUser && dbPass) {
+            setStatusLog(prev => [...prev, { type: 'success', text: 'Conexão bem-sucedida!' }]);
+        } else {
+            setStatusLog(prev => [...prev, { type: 'error', text: 'Falha na conexão. Verifique os campos.' }]);
         }
-    };
-    
-    const getRoleColor = (role: string) => {
-        switch(role) {
-            case 'Admin': return 'var(--deco-gold)';
-            case 'Editor': return 'var(--deco-ivory)';
-            case 'Visualizador': return 'var(--deco-brass)';
-            default: return 'var(--deco-gray)';
-        }
+        setIsDbConnecting(false);
     };
 
     return (
-        <>
-            <div>
-                <div className={styles.pageHeader}>
-                    <h2 className={styles.pageTitle}>Departamentos & Usuários</h2>
+        <div>
+            <div className={styles.pageHeader}>
+                <h2 className={styles.title}>Integrações e Armazenamento</h2>
+            </div>
+
+            <div className={styles.grid}>
+                <div className={styles.card}>
+                    <div className={styles.cardHeader}>
+                        <Image src="https://upload.wikimedia.org/wikipedia/commons/thumb/1/12/Google_Drive_icon_%282020%29.svg/1024px-Google_Drive_icon_%282020%29.svg.png" width={40} height={40} className={styles.cardIcon} alt="Google Drive"/>
+                        <h3 className={styles.cardTitle}>Google Drive</h3>
+                    </div>
+                    <p className={styles.cardDescription}>Salve anexos de formulários, como imagens e PDFs, diretamente em uma pasta do seu Google Drive.</p>
+                    <button onClick={() => handleCloudConnect('drive')} disabled={connections.drive} className={`${styles.button} ${connections.drive ? styles.connectedButton : styles.connectButton}`}>{connections.drive ? 'Conectado' : 'Conectar'}</button>
                 </div>
-                <div className={styles.grid}>
-                    <div className={styles.frame}>
-                        <div className={styles.frameHeader}>
-                            <h3 className={styles.frameTitle}>Empresas</h3>
-                            <button onClick={() => setCompanyModalOpen(true)} className={styles.button}><PlusCircle size={16} /><span>Nova Empresa</span></button>
-                        </div>
-                        {loading ? <p className={styles.emptyState}>Carregando...</p> : companies.length > 0 ? (
-                            companies.map(company => (
-                                <div key={company.id} className={styles.companyCard}>
-                                    <h4 className={styles.companyName}>{company.name}</h4>
-                                </div>
-                            ))
-                        ) : <p className={styles.emptyState}>Nenhuma empresa criada.</p>}
+                <div className={styles.card}>
+                     <div className={styles.cardHeader}>
+                        <Image src="https://upload.wikimedia.org/wikipedia/commons/thumb/3/30/Google_Sheets_logo_%282014-2020%29.svg/1498px-Google_Sheets_logo_%282014-2020%29.svg.png" width={40} height={40} className={styles.cardIcon} alt="Google Sheets"/>
+                        <h3 className={styles.cardTitle}>Google Sheets</h3>
                     </div>
-                    <div className={styles.frame}>
-                        <div className={styles.frameHeader}>
-                            <h3 className={styles.frameTitle}>Usuários</h3>
-                            <button onClick={() => setUserModalOpen(true)} className={styles.button}><UserPlus size={16} /><span>Novo Usuário</span></button>
-                        </div>
-                        <div className={styles.userList}>
-                            {users.length > 0 ? (
-                                users.map(user => (
-                                <div key={user.id} className={styles.userCard}>
-                                    <div className={styles.userInfo}>
-                                        <h4>{user.name}</h4>
-                                        <p>{user.email}</p>
-                                    </div>
-                                    <span className={styles.permissionTag} style={{borderColor: getRoleColor(user.role), color: getRoleColor(user.role)}}>
-                                        {user.role}
-                                    </span>
-                                </div>
-                            ))
-                        ) : <p className={styles.emptyState}>Nenhum usuário criado.</p>}
-                        </div>
+                    <p className={styles.cardDescription}>Envie os dados de cada formulário preenchido como uma nova linha em uma planilha do Google.</p>
+                     <button onClick={() => handleCloudConnect('sheets')} disabled={connections.sheets} className={`${styles.button} ${connections.sheets ? styles.connectedButton : styles.connectButton}`}>{connections.sheets ? 'Conectado' : 'Conectar'}</button>
+                </div>
+                <div className={styles.card}>
+                    <div className={styles.cardHeader}>
+                        <Image src="https://upload.wikimedia.org/wikipedia/commons/thumb/e/e3/Microsoft_Office_OneDrive_%282019%E2%80%93present%29.svg/1280px-Microsoft_Office_OneDrive_%282019%E2%80%93present%29.svg.png" width={109} height={34} className={styles.cardIcon} alt="OneDrive"/>
+                        <h3 className={styles.cardTitle}>OneDrive</h3>
                     </div>
+                    <p className={styles.cardDescription}>Sincronize automaticamente os documentos gerados com o seu OneDrive for Business.</p>
+                     <button onClick={() => handleCloudConnect('oneDrive')} disabled={connections.oneDrive} className={`${styles.button} ${connections.oneDrive ? styles.connectedButton : styles.connectButton}`}>{connections.oneDrive ? 'Conectado' : 'Conectar'}</button>
                 </div>
             </div>
-            <Modal isOpen={isCompanyModalOpen} onClose={() => setCompanyModalOpen(false)} title="Adicionar Nova Empresa">
-                <form onSubmit={handleAddCompany}>
-                    <div className={modalStyles.panelBody}>
-                        <div className={modalStyles.formGroup}>
-                           <label htmlFor="company-name" className={modalStyles.label}>Nome da Empresa</label>
-                           <input id="company-name" type="text" value={newCompanyName} onChange={(e) => setNewCompanyName(e.target.value)} className={modalStyles.input} required/>
-                        </div>
+
+            <div className={styles.sqlFrame}>
+                <h3 className={styles.sqlTitle}>Banco de Dados Externo (SQL)</h3>
+                <p style={{color: 'rgba(240, 234, 214, 0.7)', fontSize: '0.875rem', marginBottom: '1.5rem'}}>
+                  Conecte a um banco de dados para ter um backup robusto de todas as informações.
+                </p>
+                <form className={styles.sqlForm} onSubmit={handleTestConnection}>
+                    <div className={styles.inputGroup}>
+                        <label className={styles.sqlLabel} htmlFor="db-host">Host</label>
+                        <input id="db-host" type="text" value={dbHost} onChange={(e) => setDbHost(e.target.value)} className={styles.sqlInput} required/>
                     </div>
-                    <div className={modalStyles.buttonContainer}>
-                        <button type="button" onClick={() => setCompanyModalOpen(false)} className={modalStyles.button + ' ' + modalStyles.buttonSecondary}>Cancelar</button>
-                        <button type="submit" className={modalStyles.button + ' ' + modalStyles.buttonPrimary}>Salvar</button>
+                    <div className={styles.inputGroup}>
+                        <label className={styles.sqlLabel} htmlFor="db-name">Database</label>
+                        <input id="db-name" type="text" value={dbName} onChange={(e) => setDbName(e.target.value)} className={styles.sqlInput} required/>
                     </div>
+                    <div className={styles.inputGroup}>
+                        <label className={styles.sqlLabel} htmlFor="db-user">Usuário</label>
+                        <input id="db-user" type="text" value={dbUser} onChange={(e) => setDbUser(e.target.value)} className={styles.sqlInput} required/>
+                    </div>
+                    <div className={styles.inputGroup}>
+                        <label className={styles.sqlLabel} htmlFor="db-pass">Senha</label>
+                        <input id="db-pass" type="password" value={dbPass} onChange={(e) => setDbPass(e.target.value)} className={styles.sqlInput} required/>
+                    </div>
+                    <button type="submit" className={styles.sqlButton} disabled={isDbConnecting}>{isDbConnecting ? 'Testando...' : 'Testar & Salvar'}</button>
                 </form>
-            </Modal>
-            <Modal isOpen={isUserModalOpen} onClose={() => setUserModalOpen(false)} title="Adicionar Novo Usuário">
-                 <form onSubmit={handleAddUser}>
-                    <div className={modalStyles.panelBody}>
-                        <div className={modalStyles.form}>
-                            <div className={modalStyles.formGroup}>
-                               <label htmlFor="user-name" className={modalStyles.label}>Nome do Usuário</label>
-                               <input id="user-name" type="text" value={newUserName} onChange={(e) => setNewUserName(e.target.value)} className={modalStyles.input} required/>
-                            </div>
-                             <div className={modalStyles.formGroup}>
-                               <label htmlFor="user-email" className={modalStyles.label}>Email</label>
-                               <input id="user-email" type="email" value={newUserEmail} onChange={(e) => setNewUserEmail(e.target.value)} className={modalStyles.input} required/>
-                            </div>
-                             <div className={modalStyles.formGroup}>
-                               <label htmlFor="user-role" className={modalStyles.label}>Permissão</label>
-                               <select id="user-role" value={newUserRole} onChange={(e) => setNewUserRole(e.target.value as 'Admin' | 'Editor' | 'Visualizador')} className={modalStyles.input}>
-                                    <option value="Visualizador">Visualizador</option>
-                                    <option value="Editor">Editor</option>
-                                    <option value="Admin">Admin</option>
-                               </select>
-                            </div>
-                        </div>
-                    </div>
-                    <div className={modalStyles.buttonContainer}>
-                        <button type="button" onClick={() => setUserModalOpen(false)} className={modalStyles.button + ' ' + modalStyles.buttonSecondary}>Cancelar</button>
-                        <button type="submit" className={modalStyles.button + ' ' + modalStyles.buttonPrimary}>Salvar</button>
-                    </div>
-                 </form>
-            </Modal>
-        </>
+            </div>
+            
+            <div className={styles.statusLog}>
+                <h4 style={{color: 'var(--deco-gold)', marginBottom: '0.5rem'}}>Status de Sincronização:</h4>
+                {statusLog.map((log, index) => (
+                    <p key={index} className={`${styles.logEntry} ${log.type === 'success' ? styles.logSuccess : log.type === 'error' ? styles.logError : styles.logInfo}`}>
+                       &gt; {log.text}
+                    </p>
+                ))}
+            </div>
+        </div>
     );
 }
