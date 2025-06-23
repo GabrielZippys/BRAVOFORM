@@ -6,7 +6,6 @@ import { auth } from '../../../firebase/config'; // Usando alias para o caminho 
 import { signInWithPopup, GoogleAuthProvider, OAuthProvider, AuthError } from 'firebase/auth';
 import styles from '../../styles/Integrations.module.css';
 
-
 type IntegrationService = 'drive' | 'sheets' | 'oneDrive';
 type LogEntry = { type: 'info' | 'success' | 'error'; text: string; };
 
@@ -45,7 +44,7 @@ export default function IntegrationsPage() {
             setStatusLog(prev => [...prev, { type: 'success', text: `Autorização com ${serviceName} concedida!` }]);
             setConnections(prev => ({ ...prev, [service]: true }));
         } catch (error) {
-            // CORREÇÃO: Adicionando tipo para o erro
+            // CORREÇÃO: Adicionando tipo para o erro para satisfazer o linter
             const authError = error as AuthError;
             setStatusLog(prev => [...prev, { type: 'error', text: `Falha na autorização: ${authError.code}` }]);
             console.error(`Erro de autenticação com ${serviceName}:`, authError);
@@ -111,4 +110,3 @@ export default function IntegrationsPage() {
         </div>
     );
 }
-
