@@ -1,24 +1,70 @@
 .pageHeader {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
     margin-bottom: 1.5rem;
 }
 
 .title {
     font-family: var(--font-display);
-    font-size: 1.5rem;
+    font-size: 1.75rem;
     color: var(--deco-gold);
 }
 
-.grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
-    gap: 1.5rem;
+.button {
+  padding: 0.75rem 1.25rem;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 0.875rem;
+  color: var(--deco-dark);
+  background: linear-gradient(to bottom, var(--deco-gold), var(--deco-brass));
+  border: 1px solid var(--deco-ivory);
+  border-radius: 2px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.button:disabled {
+    filter: brightness(0.7);
+    cursor: not-allowed;
 }
 
+/* --- Breadcrumb Navigation --- */
+.breadcrumb {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 1.5rem;
+    font-size: 1rem;
+    color: var(--deco-brass);
+}
+
+.breadcrumb span {
+    cursor: pointer;
+    transition: color 0.2s ease-in-out;
+}
+
+.breadcrumb span:hover {
+    text-decoration: underline;
+    color: var(--deco-gold);
+}
+
+.breadcrumb span.active {
+    color: var(--deco-ivory);
+    font-weight: 500;
+}
+
+/* --- List Frame --- */
 .frame {
     background-color: rgba(7, 72, 91, 0.5);
     border: 1px solid var(--deco-gold);
-    padding: 1.5rem;
-    min-height: 300px; /* Garante altura mínima */
+    padding: 2rem;
+    margin-bottom: 2rem;
+}
+
+.frame:last-child {
+    margin-bottom: 0;
 }
 
 .frameHeader {
@@ -32,98 +78,83 @@
 
 .frameTitle {
     font-family: var(--font-display);
-    font-size: 1.25rem;
+    font-size: 1.5rem;
     color: var(--deco-ivory);
 }
 
-.button {
-  padding: 0.5rem 1rem;
-  font-family: var(--font-display);
-  font-size: 0.75rem;
-  font-weight: 700;
-  color: var(--deco-dark);
-  background: linear-gradient(to bottom, var(--deco-gold), var(--deco-brass));
-  border: 1px solid var(--deco-ivory);
-  border-radius: 2px;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
+.list {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
 }
 
-.button:hover {
-    filter: brightness(1.1);
-}
-
-.button:disabled {
-    filter: brightness(0.7);
-    cursor: not-allowed;
-}
-
-
-.button svg {
-    stroke: var(--deco-dark);
-}
-
-.companyCard {
+.itemCard {
     background-color: rgba(0,0,0,0.2);
     border: 1px solid var(--deco-brass);
-    padding: 1rem;
-    margin-bottom: 1rem;
-}
-
-.companyHeader {
+    padding: 1.25rem;
     display: flex;
     justify-content: space-between;
     align-items: center;
+    transition: all 0.2s ease-in-out;
 }
 
-.companyName {
+.itemCardClickable {
+    cursor: pointer;
+}
+
+.itemCardClickable:hover {
+    border-color: var(--deco-gold);
+    transform: translateY(-3px) scale(1.02);
+    box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+}
+
+.itemName {
     font-family: var(--font-display);
-    color: var(--deco-gold);
-}
-
-.deptList {
-    margin-top: 1rem;
-    padding-left: 1rem;
-    border-left: 2px solid var(--deco-brass);
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
-}
-
-.deptItem {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    font-size: 0.875rem;
-}
-
-.userList {
-    display: flex;
-    flex-direction: column;
-    gap: 0.75rem;
-}
-
-.userCard {
-    background-color: rgba(0,0,0,0.2);
-    padding: 0.75rem 1rem;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-}
-
-.userInfo h4 {
-    font-family: var(--font-sans);
-    font-weight: 500;
     color: var(--deco-ivory);
+    font-size: 1.25rem;
     margin: 0;
 }
 
-.userInfo p {
-    font-size: 0.75rem;
+.itemInfo {
+    font-size: 0.875rem;
     color: var(--deco-brass);
-    margin: 0;
+    margin-top: 0.25rem;
+}
+
+.emptyState {
+    text-align: center;
+    padding: 3rem;
+    color: var(--deco-ivory);
+    opacity: 0.7;
+    font-size: 1.1rem;
+}
+
+/* --- NOVOS ESTILOS PARA AÇÕES DO USUÁRIO --- */
+.userActions {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem; /* Aumentado o espaço */
+}
+
+.actionButton {
+    background: transparent;
+    border: 1px solid var(--deco-brass);
+    padding: 0.5rem;
+    border-radius: 2px;
+    cursor: pointer;
+    color: var(--deco-brass);
+    transition: all 0.2s ease-in-out;
+}
+
+.actionButton:hover {
+    background-color: var(--deco-brass);
+    color: var(--deco-dark);
+}
+
+.deleteButton:hover {
+    background-color: #e53e3e; /* Vermelho */
+    border-color: #e53e3e;
+    color: var(--deco-ivory);
 }
 
 .permissionTag {
@@ -131,11 +162,5 @@
     padding: 0.25rem 0.5rem;
     border: 1px solid;
     border-radius: 99px;
-}
-
-.emptyState {
-    text-align: center;
-    padding: 2rem;
-    color: var(--deco-ivory-70);
-    opacity: 0.7;
+    font-family: var(--font-sans);
 }

@@ -4,22 +4,19 @@
   background-color: rgba(0, 0, 0, 0.7);
   backdrop-filter: blur(4px);
   z-index: 40;
-  animation: fadeIn 0.3s ease-out forwards;
 }
 
 .panel {
   position: fixed;
   top: 50%;
   left: 50%;
-  transform: translate(-50%, -50%) scale(0.95);
+  transform: translate(-50%, -50%);
   width: 100%;
-  max-width: 32rem; /* 512px */
+  max-width: 32rem;
   background-color: var(--deco-teal);
   border: 1px solid var(--deco-gold);
   box-shadow: 0 5px 25px rgba(0,0,0,0.5);
   z-index: 50;
-  opacity: 0;
-  animation: fadeInModal 0.4s ease-out 0.1s forwards;
 }
 
 .panelHeader {
@@ -41,9 +38,6 @@
   border: none;
   color: var(--deco-ivory);
   cursor: pointer;
-}
-.closeButton:hover {
-  color: var(--deco-gold);
 }
 
 .panelBody {
@@ -72,9 +66,45 @@
   border: 1px solid var(--deco-brass);
   color: var(--deco-ivory);
   width: 100%;
-  padding: 0.5rem;
+  padding: 0.75rem;
   border-radius: 2px;
+  box-sizing: border-box; 
 }
+
+/* --- ESTILOS CORRIGIDOS PARA A SENHA --- */
+.passwordWrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+.passwordWrapper .input {
+    padding-right: 3rem; /* Espaço para o ícone */
+}
+.eyeButton {
+    position: absolute;
+    right: 0;
+    top: 0;
+    height: 100%;
+    width: 3rem;
+    background: transparent; /* Remove o fundo branco */
+    border: none;
+    color: var(--deco-brass);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.eyeButton:hover {
+    color: var(--deco-gold);
+}
+
+.error {
+    color: #f87171;
+    font-size: 0.875rem;
+    text-align: center;
+    margin-top: 0.5rem;
+}
+
 
 .buttonContainer {
     padding: 1rem 1.5rem;
@@ -92,7 +122,6 @@
   border: 1px solid;
   border-radius: 2px;
   cursor: pointer;
-  transition: all 0.2s ease-in-out;
 }
 
 .buttonPrimary {
@@ -100,27 +129,9 @@
     background: linear-gradient(to bottom, var(--deco-gold), var(--deco-brass));
     border-color: var(--deco-ivory);
 }
-.buttonPrimary:hover {
-    filter: brightness(1.1);
-}
 
 .buttonSecondary {
     color: var(--deco-ivory);
     background: transparent;
     border-color: var(--deco-brass);
-}
-.buttonSecondary:hover {
-    background-color: var(--deco-brass);
-    color: var(--deco-dark);
-}
-
-/* Animações */
-@keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
-}
-
-@keyframes fadeInModal {
-  from { opacity: 0; transform: translate(-50%, -45%) scale(0.95); }
-  to { opacity: 1; transform: translate(-50%, -50%) scale(1); }
 }

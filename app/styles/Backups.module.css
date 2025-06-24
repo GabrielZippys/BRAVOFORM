@@ -1,0 +1,57 @@
+.pageHeader {
+    margin-bottom: 1.5rem;
+}
+
+.title {
+    font-family: var(--font-display);
+    font-size: 1.5rem;
+    color: var(--deco-gold);
+}
+
+.frame {
+    background-color: rgba(7, 72, 91, 0.5);
+    border: 1px solid var(--deco-gold);
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+}
+
+.frameTitle {
+  font-family: var(--font-display);
+  font-weight: 700;
+  color: var(--deco-ivory);
+  font-size: 1.25rem;
+  margin-bottom: 1.5rem;
+}
+
+/* Estilos para a barra de progresso */
+.storageUsage {
+    margin-top: 1rem;
+}
+
+.progressBarContainer {
+    width: 100%;
+    height: 30px;
+    background-color: rgba(10, 46, 54, 0.8);
+    border: 1px solid var(--deco-brass);
+    padding: 4px;
+    box-sizing: border-box;
+}
+
+.progressBar {
+    height: 100%;
+    background: linear-gradient(to right, var(--deco-brass), var(--deco-gold));
+    box-shadow: 0 0 5px var(--deco-gold);
+    text-align: right;
+    line-height: 20px;
+    color: var(--deco-dark);
+    font-weight: bold;
+    font-size: 0.8rem;
+    transition: width 1s ease-out;
+}
+
+.storageText {
+    margin-top: 0.5rem;
+    font-size: 0.875rem;
+    color: var(--deco-ivory);
+    opacity: 0.8;
+}
