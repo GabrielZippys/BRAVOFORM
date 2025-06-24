@@ -9,7 +9,7 @@ import { LayoutDashboard, FileText, Users, PieChart, PlugZap, DatabaseBackup, Lo
 // CORREÇÃO: Usando o alias '@/' para encontrar a configuração do Firebase de forma segura
 import { auth } from '../../firebase/config';
 import { signOut } from 'firebase/auth';
-// CORREÇÃO: Importando o arquivo de estilo correto (Dashboard.module.css) a partir da pasta de estilos
+// CORREÇÃO: Importando o arquivo de estilo correto (Dashboard.module.css) a partir da sua pasta de estilos
 import styles from '../../app/styles/Login.module.css';
 
 // CORREÇÃO: Os caminhos dos links agora incluem o prefixo /dashboard para manter o layout
