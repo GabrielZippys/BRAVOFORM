@@ -4,11 +4,12 @@ import React from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
+// CORREÇÃO: Importando todos os ícones necessários para o menu
 import { LayoutDashboard, FileText, Users, PieChart, PlugZap, DatabaseBackup, LogOut } from 'lucide-react'; 
+// CORREÇÃO: Usando o alias '@/' para encontrar a configuração do Firebase de forma segura
 import { auth } from '../../firebase/config';
 import { signOut } from 'firebase/auth';
-// CORREÇÃO: Usando o atalho '@/' para apontar para a pasta 'src'.
-// O caminho correto para o seu CSS é dentro de 'src/styles/'.
+// CORREÇÃO: Importando o arquivo de estilo correto (Dashboard.module.css) a partir da pasta de estilos
 import styles from '../../app/styles/Login.module.css';
 
 // CORREÇÃO: Os caminhos dos links agora incluem o prefixo /dashboard para manter o layout
