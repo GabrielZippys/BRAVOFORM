@@ -11,6 +11,7 @@ import { signOut } from 'firebase/auth';
 // O caminho correto para o seu CSS é dentro de 'src/styles/'.
 import styles from '../../app/styles/Login.module.css';
 
+// CORREÇÃO: Os caminhos dos links agora incluem o prefixo /dashboard para manter o layout
 const navLinks = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/dashboard/forms', label: 'Formulários', icon: FileText },
@@ -52,9 +53,10 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
                 </div>
             </div>
             <nav className={styles.nav}>
+                {/* CORREÇÃO: Renomeando a variável 'link' para 'navItem' para evitar conflito com a tag <link> */}
                 {navLinks.map((navItem) => {
                     const IconComponent = navItem.icon;
-                    if (!IconComponent) return null;
+                    if (!IconComponent) return null; // Verificação de segurança
                     
                     const isActive = pathname === navItem.href;
                     return (
