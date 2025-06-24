@@ -118,7 +118,7 @@ export default function UsersPage() {
         if (modalMode === 'create' && (formState.userPassword !== formState.userPasswordConfirm)) return setFormError('As senhas não coincidem.');
 
         try {
-            if (modalMode === 'create') { // Criar novo usuário (Admin ou Colaborador)
+            if (modalMode === 'create') {
                 const userCredential = await createUserWithEmailAndPassword(auth, formState.userEmail, formState.userPassword);
                 await addDoc(collection(db, "users"), {
                     uid: userCredential.user.uid, name: formState.userName, email: formState.userEmail, 
@@ -126,7 +126,7 @@ export default function UsersPage() {
                     companyId: modalContent === 'adminUser' ? null : selectedCompany?.id,
                     departmentId: modalContent === 'adminUser' ? null : selectedDepartment?.id,
                 });
-            } else if (modalMode === 'edit' && editingUser) { // Editar usuário existente
+            } else if (modalMode === 'edit' && editingUser) {
                 const userRef = doc(db, "users", editingUser.id);
                 await updateDoc(userRef, { name: formState.userName, role: formState.userRole });
             }
@@ -135,7 +135,6 @@ export default function UsersPage() {
             if (error.code === 'auth/weak-password') setFormError('A senha deve ter pelo menos 6 caracteres.');
             else if (error.code === 'auth/email-already-in-use') setFormError('Este e-mail já está em uso.');
             else setFormError('Erro ao salvar usuário.');
-            console.error("Erro no formulário de usuário:", error);
         }
     };
     
@@ -145,25 +144,36 @@ export default function UsersPage() {
         }
     };
 
-    return (
-        <>
-            <div>
-                <div className={styles.pageHeader}>
-                    <h2 className={styles.title}>Departamentos & Usuários</h2>
-                     {/* CORREÇÃO: Lógica do botão movida para dentro do render condicional */}
-                </div>
-
-                {view !== 'overview' && (
-                    <div className={styles.breadcrumb}>
-                        <span onClick={resetView}>Empresas</span>
-                        {selectedCompany && <><ChevronRight size={16}/> <span onClick={() => { setView('departments'); setSelectedDepartment(null); }}>{selectedCompany.name}</span></>}
-                        {selectedDepartment && <><ChevronRight size={16}/> <span className={styles.active}>{selectedDepartment.name}</span></>}
+    const renderContent = () => {
+        switch(view) {
+            case 'departments':
+                return (
+                    <div className={styles.frame}>
+                        <div className={styles.frameHeader}><h3 className={styles.frameTitle}>Setores</h3><button onClick={() => openModal('department')} className={styles.button}><Plus size={16}/><span>Novo Setor</span></button></div>
+                        {loading.departments ? <p className={styles.emptyState}>Carregando...</p> : departments.length > 0 ? departments.map(d => (
+                            <div key={d.id} className={`${styles.itemCard} ${styles.itemCardClickable}`} onClick={() => handleSelectDepartment(d)}><h4 className={styles.itemName}>{d.name}</h4><Users size={20}/></div>
+                        )) : <p className={styles.emptyState}>Nenhum setor criado.</p>}
                     </div>
-                )}
-
-                {/* --- Lógica de Renderização Corrigida --- */}
-
-                {view === 'overview' && (
+                );
+            case 'users':
+                return (
+                    <div className={styles.frame}>
+                        <div className={styles.frameHeader}><h3 className={styles.frameTitle}>Acesso de Colaboradores</h3><button onClick={() => openModal('user', 'create')} className={styles.button}><UserPlus size={16}/><span>Criar Acesso</span></button></div>
+                        {loading.users ? <p className={styles.emptyState}>Carregando...</p> : users.length > 0 ? users.map(u => (
+                            <div key={u.id} className={styles.itemCard}>
+                                <div><h4 className={styles.itemName}>{u.name}</h4><p className={styles.itemInfo}>{u.email}</p></div>
+                                <div className={styles.userActions}>
+                                    <span className={styles.permissionTag}>{u.role}</span>
+                                    <button onClick={() => openModal('user', 'edit', u)} className={styles.actionButton} title="Editar"><Edit size={16}/></button>
+                                    <button onClick={() => handleDeleteUser(u.id)} className={`${styles.actionButton} ${styles.deleteButton}`} title="Apagar"><Trash2 size={16}/></button>
+                                </div>
+                            </div>
+                        )) : <p className={styles.emptyState}>Nenhum acesso criado.</p>}
+                    </div>
+                );
+            case 'overview':
+            default:
+                return (
                     <>
                         <div className={styles.frame}>
                             <div className={styles.frameHeader}><h3 className={styles.frameTitle}>Administração</h3><button onClick={() => openModal('adminUser', 'create')} className={styles.button}><UserPlus size={16}/><span>Novo Admin</span></button></div>
@@ -185,35 +195,24 @@ export default function UsersPage() {
                             )) : <p className={styles.emptyState}>Nenhuma empresa criada.</p>}
                         </div>
                     </>
-                )}
+                );
+        }
+    };
 
-                {view === 'departments' && (
-                     <div className={styles.frame}>
-                        <div className={styles.frameHeader}><h3 className={styles.frameTitle}>Setores</h3><button onClick={() => openModal('department')} className={styles.button}><Plus size={16}/><span>Novo Setor</span></button></div>
-                        {loading.departments ? <p className={styles.emptyState}>Carregando...</p> : departments.length > 0 ? departments.map(d => (
-                            <div key={d.id} className={`${styles.itemCard} ${styles.itemCardClickable}`} onClick={() => handleSelectDepartment(d)}><h4 className={styles.itemName}>{d.name}</h4><Users size={20}/></div>
-                        )) : <p className={styles.emptyState}>Nenhum setor criado.</p>}
+    return (
+        <>
+            <div>
+                <div className={styles.pageHeader}><h2 className={styles.title}>Departamentos & Usuários</h2></div>
+                {view !== 'overview' && (
+                    <div className={styles.breadcrumb}>
+                        <span onClick={resetView}>Empresas</span>
+                        {selectedCompany && <><ChevronRight size={16}/> <span onClick={() => { setView('departments'); setSelectedDepartment(null); }}>{selectedCompany.name}</span></>}
+                        {selectedDepartment && <><ChevronRight size={16}/> <span className={styles.active}>{selectedDepartment.name}</span></>}
                     </div>
                 )}
-                
-                {view === 'users' && (
-                    <div className={styles.frame}>
-                        <div className={styles.frameHeader}><h3 className={styles.frameTitle}>Acesso de Colaboradores</h3><button onClick={() => openModal('user', 'create')} className={styles.button}><UserPlus size={16}/><span>Criar Acesso</span></button></div>
-                        {loading.users ? <p className={styles.emptyState}>Carregando...</p> : users.length > 0 ? users.map(u => (
-                            <div key={u.id} className={styles.itemCard}>
-                                <div><h4 className={styles.itemName}>{u.name}</h4><p className={styles.itemInfo}>{u.email}</p></div>
-                                <div className={styles.userActions}>
-                                    <span className={styles.permissionTag}>{u.role}</span>
-                                    <button onClick={() => openModal('user', 'edit', u)} className={styles.actionButton} title="Editar"><Edit size={16}/></button>
-                                    <button onClick={() => handleDeleteUser(u.id)} className={`${styles.actionButton} ${styles.deleteButton}`} title="Apagar"><Trash2 size={16}/></button>
-                                </div>
-                            </div>
-                        )) : <p className={styles.emptyState}>Nenhum acesso criado.</p>}
-                    </div>
-                )}
+                {renderContent()}
             </div>
 
-            {/* Modais */}
             <Modal isOpen={isModalOpen} onClose={closeModal} title={
                 modalMode === 'edit' ? `Editar ${modalContent === 'adminUser' ? 'Admin' : 'Usuário'}` :
                 modalContent === 'company' ? 'Nova Empresa' : 
