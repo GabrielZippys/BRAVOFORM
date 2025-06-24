@@ -7,7 +7,8 @@ import styles from '../../styles/Users.module.css';
 import modalStyles from '../../styles/Modal.module.css';
 import { db, auth } from '../../../firebase/config';
 import { collection, addDoc, onSnapshot, query, where, doc, updateDoc, deleteDoc } from 'firebase/firestore'; 
-import { createUserWithEmailAndPassword } from 'firebase/auth';
+// Importando o tipo AuthError para o tratamento de erros
+import { createUserWithEmailAndPassword, AuthError } from 'firebase/auth'; 
 
 // --- Tipos de Dados ---
 interface Company { id: string; name: string; }
@@ -62,20 +63,16 @@ export default function UsersPage() {
 
     useEffect(() => {
         if (!selectedCompany) { setDepartments([]); return; }
-        setLoading(prev => ({ ...prev, departments: true }));
         const q = onSnapshot(query(collection(db, `companies/${selectedCompany.id}/departments`)), (snapshot) => {
             setDepartments(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Department)));
-            setLoading(prev => ({ ...prev, departments: false }));
         });
         return () => q();
     }, [selectedCompany]);
 
     useEffect(() => {
         if (!selectedDepartment) { setUsers([]); return; }
-        setLoading(prev => ({ ...prev, users: true }));
         const q = onSnapshot(query(collection(db, "users"), where("departmentId", "==", selectedDepartment.id)), (snapshot) => {
             setUsers(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as AppUser)));
-            setLoading(prev => ({ ...prev, users: false }));
         });
         return () => q();
     }, [selectedDepartment]);
@@ -131,9 +128,11 @@ export default function UsersPage() {
                 await updateDoc(userRef, { name: formState.userName, role: formState.userRole });
             }
             closeModal();
-        } catch (error: any) {
-            if (error.code === 'auth/weak-password') setFormError('A senha deve ter pelo menos 6 caracteres.');
-            else if (error.code === 'auth/email-already-in-use') setFormError('Este e-mail já está em uso.');
+        } catch (error) {
+            // CORREÇÃO: Adicionando o tipo correto para o erro
+            const authError = error as AuthError;
+            if (authError.code === 'auth/weak-password') setFormError('A senha deve ter pelo menos 6 caracteres.');
+            else if (authError.code === 'auth/email-already-in-use') setFormError('Este e-mail já está em uso.');
             else setFormError('Erro ao salvar usuário.');
         }
     };
@@ -144,7 +143,6 @@ export default function UsersPage() {
         }
     };
     
-    // --- LÓGICA DE RENDERIZAÇÃO CORRIGIDA ---
     const renderContent = () => {
         switch(view) {
             case 'departments':
