@@ -2,29 +2,32 @@
 
 import { useState, useEffect } from 'react';
 import { onAuthStateChanged, User } from 'firebase/auth';
+// Certifique-se de que o caminho para a configuração do Firebase está correto.
+// O alias '@/' aponta para a pasta raiz ou 'src/', dependendo da sua configuração.
 import { auth } from '../../firebase/config';
 
-// Interface para definir a estrutura do estado de autenticação
 interface AuthState {
   user: User | null;
   loading: boolean;
 }
 
-// Nosso hook customizado para gerenciar o estado do usuário
+// Hook customizado que gerencia e expõe o estado de autenticação do usuário.
 export function useAuth(): AuthState {
   const [authState, setAuthState] = useState<AuthState>({
     user: null,
-    loading: true, // Começa carregando por padrão
+    loading: true, // A aplicação começa em estado de carregamento.
   });
 
   useEffect(() => {
-    // O onAuthStateChanged é um listener que avisa sobre mudanças no login
+    // O onAuthStateChanged é um listener do Firebase que nos avisa sempre que o status de login muda.
     const unsubscribe = onAuthStateChanged(auth, (user) => {
-      // Quando o Firebase responde, atualizamos o estado
+      // Quando o Firebase nos dá uma resposta (seja um usuário ou nulo),
+      // atualizamos nosso estado e informamos que o carregamento da autenticação terminou.
       setAuthState({ user, loading: false });
     });
 
-    // Limpa o listener para evitar vazamentos de memória
+    // Esta função é chamada quando o componente que usa o hook é desmontado.
+    // Ela "desliga" o listener para evitar vazamentos de memória.
     return () => unsubscribe();
   }, []);
 

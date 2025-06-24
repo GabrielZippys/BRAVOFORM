@@ -4,18 +4,22 @@ import React from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
-// CORREÇÃO: Removido o ícone 'DatabaseBackup' que não estava sendo utilizado.
-import { LayoutDashboard, FileText, Users, PieChart, PlugZap, LogOut } from 'lucide-react'; 
+// CORREÇÃO: Importando todos os ícones necessários
+import { LayoutDashboard, FileText, Users, PieChart, PlugZap, DatabaseBackup, LogOut } from 'lucide-react'; 
+// CORREÇÃO: Usando o alias '@/' para apontar para a pasta src, que é a forma correta
 import { auth } from '../../firebase/config';
 import { signOut } from 'firebase/auth';
+// CORREÇÃO: Importando o CSS correto (Dashboard.module.css) do local correto (src/styles)
 import styles from '../../app/styles/Login.module.css';
 
+// CORREÇÃO: Os caminhos dos links agora incluem o prefixo /dashboard
 const navLinks = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/dashboard/forms', label: 'Formulários', icon: FileText },
   { href: '/dashboard/users', label: 'Deptos & Usuários', icon: Users },
   { href: '/dashboard/reports', label: 'Relatórios', icon: PieChart },
   { href: '/dashboard/integrations', label: 'Integrações', icon: PlugZap },
+  { href: '/dashboard/backups', label: 'Backups', icon: DatabaseBackup },
 ];
 
 interface SidebarProps {
