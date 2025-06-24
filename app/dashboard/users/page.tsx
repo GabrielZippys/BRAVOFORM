@@ -3,7 +3,6 @@
 import React, { useState, useEffect } from 'react';
 import { Plus, Building, Users, ChevronRight, Eye, EyeOff, UserPlus, Edit, Trash2 } from 'lucide-react';
 import Modal from '@/components/Modal'; 
-// CORREÇÃO: Usando o alias '@/' para caminhos mais limpos e corretos
 import styles from '../../styles/Users.module.css';
 import modalStyles from '../../styles/Modal.module.css';
 import { db, auth } from '../../../firebase/config';
@@ -144,7 +143,8 @@ export default function UsersPage() {
             await deleteDoc(doc(db, "users", userId));
         }
     };
-
+    
+    // --- LÓGICA DE RENDERIZAÇÃO CORRIGIDA ---
     const renderContent = () => {
         switch(view) {
             case 'departments':
@@ -214,7 +214,6 @@ export default function UsersPage() {
                 {renderContent()}
             </div>
 
-            {/* CORREÇÃO: Usando a variável de estado correta 'isModalOpen' */}
             <Modal isOpen={isModalOpen} onClose={closeModal} title={
                 modalMode === 'edit' ? `Editar ${modalContent === 'adminUser' ? 'Admin' : 'Usuário'}` :
                 modalContent === 'company' ? 'Nova Empresa' : 
