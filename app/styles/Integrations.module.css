@@ -32,7 +32,8 @@
 
 .cardIcon {
     width: 40px;
-    height: auto;
+    height: 40px;
+    object-fit: contain; /* Garante que a imagem não se estique */
 }
 
 .cardTitle {
@@ -129,4 +130,50 @@
   border-radius: 2px;
   cursor: pointer;
   height: 37px; /* Mesma altura do input */
+}
+
+.statusLog {
+    margin-top: 2rem;
+    background-color: rgba(0,0,0,0.3);
+    border: 1px solid var(--deco-brass);
+    padding: 1rem;
+    height: 200px;
+    overflow-y: auto;
+    font-family: monospace;
+    font-size: 0.875rem;
+}
+
+.logEntry {
+    padding-bottom: 0.25rem;
+    white-space: pre-wrap;
+    border-bottom: 1px solid rgba(177, 143, 66, 0.1);
+    margin-bottom: 0.25rem;
+}
+
+.logSuccess {
+    color: #48bb78; /* Verde */
+}
+
+.logInfo {
+    color: #4299e1; /* Azul */
+}
+
+.logError {
+    color: #f56565; /* Vermelho */
+}
+
+/* --- Estilos para o Esqueleto de Carregamento --- */
+
+@keyframes pulse {
+  50% {
+    opacity: 0.5;
+  }
+}
+
+.cardSkeleton {
+  background-color: rgba(7, 72, 91, 0.8);
+  border: 1px solid var(--deco-brass);
+  height: 250px;
+  border-radius: 2px;
+  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }
