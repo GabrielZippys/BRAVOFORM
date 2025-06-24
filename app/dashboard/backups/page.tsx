@@ -3,7 +3,8 @@
 import React, { useState, useEffect } from 'react';
 import styles from '../../styles/Backups.module.css';
 import { db } from '../../../firebase/config';
-import { collection, getDocs, collectionGroup } from 'firebase/firestore';
+// CORREÇÃO: Removido 'collectionGroup' que não estava sendo usado.
+import { collection, getDocs } from 'firebase/firestore';
 
 export default function BackupsPage() {
   const [storageUsed, setStorageUsed] = useState(0);
@@ -11,12 +12,10 @@ export default function BackupsPage() {
   
   const storageTotal = 10; // Capacidade total de armazenamento em GB (exemplo)
 
-  // Efeito para buscar os dados e calcular o uso do armazenamento
   useEffect(() => {
     const calculateStorage = async () => {
       setLoading(true);
       try {
-        // Lista de coleções que queremos contar para simular o uso
         const collectionsToCount = ['companies', 'users', 'forms'];
         let totalDocs = 0;
 
@@ -25,7 +24,6 @@ export default function BackupsPage() {
           totalDocs += querySnapshot.size;
         }
 
-        // Simulação: Cada documento "ocupa" 0.01 GB para fins de demonstração
         const simulatedUsage = totalDocs * 0.01; 
         
         setStorageUsed(simulatedUsage);
@@ -73,9 +71,7 @@ export default function BackupsPage() {
         <p style={{color: 'rgba(240, 234, 214, 0.7)', fontSize: '0.875rem', marginBottom: '1.5rem'}}>
             Configure backups automáticos dos seus dados ou gere um backup completo a qualquer momento.
         </p>
-        {/* Futuramente, aqui entrarão as opções de backup */}
       </div>
-
     </div>
   );
 }
