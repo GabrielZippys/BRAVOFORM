@@ -36,6 +36,7 @@ export default function UsersPage() {
     const [editingUser, setEditingUser] = useState<AppUser | null>(null);
     
     // --- Estados dos Formulários ---
+    // CORREÇÃO: Adicionando as propriedades de senha ao estado inicial
     const [formState, setFormState] = useState({
         companyName: '',
         departmentName: '',
@@ -129,7 +130,6 @@ export default function UsersPage() {
             }
             closeModal();
         } catch (error) {
-            // CORREÇÃO: Adicionando o tipo correto para o erro
             const authError = error as AuthError;
             if (authError.code === 'auth/weak-password') setFormError('A senha deve ter pelo menos 6 caracteres.');
             else if (authError.code === 'auth/email-already-in-use') setFormError('Este e-mail já está em uso.');
