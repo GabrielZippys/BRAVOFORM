@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState, useEffect } from 'react';
@@ -44,22 +43,23 @@ export default function FormEditor({ isOpen, onClose, companyId, departmentId, e
         setAssignedCollaborators([]);
     }
   }, [existingForm, isOpen]);
-
+  
   // Efeito para buscar colaboradores do departamento selecionado
   useEffect(() => {
-    if (departmentId) {
+    if (isOpen && departmentId) {
       const q = query(collection(db, `departments/${departmentId}/collaborators`));
       const unsubscribe = onSnapshot(q, (snapshot) => {
         setCollaborators(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Collaborator)));
       });
       return () => unsubscribe();
     }
-  }, [departmentId]);
+  }, [departmentId, isOpen]);
 
   // --- Funções do Editor ---
   const addField = (type: FormField['type']) => setFields([...fields, { id: Date.now(), type, label: `Nova Pergunta` }]);
   const updateFieldLabel = (id: number, newLabel: string) => setFields(fields.map(f => f.id === id ? { ...f, label: newLabel } : f));
   const removeField = (id: number) => setFields(fields.filter(f => f.id !== id));
+  
   const handleCollaboratorToggle = (collaboratorId: string) => {
     setAssignedCollaborators(prev => 
       prev.includes(collaboratorId) 
@@ -111,7 +111,7 @@ export default function FormEditor({ isOpen, onClose, companyId, departmentId, e
                     </div>
                 ))}
             </div>
-             <div>
+            <div>
               <h4 className={styles.subTitle}>Atribuir a Colaboradores</h4>
               <div className={styles.collaboratorList}>
                 {collaborators.length > 0 ? collaborators.map(collab => (
@@ -119,10 +119,10 @@ export default function FormEditor({ isOpen, onClose, companyId, departmentId, e
                         <input type="checkbox" checked={assignedCollaborators.includes(collab.id)} onChange={() => handleCollaboratorToggle(collab.id)}/>
                         {collab.username}
                     </label>
-                )) : <p style={{padding: '0.5rem'}}>Nenhum colaborador encontrado neste setor.</p>}
+                )) : <p style={{padding: '0.5rem', opacity: 0.7}}>Nenhum colaborador encontrado neste setor.</p>}
               </div>
             </div>
-            {error && <p style={{color: 'red', marginTop: '1rem'}}>{error}</p>}
+             {error && <p style={{color: 'red', marginTop: '1rem'}}>{error}</p>}
           </div>
           <div className={styles.previewColumn}>
             <div className={styles.previewFrame}>
@@ -149,3 +149,4 @@ export default function FormEditor({ isOpen, onClose, companyId, departmentId, e
     </div>
   );
 }
+
