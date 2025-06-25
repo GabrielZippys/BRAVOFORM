@@ -1,7 +1,7 @@
-
 'use client';
 import { useState, useEffect } from 'react';
-import { Plus, Search, FileText, Edit, Trash2 } from 'lucide-react';
+// CORREÇÃO: Removidos 'Search' e 'FileText' que não estavam sendo usados.
+import { Plus, Edit, Trash2 } from 'lucide-react';
 import FormEditor from '@/components/FormEditor';
 import styles from '../../styles/Forms.module.css';
 import { db } from '../../../firebase/config';
@@ -10,7 +10,7 @@ import { collection, onSnapshot, query, where, doc, deleteDoc } from 'firebase/f
 // Tipos de dados
 interface Company { id: string; name: string; }
 interface Department { id: string; name: string; }
-interface Form {
+interface Form { 
     id: string; 
     title: string;
     fields: any[];
@@ -59,7 +59,6 @@ export default function FormsPage() {
       const deptsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Department));
       setDepartments(deptsData);
       if(deptsData.length > 0) {
-        // Apenas atualiza se o departamento selecionado não pertencer mais à nova empresa
         const currentDeptExists = deptsData.some(d => d.id === selectedDepartmentId);
         if (!currentDeptExists) {
             setSelectedDepartmentId(deptsData[0]?.id || '');
@@ -89,13 +88,13 @@ export default function FormsPage() {
   }, [selectedDepartmentId]);
 
   const handleOpenEditor = (form: Form | null = null) => {
-    setEditingForm(form); // Define o formulário para edição (ou null para criação)
+    setEditingForm(form); 
     setIsEditorOpen(true);
   };
   
   const handleCloseEditor = () => {
     setIsEditorOpen(false);
-    setEditingForm(null); // Limpa o estado de edição ao fechar
+    setEditingForm(null); 
   }
 
   const handleDeleteForm = async (formId: string) => {
