@@ -13,8 +13,13 @@ const nextConfig = {
         hostname: 'placehold.co',
         port: '',
         pathname: '/**',
-      },
+      }
     ],
+  },
+  experimental: {
+    css: {
+      ignoreGlobal: true
+    }
   },
 
   // ✅ Ignorar erros do ESLint no build (útil em Vercel)
