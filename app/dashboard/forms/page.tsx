@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { Plus, Edit, Trash2 } from 'lucide-react';
 import FormEditor from '@/components/FormEditor';
 import { type Company, type Department, type Form } from '@/types'; // Importando do arquivo central
-import styles from '@/styles/Forms.module.css';
+import styles from '../../styles/Forms.module.css';
 import { db } from '../../../firebase/config';
 import { collection, onSnapshot, query, where, doc, deleteDoc } from 'firebase/firestore';
 
