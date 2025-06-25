@@ -1,26 +1,17 @@
 'use client';
+
 import { useState, useEffect } from 'react';
-// CORREÇÃO: Removidos os ícones não utilizados.
-import { Plus, Edit, Trash2 } from 'lucide-react'; 
+import { Plus, Edit, Trash2 } from 'lucide-react';
 import FormEditor from '@/components/FormEditor';
 import styles from '../../styles/Forms.module.css';
-import { db } from '../../../firebase/config';
-import { collection, onSnapshot, query, where, doc, deleteDoc } from 'firebase/firestore';
 
-// Tipos de dados
-interface Company { id: string; name: string; }
-interface Department { id: string; name: string; }
-// CORREÇÃO: Definindo um tipo específico para os campos para resolver o erro 'any'
-interface FormField { id: number; type: 'Texto' | 'Anexo' | 'Assinatura'; label: string; }
-interface Form { 
-    id: string; 
-    title: string;
-    fields: FormField[];
-    automation: { type: string, target: string };
-    assignedCollaborators?: string[];
-    companyId: string;            
-  departmentId: string
-}
+// CORREÇÃO: Importa o auth para obter o utilizador atual para a consulta
+import { db, auth } from '../../../firebase/config';
+import { collection, onSnapshot, query, where, doc, deleteDoc, and } from 'firebase/firestore';
+
+// CORREÇÃO: Importa os tipos do ficheiro central, em vez de os definir localmente
+import { type Form, type Company, type Department } from '@/types';
+import { useAuth } from '@/hooks/useAuth'; // Assumindo que tem um hook de autenticação
 
 export default function FormsPage() {
   const [isEditorOpen, setIsEditorOpen] = useState(false);
@@ -34,16 +25,19 @@ export default function FormsPage() {
   const [selectedCompanyId, setSelectedCompanyId] = useState('');
   const [selectedDepartmentId, setSelectedDepartmentId] = useState('');
 
+  // Utilizador atual do nosso hook de autenticação
+  const { user, loading: authLoading } = useAuth();
+
   // Busca empresas
   useEffect(() => {
     const q = query(collection(db, "companies"));
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const companiesData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Company));
       setCompanies(companiesData);
-      if(companiesData.length > 0 && !selectedCompanyId) {
+      if (companiesData.length > 0 && !selectedCompanyId) {
         setSelectedCompanyId(companiesData[0].id);
       }
-      setLoading(prev => ({...prev, companies: false}));
+      setLoading(prev => ({ ...prev, companies: false }));
     });
     return () => unsubscribe();
   }, [selectedCompanyId]);
@@ -55,39 +49,51 @@ export default function FormsPage() {
       setSelectedDepartmentId('');
       return;
     }
-    setLoading(prev => ({...prev, departments: true}));
+    setLoading(prev => ({ ...prev, departments: true }));
     const q = query(collection(db, `companies/${selectedCompanyId}/departments`));
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const deptsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Department));
       setDepartments(deptsData);
-      const currentDeptExists = deptsData.some(d => d.id === selectedDepartmentId);
-      if (!currentDeptExists) {
+      if (!deptsData.some(d => d.id === selectedDepartmentId)) {
         setSelectedDepartmentId(deptsData[0]?.id || '');
       }
-       setLoading(prev => ({...prev, departments: false}));
+       setLoading(prev => ({ ...prev, departments: false }));
     });
     return () => unsubscribe();
-  // CORREÇÃO: Adicionada a dependência que faltava
   }, [selectedCompanyId, selectedDepartmentId]);
 
-  // Busca formulários do departamento selecionado
+  // CORREÇÃO: Busca formulários usando a regra de segurança
   useEffect(() => {
-    if (!selectedDepartmentId) {
+    // Não faz nada se não houver departamento ou se o utilizador ainda não estiver carregado
+    if (!selectedDepartmentId || !user) {
       setForms([]);
-      setLoading(prev => ({...prev, forms: false}));
+      setLoading(prev => ({ ...prev, forms: false }));
       return;
     }
-    setLoading(prev => ({...prev, forms: true}));
-    const q = query(collection(db, "forms"), where("departmentId", "==", selectedDepartmentId));
+    setLoading(prev => ({ ...prev, forms: true }));
+
+    // Cria a consulta correta que o Firestore permite
+    const q = query(
+      collection(db, "forms"),
+      and(
+        where("departmentId", "==", selectedDepartmentId),
+        where("authorizedUsers", "array-contains", user.uid)
+      )
+    );
+
     const unsubscribe = onSnapshot(q, (snapshot) => {
       setForms(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Form)));
+      setLoading(prev => ({ ...prev, forms: false }));
+    }, (error) => {
+      console.error("Erro ao buscar formulários: ", error);
       setLoading(prev => ({...prev, forms: false}));
     });
+
     return () => unsubscribe();
-  }, [selectedDepartmentId]);
+  }, [selectedDepartmentId, user]); // Depende do departamento E do utilizador
 
   const handleOpenEditor = (form: Form | null = null) => {
-    setEditingForm(form); 
+    setEditingForm(form);
     setIsEditorOpen(true);
   };
   
@@ -97,10 +103,21 @@ export default function FormsPage() {
   }
 
   const handleDeleteForm = async (formId: string) => {
-    if (window.confirm("Tem certeza que deseja apagar este formulário? Esta ação não pode ser desfeita.")) {
-        await deleteDoc(doc(db, "forms", formId));
+    // Seria ideal ter uma UI de modal em vez de window.confirm
+    if (confirm("Tem certeza que deseja apagar este formulário? Esta ação não pode ser desfeita.")) {
+        try {
+            await deleteDoc(doc(db, "forms", formId));
+        } catch (error) {
+            console.error("Erro ao apagar formulário (verifique as permissões): ", error);
+            // Adicionar feedback de erro para o utilizador
+        }
     }
   };
+  
+  // Mostra um estado de carregamento enquanto a autenticação está a ser verificada
+  if(authLoading) {
+      return <div>Carregando autenticação...</div>
+  }
 
   return (
     <>
