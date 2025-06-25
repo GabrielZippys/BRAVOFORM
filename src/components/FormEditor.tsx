@@ -5,22 +5,12 @@ import React, { useState, useEffect } from 'react';
 import { X, Type, Paperclip, PenSquare, Trash2 } from 'lucide-react';
 import styles from '../../app/styles/FormEditor.module.css';
 import { db } from '../../firebase/config';
-import { collection, addDoc, doc, updateDoc } from 'firebase/firestore';
+import { collection, addDoc, doc, updateDoc, onSnapshot, query, serverTimestamp } from 'firebase/firestore';
 
-interface FormField {
-  id: number;
-  type: 'Texto' | 'Anexo' | 'Assinatura';
-  label: string;
-}
-
-interface Form {
-    id?: string;
-    title: string;
-    fields: FormField[];
-    automation: { type: string; target: string; };
-    assignedCollaborators?: string[];
-}
-
+// --- Tipos de Dados ---
+interface FormField { id: number; type: 'Texto' | 'Anexo' | 'Assinatura'; label: string; }
+interface Form { id?: string; title: string; fields: FormField[]; automation: { type: string; target: string; }; assignedCollaborators?: string[]; }
+interface Collaborator { id: string; username: string; }
 interface FormEditorProps {
   isOpen: boolean;
   onClose: () => void;
@@ -30,35 +20,52 @@ interface FormEditorProps {
 }
 
 export default function FormEditor({ isOpen, onClose, companyId, departmentId, existingForm }: FormEditorProps) {
+  // --- Estados do Formulário ---
   const [formTitle, setFormTitle] = useState("Novo Formulário");
   const [fields, setFields] = useState<FormField[]>([]);
   const [automation, setAutomation] = useState({ type: 'email', target: '' });
   const [error, setError] = useState('');
+  
+  // --- Novos Estados para Atribuição ---
+  const [collaborators, setCollaborators] = useState<Collaborator[]>([]);
+  const [assignedCollaborators, setAssignedCollaborators] = useState<string[]>([]);
 
+  // Efeito para preencher o editor quando um formulário existente é passado
   useEffect(() => {
     if (isOpen && existingForm) {
         setFormTitle(existingForm.title);
         setFields(existingForm.fields || []);
         setAutomation(existingForm.automation || { type: 'email', target: '' });
+        setAssignedCollaborators(existingForm.assignedCollaborators || []);
     } else {
         setFormTitle("Novo Formulário");
         setFields([]);
         setAutomation({ type: 'email', target: '' });
+        setAssignedCollaborators([]);
     }
   }, [existingForm, isOpen]);
 
+  // Efeito para buscar colaboradores do departamento selecionado
+  useEffect(() => {
+    if (departmentId) {
+      const q = query(collection(db, `departments/${departmentId}/collaborators`));
+      const unsubscribe = onSnapshot(q, (snapshot) => {
+        setCollaborators(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Collaborator)));
+      });
+      return () => unsubscribe();
+    }
+  }, [departmentId]);
 
-  const addField = (type: FormField['type']) => {
-    const newField: FormField = { id: Date.now(), type, label: `Nova Pergunta` };
-    setFields(prevFields => [...prevFields, newField]);
-  };
-  
-  const updateFieldLabel = (id: number, newLabel: string) => {
-    setFields(prevFields => prevFields.map(field => field.id === id ? { ...field, label: newLabel } : field));
-  };
-  
-  const removeField = (id: number) => {
-    setFields(prevFields => prevFields.filter(field => field.id !== id));
+  // --- Funções do Editor ---
+  const addField = (type: FormField['type']) => setFields([...fields, { id: Date.now(), type, label: `Nova Pergunta` }]);
+  const updateFieldLabel = (id: number, newLabel: string) => setFields(fields.map(f => f.id === id ? { ...f, label: newLabel } : f));
+  const removeField = (id: number) => setFields(fields.filter(f => f.id !== id));
+  const handleCollaboratorToggle = (collaboratorId: string) => {
+    setAssignedCollaborators(prev => 
+      prev.includes(collaboratorId) 
+        ? prev.filter(id => id !== collaboratorId) 
+        : [...prev, collaboratorId]
+    );
   };
 
   const handleSave = async () => {
@@ -67,14 +74,13 @@ export default function FormEditor({ isOpen, onClose, companyId, departmentId, e
     }
     setError('');
     
-    const formToSave = { title: formTitle, fields, automation, companyId, departmentId };
+    const formToSave = { title: formTitle, fields, automation, companyId, departmentId, assignedCollaborators };
     
     try {
         if (existingForm?.id) {
-            const formRef = doc(db, "forms", existingForm.id);
-            await updateDoc(formRef, formToSave);
+            await updateDoc(doc(db, "forms", existingForm.id), formToSave);
         } else {
-            await addDoc(collection(db, "forms"), { ...formToSave, createdAt: new Date() });
+            await addDoc(collection(db, "forms"), { ...formToSave, createdAt: serverTimestamp() });
         }
         onClose();
     } catch (e) {
@@ -95,18 +101,8 @@ export default function FormEditor({ isOpen, onClose, companyId, departmentId, e
         
         <div className={styles.editorGrid}>
           <div className={styles.controlsColumn}>
-            <div>
-              <label htmlFor="form-title" className={styles.label}>Título do Formulário</label>
-              <input type="text" id="form-title" value={formTitle} onChange={(e) => setFormTitle(e.target.value)} className={styles.input}/>
-            </div>
-            <div>
-              <h4 className={styles.subTitle}>Adicionar Campos</h4>
-              <div className={styles.fieldButtons}>
-                <button onClick={() => addField('Texto')} className={styles.button}><Type size={16} /><span>Texto</span></button>
-                <button onClick={() => addField('Anexo')} className={styles.button}><Paperclip size={16} /><span>Anexo</span></button>
-                <button onClick={() => addField('Assinatura')} className={styles.button}><PenSquare size={16} /><span>Assinatura</span></button>
-              </div>
-            </div>
+            <div><label className={styles.label}>Título do Formulário</label><input type="text" value={formTitle} onChange={(e) => setFormTitle(e.target.value)} className={styles.input}/></div>
+            <div><h4 className={styles.subTitle}>Adicionar Campos</h4><div className={styles.fieldButtons}><button onClick={() => addField('Texto')} className={styles.button}><Type size={16} /><span>Texto</span></button><button onClick={() => addField('Anexo')} className={styles.button}><Paperclip size={16} /><span>Anexo</span></button><button onClick={() => addField('Assinatura')} className={styles.button}><PenSquare size={16} /><span>Assinatura</span></button></div></div>
             <div className={styles.fieldsList}>
                 {fields.map(field => (
                     <div key={field.id} className={styles.fieldEditor}>
@@ -115,7 +111,18 @@ export default function FormEditor({ isOpen, onClose, companyId, departmentId, e
                     </div>
                 ))}
             </div>
-             {error && <p style={{color: 'red', marginTop: '1rem'}}>{error}</p>}
+             <div>
+              <h4 className={styles.subTitle}>Atribuir a Colaboradores</h4>
+              <div className={styles.collaboratorList}>
+                {collaborators.length > 0 ? collaborators.map(collab => (
+                    <label key={collab.id} className={styles.collaboratorItem}>
+                        <input type="checkbox" checked={assignedCollaborators.includes(collab.id)} onChange={() => handleCollaboratorToggle(collab.id)}/>
+                        {collab.username}
+                    </label>
+                )) : <p style={{padding: '0.5rem'}}>Nenhum colaborador encontrado neste setor.</p>}
+              </div>
+            </div>
+            {error && <p style={{color: 'red', marginTop: '1rem'}}>{error}</p>}
           </div>
           <div className={styles.previewColumn}>
             <div className={styles.previewFrame}>

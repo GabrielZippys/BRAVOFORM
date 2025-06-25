@@ -1,29 +1,30 @@
+
 'use client';
 import { useState, useEffect } from 'react';
-// CORREÇÃO: Removidos 'Search' e 'FileText' que não estavam sendo usados.
-import { Plus, Edit, Trash2 } from 'lucide-react';
+// CORREÇÃO: Removido 'Search' e adicionado os ícones corretos
+import { Plus, Edit, Trash2 } from 'lucide-react'; 
 import FormEditor from '@/components/FormEditor';
 import styles from '../../styles/Forms.module.css';
 import { db } from '../../../firebase/config';
 import { collection, onSnapshot, query, where, doc, deleteDoc } from 'firebase/firestore';
 
-// Tipos de dados
+// --- Tipos de Dados ---
 interface Company { id: string; name: string; }
 interface Department { id: string; name: string; }
+// CORREÇÃO: Definindo um tipo específico para os campos
+interface FormField { id: number; type: string; label: string; }
 interface Form { 
     id: string; 
     title: string;
-    fields: any[];
+    fields: FormField[];
     automation: { type: string, target: string };
     assignedCollaborators?: string[];
 }
 
 export default function FormsPage() {
   const [isEditorOpen, setIsEditorOpen] = useState(false);
-  // Estado para saber qual formulário está sendo editado
   const [editingForm, setEditingForm] = useState<Form | null>(null);
   
-  // Estados para os dados e filtros
   const [companies, setCompanies] = useState<Company[]>([]);
   const [departments, setDepartments] = useState<Department[]>([]);
   const [forms, setForms] = useState<Form[]>([]);
@@ -44,7 +45,8 @@ export default function FormsPage() {
       setLoading(prev => ({...prev, companies: false}));
     });
     return () => unsubscribe();
-  }, [selectedCompanyId]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Busca departamentos da empresa selecionada
   useEffect(() => {
@@ -53,22 +55,19 @@ export default function FormsPage() {
       setSelectedDepartmentId('');
       return;
     }
-    setLoading(prev => ({...prev, departments: true}));
     const q = query(collection(db, `companies/${selectedCompanyId}/departments`));
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const deptsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Department));
       setDepartments(deptsData);
       if(deptsData.length > 0) {
         const currentDeptExists = deptsData.some(d => d.id === selectedDepartmentId);
-        if (!currentDeptExists) {
-            setSelectedDepartmentId(deptsData[0]?.id || '');
-        }
+        if (!currentDeptExists) setSelectedDepartmentId(deptsData[0]?.id || '');
       } else {
         setSelectedDepartmentId('');
       }
-       setLoading(prev => ({...prev, departments: false}));
     });
     return () => unsubscribe();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedCompanyId]);
 
   // Busca formulários do departamento selecionado
