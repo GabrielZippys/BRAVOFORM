@@ -67,4 +67,11 @@
 body {
   font-family: var(--font-sans);
   background-color: var(--secondary-bg);
+  color: var(--text-ivory);
+}
+
+/* Garante que os inputs não herdem estilos estranhos */
+input, button, select, textarea {
+  font-family: inherit;
+  color: inherit;
 }
