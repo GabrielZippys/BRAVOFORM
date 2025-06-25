@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState, useEffect } from 'react';
@@ -6,9 +7,19 @@ import styles from '../../app/styles/FormEditor.module.css';
 import { db } from '../../firebase/config';
 import { collection, addDoc, doc, updateDoc, onSnapshot, query, serverTimestamp } from 'firebase/firestore';
 
-// --- Tipos de Dados ---
-interface FormField { id: number; type: 'Texto' | 'Anexo' | 'Assinatura'; label: string; }
-interface Form { id?: string; title: string; fields: FormField[]; automation: { type: string; target: string; }; assignedCollaborators?: string[]; }
+interface FormField {
+  id: number;
+  type: 'Texto' | 'Anexo' | 'Assinatura';
+  label: string;
+}
+
+interface Form {
+    id?: string;
+    title: string;
+    fields: FormField[];
+    automation: { type: string; target: string; };
+    assignedCollaborators?: string[];
+}
 interface Collaborator { id: string; username: string; }
 interface FormEditorProps {
   isOpen: boolean;
@@ -19,17 +30,14 @@ interface FormEditorProps {
 }
 
 export default function FormEditor({ isOpen, onClose, companyId, departmentId, existingForm }: FormEditorProps) {
-  // --- Estados do Formulário ---
   const [formTitle, setFormTitle] = useState("Novo Formulário");
   const [fields, setFields] = useState<FormField[]>([]);
   const [automation, setAutomation] = useState({ type: 'email', target: '' });
   const [error, setError] = useState('');
   
-  // --- Novos Estados para Atribuição ---
   const [collaborators, setCollaborators] = useState<Collaborator[]>([]);
   const [assignedCollaborators, setAssignedCollaborators] = useState<string[]>([]);
 
-  // Efeito para preencher o editor quando um formulário existente é passado
   useEffect(() => {
     if (isOpen && existingForm) {
         setFormTitle(existingForm.title);
@@ -43,8 +51,7 @@ export default function FormEditor({ isOpen, onClose, companyId, departmentId, e
         setAssignedCollaborators([]);
     }
   }, [existingForm, isOpen]);
-  
-  // Efeito para buscar colaboradores do departamento selecionado
+
   useEffect(() => {
     if (isOpen && departmentId) {
       const q = query(collection(db, `departments/${departmentId}/collaborators`));
@@ -55,10 +62,18 @@ export default function FormEditor({ isOpen, onClose, companyId, departmentId, e
     }
   }, [departmentId, isOpen]);
 
-  // --- Funções do Editor ---
-  const addField = (type: FormField['type']) => setFields([...fields, { id: Date.now(), type, label: `Nova Pergunta` }]);
-  const updateFieldLabel = (id: number, newLabel: string) => setFields(fields.map(f => f.id === id ? { ...f, label: newLabel } : f));
-  const removeField = (id: number) => setFields(fields.filter(f => f.id !== id));
+  const addField = (type: FormField['type']) => {
+    const newField: FormField = { id: Date.now(), type, label: `Nova Pergunta` };
+    setFields(prevFields => [...prevFields, newField]);
+  };
+  
+  const updateFieldLabel = (id: number, newLabel: string) => {
+    setFields(prevFields => prevFields.map(field => field.id === id ? { ...field, label: newLabel } : field));
+  };
+  
+  const removeField = (id: number) => {
+    setFields(prevFields => prevFields.filter(field => field.id !== id));
+  };
   
   const handleCollaboratorToggle = (collaboratorId: string) => {
     setAssignedCollaborators(prev => 
@@ -111,7 +126,7 @@ export default function FormEditor({ isOpen, onClose, companyId, departmentId, e
                     </div>
                 ))}
             </div>
-            <div>
+             <div>
               <h4 className={styles.subTitle}>Atribuir a Colaboradores</h4>
               <div className={styles.collaboratorList}>
                 {collaborators.length > 0 ? collaborators.map(collab => (
@@ -122,7 +137,7 @@ export default function FormEditor({ isOpen, onClose, companyId, departmentId, e
                 )) : <p style={{padding: '0.5rem', opacity: 0.7}}>Nenhum colaborador encontrado neste setor.</p>}
               </div>
             </div>
-             {error && <p style={{color: 'red', marginTop: '1rem'}}>{error}</p>}
+            {error && <p style={{color: 'red', marginTop: '1rem'}}>{error}</p>}
           </div>
           <div className={styles.previewColumn}>
             <div className={styles.previewFrame}>
@@ -149,4 +164,3 @@ export default function FormEditor({ isOpen, onClose, companyId, departmentId, e
     </div>
   );
 }
-
