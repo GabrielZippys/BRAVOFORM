@@ -1,9 +1,9 @@
+
 'use client';
 
 import React, { useState, useEffect } from 'react';
 import { X, Type, Paperclip, PenSquare, Trash2 } from 'lucide-react';
-// CORREÇÃO: Importando os tipos do nosso arquivo central
-import { type Form, type FormField, type Collaborator } from '@/types';
+import { type Form, type FormField, type Collaborator } from '@/types'; // Importando do arquivo central
 import styles from '../../app/styles/FormEditor.module.css';
 import { db } from '../../firebase/config';
 import { collection, addDoc, doc, updateDoc, onSnapshot, query, serverTimestamp } from 'firebase/firestore';
@@ -78,7 +78,14 @@ export default function FormEditor({ isOpen, onClose, companyId, departmentId, e
     setError('');
     
     // CORREÇÃO: O tipo Omit<Form, 'id'> agora funciona porque nosso tipo Form está completo
-    const formToSave: Omit<Form, 'id'> = { title: formTitle, fields, automation, companyId, departmentId, assignedCollaborators };
+    const formToSave: Omit<Form, 'id'> = { 
+        title: formTitle, 
+        fields, 
+        automation, 
+        companyId, 
+        departmentId, 
+        assignedCollaborators 
+    };
     
     try {
         if (existingForm?.id) {
@@ -102,39 +109,62 @@ export default function FormEditor({ isOpen, onClose, companyId, departmentId, e
           <h3 className={styles.panelTitle}>{existingForm ? 'Editar Formulário' : 'Novo Formulário'}</h3>
           <button onClick={onClose} className={styles.closeButton}><X /></button>
         </div>
+        
         <div className={styles.editorGrid}>
-            <div className={styles.controlsColumn}>
-              <div><label className={styles.label}>Título do Formulário</label><input type="text" value={formTitle} onChange={(e) => setFormTitle(e.target.value)} className={styles.input}/></div>
-              <div><h4 className={styles.subTitle}>Adicionar Campos</h4><div className={styles.fieldButtons}><button onClick={() => addField('Texto')} className={styles.button}><Type size={16} /><span>Texto</span></button><button onClick={() => addField('Anexo')} className={styles.button}><Paperclip size={16} /><span>Anexo</span></button><button onClick={() => addField('Assinatura')} className={styles.button}><PenSquare size={16} /><span>Assinatura</span></button></div></div>
-              <div className={styles.fieldsList}>
-                  {fields.map(field => (
-                      <div key={field.id} className={styles.fieldEditor}>
-                          <div className={styles.fieldHeader}><span className={styles.fieldTypeLabel}>{field.type}</span><button onClick={() => removeField(field.id)} className={styles.deleteFieldButton}><Trash2 size={16}/></button></div>
-                          <input type="text" value={field.label} onChange={(e) => updateFieldLabel(field.id, e.target.value)} className={styles.input}/>
-                      </div>
-                  ))}
+          <div className={styles.controlsColumn}>
+            <div>
+              <label htmlFor="form-title" className={styles.label}>Título do Formulário</label>
+              <input type="text" id="form-title" value={formTitle} onChange={(e) => setFormTitle(e.target.value)} className={styles.input}/>
+            </div>
+            <div>
+              <h4 className={styles.subTitle}>Adicionar Campos</h4>
+              <div className={styles.fieldButtons}>
+                <button onClick={() => addField('Texto')} className={styles.button}><Type size={16} /><span>Texto</span></button>
+                <button onClick={() => addField('Anexo')} className={styles.button}><Paperclip size={16} /><span>Anexo</span></button>
+                <button onClick={() => addField('Assinatura')} className={styles.button}><PenSquare size={16} /><span>Assinatura</span></button>
               </div>
             </div>
-            <div className={styles.previewColumn}>
-              <div className={styles.previewFrame}>
-                <h2 className={styles.previewTitle}>{formTitle}</h2>
-                <div className={styles.previewFieldsContainer}>
-                  {fields.map((field) => (
-                    <div key={field.id} >
-                      <label className={styles.previewLabel}>{field.label}</label>
-                      {field.type === 'Texto' && <div className={styles.previewInput}></div>}
-                      {field.type === 'Anexo' && <div className={styles.previewAttachment}><Paperclip size={24}/></div>}
-                      {field.type === 'Assinatura' && <div className={styles.previewSignature}></div>}
+            <div className={styles.fieldsList}>
+                {fields.map(field => (
+                    <div key={field.id} className={styles.fieldEditor}>
+                        <div className={styles.fieldHeader}><span className={styles.fieldTypeLabel}>{field.type}</span><button onClick={() => removeField(field.id)} className={styles.deleteFieldButton}><Trash2 size={16}/></button></div>
+                        <input type="text" value={field.label} onChange={(e) => updateFieldLabel(field.id, e.target.value)} className={styles.input}/>
                     </div>
-                  ))}
-                </div>
-                <button className={styles.previewButton}>Submeter</button>
+                ))}
+            </div>
+             <div>
+              <h4 className={styles.subTitle}>Atribuir a Colaboradores</h4>
+              <div className={styles.collaboratorList}>
+                {collaborators.length > 0 ? collaborators.map(collab => (
+                    <label key={collab.id} className={styles.collaboratorItem}>
+                        <input type="checkbox" checked={assignedCollaborators.includes(collab.id)} onChange={() => handleCollaboratorToggle(collab.id)}/>
+                        {collab.username}
+                    </label>
+                )) : <p style={{padding: '0.5rem', opacity: 0.7}}>Nenhum colaborador encontrado.</p>}
               </div>
             </div>
+            {error && <p style={{color: 'red', marginTop: '1rem'}}>{error}</p>}
+          </div>
+          <div className={styles.previewColumn}>
+            <div className={styles.previewFrame}>
+              <h2 className={styles.previewTitle}>{formTitle}</h2>
+              <div className={styles.previewFieldsContainer}>
+                {fields.map((field) => (
+                  <div key={field.id} >
+                    <label className={styles.previewLabel}>{field.label}</label>
+                    {field.type === 'Texto' && <div className={styles.previewInput}></div>}
+                    {field.type === 'Anexo' && <div className={styles.previewAttachment}><Paperclip size={24}/></div>}
+                    {field.type === 'Assinatura' && <div className={styles.previewSignature}></div>}
+                  </div>
+                ))}
+              </div>
+              <button className={styles.previewButton}>Submeter</button>
+            </div>
+          </div>
         </div>
         <div className={styles.panelFooter}>
             <button onClick={onClose} className={`${styles.formButton} ${styles.formButtonSecondary}`}>Cancelar</button>
-            <button onClick={handleSave} className={`${styles.formButton} ${styles.formButtonPrimary}`}>Salvar</button>
+            <button onClick={handleSave} className={`${styles.formButton} ${styles.formButtonPrimary}`}>Salvar Formulário</button>
         </div>
       </div>
     </div>

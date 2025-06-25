@@ -1,14 +1,12 @@
-// --- Tipos de Dados Globais ---
 
-// Define a estrutura de um campo dentro de um formulário
+
 export interface FormField {
   id: number;
   type: 'Texto' | 'Anexo' | 'Assinatura';
   label: string;
 }
 
-// Define a estrutura de um formulário completo
-// CORREÇÃO: Adicionadas as propriedades que faltavam
+// CORREÇÃO: Adicionadas as propriedades que faltavam para o formulário
 export interface Form {
     id: string; 
     title: string;
@@ -19,7 +17,6 @@ export interface Form {
     assignedCollaborators?: string[];
 }
 
-// Outros tipos que usamos no projeto
 export interface Company { id: string; name: string; }
 export interface Department { id: string; name: string; }
 export interface Collaborator { id: string; username: string; }
