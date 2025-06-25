@@ -1,9 +1,9 @@
+
 'use client';
 
 import React, { useState, useEffect } from 'react';
 import { X, Type, Paperclip, PenSquare, Trash2 } from 'lucide-react';
-// CORREÇÃO: Importando os tipos do nosso arquivo central
-import { type Form, type FormField, type Collaborator } from '@/types';
+import { type Form, type FormField, type Collaborator } from '@/types'; // Importando do arquivo central
 import styles from '../../app/styles/FormEditor.module.css';
 import { db } from '../../firebase/config';
 import { collection, addDoc, doc, updateDoc, onSnapshot, query, serverTimestamp } from 'firebase/firestore';

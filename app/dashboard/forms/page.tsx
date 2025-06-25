@@ -1,9 +1,9 @@
+
 'use client';
 import { useState, useEffect } from 'react';
 import { Plus, Edit, Trash2 } from 'lucide-react';
 import FormEditor from '@/components/FormEditor';
-// CORREÇÃO: Importando os tipos do nosso arquivo central
-import { type Company, type Department, type Form } from '@/types';
+import { type Company, type Department, type Form } from '@/types'; // Importando do arquivo central de tipos
 import styles from '../../styles/Forms.module.css';
 import { db } from '../../../firebase/config';
 import { collection, onSnapshot, query, where, doc, deleteDoc } from 'firebase/firestore';
@@ -15,12 +15,11 @@ export default function FormsPage() {
   const [companies, setCompanies] = useState<Company[]>([]);
   const [departments, setDepartments] = useState<Department[]>([]);
   const [forms, setForms] = useState<Form[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState({ companies: true, departments: false, forms: false });
 
   const [selectedCompanyId, setSelectedCompanyId] = useState('');
   const [selectedDepartmentId, setSelectedDepartmentId] = useState('');
 
-  // Busca empresas
   useEffect(() => {
     const q = query(collection(db, "companies"));
     const unsubscribe = onSnapshot(q, (snapshot) => {
@@ -29,42 +28,48 @@ export default function FormsPage() {
       if(companiesData.length > 0 && !selectedCompanyId) {
         setSelectedCompanyId(companiesData[0].id);
       }
-      setLoading(false);
+      setLoading(prev => ({...prev, companies: false}));
     });
     return () => unsubscribe();
   }, [selectedCompanyId]);
 
-  // Busca departamentos
   useEffect(() => {
     if (!selectedCompanyId) {
       setDepartments([]);
       setSelectedDepartmentId('');
       return;
     }
+    setLoading(prev => ({...prev, departments: true}));
     const q = query(collection(db, `companies/${selectedCompanyId}/departments`));
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const deptsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Department));
       setDepartments(deptsData);
-      setSelectedDepartmentId(deptsData[0]?.id || '');
+      const currentDeptExists = deptsData.some(d => d.id === selectedDepartmentId);
+      if (!currentDeptExists) {
+        setSelectedDepartmentId(deptsData[0]?.id || '');
+      }
+      setLoading(prev => ({...prev, departments: false}));
     });
     return () => unsubscribe();
-  }, [selectedCompanyId]);
+  }, [selectedCompanyId, selectedDepartmentId]); // CORREÇÃO: Adicionada a dependência
 
-  // Busca formulários
   useEffect(() => {
     if (!selectedDepartmentId) {
       setForms([]);
+      setLoading(prev => ({...prev, forms: false}));
       return;
     }
+    setLoading(prev => ({...prev, forms: true}));
     const q = query(collection(db, "forms"), where("departmentId", "==", selectedDepartmentId));
     const unsubscribe = onSnapshot(q, (snapshot) => {
       setForms(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Form)));
+      setLoading(prev => ({...prev, forms: false}));
     });
     return () => unsubscribe();
   }, [selectedDepartmentId]);
 
   const handleOpenEditor = (form: Form | null = null) => {
-    setEditingForm(form);
+    setEditingForm(form); 
     setIsEditorOpen(true);
   };
   
@@ -84,17 +89,35 @@ export default function FormsPage() {
       <div>
         <div className={styles.header}>
           <h2 className={styles.title}>Gerenciar Formulários</h2>
-          <button onClick={() => handleOpenEditor()} className={styles.button} disabled={!selectedCompanyId || !selectedDepartmentId}>
-            <Plus size={16} /><span>Novo Formulário</span>
+          <button 
+            onClick={() => handleOpenEditor()} 
+            className={styles.button}
+            disabled={!selectedCompanyId || !selectedDepartmentId}
+          >
+            <Plus size={16} />
+            <span>Novo Formulário</span>
           </button>
         </div>
+
         <div className={styles.frame}>
           <div className={styles.filters}>
-            {/* ... JSX dos filtros ... */}
+            <div className={styles.filterGroup}>
+              <label htmlFor="empresa">Empresa</label>
+              <select id="empresa" value={selectedCompanyId} onChange={e => setSelectedCompanyId(e.target.value)} className={styles.filterInput}>
+                {companies.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+              </select>
+            </div>
+            <div className={styles.filterGroup}>
+              <label htmlFor="depto">Departamento</label>
+              <select id="depto" value={selectedDepartmentId} onChange={e => setSelectedDepartmentId(e.target.value)} className={styles.filterInput} disabled={!selectedCompanyId}>
+                 {loading.departments ? <option>Carregando...</option> : departments.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
+              </select>
+            </div>
           </div>
         </div>
+
         <div className={styles.cardGrid}>
-          {loading ? <p>Carregando...</p> : forms.length > 0 ? (
+          {loading.forms ? <p className={styles.emptyState}>Carregando formulários...</p> : forms.length > 0 ? (
             forms.map(form => (
               <div key={form.id} className={styles.formCard}>
                 <h3 className={styles.cardTitle}>{form.title}</h3>
@@ -104,7 +127,9 @@ export default function FormsPage() {
                 </div>
               </div>
             ))
-          ) : ( <p>Nenhum formulário encontrado.</p> )}
+          ) : (
+            <p className={styles.emptyState}>Nenhum formulário encontrado para este setor.</p>
+          )}
         </div>
       </div>
 
