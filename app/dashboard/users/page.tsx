@@ -77,8 +77,8 @@ export default function UsersPage() {
     }, [selectedDepartment]);
 
     // --- Funções da UI ---
-    const handleSelectCompany = (company: Company) => { setSelectedCompany(company); setView('departments'); };
-    const handleSelectDepartment = (department: Department) => { setSelectedDepartment(department); setView('users'); };
+    //const handleSelectCompany = (company: Company) => { setSelectedCompany(company); setView('departments'); };
+   // const handleSelectDepartment = (department: Department) => { setSelectedDepartment(department); setView('users'); };
     const resetView = () => { setView('overview'); setSelectedCompany(null); setSelectedDepartment(null); };
     
     const openModal = (type: ModalType, mode: 'create' | 'edit' = 'create', userToEdit?: AppUser) => {
