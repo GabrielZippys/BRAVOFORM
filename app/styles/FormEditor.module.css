@@ -11,24 +11,7 @@
 /* CORREÇÃO: Envolvemos os seletores globais em :global() para os tornar compatíveis com CSS Modules. */
 
 
-:global(:root) {
-  /* CORES ART DECO (TEMA ESCURO) */
-  --deco-dark: #0A2E36;
-  --deco-teal: #07485B;
-  --deco-gold: #C5A05C;
-  --deco-brass: #B18F42;
-  --deco-ivory: #F0EAD6;
-  
-  /* VARIÁVEIS PARA O FORMEDITOR */
-  --primary-bg: var(--deco-dark);
-  --secondary-bg: var(--deco-teal);
-  --accent-gold: var(--deco-gold);
-  --accent-brass: var(--deco-brass);
-  --text-ivory: var(--deco-ivory);
-  --text-dark: #222c26;
-  --error-red: #e53e3e;
-  --paper-texture: url('https://www.transparenttextures.com/patterns/subtle-grunge.png');
-}
+
 
 /* ESTILOS DE BASE */
 :global(body) {
