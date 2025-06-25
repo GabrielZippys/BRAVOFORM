@@ -9,63 +9,26 @@
 @import url('https://fonts.googleapis.com/css2?family=Limelight&family=Poppins:wght@300;400;500&display=swap');
 
 /* CORREÇÃO: Envolvemos os seletores globais em :global() para os tornar compatíveis com CSS Modules. */
+
+
 :global(:root) {
-  /* FONTES */
-    /* Fonte para corpo de texto, limpa e legível */
-
-  /* ================================================================= */
-  /* ESCOLHA O SEU TEMA: Descomente UM dos blocos abaixo para ativar. */
-  /* ================================================================= */
-
-  /* TEMA 1: WELCOME TO RAPTURE (Padrão) */
-  --primary-bg: #0A2E36; /* Azul-petróleo profundo do oceano */
-  --secondary-bg: #061e23; /* Fundo mais escuro para profundidade */
-  --accent-gold: #C9A25E; /* Ouro envelhecido e latão */
-  --accent-brass: #8C6D3F; /* Latão mais escuro e oxidado */
-  --text-ivory: #E8E2D4; /* Marfim, como papel envelhecido */
-  --text-dark: #2c251d; /* Texto escuro para contraste no marfim */
-  --error-red: #d44c4c; /* Vermelho de alarme */
-  --paper-texture: url('https://www.transparenttextures.com/patterns/old-paper.png');
-}
-
-/* :global(:root) {
-  --primary-bg: #1B3D2F; 
-  --secondary-bg: #12291f;
-  --accent-gold: #D4AF37;
-  --accent-brass: #A47C48;
-  --text-ivory: #F0F0DC;
+  /* CORES ART DECO (TEMA ESCURO) */
+  --deco-dark: #0A2E36;
+  --deco-teal: #07485B;
+  --deco-gold: #C5A05C;
+  --deco-brass: #B18F42;
+  --deco-ivory: #F0EAD6;
+  
+  /* VARIÁVEIS PARA O FORMEDITOR */
+  --primary-bg: var(--deco-dark);
+  --secondary-bg: var(--deco-teal);
+  --accent-gold: var(--deco-gold);
+  --accent-brass: var(--deco-brass);
+  --text-ivory: var(--deco-ivory);
   --text-dark: #222c26;
   --error-red: #e53e3e;
-  --paper-texture: url('https://www.transparenttextures.com/patterns/subtle-leaves.png');
+  --paper-texture: url('https://www.transparenttextures.com/patterns/subtle-grunge.png');
 }
-
-
-
-:global(:root) {
-  --primary-bg: #2C1F3A; 
-  --secondary-bg: #1a1322;
-  --accent-gold: #FAD02C;
-  --accent-brass: #B28DFF;
-  --text-ivory: #FFFFFF;
-  --text-dark: #1a1322;
-  --error-red: #ff477e;
-  --paper-texture: url('https://www.transparenttextures.com/patterns/clean-gray-paper.png');
-}
-
-
-
-:global(:root) {
-  --primary-bg: #2C2C2C;
-  --secondary-bg: #1a1a1a;
-  --accent-gold: #FFA500;
-  --accent-brass: #8B4513;
-  --text-ivory: #DADADA;
-  --text-dark: #1a1a1a;
-  --error-red: #FF4500;
-  --paper-texture: url('https://www.transparenttextures.com/patterns/brushed-metal.png');
-}
-*/
-
 
 /* ESTILOS DE BASE */
 :global(body) {
@@ -86,7 +49,6 @@
   position: fixed;
   top: 0;
   right: 0;
-  height: 100%;
   width: 100%;
   max-width: 60rem;
   background-color: var(--primary-bg);
@@ -95,8 +57,16 @@
   box-shadow: -8px 0 25px rgba(0,0,0,0.7);
   display: flex;
   flex-direction: column;
+  height: 100vh; /* Garante que o painel ocupe toda a altura */
   z-index: 50;
   font-family: var(--font-sans);
+   display: -webkit-box;
+  display: -ms-flexbox;
+  -webkit-box-orient: vertical;
+  -webkit-box-direction: normal;
+      -ms-flex-direction: column;
+          flex-direction: column;
+  height: 100vh; /* Usa viewport height como fallback */
 }
 
 .panelHeader {
@@ -143,7 +113,12 @@
 
 /* GRELHA DO EDITOR */
 .editorGrid {
-  flex-grow: 1;
+  overflow: hidden;
+    -webkit-box-flex: 1;
+      -ms-flex: 1;
+          flex: 1;
+  display: -webkit-box;
+  display: -ms-flexbox;
   display: flex;
   overflow: hidden;
 }
@@ -155,10 +130,11 @@
 }
 
 .controlsColumn {
-  display: flex;
+ display: flex;
   flex-direction: column;
   gap: 1.5rem;
   background-color: rgba(0,0,0,0.2);
+  height: 100%; /* Ocupa toda a altura disponível */
 }
 
 /* CUSTOM SCROLLBAR */
@@ -245,9 +221,11 @@
 
 /* LISTA DE CAMPOS E EDITOR DE OPÇÕES - CORREÇÃO DE LAYOUT */
 .fieldsList {
+   flex: 1; /* Preenche o espaço disponível */
   display: flex;
   flex-direction: column;
   gap: 1rem;
+  overflow-y: auto; /* Adiciona scroll se necessário */
 }
 /* Estilo de placeholder que só se aplica quando a lista está VAZIA */
 .fieldsList:empty {
@@ -383,8 +361,8 @@
   background-color: transparent;
   padding: 2rem;
   height: 100%;
-  color: var(--text-dark);
-  border: 1px solid var(--accent-brass);
+  color: var(--deco-ivory); /* Texto claro */
+  border: 1px solid var(--deco-brass); /* Borda dourada */
   box-shadow: inset 0 0 20px rgba(0,0,0,0.4);
   display: flex;
   flex-direction: column;
@@ -410,7 +388,7 @@
 .previewLabel {
   display: block;
   margin-bottom: 0.5rem;
-  color: #555;
+  color: var(--deco-ivory) !important; /* Labels claros */
   font-weight: 500;
   word-wrap: break-word;
   overflow-wrap: break-word;
@@ -443,9 +421,24 @@
   display: flex;
   align-items: center;
   gap: 0.75rem;
-  color: #333;
+  color: var(--deco-ivory) !important; /* Texto de opções claro */
   user-select: none;
 }
+
+.previewInput, 
+.previewDateInput {
+  background-color: rgba(255, 255, 255, 0.1) !important;
+  border: 1px solid var(--deco-brass) !important;
+  color: var(--deco-ivory) !important;
+}
+
+.previewAttachment, 
+.previewSignature {
+  border: 2px dashed var(--deco-gold) !important; /* Borda dourada */
+  color: var(--deco-gold) !important; /* Ícones dourados */
+}
+
+
 .previewCheckbox, .previewRadio {
   width: 16px;
   height: 16px;
@@ -458,8 +451,8 @@
 .previewSectionHeader {
   font-family: var(--font-display);
   font-size: 1.25rem;
-  color: #444;
-  border-bottom: 1px solid rgba(140, 109, 63, 0.5);
+  color: var(--deco-gold) !important; /* Cabeçalhos dourados */
+  border-bottom: 1px solid var(--deco-brass); /* Linha dourada */
   padding-bottom: 0.25rem;
   margin-top: 1rem;
 }
@@ -487,6 +480,12 @@
   justify-content: flex-end;
   gap: 1rem;
   flex-shrink: 0;
+    margin-top: auto; /* Empurra o rodapé para o final */
+  position: sticky;
+  bottom: 0;
+  z-index: 10;
+   -ms-flex-negative: 0;
+      flex-shrink: 0;
 }
 
 .formButton {
