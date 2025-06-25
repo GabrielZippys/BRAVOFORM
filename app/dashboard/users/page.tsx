@@ -7,7 +7,8 @@ import styles from '../../styles/Users.module.css';
 import modalStyles from '../../styles/Modal.module.css';
 import { db, auth } from '../../../firebase/config';
 import { collection, addDoc, onSnapshot, query, where, doc, updateDoc, deleteDoc } from 'firebase/firestore'; 
-import { createUserWithEmailAndPassword, AuthError } from 'firebase/auth';
+// Importando o tipo AuthError para o tratamento de erros
+import { createUserWithEmailAndPassword, AuthError } from 'firebase/auth'; 
 
 // --- Tipos de Dados ---
 interface Company { id: string; name: string; }
@@ -62,20 +63,16 @@ export default function UsersPage() {
 
     useEffect(() => {
         if (!selectedCompany) { setDepartments([]); return; }
-        setLoading(prev => ({ ...prev, departments: true }));
         const q = onSnapshot(query(collection(db, `companies/${selectedCompany.id}/departments`)), (snapshot) => {
             setDepartments(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Department)));
-            setLoading(prev => ({ ...prev, departments: false }));
         });
         return () => q();
     }, [selectedCompany]);
 
     useEffect(() => {
         if (!selectedDepartment) { setUsers([]); return; }
-        setLoading(prev => ({ ...prev, users: true }));
         const q = onSnapshot(query(collection(db, "users"), where("departmentId", "==", selectedDepartment.id)), (snapshot) => {
             setUsers(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as AppUser)));
-            setLoading(prev => ({ ...prev, users: false }));
         });
         return () => q();
     }, [selectedDepartment]);
@@ -132,6 +129,7 @@ export default function UsersPage() {
             }
             closeModal();
         } catch (error) {
+            // CORREÇÃO: Adicionando o tipo correto para o erro
             const authError = error as AuthError;
             if (authError.code === 'auth/weak-password') setFormError('A senha deve ter pelo menos 6 caracteres.');
             else if (authError.code === 'auth/email-already-in-use') setFormError('Este e-mail já está em uso.');
@@ -145,7 +143,6 @@ export default function UsersPage() {
         }
     };
     
-    // --- LÓGICA DE RENDERIZAÇÃO CORRIGIDA ---
     const renderContent = () => {
         switch(view) {
             case 'departments':
@@ -217,14 +214,9 @@ export default function UsersPage() {
 
             <Modal isOpen={isModalOpen} onClose={closeModal} title={
                 modalMode === 'edit' ? `Editar ${modalContent === 'adminUser' ? 'Admin' : 'Usuário'}` :
-                modalContent === 'company' ? 'Nova Empresa' : 
-                modalContent === 'department' ? 'Novo Setor' : 
-                'Novo Acesso'
+                'Novo ' + (modalContent === 'company' ? 'Empresa' : 'Usuário')
             }>
-                {modalContent === 'company' && ( <form onSubmit={handleAddCompany}><div className={modalStyles.panelBody}><div className={modalStyles.formGroup}><label className={modalStyles.label}>Nome da Empresa</label><input value={formState.companyName} onChange={e => setFormState({...formState, companyName: e.target.value})} className={modalStyles.input} required/></div></div><div className={modalStyles.buttonContainer}><button type="button" onClick={closeModal} className={modalStyles.button + ' ' + modalStyles.buttonSecondary}>Cancelar</button><button type="submit" className={modalStyles.button + ' ' + modalStyles.buttonPrimary}>Salvar</button></div></form> )}
-                {modalContent === 'department' && ( <form onSubmit={handleAddDepartment}><div className={modalStyles.panelBody}><div className={modalStyles.formGroup}><label className={modalStyles.label}>Nome do Setor</label><input value={formState.departmentName} onChange={e => setFormState({...formState, departmentName: e.target.value})} className={modalStyles.input} required/></div></div><div className={modalStyles.buttonContainer}><button type="button" onClick={closeModal} className={modalStyles.button + ' ' + modalStyles.buttonSecondary}>Cancelar</button><button type="submit" className={modalStyles.button + ' ' + modalStyles.buttonPrimary}>Salvar</button></div></form> )}
-                {(modalContent === 'user' || modalContent === 'adminUser') && (
-                    <form onSubmit={handleUserSubmit}>
+                 <form onSubmit={handleUserSubmit}>
                         <div className={modalStyles.panelBody}>
                             <div className={modalStyles.form}>
                                 <div className={modalStyles.formGroup}><label className={modalStyles.label}>Nome Completo</label><input value={formState.userName} onChange={e => setFormState({...formState, userName: e.target.value})} className={modalStyles.input} required/></div>
@@ -243,7 +235,6 @@ export default function UsersPage() {
                         </div>
                         <div className={modalStyles.buttonContainer}><button type="button" onClick={closeModal} className={modalStyles.button + ' ' + modalStyles.buttonSecondary}>Cancelar</button><button type="submit" className={modalStyles.button + ' ' + modalStyles.buttonPrimary}>Salvar</button></div>
                     </form>
-                )}
             </Modal>
         </>
     );
