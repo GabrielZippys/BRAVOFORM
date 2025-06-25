@@ -105,8 +105,8 @@ export default function UsersPage() {
     };
 
     // --- Funções CRUD ---
-    const handleAddCompany = async (e: React.FormEvent) => { e.preventDefault(); if (!formState.companyName.trim()) return; await addDoc(collection(db, "companies"), { name: formState.companyName }); closeModal(); };
-    const handleAddDepartment = async (e: React.FormEvent) => { e.preventDefault(); if (!formState.departmentName.trim() || !selectedCompany) return; await addDoc(collection(db, `companies/${selectedCompany.id}/departments`), { name: formState.departmentName }); closeModal(); };
+    //const handleAddCompany = async (e: React.FormEvent) => { e.preventDefault(); if (!formState.companyName.trim()) return; await addDoc(collection(db, "companies"), { name: formState.companyName }); closeModal(); };
+    //const handleAddDepartment = async (e: React.FormEvent) => { e.preventDefault(); if (!formState.departmentName.trim() || !selectedCompany) return; await addDoc(collection(db, `companies/${selectedCompany.id}/departments`), { name: formState.departmentName }); closeModal(); };
     
     const handleUserSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
