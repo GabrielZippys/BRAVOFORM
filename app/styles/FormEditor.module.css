@@ -1,10 +1,78 @@
 /*
  * =================================================================
- * CSS MODULE PARA FORMEDITOR
- * Contém apenas os estilos específicos para o componente FormEditor.
- * As variáveis (--primary-bg, etc.) são lidas do ficheiro globals.css.
+ * CSS - BIOSHOCK: RAPTURE ART DECO THEME (Layout Corrigido)
+ * Inspirado na grandiosidade subaquática e na decadência de Rapture.
+ * Por favor, escolha o seu tema abaixo.
  * =================================================================
 */
+
+@import url('https://fonts.googleapis.com/css2?family=Limelight&family=Poppins:wght@300;400;500&display=swap');
+
+/* CORREÇÃO: Envolvemos os seletores globais em :global() para os tornar compatíveis com CSS Modules. */
+:global(:root) {
+  /* FONTES */
+  --font-display: 'Limelight', cursive; /* Fonte para títulos, com estilo Art Deco */
+  --font-sans: 'Poppins', sans-serif;  /* Fonte para corpo de texto, limpa e legível */
+
+  /* ================================================================= */
+  /* ESCOLHA O SEU TEMA: Descomente UM dos blocos abaixo para ativar. */
+  /* ================================================================= */
+
+  /* TEMA 1: WELCOME TO RAPTURE (Padrão) */
+  --primary-bg: #0A2E36; /* Azul-petróleo profundo do oceano */
+  --secondary-bg: #061e23; /* Fundo mais escuro para profundidade */
+  --accent-gold: #C9A25E; /* Ouro envelhecido e latão */
+  --accent-brass: #8C6D3F; /* Latão mais escuro e oxidado */
+  --text-ivory: #E8E2D4; /* Marfim, como papel envelhecido */
+  --text-dark: #2c251d; /* Texto escuro para contraste no marfim */
+  --error-red: #d44c4c; /* Vermelho de alarme */
+  --paper-texture: url('https://www.transparenttextures.com/patterns/old-paper.png');
+}
+
+/* :global(:root) {
+  --primary-bg: #1B3D2F; 
+  --secondary-bg: #12291f;
+  --accent-gold: #D4AF37;
+  --accent-brass: #A47C48;
+  --text-ivory: #F0F0DC;
+  --text-dark: #222c26;
+  --error-red: #e53e3e;
+  --paper-texture: url('https://www.transparenttextures.com/patterns/subtle-leaves.png');
+}
+
+
+
+:global(:root) {
+  --primary-bg: #2C1F3A; 
+  --secondary-bg: #1a1322;
+  --accent-gold: #FAD02C;
+  --accent-brass: #B28DFF;
+  --text-ivory: #FFFFFF;
+  --text-dark: #1a1322;
+  --error-red: #ff477e;
+  --paper-texture: url('https://www.transparenttextures.com/patterns/clean-gray-paper.png');
+}
+
+
+
+:global(:root) {
+  --primary-bg: #2C2C2C;
+  --secondary-bg: #1a1a1a;
+  --accent-gold: #FFA500;
+  --accent-brass: #8B4513;
+  --text-ivory: #DADADA;
+  --text-dark: #1a1a1a;
+  --error-red: #FF4500;
+  --paper-texture: url('https://www.transparenttextures.com/patterns/brushed-metal.png');
+}
+*/
+
+
+/* ESTILOS DE BASE */
+:global(body) {
+  font-family: var(--font-sans);
+  background-color: var(--secondary-bg);
+}
 
 /* PAINEL PRINCIPAL */
 .overlay {

@@ -369,22 +369,8 @@
   position: relative;
   /* Animação de flicker sutil */
   animation: textFlicker 7s linear infinite;
-  animation: logoZoom 1.5s ease-in-out forwards;
-  transform: scale(0.8) rotateX(90deg);
-  opacity: 0;
 }
 
-
-@keyframes logoZoom {
-  0% {
-    transform: scale(0.8) rotateX(90deg);
-    opacity: 0;
-  }
-  100% {
-    transform: scale(1) rotateX(0deg);
-    opacity: 1;
-  }
-}
 /* Pseudo-elementos para o efeito de canal de cor dividido */
 .logo::before,
 .logo::after {
@@ -466,11 +452,6 @@
   background: linear-gradient(120deg, transparent, rgba(255, 255, 255, 0.4), transparent);
   transform: rotate(25deg);
   animation: shine 4s infinite;
-}
-
-@keyframes shine {
-  0% { transform: translateX(-100%) rotate(25deg); }
-  100% { transform: translateX(100%) rotate(25deg); }
 }
 
 .button {
