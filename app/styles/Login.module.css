@@ -1,7 +1,7 @@
 /*
 ================================================================================
 |
-|   ARQUIVO: src/styles/Dashboard.module.css
+|   ARQUIVO: src/styles/Login.module.css
 |   (Este é o novo local para o CSS do seu painel)
 |
 ================================================================================
@@ -263,6 +263,17 @@
   align-items: center;
   justify-content: center;
   padding: 1rem;
+  overflow: hidden;
+  background: radial-gradient(circle at 30% 30%, rgba(255, 215, 0, 0.1), transparent 80%), 
+              radial-gradient(circle at 70% 70%, rgba(0, 255, 255, 0.05), transparent 80%), 
+              #05242e;
+  animation: backgroundShift 30s ease-in-out infinite;
+}
+
+@keyframes backgroundShift {
+  0% { background-position: 30% 30%, 70% 70%; }
+  50% { background-position: 40% 60%, 60% 40%; }
+  100% { background-position: 30% 30%, 70% 70%; }
 }
 
 .frame {
@@ -339,16 +350,6 @@
   text-align: center;
 }
 
-
-.main {
-  min-height: 100vh;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 1rem;
-  overflow: hidden;
-}
-
 .frame {
   width: 100%;
   max-width: 28rem;
@@ -368,8 +369,22 @@
   position: relative;
   /* Animação de flicker sutil */
   animation: textFlicker 7s linear infinite;
+  animation: logoZoom 1.5s ease-in-out forwards;
+  transform: scale(0.8) rotateX(90deg);
+  opacity: 0;
 }
 
+
+@keyframes logoZoom {
+  0% {
+    transform: scale(0.8) rotateX(90deg);
+    opacity: 0;
+  }
+  100% {
+    transform: scale(1) rotateX(0deg);
+    opacity: 1;
+  }
+}
 /* Pseudo-elementos para o efeito de canal de cor dividido */
 .logo::before,
 .logo::after {
@@ -441,7 +456,26 @@
   box-shadow: 0 0 8px rgba(197, 160, 92, 0.5);
 }
 
+.button::before {
+  content: '';
+  position: absolute;
+  top: -50%;
+  left: -25%;
+  width: 200%;
+  height: 200%;
+  background: linear-gradient(120deg, transparent, rgba(255, 255, 255, 0.4), transparent);
+  transform: rotate(25deg);
+  animation: shine 4s infinite;
+}
+
+@keyframes shine {
+  0% { transform: translateX(-100%) rotate(25deg); }
+  100% { transform: translateX(100%) rotate(25deg); }
+}
+
 .button {
+  position: relative;
+  overflow: hidden;
   width: 100%;
   padding: 0.75rem;
   font-family: var(--font-display);
