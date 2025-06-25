@@ -1,58 +1,62 @@
+/*
+ * =================================================================
+ * ARQUIVO DE ESTILOS GLOBAIS
+ * Este ficheiro contém os estilos que se aplicam a toda a aplicação.
+ * Deve ser importado no seu ficheiro de layout principal (app/layout.tsx).
+ * =================================================================
+*/
 
-@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@700&family=Roboto:wght@400;500&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Limelight&family=Poppins:wght@300;400;500&display=swap');
 
 :root {
-  --deco-dark: #0A2E36;
-  --deco-teal: #07485B;
-  --deco-gold: #C5A05C;
-  --deco-brass: #B18F42;
-  --deco-ivory: #F0EAD6;
-  --font-display: 'Cinzel', serif;
-  --font-sans: 'Roboto', sans-serif;
+  /* FONTES */
+  --font-display: 'Limelight', cursive;
+  --font-sans: 'Poppins', sans-serif;
+
+  /* TEMA PADRÃO: WELCOME TO RAPTURE */
+  --primary-bg: #0A2E36;
+  --secondary-bg: #061e23;
+  --accent-gold: #C9A25E;
+  --accent-brass: #8C6D3F;
+  --text-ivory: #E8E2D4;
+  --text-dark: #2c251d;
+  --error-red: #d44c4c;
+  --paper-texture: url('https://www.transparenttextures.com/patterns/old-paper.png');
 }
 
+/* Para ativar outros temas, copie e cole as variáveis dentro do :root acima.
+  
+  TEMA 2: ARCADIA GARDENS
+  --primary-bg: #1B3D2F; 
+  --secondary-bg: #12291f;
+  --accent-gold: #D4AF37;
+  --accent-brass: #A47C48;
+  ...
+
+*/
+
+
+/* ESTILOS DE BASE */
 body {
-  background-color: var(--deco-dark);
-  color: var(--deco-ivory);
   font-family: var(--font-sans);
-  background-image: url('https://www.transparenttextures.com/patterns/subtle-grunge.png');
+  background-color: var(--secondary-bg);
+  color: var(--text-ivory);
+}
+
+/* Garante que os inputs não herdem estilos estranhos */
+input, button, select, textarea {
+  font-family: inherit;
+  color: inherit;
+  box-sizing: border-box; /* Garante um modelo de caixa consistente */
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+* {
+  box-sizing: border-box;
   margin: 0;
   padding: 0;
-  box-sizing: border-box;
-  overflow: hidden;
-}
-@keyframes slideIn {
-  from { transform: translateX(100%); }
-  to { transform: translateX(0); }
-}
-
-@keyframes slideOut {
-  from { transform: translateX(0); }
-  to { transform: translateX(100%); }
-}
-
-.slideIn {
-  animation: slideIn 0.4s cubic-bezier(0.25, 1, 0.5, 1) forwards;
-}
-
-.slideOut {
-  animation: slideOut 0.4s cubic-bezier(0.25, 1, 0.5, 1) forwards;
-}
-
-@keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
-}
-
-@keyframes fadeOut {
-  from { opacity: 1; }
-  to { opacity: 0; }
-}
-
-.fadeIn {
-    animation: fadeIn 0.4s ease-in-out forwards;
-}
-
-.fadeOut {
-    animation: fadeOut 0.4s ease-in-out forwards;
 }
