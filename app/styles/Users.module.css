@@ -130,11 +130,11 @@
     font-size: 1.1rem;
 }
 
-/* --- NOVOS ESTILOS PARA AÇÕES DO USUÁRIO --- */
+/* --- ESTILOS APRIMORADOS PARA AÇÕES DO USUÁRIO --- */
 .userActions {
     display: flex;
     align-items: center;
-    gap: 0.75rem; /* Aumentado o espaço */
+    gap: 0.75rem;
 }
 
 .actionButton {
@@ -145,6 +145,9 @@
     cursor: pointer;
     color: var(--deco-brass);
     transition: all 0.2s ease-in-out;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
 .actionButton:hover {
@@ -152,10 +155,18 @@
     color: var(--deco-dark);
 }
 
+.actionButton:hover svg {
+    stroke: var(--deco-dark);
+}
+
 .deleteButton:hover {
     background-color: #e53e3e; /* Vermelho */
-    border-color: #e53e3e;
+    border-color: #c53030;
     color: var(--deco-ivory);
+}
+
+.deleteButton:hover svg {
+    stroke: var(--deco-ivory);
 }
 
 .permissionTag {
