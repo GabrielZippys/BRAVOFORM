@@ -11,7 +11,6 @@
 /* CORREÇÃO: Envolvemos os seletores globais em :global() para os tornar compatíveis com CSS Modules. */
 :global{
   /* FONTES */
-  --font-display: 'Limelight', cursive; /* Fonte para títulos, com estilo Art Deco */
   --font-sans: 'Poppins', sans-serif;  /* Fonte para corpo de texto, limpa e legível */
 
   /* ================================================================= */
