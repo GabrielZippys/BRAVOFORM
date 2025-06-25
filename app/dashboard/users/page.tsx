@@ -7,7 +7,6 @@ import styles from '../../styles/Users.module.css';
 import modalStyles from '../../styles/Modal.module.css';
 import { db, auth } from '../../../firebase/config';
 import { collection, addDoc, onSnapshot, query, where, doc, updateDoc, deleteDoc } from 'firebase/firestore'; 
-// Importando o tipo AuthError para o tratamento de erros
 import { createUserWithEmailAndPassword, AuthError } from 'firebase/auth'; 
 
 // --- Tipos de Dados ---
@@ -129,7 +128,6 @@ export default function UsersPage() {
             }
             closeModal();
         } catch (error) {
-            // CORREÇÃO: Adicionando o tipo correto para o erro
             const authError = error as AuthError;
             if (authError.code === 'auth/weak-password') setFormError('A senha deve ter pelo menos 6 caracteres.');
             else if (authError.code === 'auth/email-already-in-use') setFormError('Este e-mail já está em uso.');
