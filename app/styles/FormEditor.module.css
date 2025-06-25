@@ -8,7 +8,8 @@
 
 @import url('https://fonts.googleapis.com/css2?family=Limelight&family=Poppins:wght@300;400;500&display=swap');
 
-:root {
+/* CORREÇÃO: Envolvemos os seletores globais em :global() para os tornar compatíveis com CSS Modules. */
+:global(:root) {
   /* FONTES */
   --font-display: 'Limelight', cursive; /* Fonte para títulos, com estilo Art Deco */
   --font-sans: 'Poppins', sans-serif;  /* Fonte para corpo de texto, limpa e legível */
@@ -28,8 +29,7 @@
   --paper-texture: url('https://www.transparenttextures.com/patterns/old-paper.png');
 }
 
-/* TEMA 2: ARCADIA GARDENS
-:root {
+/* :global(:root) {
   --primary-bg: #1B3D2F; 
   --secondary-bg: #12291f;
   --accent-gold: #D4AF37;
@@ -39,10 +39,10 @@
   --error-red: #e53e3e;
   --paper-texture: url('https://www.transparenttextures.com/patterns/subtle-leaves.png');
 }
-*/
 
-/* TEMA 3: FORT FROLIC
-:root {
+
+
+:global(:root) {
   --primary-bg: #2C1F3A; 
   --secondary-bg: #1a1322;
   --accent-gold: #FAD02C;
@@ -52,10 +52,10 @@
   --error-red: #ff477e;
   --paper-texture: url('https://www.transparenttextures.com/patterns/clean-gray-paper.png');
 }
-*/
 
-/* TEMA 4: HEPHAESTUS CORE
-:root {
+
+
+:global(:root) {
   --primary-bg: #2C2C2C;
   --secondary-bg: #1a1a1a;
   --accent-gold: #FFA500;
@@ -69,7 +69,7 @@
 
 
 /* ESTILOS DE BASE */
-body {
+:global(body) {
   font-family: var(--font-sans);
   background-color: var(--secondary-bg);
 }
