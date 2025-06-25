@@ -1,6 +1,6 @@
 /*
  * =================================================================
- * CSS - BIOSHOCK: RAPTURE ART DECO THEME
+ * CSS - BIOSHOCK: RAPTURE ART DECO THEME (Layout Corrigido)
  * Inspirado na grandiosidade subaquática e na decadência de Rapture.
  * Por favor, escolha o seu tema abaixo.
  * =================================================================
@@ -118,28 +118,39 @@ body {
   font-weight: 400;
 }
 
+/* BOTÃO DE FECHAR COM ESTILO BIOSHOCK */
 .closeButton {
-  background: transparent;
-  border: none;
+  background-color: transparent;
+  border: 2px solid var(--accent-brass);
   color: var(--text-ivory);
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all 0.3s ease-in-out;
+  border-radius: 50%; /* Faz o botão circular */
+  width: 38px;  /* Define uma largura fixa */
+  height: 38px; /* Define uma altura fixa */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.5);
 }
 .closeButton:hover {
-  color: var(--accent-gold);
-  transform: scale(1.1);
+  background-color: var(--accent-gold);
+  color: var(--text-dark);
+  border-color: var(--accent-gold);
+  transform: rotate(90deg) scale(1.05); /* Adiciona uma animação de rotação */
+  box-shadow: 0 0 10px var(--accent-gold);
 }
+
 
 /* GRELHA DO EDITOR */
 .editorGrid {
   flex-grow: 1;
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 0;
+  display: flex;
   overflow: hidden;
 }
 
 .controlsColumn, .previewColumn {
+  flex: 1 1 50%;
   overflow-y: auto;
   padding: 1.5rem;
 }
@@ -204,9 +215,9 @@ body {
 }
 
 .fieldButtons {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
-  gap: 0.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
 }
 
 .button {
@@ -233,11 +244,19 @@ body {
   text-shadow: none;
 }
 
-/* LISTA DE CAMPOS E EDITOR DE OPÇÕES */
+/* LISTA DE CAMPOS E EDITOR DE OPÇÕES - CORREÇÃO DE LAYOUT */
 .fieldsList {
   display: flex;
   flex-direction: column;
   gap: 1rem;
+}
+/* Estilo de placeholder que só se aplica quando a lista está VAZIA */
+.fieldsList:empty {
+  min-height: 120px;
+  padding: 0.5rem;
+  background-color: rgba(0,0,0,0.1);
+  border: 1px dashed var(--accent-brass);
+  border-radius: 3px;
 }
 .fieldEditor {
   background-color: rgba(0,0,0,0.2);
@@ -368,6 +387,8 @@ body {
   color: var(--text-dark);
   border: 1px solid var(--accent-brass);
   box-shadow: inset 0 0 20px rgba(0,0,0,0.4);
+  display: flex;
+  flex-direction: column;
 }
 .previewTitle {
   font-family: var(--font-display);
@@ -382,6 +403,10 @@ body {
   display: flex;
   flex-direction: column;
   gap: 1.5rem;
+  flex-grow: 1;
+}
+.previewFieldWrapper {
+  margin-bottom: 1rem;
 }
 .previewLabel {
   display: block;
@@ -451,6 +476,7 @@ body {
   border-radius: 2px;
   box-shadow: 0 2px 5px rgba(0,0,0,0.3);
   cursor: pointer;
+  flex-shrink: 0;
 }
 
 /* RODAPÉ DO PAINEL */
