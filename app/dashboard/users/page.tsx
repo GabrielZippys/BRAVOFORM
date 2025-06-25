@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Plus, Building, Users, ChevronRight, Eye, EyeOff, UserPlus, Edit, Trash2 } from 'lucide-react';
+import { Plus, Building, Users, ChevronRight, Eye, EyeOff, UserPlus, Edit, Trash2, KeyRound } from 'lucide-react';
 import Modal from '@/components/Modal'; 
 import styles from '../../styles/Users.module.css';
 import modalStyles from '../../styles/Modal.module.css';
@@ -13,50 +13,52 @@ import { createUserWithEmailAndPassword, AuthError } from 'firebase/auth';
 interface Company { id: string; name: string; }
 interface Department { id: string; name: string; }
 interface AppUser { id: string; name: string; email: string; role: string; }
-type UserRole = 'Admin' | 'Editor' | 'Visualizador';
-type ModalType = 'company' | 'department' | 'user' | 'adminUser';
+// Novo tipo para o colaborador com usuário simples
+interface Collaborator { id: string; username: string; }
+type ModalType = 'company' | 'department' | 'collaborator' | 'adminUser';
 
 export default function UsersPage() {
     // --- Estados de Navegação e Dados ---
-    const [view, setView] = useState<'overview' | 'departments' | 'users'>('overview');
+    const [view, setView] = useState<'overview' | 'departments' | 'collaborators'>('overview');
     const [selectedCompany, setSelectedCompany] = useState<Company | null>(null);
     const [selectedDepartment, setSelectedDepartment] = useState<Department | null>(null);
     
     const [companies, setCompanies] = useState<Company[]>([]);
     const [departments, setDepartments] = useState<Department[]>([]);
-    const [users, setUsers] = useState<AppUser[]>([]);
+    const [collaborators, setCollaborators] = useState<Collaborator[]>([]);
     const [adminUsers, setAdminUsers] = useState<AppUser[]>([]);
-    const [loading, setLoading] = useState({ companies: true, admins: true, departments: false, users: false });
+    const [loading, setLoading] = useState(true);
 
-    // --- Estados dos Modais ---
+    // --- Estados dos Modais e Formulários ---
     const [isModalOpen, setModalOpen] = useState(false);
     const [modalContent, setModalContent] = useState<ModalType | null>(null);
-    const [modalMode, setModalMode] = useState<'create' | 'edit'>('create');
-    const [editingUser, setEditingUser] = useState<AppUser | null>(null);
     
-    // --- Estados dos Formulários ---
+    // Unificando o estado do formulário para simplificar
     const [formState, setFormState] = useState({
         companyName: '',
         departmentName: '',
-        userName: '',
-        userEmail: '',
-        userPassword: '',
-        userPasswordConfirm: '',
-        userRole: 'Visualizador' as UserRole,
+        adminName: '',
+        adminEmail: '',
+        adminPassword: '',
+        adminPasswordConfirm: '',
+        collabUsername: '',
+        collabPassword: '',
     });
     const [showPassword, setShowPassword] = useState(false);
     const [formError, setFormError] = useState('');
 
     // --- Efeitos para buscar dados do Firestore ---
     useEffect(() => {
+        setLoading(true);
         const qCompanies = onSnapshot(query(collection(db, "companies")), (snapshot) => {
             setCompanies(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Company)));
-            setLoading(prev => ({ ...prev, companies: false }));
+            setLoading(false);
         });
+
         const qAdminUsers = onSnapshot(query(collection(db, "users"), where("role", "==", "Admin")), (snapshot) => {
             setAdminUsers(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as AppUser)));
-            setLoading(prev => ({ ...prev, admins: false }));
         });
+        
         return () => { qCompanies(); qAdminUsers(); };
     }, []);
 
@@ -69,9 +71,9 @@ export default function UsersPage() {
     }, [selectedCompany]);
 
     useEffect(() => {
-        if (!selectedDepartment) { setUsers([]); return; }
-        const q = onSnapshot(query(collection(db, "users"), where("departmentId", "==", selectedDepartment.id)), (snapshot) => {
-            setUsers(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as AppUser)));
+        if (!selectedDepartment) { setCollaborators([]); return; }
+        const q = onSnapshot(query(collection(db, `departments/${selectedDepartment.id}/collaborators`)), (snapshot) => {
+            setCollaborators(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Collaborator)));
         });
         return () => q();
     }, [selectedDepartment]);
@@ -79,93 +81,70 @@ export default function UsersPage() {
 
     // --- Funções da UI ---
     const handleSelectCompany = (company: Company) => { setSelectedCompany(company); setView('departments'); };
-    const handleSelectDepartment = (department: Department) => { setSelectedDepartment(department); setView('users'); };
+    const handleSelectDepartment = (department: Department) => { setSelectedDepartment(department); setView('collaborators'); };
     const resetView = () => { setView('overview'); setSelectedCompany(null); setSelectedDepartment(null); };
-    
-    const openModal = (type: ModalType, mode: 'create' | 'edit' = 'create', userToEdit?: AppUser) => {
-        setModalContent(type);
-        setModalMode(mode);
-        setFormError('');
-        if (mode === 'edit' && userToEdit) {
-            setEditingUser(userToEdit);
-            setFormState({
-                ...formState,
-                userName: userToEdit.name,
-                userEmail: userToEdit.email,
-                userRole: userToEdit.role as UserRole,
-            });
-        }
-        setModalOpen(true);
-    };
-    
-    const closeModal = () => {
-        setModalOpen(false);
-        setEditingUser(null);
-        setFormState({ companyName: '', departmentName: '', userName: '', userEmail: '', userPassword: '', userPasswordConfirm: '', userRole: 'Visualizador' });
-    };
+
+    const openModal = (type: ModalType) => { setModalContent(type); setModalOpen(true); setFormError(''); };
+    const closeModal = () => { setModalOpen(false); setFormState({ companyName: '', departmentName: '', adminName: '', adminEmail: '', adminPassword: '', adminPasswordConfirm: '', collabUsername: '', collabPassword: '' }); };
 
     // --- Funções CRUD ---
-    //const handleAddCompany = async (e: React.FormEvent) => { e.preventDefault(); if (!formState.companyName.trim()) return; await addDoc(collection(db, "companies"), { name: formState.companyName }); closeModal(); };
-    //const handleAddDepartment = async (e: React.FormEvent) => { e.preventDefault(); if (!formState.departmentName.trim() || !selectedCompany) return; await addDoc(collection(db, `companies/${selectedCompany.id}/departments`), { name: formState.departmentName }); closeModal(); };
+    const handleAddCompany = async (e: React.FormEvent) => { e.preventDefault(); if(!formState.companyName) return; await addDoc(collection(db, "companies"), { name: formState.companyName }); closeModal(); };
+    const handleAddDepartment = async (e: React.FormEvent) => { e.preventDefault(); if (!formState.departmentName || !selectedCompany) return; await addDoc(collection(db, `companies/${selectedCompany.id}/departments`), { name: formState.departmentName }); closeModal(); };
     
-    const handleUserSubmit = async (e: React.FormEvent) => {
+    const handleAddAdminUser = async (e: React.FormEvent) => {
         e.preventDefault();
         setFormError('');
-        if (modalMode === 'create' && (formState.userPassword !== formState.userPasswordConfirm)) return setFormError('As senhas não coincidem.');
-
+        if (formState.adminPassword !== formState.adminPasswordConfirm) return setFormError('As senhas não coincidem.');
         try {
-            if (modalMode === 'create') {
-                const userCredential = await createUserWithEmailAndPassword(auth, formState.userEmail, formState.userPassword);
-                await addDoc(collection(db, "users"), {
-                    uid: userCredential.user.uid, name: formState.userName, email: formState.userEmail, 
-                    role: modalContent === 'adminUser' ? 'Admin' : formState.userRole,
-                    companyId: modalContent === 'adminUser' ? null : selectedCompany?.id,
-                    departmentId: modalContent === 'adminUser' ? null : selectedDepartment?.id,
-                });
-            } else if (modalMode === 'edit' && editingUser) {
-                const userRef = doc(db, "users", editingUser.id);
-                await updateDoc(userRef, { name: formState.userName, role: formState.userRole });
-            }
+            const userCredential = await createUserWithEmailAndPassword(auth, formState.adminEmail, formState.adminPassword);
+            await addDoc(collection(db, "users"), { uid: userCredential.user.uid, name: formState.adminName, email: formState.adminEmail, role: 'Admin' });
+            closeModal();
+        } catch (error: any) {
+            if (error.code === 'auth/weak-password') setFormError('A senha deve ter pelo menos 6 caracteres.');
+            else if (error.code === 'auth/email-already-in-use') setFormError('Este e-mail já está em uso.');
+            else setFormError('Erro ao criar usuário.');
+        }
+    };
+    
+    const handleAddCollaborator = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setFormError('');
+        if (!formState.collabUsername.trim() || !formState.collabPassword.trim() || !selectedDepartment) return;
+        
+        try {
+            await addDoc(collection(db, `departments/${selectedDepartment.id}/collaborators`), {
+                username: formState.collabUsername,
+                password: formState.collabPassword, // ATENÇÃO: Em produção, esta senha deve ser criptografada (hashed)
+            });
             closeModal();
         } catch (error) {
-            const authError = error as AuthError;
-            if (authError.code === 'auth/weak-password') setFormError('A senha deve ter pelo menos 6 caracteres.');
-            else if (authError.code === 'auth/email-already-in-use') setFormError('Este e-mail já está em uso.');
-            else setFormError('Erro ao salvar usuário.');
+            setFormError("Não foi possível criar o acesso.");
+            console.error("Erro ao criar acesso de colaborador:", error);
         }
     };
-    
-    const handleDeleteUser = async (userId: string) => {
-        if (window.confirm("Tem certeza que deseja apagar este usuário? Esta ação não pode ser desfeita.")) {
-            await deleteDoc(doc(db, "users", userId));
-        }
-    };
-    
+
     const renderContent = () => {
         switch(view) {
             case 'departments':
                 return (
                     <div className={styles.frame}>
                         <div className={styles.frameHeader}><h3 className={styles.frameTitle}>Setores</h3><button onClick={() => openModal('department')} className={styles.button}><Plus size={16}/><span>Novo Setor</span></button></div>
-                        {loading.departments ? <p className={styles.emptyState}>Carregando...</p> : departments.length > 0 ? departments.map(d => (
-                            <div key={d.id} className={`${styles.itemCard} ${styles.itemCardClickable}`} onClick={() => handleSelectDepartment(d)}><h4 className={styles.itemName}>{d.name}</h4><Users size={20}/></div>
-                        )) : <p className={styles.emptyState}>Nenhum setor criado.</p>}
+                        <div className={styles.list}>
+                            {departments.length > 0 ? departments.map(d => (
+                                <div key={d.id} className={`${styles.itemCard} ${styles.itemCardClickable}`} onClick={() => handleSelectDepartment(d)}><h4 className={styles.itemName}>{d.name}</h4><Users size={20}/></div>
+                            )) : <p className={styles.emptyState}>Nenhum setor criado para esta empresa.</p>}
+                        </div>
                     </div>
                 );
-            case 'users':
+            case 'collaborators':
                 return (
                     <div className={styles.frame}>
-                        <div className={styles.frameHeader}><h3 className={styles.frameTitle}>Acesso de Colaboradores</h3><button onClick={() => openModal('user', 'create')} className={styles.button}><UserPlus size={16}/><span>Criar Acesso</span></button></div>
-                        {loading.users ? <p className={styles.emptyState}>Carregando...</p> : users.length > 0 ? users.map(u => (
-                            <div key={u.id} className={styles.itemCard}>
-                                <div><h4 className={styles.itemName}>{u.name}</h4><p className={styles.itemInfo}>{u.email}</p></div>
-                                <div className={styles.userActions}>
-                                    <span className={styles.permissionTag}>{u.role}</span>
-                                    <button onClick={() => openModal('user', 'edit', u)} className={styles.actionButton} title="Editar"><Edit size={16}/></button>
-                                    <button onClick={() => handleDeleteUser(u.id)} className={`${styles.actionButton} ${styles.deleteButton}`} title="Apagar"><Trash2 size={16}/></button>
-                                </div>
-                            </div>
-                        )) : <p className={styles.emptyState}>Nenhum acesso criado.</p>}
+                        <div className={styles.frameHeader}><h3 className={styles.frameTitle}>Acesso dos Colaboradores</h3><button onClick={() => openModal('collaborator')} className={styles.button}><KeyRound size={16}/><span>Criar Acesso</span></button></div>
+                        <div className={styles.list}>
+                           {collaborators.length > 0 ? collaborators.map(c => (
+                                <div key={c.id} className={styles.itemCard}><h4 className={styles.itemName}>{c.username}</h4></div>
+                            )) : <p className={styles.emptyState}>Nenhum acesso criado para este setor.</p>}
+                        </div>
                     </div>
                 );
             case 'overview':
@@ -173,21 +152,17 @@ export default function UsersPage() {
                 return (
                     <>
                         <div className={styles.frame}>
-                            <div className={styles.frameHeader}><h3 className={styles.frameTitle}>Administração</h3><button onClick={() => openModal('adminUser', 'create')} className={styles.button}><UserPlus size={16}/><span>Novo Admin</span></button></div>
-                            {loading.admins ? <p className={styles.emptyState}>Carregando...</p> : adminUsers.length > 0 ? adminUsers.map(user => (
+                            <div className={styles.frameHeader}><h3 className={styles.frameTitle}>Administração</h3><button onClick={() => openModal('adminUser')} className={styles.button}><UserPlus size={16}/><span>Novo Admin</span></button></div>
+                            {loading ? <p className={styles.emptyState}>Carregando...</p> : adminUsers.length > 0 ? adminUsers.map(user => (
                                 <div key={user.id} className={styles.itemCard}>
                                     <div><h4 className={styles.itemName}>{user.name}</h4><p className={styles.itemInfo}>{user.email}</p></div>
-                                    <div className={styles.userActions}>
-                                        <span className={styles.permissionTag}>Admin</span>
-                                        <button onClick={() => openModal('adminUser', 'edit', user)} className={styles.actionButton} title="Editar"><Edit size={16}/></button>
-                                        <button onClick={() => handleDeleteUser(user.id)} className={`${styles.actionButton} ${styles.deleteButton}`} title="Apagar"><Trash2 size={16}/></button>
-                                    </div>
+                                    <span className={styles.permissionTag}>Admin</span>
                                 </div>
                             )) : <p className={styles.emptyState}>Nenhum administrador criado.</p>}
                         </div>
                         <div className={styles.frame}>
                              <div className={styles.frameHeader}><h3 className={styles.frameTitle}>Empresas</h3><button onClick={() => openModal('company')} className={styles.button}><Plus size={16}/><span>Nova Empresa</span></button></div>
-                            {loading.companies ? <p className={styles.emptyState}>Carregando...</p> : companies.length > 0 ? companies.map(c => (
+                            {loading ? <p className={styles.emptyState}>Carregando...</p> : companies.length > 0 ? companies.map(c => (
                                 <div key={c.id} className={`${styles.itemCard} ${styles.itemCardClickable}`} onClick={() => handleSelectCompany(c)}><h4 className={styles.itemName}>{c.name}</h4><Building size={20} /></div>
                             )) : <p className={styles.emptyState}>Nenhuma empresa criada.</p>}
                         </div>
@@ -211,28 +186,25 @@ export default function UsersPage() {
             </div>
 
             <Modal isOpen={isModalOpen} onClose={closeModal} title={
-                modalMode === 'edit' ? `Editar ${modalContent === 'adminUser' ? 'Admin' : 'Usuário'}` :
-                'Novo ' + (modalContent === 'company' ? 'Empresa' : 'Usuário')
+                modalContent === 'company' ? 'Nova Empresa' :
+                modalContent === 'department' ? 'Novo Setor' :
+                modalContent === 'adminUser' ? 'Novo Administrador' : 'Criar Acesso de Colaborador'
             }>
-                 <form onSubmit={handleUserSubmit}>
+                {modalContent === 'company' && ( <form onSubmit={handleAddCompany}><div className={modalStyles.panelBody}><div className={modalStyles.formGroup}><label className={modalStyles.label}>Nome da Empresa</label><input value={formState.companyName} onChange={e => setFormState({...formState, companyName: e.target.value})} className={modalStyles.input} required/></div></div><div className={modalStyles.buttonContainer}><button type="button" onClick={closeModal} className={modalStyles.button + ' ' + modalStyles.buttonSecondary}>Cancelar</button><button type="submit" className={modalStyles.button + ' ' + modalStyles.buttonPrimary}>Salvar</button></div></form> )}
+                {modalContent === 'department' && ( <form onSubmit={handleAddDepartment}><div className={modalStyles.panelBody}><div className={modalStyles.formGroup}><label className={modalStyles.label}>Nome do Setor</label><input value={formState.departmentName} onChange={e => setFormState({...formState, departmentName: e.target.value})} className={modalStyles.input} required/></div></div><div className={modalStyles.buttonContainer}><button type="button" onClick={closeModal} className={modalStyles.button + ' ' + modalStyles.buttonSecondary}>Cancelar</button><button type="submit" className={modalStyles.button + ' ' + modalStyles.buttonPrimary}>Salvar</button></div></form> )}
+                {modalContent === 'adminUser' && ( <form onSubmit={handleAddAdminUser}><div className={modalStyles.panelBody}><div className={modalStyles.form}><div className={modalStyles.formGroup}><label className={modalStyles.label}>Nome</label><input value={formState.adminName} onChange={e => setFormState({...formState, adminName: e.target.value})} className={modalStyles.input} required/></div><div className={modalStyles.formGroup}><label className={modalStyles.label}>Email de Acesso</label><input type="email" value={formState.adminEmail} onChange={e => setFormState({...formState, adminEmail: e.target.value})} className={modalStyles.input} required/></div><div className={modalStyles.formGroup}><label className={modalStyles.label}>Senha</label><div className={modalStyles.passwordWrapper}><input type={showPassword ? 'text' : 'password'} value={formState.adminPassword} onChange={e => setFormState({...formState, adminPassword: e.target.value})} className={modalStyles.input} required/><button type="button" onClick={() => setShowPassword(!showPassword)} className={modalStyles.eyeButton}>{showPassword ? <EyeOff size={18}/> : <Eye size={18}/>}</button></div></div><div className={modalStyles.formGroup}><label className={modalStyles.label}>Confirmar Senha</label><div className={modalStyles.passwordWrapper}><input type={showPassword ? 'text' : 'password'} value={formState.adminPasswordConfirm} onChange={e => setFormState({...formState, adminPasswordConfirm: e.target.value})} className={modalStyles.input} required/><button type="button" onClick={() => setShowPassword(!showPassword)} className={modalStyles.eyeButton}>{showPassword ? <EyeOff size={18}/> : <Eye size={18}/>}</button></div></div>{formError && <p className={modalStyles.error}>{formError}</p>}</div></div><div className={modalStyles.buttonContainer}><button type="button" onClick={closeModal} className={modalStyles.button + ' ' + modalStyles.buttonSecondary}>Cancelar</button><button type="submit" className={modalStyles.button + ' ' + modalStyles.buttonPrimary}>Salvar Admin</button></div></form> )}
+                {modalContent === 'collaborator' && (
+                    <form onSubmit={handleAddCollaborator}>
                         <div className={modalStyles.panelBody}>
                             <div className={modalStyles.form}>
-                                <div className={modalStyles.formGroup}><label className={modalStyles.label}>Nome Completo</label><input value={formState.userName} onChange={e => setFormState({...formState, userName: e.target.value})} className={modalStyles.input} required/></div>
-                                <div className={modalStyles.formGroup}><label className={modalStyles.label}>Email de Acesso</label><input type="email" value={formState.userEmail} onChange={e => setFormState({...formState, userEmail: e.target.value})} className={modalStyles.input} disabled={modalMode === 'edit'} required/></div>
-                                {modalMode === 'create' && (
-                                    <>
-                                        <div className={modalStyles.formGroup}><label className={modalStyles.label}>Senha</label><div className={modalStyles.passwordWrapper}><input type={showPassword ? 'text' : 'password'} value={formState.userPassword} onChange={e => setFormState({...formState, userPassword: e.target.value})} className={modalStyles.input} required/><button type="button" onClick={() => setShowPassword(!showPassword)} className={modalStyles.eyeButton}>{showPassword ? <EyeOff size={18}/> : <Eye size={18}/>}</button></div></div>
-                                        <div className={modalStyles.formGroup}><label className={modalStyles.label}>Confirmar Senha</label><div className={modalStyles.passwordWrapper}><input type={showPassword ? 'text' : 'password'} value={formState.userPasswordConfirm} onChange={e => setFormState({...formState, userPasswordConfirm: e.target.value})} className={modalStyles.input} required/><button type="button" onClick={() => setShowPassword(!showPassword)} className={modalStyles.eyeButton}>{showPassword ? <EyeOff size={18}/> : <Eye size={18}/>}</button></div></div>
-                                    </>
-                                )}
-                                {modalContent === 'user' && (
-                                    <div className={modalStyles.formGroup}><label className={modalStyles.label}>Permissão</label><select value={formState.userRole} onChange={e => setFormState({...formState, userRole: e.target.value as UserRole})} className={modalStyles.input}><option value="Visualizador">Visualizador</option><option value="Editor">Editor</option></select></div>
-                                )}
+                                <div className={modalStyles.formGroup}><label className={modalStyles.label}>Nome de Usuário</label><input value={formState.collabUsername} onChange={e => setFormState({...formState, collabUsername: e.target.value})} className={modalStyles.input} required/></div>
+                                <div className={modalStyles.formGroup}><label className={modalStyles.label}>Senha</label><div className={modalStyles.passwordWrapper}><input type={showPassword ? 'text' : 'password'} value={formState.collabPassword} onChange={e => setFormState({...formState, collabPassword: e.target.value})} className={modalStyles.input} required/><button type="button" onClick={() => setShowPassword(!showPassword)} className={modalStyles.eyeButton}>{showPassword ? <EyeOff size={18}/> : <Eye size={18}/>}</button></div></div>
                                 {formError && <p className={modalStyles.error}>{formError}</p>}
                             </div>
                         </div>
-                        <div className={modalStyles.buttonContainer}><button type="button" onClick={closeModal} className={modalStyles.button + ' ' + modalStyles.buttonSecondary}>Cancelar</button><button type="submit" className={modalStyles.button + ' ' + modalStyles.buttonPrimary}>Salvar</button></div>
+                        <div className={modalStyles.buttonContainer}><button type="button" onClick={closeModal} className={`${modalStyles.button} ${modalStyles.buttonSecondary}`}>Cancelar</button><button type="submit" className={`${modalStyles.button} ${modalStyles.buttonPrimary}`}>Salvar Acesso</button></div>
                     </form>
+                )}
             </Modal>
         </>
     );
