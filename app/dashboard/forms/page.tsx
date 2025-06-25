@@ -12,15 +12,19 @@ interface Company { id: string; name: string; }
 interface Department { id: string; name: string; }
 // CORREÇÃO: Definindo um tipo específico para os campos para resolver o erro 'any'
 interface FormField { id: number; type: 'Texto' | 'Anexo' | 'Assinatura'; label: string; }
-interface Form { 
-    id: string; 
-    title: string;
-    fields: FormField[];
-    automation: { type: string, target: string };
-    assignedCollaborators?: string[];
-    companyId: string;            
-  departmentId: string
+interface Form {
+  id: string;
+  title: string;
+  fields: FormField[];
+  automation: { type: string; target: string };
+  assignedCollaborators?: string[];
+  companyId: string;
+  departmentId: string;
+  ownerId: string;
+  collaborators: string[];
+  authorizedUsers: string[];
 }
+
 
 export default function FormsPage() {
   const [isEditorOpen, setIsEditorOpen] = useState(false);
