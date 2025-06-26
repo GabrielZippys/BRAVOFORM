@@ -17,6 +17,34 @@
 
 /* PAINEL PRINCIPAL */
 
+/* APENAS ESTILOS DE CLASSE - SEM SELEGORES GLOBAIS */
+
+.overlay {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(5px);
+  z-index: 40;
+}
+
+.panel {
+  position: fixed;
+  top: 0;
+  right: 0;
+  width: 100%;
+  max-width: 60rem;
+  background-color: var(--primary-bg);
+  border-left: 3px solid;
+  border-image: linear-gradient(to top, var(--accent-brass), var(--accent-gold)) 1;
+  box-shadow: -8px 0 25px rgba(0,0,0,0.7);
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  z-index: 50;
+  font-family: var(--font-sans);
+}
+
+/* ... (MANTENHA O RESTO DOS ESTILOS DE CLASSE) ... */
 
 .panelHeader {
   display: flex;
