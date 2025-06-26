@@ -74,7 +74,7 @@ export default function CollaboratorView() {
     <main className={styles.main}>
       <header className={styles.header}>
         <div className={styles.headerContent}>
-          <h1 className={styles.title}>Formulários Pendentes</h1>
+          <h1 className={styles.title}> Seus Formulários</h1>
           {collaborator && (
             <div className={styles.userInfo}>
               <span>Bem-vindo, {collaborator.username}</span>
