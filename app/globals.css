@@ -20,6 +20,32 @@
   --paper-texture: url('https://www.transparenttextures.com/patterns/subtle-grunge.png');
 }
 
+:global {
+  :root {
+    /* CORES ART DECO (TEMA ESCURO) */
+    --deco-dark: #0A2E36;
+    --deco-teal: #07485B;
+    --deco-gold: #C5A05C;
+    --deco-brass: #B18F42;
+    --deco-ivory: #F0EAD6;
+    
+    /* VARIÁVEIS PARA O FORMEDITOR */
+    --primary-bg: var(--deco-dark);
+    --secondary-bg: var(--deco-teal);
+    --accent-gold: var(--deco-gold);
+    --accent-brass: var(--deco-brass);
+    --text-ivory: var(--deco-ivory);
+    --text-dark: #222c26;
+    --error-red: #e53e3e;
+    --paper-texture: url('https://www.transparenttextures.com/patterns/subtle-grunge.png');
+  }
+
+  body {
+    font-family: var(--font-sans);
+    background-color: var(--secondary-bg);
+  }
+}
+
 body {
   font-family: var(--font-sans);
   background-color: var(--secondary-bg);

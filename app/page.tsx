@@ -10,8 +10,8 @@ import Image from 'next/image'; // Importando o componente de Imagem
 
 
 export default function LoginPage() {
-  const [email, setEmail] = useState('bravo@formbravo.com');
-  const [password, setPassword] = useState('123456');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const router = useRouter();
 
