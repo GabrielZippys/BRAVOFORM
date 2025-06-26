@@ -50,7 +50,7 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
                         height={60}
                         priority 
                     />
-                    <h1 className={styles.sidebarTitle} style={{fontSize: '1.25rem'}}>FORMBRAVO</h1>
+                    <h1 className={styles.sidebarTitle} style={{fontSize: '1.25rem'}}>BRAVOFORM</h1>
                 </div>
             </div>
             <nav className={styles.nav}>

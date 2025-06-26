@@ -34,10 +34,7 @@ body {
   padding: 0;
 }
 
-:global(body) {
-  font-family: var(--font-sans);
-  background-color: var(--secondary-bg);
-}
+
 
 /* FORÇAR FUNDO ESCURO EM TODOS OS ELEMENTOS */
 html, body, body > div:first-child,

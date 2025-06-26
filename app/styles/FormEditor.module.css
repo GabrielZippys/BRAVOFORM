@@ -1,25 +1,14 @@
-/* ================================================================= */
-/* CSS - BIOSHOCK: RAPTURE ART DECO THEME (Layout Corrigido) */
-/* ================================================================= */
+/*
+ * =================================================================
+ * CSS MODULE PARA FORMEDITOR - VERSÃO COM LAYOUT E TEXTO CORRIGIDOS
+ * =================================================================
+*/
 
-@import url('https://fonts.googleapis.com/css2?family=Limelight&family=Poppins:wght@300;400;500&display=swap');
-
-/* DEFINIÇÕES GLOBAIS CORRIGIDAS */
-
-
-/* ... (MANTENHA TODO O RESTO DO CSS INALTERADO) ... */
-
-/* ESTILOS DE BASE */
-
-
-/* PAINEL PRINCIPAL */
-
-/* APENAS ESTILOS DE CLASSE - SEM SELEGORES GLOBAIS */
-
+/* PAINEL PRINCIPAL E OVERLAY */
 .overlay {
   position: fixed;
   inset: 0;
-  background-color: rgba(0, 0, 0, 0.6);
+  background-color: rgba(0, 0, 0, 0.7);
   backdrop-filter: blur(5px);
   z-index: 40;
 }
@@ -28,6 +17,7 @@
   position: fixed;
   top: 0;
   right: 0;
+  height: 100%;
   width: 100%;
   max-width: 60rem;
   background-color: var(--primary-bg);
@@ -36,12 +26,9 @@
   box-shadow: -8px 0 25px rgba(0,0,0,0.7);
   display: flex;
   flex-direction: column;
-  height: 100vh;
   z-index: 50;
   font-family: var(--font-sans);
 }
-
-/* ... (MANTENHA O RESTO DOS ESTILOS DE CLASSE) ... */
 
 .panelHeader {
   display: flex;
@@ -61,42 +48,34 @@
   font-weight: 400;
 }
 
-/* BOTÃO DE FECHAR COM ESTILO BIOSHOCK */
 .closeButton {
   background-color: transparent;
   border: 2px solid var(--accent-brass);
   color: var(--text-ivory);
   cursor: pointer;
   transition: all 0.3s ease-in-out;
-  border-radius: 50%; /* Faz o botão circular */
-  width: 38px;  /* Define uma largura fixa */
-  height: 38px; /* Define uma altura fixa */
+  border-radius: 50%;
+  width: 38px;
+  height: 38px;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.5);
 }
 .closeButton:hover {
   background-color: var(--accent-gold);
   color: var(--text-dark);
   border-color: var(--accent-gold);
-  transform: rotate(90deg) scale(1.05); /* Adiciona uma animação de rotação */
-  box-shadow: 0 0 10px var(--accent-gold);
+  transform: rotate(90deg) scale(1.05);
 }
 
-
-/* GRELHA DO EDITOR */
+/* GRELHA PRINCIPAL DO EDITOR */
 .editorGrid {
-  overflow: hidden;
-    -webkit-box-flex: 1;
-      -ms-flex: 1;
-          flex: 1;
-  display: -webkit-box;
-  display: -ms-flexbox;
+  flex-grow: 1;
   display: flex;
   overflow: hidden;
 }
 
+/* CORREÇÃO: A barra de rolagem agora aplica-se a toda a coluna de controlos */
 .controlsColumn, .previewColumn {
   flex: 1 1 50%;
   overflow-y: auto;
@@ -104,11 +83,10 @@
 }
 
 .controlsColumn {
- display: flex;
+  display: flex;
   flex-direction: column;
-  gap: 1.5rem;
   background-color: rgba(0,0,0,0.2);
-  height: 100%; /* Ocupa toda a altura disponível */
+  gap: 1.5rem;
 }
 
 /* CUSTOM SCROLLBAR */
@@ -121,20 +99,20 @@
 .controlsColumn::-webkit-scrollbar-thumb, .previewColumn::-webkit-scrollbar-thumb {
   background-color: var(--accent-brass);
   border-radius: 4px;
-  border: 2px solid var(--secondary-bg);
-}
-.controlsColumn::-webkit-scrollbar-thumb:hover, .previewColumn::-webkit-scrollbar-thumb:hover {
-  background-color: var(--accent-gold);
 }
 
 
 /* ELEMENTOS DE FORMULÁRIO */
-.label {
+.label, .subTitle {
   display: block;
   margin-bottom: 0.5rem;
   color: var(--accent-gold);
-  font-size: 0.875rem;
-  font-weight: 500;
+  font-family: var(--font-display);
+}
+.subTitle {
+  font-size: 1.25rem;
+  border-bottom: 1px solid var(--accent-brass);
+  padding-bottom: 0.5rem;
 }
 
 .input {
@@ -144,23 +122,12 @@
   border: 1px solid var(--accent-brass);
   color: var(--text-ivory);
   border-radius: 2px;
-  box-shadow: inset 0 1px 4px rgba(0,0,0,0.4);
   transition: all 0.2s ease;
 }
 .input:focus {
   outline: none;
   border-color: var(--accent-gold);
-  box-shadow: inset 0 1px 4px rgba(0,0,0,0.4), 0 0 10px var(--accent-gold);
-}
-
-.subTitle {
-  font-family: var(--font-display);
-  color: var(--accent-gold);
-  font-size: 1.25rem;
-  margin-top: 1rem;
-  margin-bottom: 1rem;
-  border-bottom: 1px solid var(--accent-brass);
-  padding-bottom: 0.5rem;
+  box-shadow: 0 0 8px rgba(201, 162, 94, 0.5);
 }
 
 .fieldButtons {
@@ -172,8 +139,7 @@
 .button {
   padding: 0.5rem;
   font-family: var(--font-sans);
-  font-size: 0.875rem;
-  background: linear-gradient(to top, #00000022, #ffffff22);
+  background: transparent;
   border: 1px solid var(--accent-brass);
   color: var(--text-ivory);
   cursor: pointer;
@@ -183,32 +149,34 @@
   gap: 0.5rem;
   transition: all 0.2s ease;
   border-radius: 2px;
-  text-shadow: 1px 1px 2px var(--secondary-bg);
 }
 .button:hover {
   background-color: var(--accent-gold);
   color: var(--text-dark);
   border-color: var(--accent-gold);
-  box-shadow: 0 0 10px var(--accent-gold);
-  text-shadow: none;
 }
 
-/* LISTA DE CAMPOS E EDITOR DE OPÇÕES - CORREÇÃO DE LAYOUT */
+
 .fieldsList {
-   flex: 1; /* Preenche o espaço disponível */
   display: flex;
   flex-direction: column;
   gap: 1rem;
-  overflow-y: auto; /* Adiciona scroll se necessário */
 }
-/* Estilo de placeholder que só se aplica quando a lista está VAZIA */
 .fieldsList:empty {
   min-height: 120px;
-  padding: 0.5rem;
   background-color: rgba(0,0,0,0.1);
   border: 1px dashed var(--accent-brass);
   border-radius: 3px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--accent-brass);
+  font-family: var(--font-display);
 }
+.fieldsList:empty::after {
+    content: "Adicione campos ao seu formulário";
+}
+
 .fieldEditor {
   background-color: rgba(0,0,0,0.2);
   padding: 1rem;
@@ -232,19 +200,17 @@
   border: none;
   color: var(--accent-brass);
   cursor: pointer;
-  transition: color 0.2s ease;
-}
-.deleteFieldButton:hover {
-  color: var(--error-red);
 }
 
 .optionsEditor {
   margin-top: 1rem;
-  padding-top: 1rem;
-  border-top: 1px dashed var(--accent-brass);
+  padding: 1rem;
+  border-top: 1px solid var(--accent-brass);
+  background-color: var(--secondary-bg);
+  border-radius: 3px;
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: 0.75rem;
 }
 .optionInputGroup {
   display: flex;
@@ -253,9 +219,8 @@
 }
 .optionInput {
   flex-grow: 1;
-  padding: 0.5rem;
-  font-size: 0.875rem;
-  background-color: var(--secondary-bg);
+  padding: 0.5rem 0.75rem;
+  background-color: rgba(0,0,0,0.3);
   border: 1px solid var(--accent-brass);
   color: var(--text-ivory);
   border-radius: 2px;
@@ -267,36 +232,31 @@
   cursor: pointer;
   padding: 0.25rem;
 }
-.removeOptionButton:hover {
-  color: var(--error-red);
-}
 .addOptionButton {
   margin-top: 0.5rem;
-  padding: 0.5rem;
+  padding: 0.6rem;
   background-color: transparent;
-  border: 1px dashed var(--accent-brass);
+  border: 1px solid var(--accent-brass);
   color: var(--accent-gold);
   cursor: pointer;
-  transition: all 0.2s ease;
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 0.5rem;
-  font-size: 0.875rem;
-}
-.addOptionButton:hover {
-  background-color: rgba(201, 162, 94, 0.2);
-  border-style: solid;
+  font-family: var(--font-display);
 }
 
+.collaboratorSection {
+    margin-top: 1.5rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid var(--accent-brass);
+}
 
-/* LISTA DE COLABORADORES E TEXTOS DE ERRO/VAZIO */
 .collaboratorList {
-  max-height: 200px;
+  max-height: 150px;
   overflow-y: auto;
   padding: 0.5rem;
   background-color: var(--secondary-bg);
-  border: 1px solid var(--accent-brass);
   border-radius: 2px;
 }
 .collaboratorItem {
@@ -307,36 +267,27 @@
   color: var(--text-ivory);
   cursor: pointer;
   border-radius: 2px;
-  user-select: none;
-}
-.collaboratorItem:hover {
-  background-color: rgba(201, 162, 94, 0.2);
 }
 .collaboratorItem input[type="checkbox"] {
   accent-color: var(--accent-gold);
 }
-.emptyListText {
-  padding: 0.5rem; 
-  opacity: 0.7;
-  color: var(--text-ivory);
-}
 .errorMessage {
   color: var(--error-red);
-  margin-top: 1rem;
+  text-align: center;
+  padding: 0.75rem;
 }
 
 
-/* ESTILOS DO PREVIEW ATUALIZADOS */
+/* --- PREVIEW E RODAPÉ --- */
 .previewColumn {
   background-color: #c7c1b3;
   background-image: var(--paper-texture);
 }
 .previewFrame {
-  background-color: transparent;
   padding: 2rem;
   height: 100%;
-  color: var(--deco-ivory); /* Texto claro */
-  border: 1px solid var(--deco-brass); /* Borda dourada */
+  color: var(--text-dark);
+  border: 1px solid var(--accent-brass);
   box-shadow: inset 0 0 20px rgba(0,0,0,0.4);
   display: flex;
   flex-direction: column;
@@ -347,13 +298,12 @@
   color: #333;
   text-align: center;
   margin-bottom: 2rem;
-  word-wrap: break-word; 
+  /* CORREÇÃO PARA TEXTO LONGO */
   overflow-wrap: break-word;
+  word-wrap: break-word;
+  word-break: break-word;
 }
 .previewFieldsContainer {
-  display: flex;
-  flex-direction: column;
-  gap: 1.5rem;
   flex-grow: 1;
 }
 .previewFieldWrapper {
@@ -362,16 +312,19 @@
 .previewLabel {
   display: block;
   margin-bottom: 0.5rem;
-  color: var(--deco-ivory) !important; /* Labels claros */
+  color: #555;
   font-weight: 500;
-  word-wrap: break-word;
+  /* CORREÇÃO PARA TEXTO LONGO */
   overflow-wrap: break-word;
+  word-wrap: break-word;
+  word-break: break-word;
+  white-space: normal;
 }
 .previewInput {
   height: 2.5rem;
-  background-color: transparent;
   border: none;
   border-bottom: 2px solid rgba(140, 109, 63, 0.5);
+  background-color: transparent;
 }
 .previewAttachment, .previewSignature {
   height: 6rem;
@@ -383,50 +336,32 @@
   background-color: rgba(140, 109, 63, 0.05);
   border-radius: 4px;
 }
+.previewSignature span {
+  font-family: var(--font-display);
+}
 .previewDateInput {
   width: 100%;
   padding: 0.5rem;
-  font-family: var(--font-sans);
-  background-color: rgba(0,0,0,0.05);
   border: 1px solid rgba(140, 109, 63, 0.5);
-  color: var(--text-dark);
+  background-color: rgba(0,0,0,0.05);
 }
 .previewOptionItem {
   display: flex;
   align-items: center;
   gap: 0.75rem;
-  color: var(--deco-ivory) !important; /* Texto de opções claro */
-  user-select: none;
 }
-
-.previewInput, 
-.previewDateInput {
-  background-color: rgba(255, 255, 255, 0.1) !important;
-  border: 1px solid var(--deco-brass) !important;
-  color: var(--deco-ivory) !important;
-}
-
-.previewAttachment, 
-.previewSignature {
-  border: 2px dashed var(--deco-gold) !important; /* Borda dourada */
-  color: var(--deco-gold) !important; /* Ícones dourados */
-}
-
-
 .previewCheckbox, .previewRadio {
   width: 16px;
   height: 16px;
   border: 2px solid var(--accent-brass);
   flex-shrink: 0;
 }
-.previewRadio {
-  border-radius: 50%;
-}
+.previewRadio { border-radius: 50%; }
 .previewSectionHeader {
   font-family: var(--font-display);
   font-size: 1.25rem;
-  color: var(--deco-gold) !important; /* Cabeçalhos dourados */
-  border-bottom: 1px solid var(--deco-brass); /* Linha dourada */
+  color: #444;
+  border-bottom: 1px solid rgba(140, 109, 63, 0.5);
   padding-bottom: 0.25rem;
   margin-top: 1rem;
 }
@@ -440,12 +375,10 @@
   background: linear-gradient(to bottom, var(--accent-gold), var(--accent-brass));
   border: 1px solid #ffffffaa;
   border-radius: 2px;
-  box-shadow: 0 2px 5px rgba(0,0,0,0.3);
   cursor: pointer;
   flex-shrink: 0;
 }
 
-/* RODAPÉ DO PAINEL */
 .panelFooter {
   padding: 1rem 1.5rem;
   border-top: 2px solid var(--accent-brass);
@@ -454,14 +387,7 @@
   justify-content: flex-end;
   gap: 1rem;
   flex-shrink: 0;
-    margin-top: auto; /* Empurra o rodapé para o final */
-  position: sticky;
-  bottom: 0;
-  z-index: 10;
-   -ms-flex-negative: 0;
-      flex-shrink: 0;
 }
-
 .formButton {
     padding: 0.75rem 1.5rem;
     font-family: var(--font-display);
@@ -469,154 +395,12 @@
     border-radius: 2px;
     border: 1px solid var(--accent-brass);
     cursor: pointer;
-    transition: all 0.2s ease;
 }
 .formButtonPrimary {
     background-color: var(--accent-gold);
     color: var(--text-dark);
-    border-color: var(--accent-gold);
-    box-shadow: 0 0 10px transparent;
-}
-.formButtonPrimary:hover {
-    box-shadow: 0 0 15px var(--accent-gold);
-    filter: brightness(1.1);
 }
 .formButtonSecondary {
     background-color: transparent;
     color: var(--text-ivory);
-}
-.formButtonSecondary:hover {
-    background-color: var(--accent-brass);
-    color: var(--text-dark);
-}
-
-/* ESTILO BIOSHOCK REFINADO PARA ATRIBUIR COLABORADORES */
-.assignSection {
-  margin-top: 2rem;
-  padding-top: 1.5rem;
-  position: relative;
-  border-top: 1px solid rgba(177, 143, 66, 0.3);
-}
-
-.assignTitle {
-  font-family: var(--font-display);
-  color: var(--accent-gold);
-  font-size: 1.25rem;
-  margin-bottom: 1rem;
-  position: relative;
-  display: flex;
-  align-items: center;
-}
-
-.assignTitle::before {
-  content: "";
-  display: inline-block;
-  width: 24px;
-  height: 24px;
-  background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" fill="%23C5A05C" viewBox="0 0 24 24"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>') center/contain no-repeat;
-  margin-right: 0.75rem;
-}
-
-.collaboratorList {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-  padding: 0.75rem;
-  background: rgba(11, 46, 54, 0.4);
-  border: 1px solid var(--accent-brass);
-  border-radius: 4px;
-}
-
-.collaboratorItem {
-  display: flex;
-  align-items: center;
-  padding: 0.75rem;
-  background: rgba(10, 46, 54, 0.3);
-  border: 1px solid rgba(177, 143, 66, 0.5);
-  border-radius: 2px;
-  transition: all 0.3s ease;
-  cursor: pointer;
-}
-
-.collaboratorItem:hover {
-  background: rgba(10, 46, 54, 0.6);
-  border-color: var(--accent-gold);
-  transform: translateX(5px);
-}
-
-.collaboratorItem input[type="checkbox"] {
-  appearance: none;
-  width: 18px;
-  height: 18px;
-  border: 2px solid var(--accent-brass);
-  border-radius: 2px;
-  margin-right: 0.75rem;
-  position: relative;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.collaboratorItem input[type="checkbox"]:checked {
-  background-color: var(--accent-gold);
-  border-color: var(--accent-gold);
-}
-
-.collaboratorItem input[type="checkbox"]:checked::after {
-  content: "";
-  position: absolute;
-  top: 1px;
-  left: 5px;
-  width: 4px;
-  height: 10px;
-  border: solid var(--text-dark);
-  border-width: 0 2px 2px 0;
-  transform: rotate(45deg);
-}
-
-.collaboratorItem span {
-  color: var(--text-ivory);
-  font-size: 0.9rem;
-  flex-grow: 1;
-}
-
-/* Botões de ação integrados */
-.panelFooter {
-  display: flex;
-  justify-content: flex-end;
-  gap: 1rem;
-  padding: 1.5rem;
-  margin-top: 2rem;
-  background: rgba(10, 46, 54, 0.6);
-  border-top: 1px solid var(--accent-brass);
-}
-
-.formButton {
-  padding: 0.75rem 1.75rem;
-  font-family: var(--font-sans);
-  font-weight: 500;
-  border-radius: 2px;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  border: none;
-}
-
-.formButtonSecondary {
-  background: transparent;
-  color: var(--text-ivory);
-  border: 1px solid var(--accent-brass);
-}
-
-.formButtonSecondary:hover {
-  background: rgba(177, 143, 66, 0.1);
-}
-
-.formButtonPrimary {
-  background: linear-gradient(to bottom, var(--accent-gold), var(--deco-brass));
-  color: var(--text-dark);
-  font-weight: 600;
-}
-
-.formButtonPrimary:hover {
-  background: linear-gradient(to bottom, #d9b45a, #c5a05c);
-  box-shadow: 0 0 10px rgba(197, 160, 92, 0.5);
 }

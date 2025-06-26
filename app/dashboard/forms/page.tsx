@@ -1,30 +1,17 @@
 'use client';
+
 import { useState, useEffect } from 'react';
-// CORREÇÃO: Removidos os ícones não utilizados.
-import { Plus, Edit, Trash2 } from 'lucide-react'; 
+import { Plus, Edit, Trash2, AlertTriangle } from 'lucide-react'; 
 import FormEditor from '@/components/FormEditor';
 import styles from '../../styles/Forms.module.css';
-import { db } from '../../../firebase/config';
-import { collection, onSnapshot, query, where, doc, deleteDoc } from 'firebase/firestore';
 
-// Tipos de dados
-interface Company { id: string; name: string; }
-interface Department { id: string; name: string; }
-// CORREÇÃO: Definindo um tipo específico para os campos para resolver o erro 'any'
-interface FormField { id: number; type: 'Texto' | 'Anexo' | 'Assinatura'; label: string; }
-interface Form {
-  id: string;
-  title: string;
-  fields: FormField[];
-  automation: { type: string; target: string };
-  assignedCollaborators?: string[];
-  companyId: string;
-  departmentId: string;
-  ownerId: string;
-  collaborators: string[];
-  authorizedUsers: string[];
-}
+// CORREÇÃO: Importa as funções e instâncias necessárias do Firebase
+import { db, auth } from '../../../firebase/config';
+import { onAuthStateChanged, type User } from "firebase/auth";
+import { collection, onSnapshot, query, where, doc, deleteDoc, and } from 'firebase/firestore';
 
+// CORREÇÃO: Importa os tipos do ficheiro central, em vez de os definir localmente
+import { type Form, type Company, type Department } from '@/types';
 
 export default function FormsPage() {
   const [isEditorOpen, setIsEditorOpen] = useState(false);
@@ -33,10 +20,23 @@ export default function FormsPage() {
   const [companies, setCompanies] = useState<Company[]>([]);
   const [departments, setDepartments] = useState<Department[]>([]);
   const [forms, setForms] = useState<Form[]>([]);
-  const [loading, setLoading] = useState({ companies: true, departments: false, forms: false });
+  const [loading, setLoading] = useState({ companies: true, departments: false, forms: false, auth: true });
+  const [firestoreError, setFirestoreError] = useState<string | null>(null);
 
   const [selectedCompanyId, setSelectedCompanyId] = useState('');
   const [selectedDepartmentId, setSelectedDepartmentId] = useState('');
+  
+  // Estado para guardar o utilizador autenticado
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
+
+  // Efeito para ouvir o estado da autenticação
+  useEffect(() => {
+    const unsubscribeAuth = onAuthStateChanged(auth, (user) => {
+      setCurrentUser(user);
+      setLoading(prev => ({ ...prev, auth: false }));
+    });
+    return () => unsubscribeAuth();
+  }, []);
 
   // Busca empresas
   useEffect(() => {
@@ -71,24 +71,40 @@ export default function FormsPage() {
        setLoading(prev => ({...prev, departments: false}));
     });
     return () => unsubscribe();
-  // CORREÇÃO: Adicionada a dependência que faltava
   }, [selectedCompanyId, selectedDepartmentId]);
 
-  // Busca formulários do departamento selecionado
+  // CORREÇÃO: Busca formulários usando a regra de segurança
   useEffect(() => {
-    if (!selectedDepartmentId) {
+    // Não faz nada se não houver departamento ou se o utilizador ainda não estiver carregado
+    if (!selectedDepartmentId || !currentUser) {
       setForms([]);
-      setLoading(prev => ({...prev, forms: false}));
+      setFirestoreError(null);
+      setLoading(prev => ({ ...prev, forms: false }));
       return;
     }
-    setLoading(prev => ({...prev, forms: true}));
-    const q = query(collection(db, "forms"), where("departmentId", "==", selectedDepartmentId));
+    setLoading(prev => ({ ...prev, forms: true }));
+    setFirestoreError(null);
+
+    // Cria a consulta correta que o Firestore permite
+    const q = query(
+      collection(db, "forms"),
+      and(
+        where("departmentId", "==", selectedDepartmentId),
+        where("authorizedUsers", "array-contains", currentUser.uid)
+      )
+    );
+
     const unsubscribe = onSnapshot(q, (snapshot) => {
       setForms(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Form)));
+      setLoading(prev => ({ ...prev, forms: false }));
+    }, (error) => {
+      console.error("Erro ao buscar formulários: ", error);
+      setFirestoreError("Não foi possível carregar os formulários. Verifique se o índice do Firestore foi criado (ver consola do browser para um link).");
       setLoading(prev => ({...prev, forms: false}));
     });
+
     return () => unsubscribe();
-  }, [selectedDepartmentId]);
+  }, [selectedDepartmentId, currentUser]); // Depende do departamento E do utilizador
 
   const handleOpenEditor = (form: Form | null = null) => {
     setEditingForm(form); 
@@ -105,6 +121,10 @@ export default function FormsPage() {
         await deleteDoc(doc(db, "forms", formId));
     }
   };
+
+  if (loading.auth) {
+      return <p className={styles.emptyState}>A verificar autenticação...</p>
+  }
 
   return (
     <>
@@ -139,7 +159,14 @@ export default function FormsPage() {
         </div>
 
         <div className={styles.cardGrid}>
-          {loading.forms ? <p className={styles.emptyState}>Carregando formulários...</p> : forms.length > 0 ? (
+          {loading.forms ? (
+            <p className={styles.emptyState}>Carregando formulários...</p>
+          ) : firestoreError ? (
+            <div className={styles.errorState}> {/* Crie esta classe no seu CSS */}
+              <AlertTriangle size={24} />
+              <p><strong>{firestoreError}</strong></p>
+            </div>
+          ) : forms.length > 0 ? (
             forms.map(form => (
               <div key={form.id} className={styles.formCard}>
                 <h3 className={styles.cardTitle}>{form.title}</h3>
