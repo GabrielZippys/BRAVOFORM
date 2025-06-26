@@ -1,6 +1,9 @@
 @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@700&family=Roboto:wght@400;500&family=Limelight&family=Montserrat:wght@400;500;700&display=swap');
 
 /* VARIÁVEIS GLOBAIS */
+@import url('https://fonts.googleapis.com/css2?family=Limelight&family=Poppins:wght@300;400;500&display=swap');
+
+/* VARIÁVEIS GLOBAIS */
 :root {
   /* CORES ART DECO (TEMA ESCURO) */
   --deco-dark: #0A2E36;
@@ -18,38 +21,24 @@
   --text-dark: #222c26;
   --error-red: #e53e3e;
   --paper-texture: url('https://www.transparenttextures.com/patterns/subtle-grunge.png');
-}
-
-:global {
-  :root {
-    /* CORES ART DECO (TEMA ESCURO) */
-    --deco-dark: #0A2E36;
-    --deco-teal: #07485B;
-    --deco-gold: #C5A05C;
-    --deco-brass: #B18F42;
-    --deco-ivory: #F0EAD6;
-    
-    /* VARIÁVEIS PARA O FORMEDITOR */
-    --primary-bg: var(--deco-dark);
-    --secondary-bg: var(--deco-teal);
-    --accent-gold: var(--deco-gold);
-    --accent-brass: var(--deco-brass);
-    --text-ivory: var(--deco-ivory);
-    --text-dark: #222c26;
-    --error-red: #e53e3e;
-    --paper-texture: url('https://www.transparenttextures.com/patterns/subtle-grunge.png');
-  }
-
-  body {
-    font-family: var(--font-sans);
-    background-color: var(--secondary-bg);
-  }
+  
+  /* FONTES */
+  --font-sans: 'Poppins', sans-serif;
+  --font-display: 'Limelight', cursive;
 }
 
 body {
   font-family: var(--font-sans);
   background-color: var(--secondary-bg);
+  margin: 0;
+  padding: 0;
 }
+
+:global(body) {
+  font-family: var(--font-sans);
+  background-color: var(--secondary-bg);
+}
+
 /* FORÇAR FUNDO ESCURO EM TODOS OS ELEMENTOS */
 html, body, body > div:first-child,
 body > div:first-child > div:first-child {

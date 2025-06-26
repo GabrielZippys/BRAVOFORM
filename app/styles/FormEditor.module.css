@@ -10,10 +10,7 @@
 /* ... (MANTENHA TODO O RESTO DO CSS INALTERADO) ... */
 
 /* ESTILOS DE BASE */
-:global(body) {
-  font-family: var(--font-sans);
-  background-color: var(--secondary-bg);
-}
+
 
 /* PAINEL PRINCIPAL */
 
