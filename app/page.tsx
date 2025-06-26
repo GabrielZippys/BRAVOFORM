@@ -43,7 +43,7 @@ export default function LoginPage() {
             
             <form onSubmit={handleLogin} className={styles.form}>
                 <div>
-                    <label htmlFor="email" className={styles.label}>Identidade</label>
+                    <label htmlFor="email" className={styles.label}>Email</label>
                     <input
                         type="email"
                         id="email"
@@ -54,7 +54,7 @@ export default function LoginPage() {
                     />
                 </div>
                 <div>
-                    <label htmlFor="password" className={styles.label}>Código de Acesso</label>
+                    <label htmlFor="password" className={styles.label}>Senha</label>
                     <input
                         type="password"
                         id="password"
@@ -66,7 +66,7 @@ export default function LoginPage() {
                 </div>
                  {error && <p className={styles.error}>{error}</p>}
                 <button type="submit" className={styles.button}>
-                    Acessar Terminal
+                    Acessar BravoForm
                 </button>
             </form>
         </div>
