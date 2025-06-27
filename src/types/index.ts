@@ -1,6 +1,6 @@
 import { Timestamp } from "firebase/firestore";
 
-// --- Tipos de Utilizadores ---
+// --- Tipo de Utilizador Unificado ---
 export interface AppUser {
   uid: string;
   name: string;
@@ -8,15 +8,7 @@ export interface AppUser {
   role: 'Admin' | 'Collaborator';
   companyId?: string;
   departmentId?: string;
-}
-
-// O tipo 'Collaborator' representa os dados guardados na subcoleção
-// e os dados que passamos para a página do colaborador.
-export interface Collaborator {
-  id: string; // ID do documento do colaborador
-  username: string;
-  password?: string; // Apenas para verificação, não deve ser exposto na UI
-  departmentId?: string; // ID do departamento a que pertence
+  createdAt?: Timestamp;
 }
 
 // --- Tipos de Formulários ---
@@ -24,29 +16,98 @@ export interface FormField {
   id: number;
   type: 'Texto' | 'Anexo' | 'Assinatura' | 'Caixa de Seleção' | 'Múltipla Escolha' | 'Data' | 'Cabeçalho';
   label: string;
+  required?: boolean;
   options?: string[];
+  placeholder?: string;
 }
 
 export interface Form {
   id: string;
   title: string;
+  description?: string;
   fields: FormField[];
   companyId: string;
   departmentId: string;
-  automation: { type: string; target: string; };
+  automation: {
+    type: string;
+    target: string;
+    frequency?: string;
+  };
   ownerId: string;
   collaborators: string[];
   authorizedUsers: string[];
-  createdAt?: Timestamp;
+  createdAt: Timestamp;
+  updatedAt?: Timestamp;
+  status: 'active' | 'draft' | 'archived';
+  dueDate?: Timestamp;
+  responseCount?: number;
 }
 
-// --- Outros Tipos ---
+export interface FormResponse {
+  id: string;
+  formId: string;
+  formTitle: string;
+  companyId: string;
+  departmentId: string;
+  collaboratorId: string;
+  collaboratorName: string;
+  responses: Record<string, any>;
+  submittedAt: Timestamp;
+  completed: boolean;
+  status: 'pending' | 'submitted' | 'approved' | 'rejected';
+  reviewedBy?: string;
+  reviewedAt?: Timestamp;
+  reviewComments?: string;
+}
+
+// --- Tipos de Organização ---
 export interface Company {
   id: string;
   name: string;
+  description?: string;
+  createdAt: Timestamp;
+  updatedAt?: Timestamp;
+  ownerId: string;
+  departmentsCount?: number;
+  usersCount?: number;
 }
 
 export interface Department {
   id: string;
   name: string;
+  companyId: string;
+  description?: string;
+  createdAt: Timestamp;
+  updatedAt?: Timestamp;
+  managerId?: string;
+  usersCount?: number;
+}
+
+// --- Tipos Adicionais ---
+export type Collaborator = AppUser;
+
+export interface DashboardStats {
+  totalForms: number;
+  totalResponses: number;
+  activeUsers: number;
+  completionRate: number;
+  responsesByDay: Array<{ date: string; count: number }>;
+  formsByStatus: Array<{ status: string; count: number }>;
+  recentForms: Form[];
+  recentResponses: FormResponse[];
+}
+
+export interface ChartData {
+  name: string;
+  value: number;
+  color?: string;
+}
+
+export interface FilterOptions {
+  companyId: string;
+  departmentId: string;
+  timeRange: 'day' | 'week' | 'month' | 'year' | 'custom';
+  startDate?: Date;
+  endDate?: Date;
+  status?: string;
 }
