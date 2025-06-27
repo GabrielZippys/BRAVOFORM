@@ -88,8 +88,26 @@ export default function UsersPage() {
     const closeModal = () => { setModalOpen(false); setFormState({ companyName: '', departmentName: '', adminName: '', adminEmail: '', adminPassword: '', adminPasswordConfirm: '', collabUsername: '', collabPassword: '' }); };
 
     // --- Funções CRUD ---
-    const handleAddCompany = async (e: React.FormEvent) => { e.preventDefault(); if(!formState.companyName) return; await addDoc(collection(db, "companies"), { name: formState.companyName }); closeModal(); };
-    const handleAddDepartment = async (e: React.FormEvent) => { e.preventDefault(); if (!formState.departmentName || !selectedCompany) return; await addDoc(collection(db, `companies/${selectedCompany.id}/departments`), { name: formState.departmentName }); closeModal(); };
+const handleAddCompany = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!formState.companyName) return;
+
+    const docRef = await addDoc(collection(db, "companies"), { name: formState.companyName });
+    await updateDoc(docRef, { id: docRef.id }); // <-- Adiciona o ID dentro do próprio documento
+
+    closeModal();
+};
+const handleAddDepartment = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!formState.departmentName || !selectedCompany) return;
+
+    const docRef = await addDoc(collection(db, `companies/${selectedCompany.id}/departments`), {
+        name: formState.departmentName
+    });
+    await updateDoc(docRef, { id: docRef.id }); // <-- Adiciona o ID ao documento do setor
+
+    closeModal();
+};
     
     const handleAddAdminUser = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -114,7 +132,9 @@ export default function UsersPage() {
         try {
             await addDoc(collection(db, `departments/${selectedDepartment.id}/collaborators`), {
                 username: formState.collabUsername,
-                password: formState.collabPassword, // ATENÇÃO: Em produção, esta senha deve ser criptografada (hashed)
+                password: formState.collabPassword,
+                companyId: selectedCompany?.id,    
+                departmentId: selectedDepartment.id    
             });
             closeModal();
         } catch (error) {

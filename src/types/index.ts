@@ -1,7 +1,11 @@
 import { Timestamp } from "firebase/firestore";
+import { ReactNode } from "react";
 
 // --- Tipo de Utilizador Unificado ---
+// Define a estrutura de um utilizador na coleção 'users' do Firestore.
 export interface AppUser {
+  id(arg0: string, arg1: string, id: any): import("@firebase/firestore").QueryConstraint;
+  username: ReactNode;
   uid: string;
   name: string;
   email: string;
@@ -39,10 +43,10 @@ export interface Form {
   createdAt: Timestamp;
   updatedAt?: Timestamp;
   status: 'active' | 'draft' | 'archived';
-  dueDate?: Timestamp;
   responseCount?: number;
 }
 
+// --- Tipo de Resposta de Formulário ---
 export interface FormResponse {
   id: string;
   formId: string;

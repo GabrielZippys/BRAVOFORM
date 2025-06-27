@@ -3,7 +3,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { db } from '../../firebase/config';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
-import { type Form, type Collaborator, type FormField } from '@/types';
+import { type Form, type Collaborator } from '@/types';
 import styles from '../../app/styles/FormResponse.module.css';
 import { X, Send, Eraser, UploadCloud } from 'lucide-react';
 
@@ -17,10 +17,10 @@ export default function FormResponse({ form, collaborator, onClose }: FormRespon
   const [responses, setResponses] = useState<Record<string, any>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
-  
+
   const signaturePads = useRef<Record<string, HTMLCanvasElement | null>>({});
 
-  // Lógica para o campo de assinatura
+  // ⚠️ Inicializa os canvases para assinatura
   useEffect(() => {
     Object.values(signaturePads.current).forEach(canvas => {
       if (canvas) {
@@ -38,7 +38,7 @@ export default function FormResponse({ form, collaborator, onClose }: FormRespon
           const rect = canvas.getBoundingClientRect();
           if (e instanceof MouseEvent) {
             return { x: e.clientX - rect.left, y: e.clientY - rect.top };
-          } else if (e.touches && e.touches.length > 0) {
+          } else if (e.touches.length > 0) {
             return { x: e.touches[0].clientX - rect.left, y: e.touches[0].clientY - rect.top };
           }
           return { x: 0, y: 0 };
@@ -63,10 +63,9 @@ export default function FormResponse({ form, collaborator, onClose }: FormRespon
         };
 
         const stopDrawing = () => {
-          if(!isDrawing) return;
+          if (!isDrawing) return;
           isDrawing = false;
-          // Guarda a assinatura como uma imagem base64
-          if(canvas.dataset.fieldId) {
+          if (canvas.dataset.fieldId) {
             handleInputChange(canvas.dataset.fieldId, canvas.toDataURL('image/png'));
           }
         };
@@ -75,7 +74,6 @@ export default function FormResponse({ form, collaborator, onClose }: FormRespon
         canvas.addEventListener('mousemove', draw);
         canvas.addEventListener('mouseup', stopDrawing);
         canvas.addEventListener('mouseout', stopDrawing);
-        
         canvas.addEventListener('touchstart', startDrawing);
         canvas.addEventListener('touchmove', draw);
         canvas.addEventListener('touchend', stopDrawing);
@@ -86,10 +84,9 @@ export default function FormResponse({ form, collaborator, onClose }: FormRespon
   const handleInputChange = (fieldId: string, value: any) => {
     setResponses(prev => ({ ...prev, [fieldId]: value }));
   };
-  
+
   const handleFileChange = (fieldId: string, file: File | null) => {
     if (file) {
-      // NOTA: A lógica de upload real para o Firebase Storage seria aqui.
       handleInputChange(fieldId, { name: file.name, type: file.type, size: file.size });
     }
   };
@@ -106,16 +103,34 @@ export default function FormResponse({ form, collaborator, onClose }: FormRespon
   const handleSubmit = async () => {
     setIsSubmitting(true);
     setError('');
+
+if (!collaborator.companyId || !collaborator.departmentId) {
+  setError("Dados do colaborador incompletos. Contate o administrador.");
+  setIsSubmitting(false);
+  return;
+}
+
+
+    // ✅ Verifica se companyId e departmentId existem
+    if (!collaborator.companyId || !collaborator.departmentId) {
+      setError('Dados do colaborador incompletos. Contate o administrador.');
+      setIsSubmitting(false);
+      return;
+    }
+
     try {
-      await addDoc(collection(db, 'form_responses'), {
-        formId: form.id,
-        formTitle: form.title,
-        collaboratorId: collaborator.id,
-        collaboratorUsername: collaborator.username,
-        departmentId: collaborator.departmentId,
-        responses: responses,
-        submittedAt: serverTimestamp()
-      });
+     await addDoc(collection(db, 'form_responses'), {
+  formId: form.id,
+  formTitle: form.title,
+  collaboratorId: collaborator.id,
+  collaboratorUsername: collaborator.username,
+  companyId: collaborator.companyId,
+  departmentId: collaborator.departmentId,
+  responses,
+  submittedAt: serverTimestamp(),
+  completed: true // ✅ Adicionado aqui
+});
+
       onClose();
     } catch (err) {
       console.error("Erro ao submeter resposta: ", err);
@@ -136,21 +151,28 @@ export default function FormResponse({ form, collaborator, onClose }: FormRespon
           {form.fields.map(field => (
             <div key={field.id} className={styles.fieldWrapper}>
               <label className={styles.label}>{field.label}</label>
-              
-              {field.type === 'Texto' && (<textarea className={styles.textarea} onChange={(e) => handleInputChange(String(field.id), e.target.value)} />)}
-              {field.type === 'Data' && (<input type="date" className={styles.input} onChange={(e) => handleInputChange(String(field.id), e.target.value)} />)}
-              
+
+              {field.type === 'Texto' && (
+                <textarea className={styles.textarea} onChange={(e) => handleInputChange(String(field.id), e.target.value)} />
+              )}
+
+              {field.type === 'Data' && (
+                <input type="date" className={styles.input} onChange={(e) => handleInputChange(String(field.id), e.target.value)} />
+              )}
+
               {field.type === 'Caixa de Seleção' && field.options?.map(option => (
                 <label key={option} className={styles.checkboxLabel}>
                   <input type="checkbox" onChange={(e) => {
-                      const current = responses[String(field.id)] || [];
-                      const newValue = e.target.checked ? [...current, option] : current.filter((item: string) => item !== option);
-                      handleInputChange(String(field.id), newValue);
-                    }}/>
+                    const current = responses[String(field.id)] || [];
+                    const newValue = e.target.checked
+                      ? [...current, option]
+                      : current.filter((item: string) => item !== option);
+                    handleInputChange(String(field.id), newValue);
+                  }} />
                   <span>{option}</span>
                 </label>
               ))}
-              
+
               {field.type === 'Múltipla Escolha' && field.options?.map(option => (
                 <label key={option} className={styles.radioLabel}>
                   <input type="radio" name={`field_${field.id}`} onChange={() => handleInputChange(String(field.id), option)} />
@@ -160,26 +182,35 @@ export default function FormResponse({ form, collaborator, onClose }: FormRespon
 
               {field.type === 'Anexo' && (
                 <div className={styles.fileInputWrapper}>
-                    <input type="file" id={`file_${field.id}`} className={styles.fileInput} onChange={(e) => handleFileChange(String(field.id), e.target.files ? e.target.files[0] : null)} />
-                    <label htmlFor={`file_${field.id}`} className={styles.fileInputButton}><UploadCloud size={18}/><span>Escolher Ficheiro</span></label>
-                    {responses[String(field.id)] && <span className={styles.fileName}>{responses[String(field.id)].name}</span>}
+                  <input
+                    type="file"
+                    id={`file_${field.id}`}
+                    className={styles.fileInput}
+                    onChange={(e) => handleFileChange(String(field.id), e.target.files ? e.target.files[0] : null)}
+                  />
+                  <label htmlFor={`file_${field.id}`} className={styles.fileInputButton}>
+                    <UploadCloud size={18} /><span>Escolher Ficheiro</span>
+                  </label>
+                  {responses[String(field.id)] && (
+                    <span className={styles.fileName}>{responses[String(field.id)].name}</span>
+                  )}
                 </div>
               )}
 
               {field.type === 'Assinatura' && (
                 <div className={styles.signatureWrapper}>
-                    {/* CORREÇÃO: A função de callback da ref agora não retorna um valor */}
-                    <canvas 
-                      ref={(el) => { signaturePads.current[String(field.id)] = el; }} 
-                      data-field-id={String(field.id)} 
-                      className={styles.signaturePad} 
-                      width="600" 
-                      height="200"
-                    ></canvas>
-                    <button onClick={() => clearSignature(String(field.id))} className={styles.clearButton}><Eraser size={16}/> Limpar</button>
+                  <canvas
+                    ref={(el) => { signaturePads.current[String(field.id)] = el; }}
+                    data-field-id={String(field.id)}
+                    className={styles.signaturePad}
+                    width="600"
+                    height="200"
+                  ></canvas>
+                  <button onClick={() => clearSignature(String(field.id))} className={styles.clearButton}>
+                    <Eraser size={16} /> Limpar
+                  </button>
                 </div>
               )}
-
             </div>
           ))}
         </div>

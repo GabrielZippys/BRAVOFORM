@@ -93,7 +93,9 @@ export default function FormEditor({ isOpen, onClose, companyId, departmentId, e
         const uniqueCollaborators = [...new Set(assignedCollaborators)];
         if (existingForm?.id) {
             const formRef = doc(db, "forms", existingForm.id);
-            const newAuthorizedUsers = [...new Set([existingForm.ownerId, ...uniqueCollaborators])];
+            const currentUserId = currentUser.uid;
+const uniqueCollaborators = [...new Set(assignedCollaborators)];
+const newAuthorizedUsers = [...new Set([currentUserId, ...uniqueCollaborators])];
             await updateDoc(formRef, { title: formTitle, fields, automation, collaborators: uniqueCollaborators, authorizedUsers: newAuthorizedUsers });
         } else {
             const uniqueAuthorized = [...new Set([currentUser.uid, ...uniqueCollaborators])];
