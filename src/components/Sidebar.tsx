@@ -10,14 +10,13 @@ import { LayoutDashboard, FileText, Users, PieChart, PlugZap, DatabaseBackup, Lo
 import { auth } from '../../firebase/config';
 import { signOut } from 'firebase/auth';
 // CORREÇÃO: Importando o arquivo de estilo correto (Dashboard.module.css) a partir da sua pasta de estilos
-import styles from '../../app/styles/Login.module.css';
+import styles from '../../app/styles/Sidebar.module.css';
 
 // CORREÇÃO: Os caminhos dos links agora incluem o prefixo /dashboard para manter o layout
 const navLinks = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/dashboard/forms', label: 'Formulários', icon: FileText },
   { href: '/dashboard/users', label: 'Deptos & Usuários', icon: Users },
-  { href: '/dashboard/reports', label: 'Relatórios', icon: PieChart },
   { href: '/dashboard/integrations', label: 'Integrações', icon: PlugZap },
   { href: '/dashboard/backups', label: 'Backups', icon: DatabaseBackup },
 ];

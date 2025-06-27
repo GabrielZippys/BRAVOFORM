@@ -1,0 +1,107 @@
+/*
+================================================================================
+|
+|   ARQUIVO: app/styles/Sidebar.module.css
+|   Estilos para a Barra Lateral com o tema de Rapture
+|
+================================================================================
+*/
+
+.sidebar {
+    width: 256px;
+    background: linear-gradient(to right, var(--secondary-bg) 0%, var(--primary-bg) 100%);
+    border-right: 2px solid;
+    border-image: linear-gradient(to top, var(--accent-brass), var(--accent-gold)) 1;
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
+    box-shadow: 4px 0 15px rgba(0,0,0,0.5);
+    z-index: 10;
+}
+
+.sidebarHeader {
+    height: 5rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-bottom: 1px solid var(--accent-brass);
+    flex-shrink: 0;
+    padding: 0 1rem;
+    background-color: rgba(0,0,0,0.2);
+}
+
+.sidebarTitle {
+    font-family: var(--font-display);
+    font-size: 1.5rem;
+    color: var(--accent-gold);
+    text-shadow: 1px 1px 3px #000;
+}
+
+.nav {
+    flex-grow: 1;
+    padding: 1rem 0.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.navLink {
+    display: flex;
+    align-items: center;
+    padding: 0.75rem 1.5rem;
+    border-radius: 2px;
+    color: var(--accent-brass);
+    transition: all 0.2s ease-in-out;
+    text-decoration: none;
+    border-left: 4px solid transparent;
+    font-weight: 500;
+}
+
+.navLink svg {
+    margin-right: 1rem;
+    transition: all 0.2s ease-in-out;
+    color: var(--accent-brass);
+}
+
+.navLink:hover {
+    background-color: rgba(197, 160, 92, 0.1);
+    color: var(--accent-gold);
+    border-left-color: var(--accent-gold);
+}
+
+.navLink:hover svg {
+    color: var(--accent-gold);
+    transform: scale(1.1);
+}
+
+.navLinkActive {
+    background-color: rgba(197, 160, 92, 0.2);
+    color: var(--text-ivory);
+    border-left-color: var(--accent-gold);
+    box-shadow: inset 3px 0 5px rgba(0,0,0,0.2);
+}
+
+.navLinkActive svg {
+    color: var(--text-ivory);
+}
+
+.sidebarFooter {
+    padding: 1rem;
+    border-top: 1px solid var(--accent-brass);
+    background-color: rgba(0,0,0,0.2);
+}
+
+/* Estilo para o botão de logout no rodapé */
+.sidebarFooter .navLink {
+    justify-content: flex-start;
+    width: 100%;
+    border: 1px solid var(--accent-brass);
+}
+.sidebarFooter .navLink:hover {
+    background-color: var(--error-red);
+    color: var(--text-ivory);
+    border-color: var(--error-red);
+}
+.sidebarFooter .navLink:hover svg {
+    color: var(--text-ivory);
+}

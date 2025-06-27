@@ -4,6 +4,7 @@ import { ReactNode } from "react";
 // --- Tipo de Utilizador Unificado ---
 // Define a estrutura de um utilizador na coleção 'users' do Firestore.
 export interface AppUser {
+  password: string;
   id(arg0: string, arg1: string, id: any): import("@firebase/firestore").QueryConstraint;
   username: ReactNode;
   uid: string;

@@ -511,3 +511,137 @@
   50%  { transform: translate(1px, -1px); }
   75%  { transform: translate(-1px, 1px); }
 }
+
+/*
+================================================================================
+|
+|   ARQUIVO: src/styles/Login.module.css
+|   Estilos para a Página de Login com o tema de Rapture
+|
+================================================================================
+*/
+
+.main {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+    overflow: hidden;
+    background: radial-gradient(circle at 10% 20%, rgba(197, 160, 92, 0.15), transparent 70%), 
+                radial-gradient(circle at 80% 70%, rgba(7, 72, 91, 0.2), transparent 70%), 
+                var(--secondary-bg);
+    animation: background-pan 45s linear infinite;
+}
+
+@keyframes background-pan {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+}
+
+.frame {
+    width: 100%;
+    max-width: 30rem; /* 480px */
+    padding: 2.5rem;
+    text-align: center;
+    background-color: rgba(10, 46, 54, 0.85);
+    border: 2px solid;
+    border-image: linear-gradient(to top, var(--accent-brass) 0%, var(--accent-gold) 100%) 1;
+    box-shadow: inset 0 0 20px rgba(0,0,0,0.7), 0 10px 30px rgba(0,0,0,0.5);
+    backdrop-filter: blur(3px);
+}
+
+.logo {
+    width: 200px;
+    height: auto;
+    margin: 0 auto 2.5rem auto;
+    filter: drop-shadow(0 0 15px rgba(201, 162, 94, 0.5));
+}
+
+.form {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+.label {
+    display: block;
+    text-align: left;
+    margin-bottom: 0.5rem;
+    color: var(--accent-gold);
+    font-family: var(--font-display);
+    font-size: 1rem;
+    text-shadow: 1px 1px 2px #000;
+}
+
+.input {
+    background-color: rgba(0, 0, 0, 0.4);
+    border: 1px solid var(--accent-brass);
+    color: var(--text-ivory);
+    width: 100%;
+    padding: 0.85rem 1rem;
+    border-radius: 2px;
+    transition: all 0.2s ease-in-out;
+    box-sizing: border-box;
+    font-size: 1rem;
+    box-shadow: inset 0 1px 5px rgba(0,0,0,0.5);
+}
+
+.input:focus {
+    outline: none;
+    border-color: var(--accent-gold);
+    box-shadow: 0 0 10px rgba(197, 160, 92, 0.6), inset 0 1px 5px rgba(0,0,0,0.5);
+}
+
+.button {
+    position: relative;
+    overflow: hidden;
+    width: 100%;
+    padding: 0.85rem;
+    font-family: var(--font-display);
+    font-size: 1.2rem;
+    font-weight: 700;
+    color: var(--text-dark);
+    background: linear-gradient(to bottom, #D4AF37, var(--accent-brass));
+    border: 1px solid var(--accent-gold);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.5), inset 0 1px 1px rgba(255, 255, 255, 0.2);
+    border-radius: 2px;
+    transition: all 0.2s ease-in-out;
+    cursor: pointer;
+    margin-top: 1rem;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.button::before {
+    content: '';
+    position: absolute;
+    top: -50%;
+    left: -50%;
+    width: 25%;
+    height: 200%;
+    background: linear-gradient(to right, transparent, rgba(255, 255, 255, 0.3), transparent);
+    transform: skewX(-25deg);
+    animation: shine 5s infinite linear;
+}
+
+@keyframes shine {
+    from { left: -50%; }
+    to { left: 125%; }
+}
+
+.button:hover {
+    filter: brightness(1.1);
+    box-shadow: 0 6px 12px rgba(0,0,0,0.6), inset 0 1px 1px rgba(255, 255, 255, 0.2), 0 0 15px var(--accent-gold);
+}
+
+.error {
+    color: #ffc8c8;
+    background-color: rgba(150, 40, 40, 0.5);
+    border: 1px solid #d44c4c;
+    border-radius: 2px;
+    padding: 0.75rem;
+    text-align: center;
+    font-size: 0.9rem;
+}
