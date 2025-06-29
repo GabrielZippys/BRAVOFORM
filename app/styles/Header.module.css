@@ -1,89 +1,195 @@
 /*
 ================================================================================
 |
-|   ARQUIVO: app/styles/Header.module.css
-|   Estilos para o Header com o tema de Rapture
+|   ARQUIVO: Header.module.css (REVISADO E ATUALIZADO)
+|   TEMA: BioShock - Rapture Art Deco
+|   DESCRIÇÃO:
+|   O cabeçalho agora é uma peça robusta com um menu dropdown funcional.
+|   - Animações para o dropdown e ícones.
+|   - Estilos para os itens do menu e emblema de notificação.
+|   - Efeitos de "hover" aprimorados para maior interatividade.
 |
 ================================================================================
 */
 
+@keyframes dropdownFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
 .header {
-    height: 5rem; /* Um pouco mais alto para uma sensação mais imponente */
-    background: linear-gradient(to bottom, var(--secondary-bg), var(--primary-bg));
-    border-bottom: 2px solid;
-    border-image: linear-gradient(to right, var(--accent-brass), var(--accent-gold), var(--accent-brass)) 1;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 0 2rem;
-    flex-shrink: 0;
-    box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+  height: 5.5rem;
+  background: linear-gradient(to bottom, var(--secondary-bg), rgba(4, 26, 33, 0.9));
+  border-bottom: 3px solid;
+  border-image: linear-gradient(to right, var(--accent-brass), var(--accent-gold), var(--accent-brass)) 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 2.5rem;
+  flex-shrink: 0;
+  box-shadow: 0 5px 20px rgba(0,0,0,0.6);
+  position: relative;
+  z-index: 20; /* Garante que o header fique acima de outros conteúdos */
 }
 
 .headerTitle {
-    font-family: var(--font-display);
-    font-size: 1.75rem;
-    color: var(--accent-gold);
-    text-shadow: 1px 1px 3px rgba(0,0,0,0.7);
+  font-family: var(--font-display);
+  font-size: 2rem;
+  color: var(--accent-gold);
+  text-shadow: 2px 2px 4px #000;
 }
 
 .headerActions {
-    display: flex;
-    align-items: center;
-    gap: 1.5rem;
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
 }
 
 .headerButton {
-    background-color: transparent;
-    border: 2px solid var(--accent-brass);
-    color: var(--text-ivory);
-    border-radius: 50%;
-    width: 42px;
-    height: 42px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    transition: all 0.3s ease;
-    box-shadow: inset 0 0 5px rgba(0,0,0,0.5);
+  background-color: transparent;
+  border: 2px solid var(--accent-brass);
+  color: var(--text-ivory);
+  border-radius: 50%;
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  box-shadow: inset 0 0 8px rgba(0,0,0,0.7);
+  position: relative; /* Para o emblema de notificação */
 }
 
 .headerButton:hover {
-    background-color: var(--accent-gold);
-    color: var(--text-dark);
-    border-color: var(--accent-gold);
-    transform: scale(1.1);
-    box-shadow: 0 0 10px var(--accent-gold);
+  background-color: var(--accent-gold);
+  color: var(--text-dark);
+  border-color: var(--accent-gold);
+  transform: scale(1.15);
+  box-shadow: 0 0 15px var(--accent-gold), inset 0 0 5px rgba(0,0,0,0.5);
+}
+
+.notificationBadge {
+  position: absolute;
+  top: -2px;
+  right: -4px;
+  background-color: var(--error-red);
+  color: var(--text-ivory);
+  border-radius: 50%;
+  width: 20px;
+  height: 20px;
+  font-size: 0.75rem;
+  font-weight: bold;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid var(--primary-bg);
+  box-shadow: 0 0 5px rgba(0,0,0,0.5);
+}
+
+/* --- Estilos do Perfil de Usuário e Dropdown --- */
+.userProfileWrapper {
+  position: relative;
 }
 
 .userProfile {
-    display: flex;
-    align-items: center;
-    gap: 1rem;
-    background-color: rgba(0,0,0,0.2);
-    padding: 0.5rem 1rem;
-    border-radius: 4px;
-    border: 1px solid var(--accent-brass);
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  background-color: rgba(0,0,0,0.3);
+  padding: 0.5rem 1rem;
+  border-radius: 4px;
+  border: 1px solid var(--accent-brass);
+  transition: all 0.3s ease;
+  cursor: pointer;
+}
+.userProfile:hover {
+  box-shadow: 0 0 10px rgba(201, 162, 94, 0.4);
+  border-color: var(--accent-gold);
+  background-color: rgba(0,0,0,0.5);
 }
 
 .userAvatar {
-    border-radius: 50%;
-    border: 2px solid var(--accent-gold);
-    box-shadow: 0 0 8px rgba(201, 162, 94, 0.5);
+  border-radius: 50%;
+  border: 2px solid var(--accent-gold);
+  box-shadow: 0 0 8px rgba(201, 162, 94, 0.6);
+  transition: transform 0.3s ease;
+}
+.userProfile:hover .userAvatar {
+  transform: scale(1.1);
 }
 
 .userInfo h3 {
-    font-family: var(--font-sans);
-    font-weight: 500;
-    font-size: 0.9rem;
-    color: var(--text-ivory);
-    margin: 0;
-    line-height: 1.2;
+  font-family: var(--font-sans);
+  font-weight: 500;
+  font-size: 1rem;
+  color: var(--text-ivory);
+  margin: 0;
+  line-height: 1.2;
 }
 
 .userInfo p {
-    font-size: 0.8rem;
-    color: var(--accent-brass);
-    line-height: 1.2;
-    margin: 0;
+  font-size: 0.85rem;
+  color: var(--accent-brass);
+  line-height: 1.2;
+  margin: 0;
+  font-style: italic;
+}
+
+.chevronIcon {
+  color: var(--accent-brass);
+  transition: transform 0.3s ease-in-out;
+}
+.chevronOpen {
+  transform: rotate(180deg);
+}
+
+.userDropdown {
+  position: absolute;
+  top: calc(100% + 10px);
+  right: 0;
+  width: 220px;
+  background-color: var(--secondary-bg);
+  border: 1px solid var(--accent-brass);
+  border-radius: 4px;
+  box-shadow: 0 8px 20px rgba(0,0,0,0.7);
+  z-index: 30;
+  overflow: hidden;
+  animation: dropdownFadeIn 0.2s ease-out forwards;
+  transform-origin: top right;
+}
+
+.dropdownItem {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.8rem 1rem;
+  color: var(--text-ivory);
+  font-size: 0.9rem;
+  background: none;
+  border: none;
+  width: 100%;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+  text-decoration: none; /* Para o caso de usar <a> */
+}
+.dropdownItem:not(:last-child) {
+    border-bottom: 1px solid var(--accent-brass);
+}
+
+.dropdownItem:hover {
+  background-color: var(--accent-gold);
+  color: var(--text-dark);
+}
+
+.logoutButton:hover {
+    background-color: var(--error-red) !important;
+    color: var(--text-ivory) !important;
 }

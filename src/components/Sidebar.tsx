@@ -73,10 +73,7 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
                 })}
             </nav>
             <div className={styles.sidebarFooter}>
-                <button onClick={handleLogout} className={styles.navLink} style={{width: '100%', justifyContent: 'flex-start'}}>
-                    <LogOut size={20} />
-                    <span>Desconectar</span>
-                </button>
+               <p>MDW Bravo © Todos os Direitos Reservados</p>
             </div>
         </aside>
     );
