@@ -78,5 +78,3 @@
 ## ✅ Conclusão
 
 O **FORMBRAVO** é um sistema robusto para gerenciamento de formulários corporativos, com um front-end moderno em React/Next.js, integração completa com Firebase e dashboard analítico. Ele oferece real controle de acesso, coleta de dados e visualização em tempo real.
-
-Se quiser que eu aprofunde qualquer parte (ex.: regras de autenticação, fluxo de formulários, queries Firestore), é só dizer!
