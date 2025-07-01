@@ -3,7 +3,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { db } from '../../firebase/config';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
-import { type Form, type Collaborator } from '@/types';
+import { type Form, type FormField, type Collaborator } from '@/types';
 import styles from '../../app/styles/FormResponse.module.css';
 import { X, Send, Eraser, UploadCloud } from 'lucide-react';
 
@@ -20,7 +20,7 @@ export default function FormResponse({ form, collaborator, onClose }: FormRespon
 
   const signaturePads = useRef<Record<string, HTMLCanvasElement | null>>({});
 
-  // ⚠️ Inicializa os canvases para assinatura
+  // A lógica do canvas de assinatura permanece a mesma
   useEffect(() => {
     Object.values(signaturePads.current).forEach(canvas => {
       if (canvas) {
@@ -81,6 +81,7 @@ export default function FormResponse({ form, collaborator, onClose }: FormRespon
     });
   }, [form.fields]);
 
+  // CORREÇÃO: A função de guardar a resposta agora usa o ID do campo como chave, que é mais estável.
   const handleInputChange = (fieldId: string, value: any) => {
     setResponses(prev => ({ ...prev, [fieldId]: value }));
   };
@@ -104,32 +105,36 @@ export default function FormResponse({ form, collaborator, onClose }: FormRespon
     setIsSubmitting(true);
     setError('');
 
-if (!collaborator.companyId || !collaborator.departmentId) {
-  setError("Dados do colaborador incompletos. Contate o administrador.");
-  setIsSubmitting(false);
-  return;
-}
+    if (!form.companyId || !form.departmentId) {
+        setError("Dados do formulário incompletos. Contate o administrador.");
+        setIsSubmitting(false);
+        return;
+    }
 
-
-    // ✅ Verifica se companyId e departmentId existem
-    if (!collaborator.companyId || !collaborator.departmentId) {
-      setError('Dados do colaborador incompletos. Contate o administrador.');
-      setIsSubmitting(false);
-      return;
+    // CORREÇÃO: Transforma o objeto de respostas para o formato correto antes de enviar.
+    const formattedAnswers: Record<string, any> = {};
+    for (const field of form.fields) {
+        const fieldIdStr = String(field.id);
+        // Verifica se existe uma resposta para este campo
+        if (Object.prototype.hasOwnProperty.call(responses, fieldIdStr)) {
+            // Cria a nova chave usando o label da pergunta
+            formattedAnswers[field.label] = responses[fieldIdStr];
+        }
     }
 
     try {
-     await addDoc(collection(db, 'form_responses'), {
-  formId: form.id,
-  formTitle: form.title,
-  collaboratorId: collaborator.id,
-  collaboratorUsername: collaborator.username,
-  companyId: collaborator.companyId,
-  departmentId: collaborator.departmentId,
-  responses,
-  submittedAt: serverTimestamp(),
-  completed: true // ✅ Adicionado aqui
-});
+      const responseCollectionRef = collection(db, 'forms', form.id, 'responses');
+      
+      await addDoc(responseCollectionRef, {
+        collaboratorId: collaborator.id,
+        collaboratorUsername: collaborator.username,
+        formId: form.id,
+        formTitle: form.title,
+        companyId: form.companyId,
+        departmentId: form.departmentId,
+        answers: formattedAnswers, // Envia o objeto de respostas formatado
+        createdAt: serverTimestamp(),
+      });
 
       onClose();
     } catch (err) {
@@ -152,6 +157,7 @@ if (!collaborator.companyId || !collaborator.departmentId) {
             <div key={field.id} className={styles.fieldWrapper}>
               <label className={styles.label}>{field.label}</label>
 
+              {/* CORREÇÃO: Usando o ID do campo (field.id) para guardar o estado internamente */}
               {field.type === 'Texto' && (
                 <textarea className={styles.textarea} onChange={(e) => handleInputChange(String(field.id), e.target.value)} />
               )}
@@ -200,8 +206,8 @@ if (!collaborator.companyId || !collaborator.departmentId) {
               {field.type === 'Assinatura' && (
                 <div className={styles.signatureWrapper}>
                   <canvas
-                    ref={(el) => { signaturePads.current[String(field.id)] = el; }}
-                    data-field-id={String(field.id)}
+                    ref={(el) => { signaturePads.current[String(field.id)] = el; }} // Usa o ID como chave
+                    data-field-id={String(field.id)} // Usa o ID como data attribute
                     className={styles.signaturePad}
                     width="600"
                     height="200"
