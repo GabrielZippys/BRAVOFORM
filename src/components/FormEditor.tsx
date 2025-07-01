@@ -1,17 +1,11 @@
-/**********************************************************************************
- * FORMEDITOR COMPLETO - VERSÃO COM LAYOUT DEFINITIVO
- *
- * Inclui o JSX corrigido para o novo layout de scroll.
- **********************************************************************************/
-
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { X, Type, Paperclip, PenSquare, Trash2, CheckSquare, CircleDot, Calendar, Heading2, PlusCircle } from 'lucide-react';
+import { X, Type, Paperclip, PenSquare, Trash2, CheckSquare, CircleDot, Calendar, Heading2, PlusCircle, Mail, MessageCircle } from 'lucide-react';
 import { type Form, type FormField, type Collaborator } from '@/types';
 import styles from '../../app/styles/FormEditor.module.css';
 import { db, auth } from '../../firebase/config';
-import { collection, addDoc, doc, updateDoc, onSnapshot, query, serverTimestamp, arrayUnion, where } from 'firebase/firestore';
+import { collection, addDoc, doc, updateDoc, onSnapshot, query, serverTimestamp } from 'firebase/firestore';
 
 
 interface FormEditorProps {
@@ -50,19 +44,19 @@ export default function FormEditor({ isOpen, onClose, companyId, departmentId, e
   useEffect(() => {
     if (isOpen && departmentId) {
       const collaboratorsPath = `departments/${departmentId}/collaborators`;
-      const q = query(collection(db, collaboratorsPath));
-
-      const unsubscribe = onSnapshot(q, (snapshot) => {
-        const collaboratorsData = snapshot.docs.map(doc => ({ 
-            id: doc.id,
-            username: doc.data().username 
-        } as Collaborator));
+      const collaboratorsQuery = query(collection(db, collaboratorsPath));
+  
+      const unsubscribe = onSnapshot(collaboratorsQuery, (snapshot) => {
+        const collaboratorsData = snapshot.docs.map(doc => ({
+          id: doc.id,
+          username: doc.data().username
+        } as unknown as Collaborator));
         setCollaborators(collaboratorsData);
       }, (err) => {
         console.error("Erro ao buscar colaboradores:", err);
         setError("Não foi possível carregar a lista de colaboradores.");
       });
-
+  
       return () => unsubscribe();
     }
   }, [departmentId, isOpen]);
@@ -91,15 +85,29 @@ export default function FormEditor({ isOpen, onClose, companyId, departmentId, e
 
     try {
         const uniqueCollaborators = [...new Set(assignedCollaborators)];
+        const formPayload = {
+            title: formTitle,
+            fields,
+            automation, // Salva a configuração de automação
+            companyId,
+            departmentId,
+            ownerId: currentUser.uid,
+            collaborators: uniqueCollaborators,
+            authorizedUsers: [...new Set([currentUser.uid, ...uniqueCollaborators])],
+            createdAt: serverTimestamp()
+        };
+
         if (existingForm?.id) {
             const formRef = doc(db, "forms", existingForm.id);
-            const currentUserId = currentUser.uid;
-const uniqueCollaborators = [...new Set(assignedCollaborators)];
-const newAuthorizedUsers = [...new Set([currentUserId, ...uniqueCollaborators])];
-            await updateDoc(formRef, { title: formTitle, fields, automation, collaborators: uniqueCollaborators, authorizedUsers: newAuthorizedUsers });
+            await updateDoc(formRef, {
+                title: formTitle,
+                fields,
+                automation, // Atualiza a automação
+                collaborators: uniqueCollaborators,
+                authorizedUsers: [...new Set([currentUser.uid, ...uniqueCollaborators])]
+            });
         } else {
-            const uniqueAuthorized = [...new Set([currentUser.uid, ...uniqueCollaborators])];
-            await addDoc(collection(db, "forms"), { title: formTitle, fields, automation, companyId, departmentId, ownerId: currentUser.uid, collaborators: uniqueCollaborators, authorizedUsers: uniqueAuthorized, createdAt: serverTimestamp() });
+            await addDoc(collection(db, "forms"), formPayload);
         }
         onClose();
     } catch (e) { console.error("Erro ao salvar formulário: ", e); setError("Não foi possível salvar o formulário."); }
@@ -118,11 +126,39 @@ const newAuthorizedUsers = [...new Set([currentUserId, ...uniqueCollaborators])]
         <div className={styles.editorGrid}>
           {/* Coluna da Esquerda (Controlos) */}
           <div className={styles.controlsColumn}>
-            {/* Secção de Título e Adicionar Campos (não rolam) */}
+            {/* Secção de Título */}
             <div>
               <label htmlFor="form-title" className={styles.label}>Título do Formulário</label>
               <input type="text" id="form-title" value={formTitle} onChange={(e) => setFormTitle(e.target.value)} className={styles.input}/>
             </div>
+
+            {/* NOVA SEÇÃO DE AUTOMAÇÃO */}
+            <div className={styles.automationSection}>
+                <h4 className={styles.subTitle}>Automação de Notificação</h4>
+                <div className={styles.automationToggle}>
+                    <button 
+                        className={`${styles.toggleButton} ${automation.type === 'email' ? styles.active : ''}`}
+                        onClick={() => setAutomation({ type: 'email', target: '' })}
+                    >
+                        <Mail size={16} /> E-mail
+                    </button>
+                    <button 
+                        className={`${styles.toggleButton} ${automation.type === 'whatsapp' ? styles.active : ''}`}
+                        onClick={() => setAutomation({ type: 'whatsapp', target: '' })}
+                    >
+                        <MessageCircle size={16} /> WhatsApp
+                    </button>
+                </div>
+                <input 
+                    type={automation.type === 'email' ? 'email' : 'tel'}
+                    value={automation.target}
+                    onChange={(e) => setAutomation({ ...automation, target: e.target.value })}
+                    placeholder={automation.type === 'email' ? 'Digite o e-mail para notificação' : 'Digite o nº de WhatsApp (ex: 55119...)'}
+                    className={styles.input}
+                />
+            </div>
+            
+            {/* Seção de Adicionar Campos */}
             <div>
               <h4 className={styles.subTitle}>Adicionar Campos</h4>
               <div className={styles.fieldButtons}>
@@ -136,36 +172,43 @@ const newAuthorizedUsers = [...new Set([currentUserId, ...uniqueCollaborators])]
               </div>
             </div>
 
-            {/* CORREÇÃO: Container que cresce e rola, envolvendo os campos e os colaboradores */}
+            {/* Conteúdo rolável com a lista de campos e colaboradores */}
             <div className={styles.scrollableContent}>
                 <div className={styles.fieldsList}>
-                  {fields.map(field => (
-                      <div key={field.id} className={styles.fieldEditor}>
-                        <div className={styles.fieldHeader}>
-                          <span className={styles.fieldTypeLabel}>{field.type}</span>
-                          <button onClick={() => removeField(field.id)} className={styles.deleteFieldButton}><Trash2 size={16}/></button>
+                    {fields.map(field => (
+                        <div key={field.id} className={styles.fieldEditor}>
+                            <div className={styles.fieldHeader}>
+                                <span className={styles.fieldTypeLabel}>{field.type}</span>
+                                <button onClick={() => removeField(field.id)} className={styles.deleteFieldButton}><Trash2 size={16}/></button>
+                            </div>
+                            {field.type !== 'Assinatura' && (<input type="text" value={field.label} placeholder={field.type === 'Cabeçalho' ? 'Texto do Cabeçalho' : 'Digite a sua pergunta'} onChange={(e) => updateFieldLabel(field.id, e.target.value)} className={styles.input}/>)}
+                            {(field.type === 'Caixa de Seleção' || field.type === 'Múltipla Escolha') && (
+                                <div className={styles.optionsEditor}>
+                                    {field.options?.map((option, index) => (<div key={index} className={styles.optionInputGroup}><input type="text" value={option} onChange={(e) => updateOption(field.id, index, e.target.value)} className={styles.optionInput}/><button onClick={() => removeOption(field.id, index)} className={styles.removeOptionButton}><X size={14} /></button></div>))}
+                                    <button onClick={() => addOption(field.id)} className={styles.addOptionButton}><PlusCircle size={16} /> Adicionar Opção</button>
+                                </div>
+                            )}
                         </div>
-                        {field.type !== 'Assinatura' && (<input type="text" value={field.label} placeholder={field.type === 'Cabeçalho' ? 'Texto do Cabeçalho' : 'Digite a sua pergunta'} onChange={(e) => updateFieldLabel(field.id, e.target.value)} className={styles.input}/>)}
-                        {(field.type === 'Caixa de Seleção' || field.type === 'Múltipla Escolha') && (
-                          <div className={styles.optionsEditor}>
-                            {field.options?.map((option, index) => (<div key={index} className={styles.optionInputGroup}><input type="text" value={option} onChange={(e) => updateOption(field.id, index, e.target.value)} className={styles.optionInput}/><button onClick={() => removeOption(field.id, index)} className={styles.removeOptionButton}><X size={14} /></button></div>))}
-                            <button onClick={() => addOption(field.id)} className={styles.addOptionButton}><PlusCircle size={16} /> Adicionar Opção</button>
-                          </div>
-                        )}
-                      </div>
-                  ))}
+                    ))}
                 </div>
     
                 <div className={styles.collaboratorSection}>
-                  <h4 className={styles.subTitle}>Atribuir a Colaboradores</h4>
-                  <div className={styles.collaboratorList}>
-                    {collaborators.length > 0 ? collaborators.map(collab => (
-                      <label key={collab.id} className={styles.collaboratorItem}>
-                        <input type="checkbox" checked={assignedCollaborators.includes(collab.id)} onChange={() => handleCollaboratorToggle(collab.id)}/>
-                        <span>{collab.username}</span>
-                      </label>
-                    )) : <p className={styles.emptyListText}>Nenhum colaborador encontrado.</p>}
-                  </div>
+                    <h4 className={styles.subTitle}>Atribuir a Colaboradores</h4>
+                    <div className={styles.collaboratorList}>
+                        {collaborators.length > 0 ? collaborators.map(collab => {
+                            const collabIdStr = String(collab.id);
+                            return (
+                                <label key={collabIdStr} className={styles.collaboratorItem}>
+                                    <input
+                                        type="checkbox"
+                                        checked={assignedCollaborators.includes(collabIdStr)}
+                                        onChange={() => handleCollaboratorToggle(collabIdStr)}
+                                    />
+                                    <span>{collab.username}</span>
+                                </label>
+                            );
+                        }) : <p className={styles.emptyListText}>Nenhum colaborador encontrado.</p>}
+                    </div>
                 </div>
             </div>
             

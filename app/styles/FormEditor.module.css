@@ -1,16 +1,24 @@
 /*
- * =================================================================
- * CSS MODULE PARA FORMEDITOR - VERSÃO COM LAYOUT E TEXTO CORRIGIDOS
- * =================================================================
+================================================================================
+|
+|   ARQUIVO: FormEditor.module.css (REVISADO E CORRIGIDO)
+|   TEMA: BioShock - Rapture Art Deco
+|   DESCRIÇÃO:
+|   Estilos para o painel lateral de edição de formulários.
+|   - Layout de duas colunas: controles à esquerda, preview à direita.
+|   - Efeitos de metal escovado, vidro e latão.
+|   - NOVA SEÇÃO DE AUTOMAÇÃO com botões de alternância.
+|
+================================================================================
 */
 
-/* PAINEL PRINCIPAL E OVERLAY */
 .overlay {
   position: fixed;
   inset: 0;
   background-color: rgba(0, 0, 0, 0.7);
   backdrop-filter: blur(5px);
   z-index: 40;
+  animation: fadeIn 0.3s ease;
 }
 
 .panel {
@@ -28,6 +36,16 @@
   flex-direction: column;
   z-index: 50;
   font-family: var(--font-sans);
+  transform: translateX(100%);
+  animation: slideIn 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+}
+
+@keyframes slideIn {
+  to { transform: translateX(0); }
+}
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 
 .panelHeader {
@@ -45,7 +63,6 @@
   font-family: var(--font-display);
   font-size: 1.5rem;
   color: var(--accent-gold);
-  font-weight: 400;
 }
 
 .closeButton {
@@ -68,14 +85,13 @@
   transform: rotate(90deg) scale(1.05);
 }
 
-/* GRELHA PRINCIPAL DO EDITOR */
 .editorGrid {
   flex-grow: 1;
   display: flex;
   overflow: hidden;
 }
 
-/* CORREÇÃO: A barra de rolagem agora aplica-se a toda a coluna de controlos */
+/* CORREÇÃO: A propriedade overflow-y: auto garante que esta coluna inteira role */
 .controlsColumn, .previewColumn {
   flex: 1 1 50%;
   overflow-y: auto;
@@ -83,13 +99,13 @@
 }
 
 .controlsColumn {
+  background-color: rgba(0,0,0,0.2);
   display: flex;
   flex-direction: column;
-  background-color: rgba(0,0,0,0.2);
-  gap: 1.5rem;
+  gap: 1.5rem; /* Espaçamento entre as seções principais */
 }
 
-/* CUSTOM SCROLLBAR */
+/* Scrollbar customizada */
 .controlsColumn::-webkit-scrollbar, .previewColumn::-webkit-scrollbar {
   width: 8px;
 }
@@ -101,8 +117,6 @@
   border-radius: 4px;
 }
 
-
-/* ELEMENTOS DE FORMULÁRIO */
 .label, .subTitle {
   display: block;
   margin-bottom: 0.5rem;
@@ -113,6 +127,7 @@
   font-size: 1.25rem;
   border-bottom: 1px solid var(--accent-brass);
   padding-bottom: 0.5rem;
+  margin-bottom: 1rem;
 }
 
 .input {
@@ -123,21 +138,22 @@
   color: var(--text-ivory);
   border-radius: 2px;
   transition: all 0.2s ease;
+  box-shadow: inset 0 1px 4px rgba(0,0,0,0.5);
 }
 .input:focus {
   outline: none;
   border-color: var(--accent-gold);
-  box-shadow: 0 0 8px rgba(201, 162, 94, 0.5);
+  box-shadow: 0 0 8px rgba(201, 162, 94, 0.5), inset 0 1px 4px rgba(0,0,0,0.5);
 }
 
 .fieldButtons {
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
   gap: 0.75rem;
 }
 
 .button {
-  padding: 0.5rem;
+  padding: 0.6rem;
   font-family: var(--font-sans);
   background: transparent;
   border: 1px solid var(--accent-brass);
@@ -156,6 +172,12 @@
   border-color: var(--accent-gold);
 }
 
+/* CORREÇÃO: Esta classe não precisa mais controlar a rolagem */
+.scrollableContent {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem; /* Espaçamento entre a lista de campos e a de colaboradores */
+}
 
 .fieldsList {
   display: flex;
@@ -200,6 +222,9 @@
   border: none;
   color: var(--accent-brass);
   cursor: pointer;
+}
+.deleteFieldButton:hover {
+    color: var(--error-red);
 }
 
 .optionsEditor {
@@ -247,7 +272,6 @@
 }
 
 .collaboratorSection {
-    margin-top: 1.5rem;
     padding-top: 1.5rem;
     border-top: 1px solid var(--accent-brass);
 }
@@ -267,9 +291,94 @@
   color: var(--text-ivory);
   cursor: pointer;
   border-radius: 2px;
+  transition: background-color 0.2s ease;
+}
+.collaboratorItem:hover {
+    background-color: rgba(201, 162, 94, 0.1);
 }
 .collaboratorItem input[type="checkbox"] {
   accent-color: var(--accent-gold);
+  width: 16px;
+  height: 16px;
+}
+.emptyListText {
+    color: var(--accent-brass);
+    font-style: italic;
+    padding: 1rem;
+    text-align: center;
+}
+
+/* --- NOVA SEÇÃO DE AUTOMAÇÃO --- */
+.automationSection {
+  border: 1px solid var(--accent-brass);
+  background-color: rgba(0,0,0,0.2);
+  padding: 1rem;
+  border-radius: 3px;
+}
+
+.automationToggle {
+  display: flex;
+  border: 1px solid var(--accent-brass);
+  border-radius: 3px;
+  overflow: hidden;
+  margin-bottom: 1rem;
+}
+
+.toggleButton {
+  flex: 1;
+  padding: 0.6rem;
+  background-color: transparent;
+  border: none;
+  color: var(--text-ivory);
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+}
+.toggleButton.active {
+  background-color: var(--accent-gold);
+  color: var(--text-dark);
+  font-weight: bold;
+}
+.toggleButton:not(.active):hover {
+    background-color: rgba(201, 162, 94, 0.2);
+}
+
+/* --- FIM DA SEÇÃO DE AUTOMAÇÃO --- */
+
+.panelFooter {
+  padding: 1rem 1.5rem;
+  border-top: 2px solid var(--accent-brass);
+  background: linear-gradient(to top, var(--secondary-bg), var(--primary-bg));
+  display: flex;
+  justify-content: flex-end;
+  gap: 1rem;
+  flex-shrink: 0;
+}
+.formButton {
+    padding: 0.75rem 1.5rem;
+    font-family: var(--font-display);
+    font-size: 1rem;
+    border-radius: 2px;
+    border: 1px solid var(--accent-brass);
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+.formButtonPrimary {
+    background: linear-gradient(to bottom, var(--accent-gold), var(--accent-brass));
+    color: var(--text-dark);
+}
+.formButtonPrimary:hover {
+    filter: brightness(1.1);
+}
+.formButtonSecondary {
+    background-color: transparent;
+    color: var(--text-ivory);
+}
+.formButtonSecondary:hover {
+    background-color: rgba(255,255,255,0.1);
 }
 .errorMessage {
   color: var(--error-red);
@@ -298,10 +407,7 @@
   color: #333;
   text-align: center;
   margin-bottom: 2rem;
-  /* CORREÇÃO PARA TEXTO LONGO */
   overflow-wrap: break-word;
-  word-wrap: break-word;
-  word-break: break-word;
 }
 .previewFieldsContainer {
   flex-grow: 1;
@@ -314,10 +420,7 @@
   margin-bottom: 0.5rem;
   color: #555;
   font-weight: 500;
-  /* CORREÇÃO PARA TEXTO LONGO */
   overflow-wrap: break-word;
-  word-wrap: break-word;
-  word-break: break-word;
   white-space: normal;
 }
 .previewInput {
@@ -325,6 +428,7 @@
   border: none;
   border-bottom: 2px solid rgba(140, 109, 63, 0.5);
   background-color: transparent;
+  width: 100%;
 }
 .previewAttachment, .previewSignature {
   height: 6rem;
@@ -349,6 +453,7 @@
   display: flex;
   align-items: center;
   gap: 0.75rem;
+  margin-bottom: 0.5rem;
 }
 .previewCheckbox, .previewRadio {
   width: 16px;
@@ -363,7 +468,8 @@
   color: #444;
   border-bottom: 1px solid rgba(140, 109, 63, 0.5);
   padding-bottom: 0.25rem;
-  margin-top: 1rem;
+  margin-top: 1.5rem;
+  margin-bottom: 1rem;
 }
 .previewButton {
   width: 100%;
@@ -377,30 +483,4 @@
   border-radius: 2px;
   cursor: pointer;
   flex-shrink: 0;
-}
-
-.panelFooter {
-  padding: 1rem 1.5rem;
-  border-top: 2px solid var(--accent-brass);
-  background: linear-gradient(to top, var(--secondary-bg), var(--primary-bg));
-  display: flex;
-  justify-content: flex-end;
-  gap: 1rem;
-  flex-shrink: 0;
-}
-.formButton {
-    padding: 0.75rem 1.5rem;
-    font-family: var(--font-display);
-    font-size: 1rem;
-    border-radius: 2px;
-    border: 1px solid var(--accent-brass);
-    cursor: pointer;
-}
-.formButtonPrimary {
-    background-color: var(--accent-gold);
-    color: var(--text-dark);
-}
-.formButtonSecondary {
-    background-color: transparent;
-    color: var(--text-ivory);
 }
