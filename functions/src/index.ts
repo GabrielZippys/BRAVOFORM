@@ -30,24 +30,15 @@ const twilioClient = new Twilio(
 const generateBioShockEmailHTML = (formData: any, responseData: any): string => {
   let answersHTML = "";
   for (const [question, answer] of Object.entries(responseData.answers)) {
-    // Verifica se a resposta é uma assinatura em base64 para a renderizar como imagem
-    if (typeof answer === "string" && answer.startsWith("data:image/png;base64,")) {
-      answersHTML += `
-        <tr>
-          <td style="padding: 10px; border-bottom: 1px solid #b18f42; color: #c9a25e; font-family: 'Roboto', sans-serif; vertical-align: top;">${question}</td>
-          <td style="padding: 10px; border-bottom: 1px solid #b18f42; color: #f0ead6; font-family: 'Roboto', sans-serif;">
-            <img src="${answer}" alt="Assinatura Digital" style="max-width: 250px; height: auto; background-color: #f0ead6; border: 1px solid #b18f42; border-radius: 4px;"/>
-          </td>
-        </tr>
-      `;
-    } else {
-      answersHTML += `
-        <tr>
-          <td style="padding: 10px; border-bottom: 1px solid #b18f42; color: #c9a25e; font-family: 'Roboto', sans-serif; vertical-align: top;">${question}</td>
-          <td style="padding: 10px; border-bottom: 1px solid #b18f42; color: #f0ead6; font-family: 'Roboto', sans-serif;">${Array.isArray(answer) ? answer.join(", ") : answer}</td>
-        </tr>
-      `;
+    if (question === 'Assinatura') {
+      continue;
     }
+    answersHTML += `
+      <tr>
+        <td style="padding: 10px; border-bottom: 1px solid #b18f42; color: #c9a25e; font-family: 'Roboto', sans-serif; vertical-align: top;">${question}</td>
+        <td style="padding: 10px; border-bottom: 1px solid #b18f42; color: #f0ead6; font-family: 'Roboto', sans-serif;">${Array.isArray(answer) ? answer.join(", ") : answer}</td>
+      </tr>
+    `;
   }
 
   return `
@@ -63,14 +54,12 @@ const generateBioShockEmailHTML = (formData: any, responseData: any): string => 
         <tr>
           <td align="center" style="padding: 20px;">
             <table width="600" border="0" cellspacing="0" cellpadding="0" style="max-width: 600px; background-color: #072e3b; border: 2px solid #b18f42;">
-              <!-- Cabeçalho -->
               <tr>
                 <td align="center" style="padding: 20px 0; border-bottom: 2px solid #c9a25e;">
                   <h1 style="font-family: 'Limelight', cursive; color: #c9a25e; margin: 0; text-shadow: 1px 1px 3px #000;">BRAVOFORM</h1>
                   <p style="color: #f0ead6; margin: 5px 0 0;">Nova Resposta Recebida</p>
                 </td>
               </tr>
-              <!-- Corpo -->
               <tr>
                 <td style="padding: 30px 20px;">
                   <h2 style="font-family: 'Limelight', cursive; color: #f0ead6; margin-top: 0;">Formulário: ${formData.title}</h2>
@@ -87,7 +76,6 @@ const generateBioShockEmailHTML = (formData: any, responseData: any): string => 
                   </table>
                 </td>
               </tr>
-              <!-- Rodapé -->
               <tr>
                 <td align="center" style="padding: 20px 0; border-top: 1px solid #b18f42; font-size: 12px; color: #b18f42;">
                   E-mail de notificação automático gerado pela plataforma BRAVOFORM.
@@ -135,14 +123,12 @@ export const onNewFormResponse = functions.firestore
 
       if (type === "email") {
         const htmlBody = generateBioShockEmailHTML(formData, responseData);
-
         const mailOptions = {
           from: `"BRAVOFORM" <${functions.config().nodemailer.user}>`,
           to: target,
           subject: `Nova Resposta Recebida: ${formData.title}`,
           html: htmlBody,
         };
-
         console.log(`Enviando e-mail para ${target}...`);
         await mailTransport.sendMail(mailOptions);
         console.log("E-mail enviado com sucesso!");
@@ -150,16 +136,18 @@ export const onNewFormResponse = functions.firestore
       } else if (type === "whatsapp") {
         let messageBody = `Nova resposta recebida para o formulário: "${formData.title}"\n\n`;
         for (const [question, answer] of Object.entries(responseData.answers)) {
-          if (typeof answer === "string" && answer.startsWith("data:image/png;base64,")) {
-             messageBody += `*${question}:* [Assinatura Digital]\n`;
-          } else {
-             messageBody += `*${question}:* ${Array.isArray(answer) ? answer.join(", ") : answer}\n`;
-          }
+            if (question === 'Assinatura') {
+                continue;
+            }
+            messageBody += `*${question}:* ${Array.isArray(answer) ? answer.join(", ") : answer}\n`;
         }
         
-        console.log(`Enviando WhatsApp para ${target}...`);
+        // CORREÇÃO: Usando o número de Sandbox correto da Twilio como remetente.
+        const twilioSandboxNumber = "+14155238886";
+
+        console.log(`Enviando WhatsApp de ${twilioSandboxNumber} para ${target}...`);
         await twilioClient.messages.create({
-          from: `whatsapp:${functions.config().twilio.phone_number}`,
+          from: `whatsapp:${twilioSandboxNumber}`,
           to: `whatsapp:${target}`,
           body: messageBody,
         });
