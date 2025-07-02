@@ -1,26 +1,48 @@
+/*
+================================================================================
+|
+|   ARQUIVO: app/styles/Backups.module.css
+|   TEMA: Bravo TI (Moderno e Corporativo) - VERSÃO ESCURA MELHORADA
+|
+================================================================================
+*/
+
 .pageHeader {
-    margin-bottom: 1.5rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 2rem;
+    padding-bottom: 1.5rem;
+    /* Borda mais escura para o tema escuro */
+    border-bottom: 1px solid #495057; 
 }
 
 .title {
     font-family: var(--font-display);
-    font-size: 1.5rem;
-    color: var(--deco-gold);
+    font-size: 2rem;
+    /* Cor de texto clara para contraste */
+    color: var(--text-light, #131313); 
+    font-weight: 700;
 }
 
 .frame {
-    background-color: rgba(7, 72, 91, 0.5);
-    border: 1px solid var(--deco-gold);
-    padding: 1.5rem;
-    margin-bottom: 1.5rem;
+    /* Fundo escuro para o painel */
+    background-color: #343a40; 
+    border: 1px solid #495057;
+    border-radius: var(--border-radius);
+    padding: 2rem;
+    margin-bottom: 2rem;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.2);
 }
 
 .frameTitle {
   font-family: var(--font-display);
   font-weight: 700;
-  color: var(--deco-ivory);
+  color: var(--text-light, #f8f9fa);
   font-size: 1.25rem;
   margin-bottom: 1.5rem;
+  border-bottom: 1px solid #495057;
+  padding-bottom: 1rem;
 }
 
 /* Estilos para a barra de progresso */
@@ -30,28 +52,61 @@
 
 .progressBarContainer {
     width: 100%;
-    height: 30px;
-    background-color: rgba(10, 46, 54, 0.8);
-    border: 1px solid var(--deco-brass);
+    height: 24px;
+    /* Fundo da barra mais escuro */
+    background-color: #212529; 
+    border: 1px solid #495057;
+    border-radius: var(--border-radius);
     padding: 4px;
     box-sizing: border-box;
 }
 
 .progressBar {
     height: 100%;
-    background: linear-gradient(to right, var(--deco-brass), var(--deco-gold));
-    box-shadow: 0 0 5px var(--deco-gold);
+    background-color: var(--primary-accent);
+    border-radius: 2px;
     text-align: right;
-    line-height: 20px;
-    color: var(--deco-dark);
-    font-weight: bold;
+    line-height: 16px;
+    color: var(--text-on-accent);
+    font-weight: 500;
     font-size: 0.8rem;
+    padding-right: 8px;
     transition: width 1s ease-out;
+    white-space: nowrap;
+    overflow: hidden;
 }
 
 .storageText {
-    margin-top: 0.5rem;
-    font-size: 0.875rem;
-    color: var(--deco-ivory);
-    opacity: 0.8;
+    margin-top: 0.75rem;
+    font-size: 0.9rem;
+    /* CORREÇÃO: Cor alterada para um tom mais claro para melhor legibilidade */
+    color: var(--text-light, #f8f9fa); 
+    font-weight: 500;
+}
+
+/* --- ESTILOS PARA OS BOTÕES --- */
+.buttonContainer {
+    display: flex;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+
+.button {
+    padding: 0.75rem 1.5rem;
+    font-family: var(--font-sans);
+    font-weight: 500;
+    color: var(--text-on-accent);
+    background-color: var(--primary-accent);
+    border: 1px solid var(--primary-accent);
+    border-radius: var(--border-radius);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    transition: all 0.2s ease;
+}
+
+.button:hover {
+    background-color: var(--primary-accent-dark);
+    border-color: var(--primary-accent-dark);
 }

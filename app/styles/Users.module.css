@@ -1,8 +1,8 @@
 /*
 ================================================================================
 |
-|   ARQUIVO: Users.module.css (ATUALIZADO)
-|   TEMA: BioShock - Rapture Art Deco
+|   ARQUIVO: app/styles/Users.module.css
+|   TEMA: Bravo TI (Moderno e Corporativo)
 |
 ================================================================================
 */
@@ -12,43 +12,45 @@
     justify-content: space-between;
     align-items: center;
     margin-bottom: 1rem;
-    padding-bottom: 1rem;
-    border-bottom: 1px solid var(--accent-brass);
+    padding-bottom: 1.5rem;
+    border-bottom: 1px solid var(--border-color);
 }
 
 .title {
     font-family: var(--font-display);
     font-size: 2rem;
-    color: var(--accent-gold);
-    text-shadow: 1px 1px 3px rgba(0,0,0,0.5);
+    color: var(--text-primary);
+    font-weight: 700;
 }
 
 .breadcrumb {
     margin-bottom: 2rem;
-    color: var(--accent-brass);
+    color: var(--text-secondary);
     display: flex;
     align-items: center;
     gap: 0.5rem;
+    font-size: 0.9rem;
 }
 .breadcrumb span {
     cursor: pointer;
     transition: color 0.2s ease;
 }
 .breadcrumb span:not(.active):hover {
-    color: var(--accent-gold);
+    color: var(--primary-accent);
 }
 .breadcrumb .active {
-    color: var(--text-ivory);
+    color: var(--text-primary);
     font-weight: 500;
     cursor: default;
 }
 
 .frame {
-    background-color: rgba(10, 46, 54, 0.5);
-    border: 1px solid var(--accent-brass);
+    background-color: var(--secondary-bg);
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
     padding: 1.5rem;
     margin-bottom: 2rem;
-    box-shadow: inset 0 0 10px rgba(0,0,0,0.5);
+    box-shadow: var(--box-shadow);
 }
 
 .frameHeader {
@@ -60,17 +62,19 @@
 
 .frameTitle {
     font-family: var(--font-display);
-    font-size: 1.5rem;
-    color: var(--text-ivory);
+    font-size: 1.25rem;
+    color: var(--text-primary);
+    font-weight: 700;
 }
 
 .button {
     padding: 0.6rem 1.2rem;
-    font-family: var(--font-display);
-    color: var(--text-dark);
-    background: linear-gradient(to bottom, var(--accent-gold), var(--accent-brass));
-    border: 1px solid var(--accent-gold);
-    border-radius: 3px;
+    font-family: var(--font-sans);
+    font-weight: 500;
+    color: var(--text-on-accent);
+    background-color: var(--primary-accent);
+    border: 1px solid var(--primary-accent);
+    border-radius: var(--border-radius);
     cursor: pointer;
     display: flex;
     align-items: center;
@@ -78,7 +82,8 @@
     transition: all 0.2s ease;
 }
 .button:hover {
-    filter: brightness(1.1);
+    background-color: var(--primary-accent-dark);
+    border-color: var(--primary-accent-dark);
 }
 
 .list {
@@ -88,13 +93,13 @@
 }
 
 .itemCard {
-    background-color: rgba(0,0,0,0.2);
-    border: 1px solid var(--accent-brass);
+    background-color: var(--primary-bg);
+    border: 1px solid var(--border-color);
     padding: 1rem 1.5rem;
     display: flex;
     justify-content: space-between;
     align-items: center;
-    border-radius: 3px;
+    border-radius: var(--border-radius);
     transition: all 0.2s ease;
 }
 
@@ -102,50 +107,41 @@
     cursor: pointer;
 }
 .itemCardClickable:hover {
-    background-color: rgba(201, 162, 94, 0.1);
-    border-color: var(--accent-gold);
+    border-color: var(--primary-accent);
+    background-color: var(--secondary-bg);
 }
 
-/* CORREÇÃO: Estilos aprimorados para o nome do colaborador */
 .itemName {
-    font-family: var(--font-display); /* Fonte de destaque */
-    font-size: 1.4rem; /* Tamanho maior */
-    color: var(--accent-gold); /* Cor dourada */
+    font-size: 1.1rem;
+    color: var(--text-primary);
     font-weight: 500;
     margin: 0;
-    text-shadow: 0 0 5px rgba(201, 162, 94, 0.7); /* Efeito de brilho */
-    width: 100%; /* Garante que a borda ocupe todo o espaço */
-    text-align: center;
-    padding-bottom: 1rem;
-    margin-bottom: 1rem;
-    border-bottom: 1px solid var(--accent-brass);
 }
-
 .itemInfo {
     font-size: 0.85rem;
-    color: var(--accent-brass);
+    color: var(--text-secondary);
     margin: 0;
 }
 .permissionTag {
-    background-color: rgba(201, 162, 94, 0.2);
-    color: var(--accent-gold);
+    background-color: rgba(0, 123, 255, 0.1);
+    color: var(--primary-accent);
     padding: 0.25rem 0.5rem;
     border-radius: 10px;
     font-size: 0.8rem;
+    font-weight: 500;
 }
 
 .emptyState {
     text-align: center;
     padding: 2rem;
-    color: var(--accent-brass);
-    opacity: 0.8;
+    color: var(--text-secondary);
 }
 
 /* --- ESTILOS PARA AS OPÇÕES AVANÇADAS --- */
 .advancedOptions {
-    background-color: rgba(0,0,0,0.3);
-    border: 1px solid var(--accent-brass);
-    border-radius: 3px;
+    background-color: var(--primary-bg);
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
     margin-top: 1rem;
     padding: 1rem;
 }
@@ -166,13 +162,13 @@
 
 .toggleLabel {
     font-size: 0.9rem;
-    color: var(--accent-brass);
+    color: var(--text-secondary);
 }
 
 .toggleSwitch {
     position: relative;
     display: inline-block;
-    width: 50px;
+    width: 44px;
     height: 24px;
 }
 
@@ -189,8 +185,7 @@
     left: 0;
     right: 0;
     bottom: 0;
-    background-color: rgba(0,0,0,0.4);
-    border: 1px solid var(--accent-brass);
+    background-color: #ccc;
     transition: .4s;
     border-radius: 24px;
 }
@@ -198,23 +193,21 @@
 .slider:before {
     position: absolute;
     content: "";
-    height: 16px;
-    width: 16px;
-    left: 4px;
+    height: 18px;
+    width: 18px;
+    left: 3px;
     bottom: 3px;
-    background-color: var(--accent-brass);
+    background-color: white;
     transition: .4s;
     border-radius: 50%;
 }
 
 input:checked + .slider {
-    background-color: var(--accent-gold);
-    border-color: var(--accent-gold);
+    background-color: var(--primary-accent);
 }
 
 input:checked + .slider:before {
-    transform: translateX(24px);
-    background-color: var(--primary-bg);
+    transform: translateX(20px);
 }
 
 .deleteButton {
@@ -222,8 +215,9 @@ input:checked + .slider:before {
     border: 1px solid var(--error-red);
     color: var(--error-red);
     padding: 0.5rem 1rem;
-    font-family: var(--font-display);
-    border-radius: 3px;
+    font-family: var(--font-sans);
+    font-weight: 500;
+    border-radius: var(--border-radius);
     cursor: pointer;
     display: flex;
     align-items: center;
@@ -232,5 +226,5 @@ input:checked + .slider:before {
 }
 .deleteButton:hover {
     background-color: var(--error-red);
-    color: var(--text-ivory);
+    color: var(--text-on-accent);
 }

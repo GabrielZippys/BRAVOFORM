@@ -1,22 +1,41 @@
+/*
+================================================================================
+|
+|   ARQUIVO: app/styles/Modal.module.css
+|   TEMA: Bravo TI (Moderno e Corporativo)
+|
+================================================================================
+*/
+
 .overlay {
   position: fixed;
   inset: 0;
-  background-color: rgba(0, 0, 0, 0.7);
-  backdrop-filter: blur(4px);
+  background-color: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(8px);
   z-index: 40;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 
 .panel {
-  position: fixed;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
   width: 100%;
   max-width: 32rem;
-  background-color: var(--deco-teal);
-  border: 1px solid var(--deco-gold);
-  box-shadow: 0 5px 25px rgba(0,0,0,0.5);
+  background-color: var(--secondary-bg);
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius);
+  box-shadow: 0 5px 15px rgba(0,0,0,0.1);
   z-index: 50;
+  display: flex;
+  flex-direction: column;
+  max-height: 90vh;
 }
 
 .panelHeader {
@@ -24,24 +43,33 @@
   justify-content: space-between;
   align-items: center;
   padding: 1rem 1.5rem;
-  border-bottom: 1px solid var(--deco-brass);
+  border-bottom: 1px solid var(--border-color);
+  flex-shrink: 0;
 }
 
 .panelTitle {
   font-family: var(--font-display);
   font-size: 1.25rem;
-  color: var(--deco-gold);
+  color: var(--text-primary);
+  font-weight: 700;
 }
 
 .closeButton {
   background: transparent;
   border: none;
-  color: var(--deco-ivory);
+  color: var(--text-secondary);
   cursor: pointer;
+  padding: 0.5rem;
+  border-radius: 50%;
+  transition: background-color 0.2s ease;
+}
+.closeButton:hover {
+    background-color: var(--primary-bg);
 }
 
 .panelBody {
     padding: 1.5rem;
+    overflow-y: auto;
 }
 
 .form {
@@ -58,27 +86,34 @@
 .label {
   margin-bottom: 0.5rem;
   font-size: 0.875rem;
-  color: var(--deco-gold);
+  color: var(--text-primary);
+  font-weight: 500;
 }
 
 .input {
-  background-color: rgba(10, 46, 54, 0.8);
-  border: 1px solid var(--deco-brass);
-  color: var(--deco-ivory);
+  background-color: var(--secondary-bg);
+  border: 1px solid var(--border-color);
+  color: var(--text-primary);
   width: 100%;
   padding: 0.75rem;
-  border-radius: 2px;
+  border-radius: var(--border-radius);
   box-sizing: border-box; 
+  font-size: 1rem;
+  transition: all 0.2s ease;
+}
+.input:focus {
+    outline: none;
+    border-color: var(--primary-accent);
+    box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
 }
 
-/* --- ESTILOS CORRIGIDOS PARA A SENHA --- */
 .passwordWrapper {
     position: relative;
     display: flex;
     align-items: center;
 }
 .passwordWrapper .input {
-    padding-right: 3rem; /* Espaço para o ícone */
+    padding-right: 3rem;
 }
 .eyeButton {
     position: absolute;
@@ -86,52 +121,75 @@
     top: 0;
     height: 100%;
     width: 3rem;
-    background: transparent; /* Remove o fundo branco */
+    background: transparent;
     border: none;
-    color: var(--deco-brass);
+    color: var(--text-secondary);
     cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
 }
 .eyeButton:hover {
-    color: var(--deco-gold);
+    color: var(--primary-accent);
 }
 
 .error {
-    color: #f87171;
+    color: var(--error-red);
     font-size: 0.875rem;
     text-align: center;
     margin-top: 0.5rem;
 }
 
-
 .buttonContainer {
     padding: 1rem 1.5rem;
-    border-top: 1px solid var(--deco-brass);
-    background-color: rgba(0,0,0,0.2);
+    border-top: 1px solid var(--border-color);
+    background-color: var(--primary-bg);
     display: flex;
     justify-content: flex-end;
     gap: 1rem;
+    flex-shrink: 0;
 }
 
 .button {
-  padding: 0.5rem 1.5rem;
-  font-family: var(--font-display);
-  font-weight: 700;
+  padding: 0.6rem 1.5rem;
+  font-family: var(--font-sans);
+  font-weight: 500;
   border: 1px solid;
-  border-radius: 2px;
+  border-radius: var(--border-radius);
   cursor: pointer;
+  transition: all 0.2s ease;
 }
 
 .buttonPrimary {
-    color: var(--deco-dark);
-    background: linear-gradient(to bottom, var(--deco-gold), var(--deco-brass));
-    border-color: var(--deco-ivory);
+    color: var(--text-on-accent);
+    background-color: var(--primary-accent);
+    border-color: var(--primary-accent);
+}
+.buttonPrimary:hover {
+    background-color: var(--primary-accent-dark);
+    border-color: var(--primary-accent-dark);
 }
 
 .buttonSecondary {
-    color: var(--deco-ivory);
-    background: transparent;
-    border-color: var(--deco-brass);
+    color: var(--text-primary);
+    background-color: var(--secondary-bg);
+    border-color: var(--border-color);
+}
+.buttonSecondary:hover {
+    background-color: #e9ecef; /* Um cinza um pouco mais escuro para o hover */
+}
+.buttonDanger {
+    color: var(--text-on-danger);
+    background-color: var(--danger-red);
+    border-color: var(--danger-red);
+}
+.buttonDanger:hover {
+    background-color: var(--danger-red-dark);
+    border-color: var(--danger-red-dark);
+}
+.buttonDisabled {
+    background-color: var(--disabled-bg);
+    color: var(--text-disabled);
+    cursor: not-allowed;
+    border-color: var(--border-color);
 }

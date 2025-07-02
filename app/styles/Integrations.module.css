@@ -1,55 +1,26 @@
 /*
 ================================================================================
 |
-|   ARQUIVO: Integrations.module.css (REVISADO E APRIMORADO)
-|   TEMA: BioShock - Rapture Art Deco
-|   DESCRIÇÃO:
-|   A página de integrações agora se parece com uma central de conexões de Rapture.
-|   - Cards de integração com visual de painel de metal.
-|   - Animações de hover que "iluminam" as conexões.
-|   - Formulário de SQL com aparência de terminal antigo.
-|   - Log de status com efeito de texto de console.
+|   ARQUIVO: app/styles/Integrations.module.css
+|   TEMA: Bravo TI (Moderno e Corporativo)
 |
 ================================================================================
 */
-
-/* Novas animações para um visual mais dinâmico */
-@keyframes glow {
-  from {
-    box-shadow: 0 0 5px -5px var(--accent-gold);
-  }
-  to {
-    box-shadow: 0 0 5px 5px var(--accent-gold);
-  }
-}
-
-@keyframes text-flicker {
-  0% { opacity: 1; }
-  50% { opacity: 0.7; }
-  100% { opacity: 1; }
-}
-
-@keyframes scanline {
-  0% { background-position: 0 0; }
-  100% { background-position: 0 100%; }
-}
 
 .pageHeader {
     display: flex;
     justify-content: space-between;
     align-items: center;
     margin-bottom: 2rem;
-    padding-bottom: 1rem;
-    border-bottom: 2px solid var(--accent-brass);
-    border-image: linear-gradient(to right, transparent, var(--accent-brass), transparent) 1;
+    padding-bottom: 1.5rem;
+    border-bottom: 1px solid var(--border-color);
 }
 
 .title {
     font-family: var(--font-display);
-    font-size: 2.5rem;
-    color: var(--accent-gold);
-    text-shadow: 0 0 5px var(--accent-gold), 0 0 10px var(--accent-brass);
-    animation: text-flicker 4s infinite alternate;
+    font-size: 2rem;
+    color: var(--text-primary);
+    font-weight: 700;
 }
 
 .grid {
@@ -60,37 +31,19 @@
 }
 
 .card {
-    background-color: rgba(0,0,0,0.4);
-    border: 1px solid var(--accent-brass);
+    background-color: var(--secondary-bg);
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
     padding: 2rem;
     display: flex;
     flex-direction: column;
-    transition: all 0.4s cubic-bezier(0.23, 1, 0.32, 1);
-    box-shadow: 0 5px 15px rgba(0,0,0,0.5), inset 0 0 10px rgba(0,0,0,0.5);
-    position: relative;
-    overflow: hidden;
+    transition: all 0.3s ease;
+    box-shadow: var(--box-shadow);
 }
 
 .card:hover {
-    transform: translateY(-8px) scale(1.02);
-    border-color: var(--accent-gold);
-    box-shadow: 0 12px 25px rgba(0,0,0,0.7), inset 0 0 15px rgba(0,0,0,0.5), 0 0 15px rgba(201, 162, 94, 0.4);
-}
-
-.card::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 2px;
-    background: var(--accent-gold);
-    opacity: 0;
-    transition: opacity 0.4s ease;
-    animation: glow 2s infinite alternate;
-}
-.card:hover::before {
-    opacity: 0.7;
+    transform: translateY(-5px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
 }
 
 .cardHeader {
@@ -103,24 +56,26 @@
 .cardIcon {
     width: 50px;
     height: 50px;
-    color: var(--accent-gold);
-    filter: drop-shadow(0 0 8px var(--accent-gold));
-    transition: transform 0.4s ease;
+    color: var(--primary-accent);
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
-.card:hover .cardIcon {
-    transform: scale(1.2) rotate(-5deg);
+.cardIcon svg {
+    width: 32px;
+    height: 32px;
 }
 
 .cardTitle {
     font-family: var(--font-display);
-    font-size: 1.5rem;
-    color: var(--text-ivory);
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: var(--text-primary);
 }
 
 .cardDescription {
     font-size: 0.95rem;
-    color: var(--text-ivory);
-    opacity: 0.8;
+    color: var(--text-secondary);
     flex-grow: 1;
     margin-bottom: 2rem;
     line-height: 1.6;
@@ -129,10 +84,10 @@
 .button {
   width: 100%;
   padding: 0.8rem;
-  font-family: var(--font-display);
-  font-size: 1.1rem;
-  font-weight: 700;
-  border-radius: 2px;
+  font-family: var(--font-sans);
+  font-size: 1rem;
+  font-weight: 500;
+  border-radius: var(--border-radius);
   cursor: pointer;
   transition: all 0.2s ease;
   display: flex;
@@ -140,54 +95,44 @@
   justify-content: center;
   gap: 0.5rem;
   text-transform: uppercase;
-  letter-spacing: 1px;
+  letter-spacing: 0.5px;
   border: 1px solid;
-  position: relative;
-  overflow: hidden;
 }
 
 .connectButton {
-    color: var(--text-dark);
-    background: linear-gradient(to bottom, var(--accent-gold), var(--accent-brass));
-    border-color: var(--accent-gold);
-    box-shadow: 0 2px 5px rgba(0,0,0,0.4), inset 0 1px 1px rgba(255, 255, 255, 0.2);
+    color: var(--text-on-accent);
+    background-color: var(--primary-accent);
+    border-color: var(--primary-accent);
 }
 .connectButton:hover {
-    filter: brightness(1.15);
-    box-shadow: 0 4px 10px rgba(0,0,0,0.5), inset 0 1px 1px rgba(255, 255, 255, 0.2);
+    background-color: var(--primary-accent-dark);
+    border-color: var(--primary-accent-dark);
 }
 
 .disconnectButton {
-    color: var(--text-ivory);
+    color: var(--error-red);
     background-color: transparent;
     border-color: var(--error-red);
-    text-shadow: 0 0 5px var(--error-red);
-    box-shadow: 0 2px 5px rgba(0,0,0,0.4);
 }
 .disconnectButton:hover {
     background-color: var(--error-red);
-    color: var(--text-ivory);
-    filter: brightness(1.1);
-    box-shadow: 0 4px 10px rgba(0,0,0,0.5), 0 0 15px var(--error-red);
+    color: var(--text-on-accent);
 }
 
 .sqlFrame {
-    background-color: rgba(10, 46, 54, 0.7);
-    border: 1px solid var(--accent-gold);
-    padding: 2.5rem;
-    box-shadow: inset 0 0 25px rgba(0,0,0,0.8);
-    position: relative;
-    background-image: linear-gradient(rgba(201, 162, 94, 0.05) 1px, transparent 1px);
-    background-size: 100% 3px;
-    animation: scanline 10s linear infinite;
+    background-color: var(--secondary-bg);
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
+    padding: 2rem;
+    box-shadow: var(--box-shadow);
 }
 
 .sqlTitle {
   font-family: var(--font-display);
   font-weight: 700;
-  color: var(--accent-gold);
-  font-size: 1.75rem;
-  margin-bottom: 1rem;
+  color: var(--text-primary);
+  font-size: 1.5rem;
+  margin-bottom: 1.5rem;
   text-align: center;
 }
 
@@ -199,8 +144,8 @@
 }
 
 .sqlLabel {
-    font-size: 1rem;
-    color: var(--accent-gold);
+    font-size: 0.9rem;
+    color: var(--text-secondary);
     margin-bottom: 0.5rem;
     display: block;
 }
@@ -208,18 +153,17 @@
 .sqlInput {
   width: 100%;
   padding: 0.75rem;
-  background-color: var(--primary-bg);
-  border: 1px solid var(--accent-brass);
-  color: var(--text-ivory);
-  border-radius: 2px;
+  background-color: var(--secondary-bg);
+  border: 1px solid var(--border-color);
+  color: var(--text-primary);
+  border-radius: var(--border-radius);
   box-sizing: border-box;
-  box-shadow: inset 0 2px 5px rgba(0,0,0,0.6);
   transition: all 0.2s ease;
 }
 .sqlInput:focus {
     outline: none;
-    border-color: var(--accent-gold);
-    box-shadow: 0 0 10px rgba(201, 162, 94, 0.6), inset 0 2px 5px rgba(0,0,0,0.6);
+    border-color: var(--primary-accent);
+    box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
 }
 
 .sqlButton {
@@ -228,48 +172,46 @@
 
 .statusLog {
     margin-top: 2rem;
-    background-color: rgba(0,0,0,0.7);
-    border: 1px solid var(--accent-brass);
+    background-color: #212529; /* Fundo de console escuro para contraste */
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
     padding: 1.5rem;
     height: 250px;
     overflow-y: auto;
     font-family: 'Courier New', Courier, monospace;
     font-size: 0.9rem;
-    color: #a7f3d0;
-    box-shadow: inset 0 0 15px #000;
+    color: #e9ecef;
 }
 
 .statusLog::-webkit-scrollbar { width: 8px; }
-.statusLog::-webkit-scrollbar-track { background: var(--secondary-bg); }
+.statusLog::-webkit-scrollbar-track { background: #343a40; }
 .statusLog::-webkit-scrollbar-thumb {
-  background-color: var(--accent-brass);
+  background-color: #6c757d;
   border-radius: 4px;
 }
 
 .logEntry {
     padding-bottom: 0.5rem;
     white-space: pre-wrap;
-    border-bottom: 1px solid rgba(177, 143, 66, 0.15);
+    border-bottom: 1px solid #495057;
     margin-bottom: 0.5rem;
-    opacity: 0;
-    animation: fadeIn 0.5s ease forwards;
 }
 .logEntry:last-child {
     border-bottom: none;
 }
 
-.logSuccess { color: #68d391; text-shadow: 0 0 5px #68d391; }
-.logInfo { color: #63b3ed; text-shadow: 0 0 5px #63b3ed;}
-.logError { color: #fc8181; text-shadow: 0 0 5px #fc8181;}
+.logSuccess { color: #28a745; }
+.logInfo { color: #17a2b8; }
+.logError { color: #dc3545; }
+
+.cardSkeleton {
+  background-color: #e9ecef;
+  border: 1px solid var(--border-color);
+  height: 300px;
+  border-radius: var(--border-radius);
+  animation: pulse 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
 
 @keyframes pulse {
   50% { opacity: 0.5; }
-}
-
-.cardSkeleton {
-  background-color: rgba(10, 46, 54, 0.8);
-  border: 1px solid var(--accent-brass);
-  height: 300px;
-  border-radius: 2px;
-  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }

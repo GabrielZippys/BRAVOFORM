@@ -1,38 +1,46 @@
 /*
- * =================================================================
- * CSS MODULE PARA FORMRESPONSE - VERSÃO FINAL E RESPONSIVA
- * =================================================================
+================================================================================
+|
+|   ARQUIVO: app/styles/FormResponse.module.css
+|   TEMA: Bravo TI (Moderno e Corporativo) - VERSÃO ESCURA E RESPONSIVA
+|
+================================================================================
 */
 
 .overlay {
   position: fixed;
   inset: 0;
-  background-color: rgba(0, 0, 0, 0.8);
-  backdrop-filter: blur(8px);
+  background-color: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(5px);
   z-index: 50;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 1rem; /* Adiciona um respiro em telas pequenas */
+  padding: 1rem;
+  animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: scale(0.98); }
+  to { opacity: 1; transform: scale(1); }
 }
 
 .panel {
   width: 100%;
   max-width: 700px;
   max-height: 90vh;
-  background-color: var(--primary-bg);
-  border: 3px solid;
-  border-image: linear-gradient(to top, var(--accent-brass), var(--accent-gold)) 1;
-  box-shadow: 0 5px 25px rgba(0,0,0,0.7);
-  border-radius: 4px;
+  background-color: #2d3748; /* Fundo cinza-azulado escuro */
+  border: 1px solid #4a5568;
+  box-shadow: 0 5px 25px rgba(0,0,0,0.3);
+  border-radius: var(--border-radius);
   display: flex;
   flex-direction: column;
 }
 
 .panelHeader {
   padding: 1rem 1.5rem;
-  border-bottom: 2px solid var(--accent-brass);
-  background: linear-gradient(to bottom, var(--secondary-bg), var(--primary-bg));
+  border-bottom: 1px solid #4a5568;
+  background-color: #1a202c; /* Fundo ainda mais escuro para o header */
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -41,21 +49,23 @@
 
 .panelTitle {
   font-family: var(--font-display);
-  font-size: 1.5rem;
-  color: var(--accent-gold);
-  text-shadow: 1px 1px 2px #000;
+  font-size: 1.25rem;
+  color: #fff;
+  font-weight: 700;
 }
 
 .closeButton {
   background-color: transparent;
   border: none;
-  color: var(--accent-brass);
+  color: #a0aec0;
   cursor: pointer;
   transition: all 0.2s ease;
+  padding: 0.5rem;
+  border-radius: 50%;
 }
 .closeButton:hover {
-  color: var(--accent-gold);
-  transform: scale(1.2);
+  background-color: rgba(255,255,255,0.1);
+  color: #fff;
 }
 
 .panelBody {
@@ -64,41 +74,41 @@
   flex-grow: 1;
 }
 
-/* CUSTOM SCROLLBAR PARA O MODAL */
 .panelBody::-webkit-scrollbar { width: 8px; }
-.panelBody::-webkit-scrollbar-track { background: var(--secondary-bg); }
+.panelBody::-webkit-scrollbar-track { background: #2d3748; }
 .panelBody::-webkit-scrollbar-thumb {
-  background-color: var(--accent-brass);
+  background-color: #4a5568;
   border-radius: 4px;
 }
 
 .fieldWrapper {
-  margin-bottom: 2rem;
+  margin-bottom: 1.5rem;
 }
 
 .label {
   display: block;
-  font-family: var(--font-display);
-  font-size: 1.2rem;
-  color: var(--accent-gold);
+  font-family: var(--font-sans);
+  font-size: 1rem;
+  font-weight: 500;
+  color: #e2e8f0;
   margin-bottom: 0.75rem;
 }
 
 .input, .textarea {
   width: 100%;
   padding: 0.75rem;
-  background-color: var(--secondary-bg);
-  border: 1px solid var(--accent-brass);
-  color: var(--text-ivory);
-  border-radius: 2px;
+  background-color: #1a202c;
+  border: 1px solid #4a5568;
+  color: #e2e8f0;
+  border-radius: var(--border-radius);
   font-family: var(--font-sans);
   font-size: 1rem;
   transition: all 0.2s ease;
 }
 .input:focus, .textarea:focus {
     outline: none;
-    border-color: var(--accent-gold);
-    box-shadow: 0 0 8px var(--accent-gold);
+    border-color: var(--primary-accent);
+    box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.25);
 }
 
 .textarea {
@@ -112,11 +122,16 @@
   gap: 0.75rem;
   padding: 0.5rem;
   cursor: pointer;
+  border-radius: var(--border-radius);
+  transition: background-color 0.2s ease;
+}
+.checkboxLabel:hover, .radioLabel:hover {
+    background-color: rgba(255,255,255,0.05);
 }
 .checkboxLabel input, .radioLabel input {
   width: 18px;
   height: 18px;
-  accent-color: var(--accent-gold);
+  accent-color: var(--primary-accent);
 }
 
 /* ESTILOS PARA CAMPO DE ANEXO E ASSINATURA */
@@ -133,20 +148,24 @@
   align-items: center;
   gap: 0.5rem;
   padding: 0.6rem 1rem;
-  background-color: var(--secondary-bg);
-  border: 1px solid var(--accent-brass);
-  color: var(--text-ivory);
-  border-radius: 2px;
+  background-color: #4a5568;
+  border: 1px solid #4a5568;
+  color: #fff;
+  border-radius: var(--border-radius);
   cursor: pointer;
   transition: all 0.2s ease;
+  font-weight: 500;
 }
 .fileInputButton:hover {
-  background-color: var(--accent-brass);
-  color: var(--text-dark);
+  background-color: #6c757d;
 }
 .fileName {
   font-size: 0.9rem;
   opacity: 0.8;
+  color: #a0aec0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .signatureWrapper {
@@ -154,11 +173,11 @@
     width: 100%;
 }
 .signaturePad {
-    background-color: var(--text-ivory);
-    border: 2px solid var(--accent-brass); /* Borda adicionada */
+    background-color: #fff;
+    border: 1px solid #4a5568;
     cursor: crosshair;
-    border-radius: 3px;
-    width: 100%; /* O canvas agora é responsivo */
+    border-radius: var(--border-radius);
+    width: 100%;
     height: 200px;
 }
 .clearButton {
@@ -166,9 +185,9 @@
     top: 8px;
     right: 8px;
     background-color: rgba(0,0,0,0.7);
-    color: var(--text-ivory);
-    border: 1px solid var(--accent-brass);
-    border-radius: 2px;
+    color: #fff;
+    border: 1px solid rgba(255,255,255,0.2);
+    border-radius: var(--border-radius);
     padding: 0.3rem 0.6rem;
     font-size: 0.8rem;
     cursor: pointer;
@@ -183,12 +202,13 @@
 
 .panelFooter {
   padding: 1rem 1.5rem;
-  border-top: 2px solid var(--accent-brass);
+  border-top: 1px solid #4a5568;
   display: flex;
   justify-content: flex-end;
   align-items: center;
   gap: 1rem;
   flex-shrink: 0;
+  background-color: #1a202c;
 }
 
 .errorText {
@@ -198,40 +218,50 @@
 }
 
 .submitButton {
-  background: linear-gradient(to top, var(--accent-brass), var(--accent-gold));
-  color: var(--text-dark);
+  background-color: var(--primary-accent);
+  color: var(--text-on-accent);
   border: none;
   padding: 0.75rem 1.5rem;
-  font-family: var(--font-display);
+  font-family: var(--font-sans);
   font-size: 1rem;
+  font-weight: 500;
   text-transform: uppercase;
   cursor: pointer;
   display: flex;
   align-items: center;
   gap: 0.75rem;
-  border-radius: 2px;
-  transition: filter 0.2s ease;
+  border-radius: var(--border-radius);
+  transition: all 0.2s ease;
 }
 .submitButton:hover {
-  filter: brightness(1.15);
+  background-color: var(--primary-accent-dark);
+  box-shadow: 0 2px 8px rgba(0, 123, 255, 0.2);
 }
 .submitButton:disabled {
-  filter: grayscale(1);
+  filter: grayscale(0.5);
   cursor: not-allowed;
+  background-color: #4a5568;
 }
 
-/* MEDIA QUERIES PARA RESPONSIVIDADE */
-@media (max-width: 600px) {
+/* --- MEDIA QUERIES PARA RESPONSIVIDADE --- */
+@media (max-width: 768px) {
+    .panel {
+        max-width: 95vw;
+        max-height: 85vh;
+    }
     .panelHeader {
         padding: 0.75rem 1rem;
     }
     .panelTitle {
-        font-size: 1.2rem;
+        font-size: 1.1rem;
     }
     .panelBody {
-        padding: 1rem;
+        padding: 1rem 1.5rem;
     }
     .label {
-        font-size: 1rem;
+        font-size: 0.9rem;
+    }
+    .signaturePad {
+        height: 150px;
     }
 }

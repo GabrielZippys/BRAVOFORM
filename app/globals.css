@@ -1,52 +1,81 @@
-@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@700&family=Roboto:wght@400;500&family=Limelight&family=Montserrat:wght@400;500;700&display=swap');
+/*
+================================================================================
+|
+|   ARQUIVO: styles/globals.css (ATUALIZADO)
+|   TEMA: Bravo TI (baseado em mdwbravo.com.br)
+|   DESCRIÇÃO:
+|   Este ficheiro define as variáveis globais de CSS com a identidade visual
+|   moderna e corporativa da Bravo TI.
+|   - Paleta de cores focada em azuis e cinzas.
+|   - Fontes Montserrat para títulos e Roboto para corpo de texto.
+|   - Animações genéricas para uma interface fluida.
+|
+================================================================================
+*/
 
-/* VARIÁVEIS GLOBAIS */
-@import url('https://fonts.googleapis.com/css2?family=Limelight&family=Poppins:wght@300;400;500&display=swap');
+/* --- IMPORTAÇÃO DAS FONTES --- */
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@500;700&family=Roboto:wght@400;500&display=swap');
 
-/* VARIÁVEIS GLOBAIS */
 :root {
-  /* CORES ART DECO (TEMA ESCURO) */
-  --deco-dark: #0A2E36;
-  --deco-teal: #07485B;
-  --deco-gold: #C5A05C;
-  --deco-brass: #B18F42;
-  --deco-ivory: #F0EAD6;
+  /* --- PALETA DE CORES BRAVO TI --- */
+  --primary-bg: #f8f9fa;       /* Cinza Claro (Fundo principal) */
+  --secondary-bg: #ffffff;     /* Branco (Fundo de painéis e cards) */
   
-  /* VARIÁVEIS PARA O FORMEDITOR */
-  --primary-bg: var(--deco-dark);
-  --secondary-bg: var(--deco-teal);
-  --accent-gold: var(--deco-gold);
-  --accent-brass: var(--deco-brass);
-  --text-ivory: var(--deco-ivory);
-  --text-dark: #222c26;
-  --error-red: #e53e3e;
-  --paper-texture: url('https://www.transparenttextures.com/patterns/subtle-grunge.png');
-  
-  /* FONTES */
-  --font-sans: 'Poppins', sans-serif;
-  --font-display: 'Limelight', cursive;
+  --primary-accent: #007bff;    /* Azul Principal (Botões, links, ícones) */
+  --primary-accent-dark: #0056b3; /* Azul mais escuro para hover */
+
+  --text-primary: #343a40;     /* Cinza Escuro (Texto principal) */
+  --text-secondary: #6c757d;   /* Cinza Médio (Texto secundário, placeholders) */
+  --text-on-accent: #ffffff;   /* Branco (Texto sobre botões azuis) */
+
+  --border-color: #dee2e6;     /* Cinza para bordas e divisórias */
+
+  --success-green: #28a745;    /* Verde para sucesso */
+  --error-red: #dc3545;        /* Vermelho para erros */
+
+  /* --- TIPOGRAFIA --- */
+  --font-display: 'Montserrat', sans-serif; /* Para títulos e cabeçalhos */
+  --font-sans: 'Roboto', sans-serif;        /* Para corpo de texto e parágrafos */
+
+  /* --- OUTRAS VARIÁVEIS --- */
+  --box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  --border-radius: 4px;
 }
 
+/* --- ESTILOS GLOBAIS PARA O CORPO --- */
 body {
   font-family: var(--font-sans);
-  background-color: var(--secondary-bg);
+  background-color: var(--primary-bg);
+  color: var(--text-primary);
   margin: 0;
   padding: 0;
+  line-height: 1.6;
 }
 
+/* --- ANIMAÇÕES GLOBAIS GENÉRICAS --- */
 
-
-/* FORÇAR FUNDO ESCURO EM TODOS OS ELEMENTOS */
-html, body, body > div:first-child,
-body > div:first-child > div:first-child {
-  background-color: var(--deco-dark) !important;
-  background-image: url('https://www.transparenttextures.com/patterns/subtle-grunge.png') !important;
-  color: var(--deco-ivory) !important;
-  margin: 0 !important;
-  padding: 0 !important;
-  min-height: 100vh !important;
-  width: 100% !important;
+/* Animação para elementos surgindo suavemente */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
+/* Animação de pulsação para estados de carregamento */
+@keyframes pulse {
+  50% {
+    opacity: 0.8;
+  }
+}
 
-/* Restante das animações permanece igual */
+/* Animação de rotação para ícones de carregamento */
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}

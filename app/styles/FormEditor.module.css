@@ -1,21 +1,17 @@
 /*
 ================================================================================
 |
-|   ARQUIVO: FormEditor.module.css (REVISADO E CORRIGIDO)
-|   TEMA: BioShock - Rapture Art Deco
-|   DESCRIÇÃO:
-|   Estilos para o painel lateral de edição de formulários.
-|   - Layout de duas colunas: controles à esquerda, preview à direita.
-|   - Efeitos de metal escovado, vidro e latão.
-|   - NOVA SEÇÃO DE AUTOMAÇÃO com botões de alternância.
+|   ARQUIVO: app/styles/FormEditor.module.css
+|   TEMA: Bravo TI (Moderno e Corporativo) - VERSÃO ESCURA
 |
 ================================================================================
 */
 
+/* --- PAINEL PRINCIPAL E OVERLAY --- */
 .overlay {
   position: fixed;
   inset: 0;
-  background-color: rgba(0, 0, 0, 0.7);
+  background-color: rgba(0, 0, 0, 0.6);
   backdrop-filter: blur(5px);
   z-index: 40;
   animation: fadeIn 0.3s ease;
@@ -28,10 +24,9 @@
   height: 100%;
   width: 100%;
   max-width: 60rem;
-  background-color: var(--primary-bg);
-  border-left: 3px solid;
-  border-image: linear-gradient(to top, var(--accent-brass), var(--accent-gold)) 1;
-  box-shadow: -8px 0 25px rgba(0,0,0,0.7);
+  background-color: #212529; /* Cinza muito escuro */
+  border-left: 1px solid #495057; /* Borda mais escura */
+  box-shadow: -5px 0 20px rgba(0,0,0,0.3);
   display: flex;
   flex-direction: column;
   z-index: 50;
@@ -53,24 +48,24 @@
   justify-content: space-between;
   align-items: center;
   padding: 1rem 1.5rem;
-  border-bottom: 2px solid var(--accent-brass);
-  background: linear-gradient(to bottom, var(--secondary-bg), var(--primary-bg));
+  border-bottom: 1px solid #495057;
+  background-color: #343a40; /* Cinza escuro */
   flex-shrink: 0;
-  text-shadow: 1px 1px 3px rgba(0,0,0,0.5);
 }
 
 .panelTitle {
   font-family: var(--font-display);
-  font-size: 1.5rem;
-  color: var(--accent-gold);
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #f8f9fa; /* Texto claro */
 }
 
 .closeButton {
   background-color: transparent;
-  border: 2px solid var(--accent-brass);
-  color: var(--text-ivory);
+  border: none;
+  color: #adb5bd; /* Cinza claro */
   cursor: pointer;
-  transition: all 0.3s ease-in-out;
+  transition: all 0.2s ease;
   border-radius: 50%;
   width: 38px;
   height: 38px;
@@ -79,19 +74,17 @@
   justify-content: center;
 }
 .closeButton:hover {
-  background-color: var(--accent-gold);
-  color: var(--text-dark);
-  border-color: var(--accent-gold);
-  transform: rotate(90deg) scale(1.05);
+  background-color: rgba(255,255,255,0.1);
+  color: #f8f9fa;
 }
 
+/* --- GRELHA PRINCIPAL DO EDITOR --- */
 .editorGrid {
   flex-grow: 1;
   display: flex;
   overflow: hidden;
 }
 
-/* CORREÇÃO: A propriedade overflow-y: auto garante que esta coluna inteira role */
 .controlsColumn, .previewColumn {
   flex: 1 1 50%;
   overflow-y: auto;
@@ -99,51 +92,55 @@
 }
 
 .controlsColumn {
-  background-color: rgba(0,0,0,0.2);
+  background-color: #212529;
   display: flex;
   flex-direction: column;
-  gap: 1.5rem; /* Espaçamento entre as seções principais */
+  gap: 1.5rem;
+  border-right: 1px solid #495057;
 }
 
-/* Scrollbar customizada */
+/* --- SCROLLBAR CUSTOMIZADA --- */
 .controlsColumn::-webkit-scrollbar, .previewColumn::-webkit-scrollbar {
   width: 8px;
 }
 .controlsColumn::-webkit-scrollbar-track, .previewColumn::-webkit-scrollbar-track {
-  background: var(--secondary-bg);
+  background: transparent;
 }
 .controlsColumn::-webkit-scrollbar-thumb, .previewColumn::-webkit-scrollbar-thumb {
-  background-color: var(--accent-brass);
+  background-color: #495057;
   border-radius: 4px;
 }
 
+
+/* --- ELEMENTOS DE FORMULÁRIO --- */
 .label, .subTitle {
   display: block;
   margin-bottom: 0.5rem;
-  color: var(--accent-gold);
+  color: #f8f9fa;
   font-family: var(--font-display);
+  font-weight: 700;
 }
 .subTitle {
-  font-size: 1.25rem;
-  border-bottom: 1px solid var(--accent-brass);
-  padding-bottom: 0.5rem;
+  font-size: 1.1rem;
+  border-bottom: 1px solid #495057;
+  padding-bottom: 0.75rem;
   margin-bottom: 1rem;
 }
 
 .input {
   width: 100%;
   padding: 0.75rem;
-  background-color: var(--secondary-bg);
-  border: 1px solid var(--accent-brass);
-  color: var(--text-ivory);
-  border-radius: 2px;
+  background-color: #343a40;
+  border: 1px solid #495057;
+  color: #f8f9fa;
+  border-radius: var(--border-radius);
   transition: all 0.2s ease;
-  box-shadow: inset 0 1px 4px rgba(0,0,0,0.5);
+  font-size: 1rem;
 }
 .input:focus {
   outline: none;
-  border-color: var(--accent-gold);
-  box-shadow: 0 0 8px rgba(201, 162, 94, 0.5), inset 0 1px 4px rgba(0,0,0,0.5);
+  border-color: var(--primary-accent);
+  box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
 }
 
 .fieldButtons {
@@ -155,28 +152,27 @@
 .button {
   padding: 0.6rem;
   font-family: var(--font-sans);
-  background: transparent;
-  border: 1px solid var(--accent-brass);
-  color: var(--text-ivory);
+  background-color: #343a40;
+  border: 1px solid #495057;
+  color: #f8f9fa;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 0.5rem;
   transition: all 0.2s ease;
-  border-radius: 2px;
+  border-radius: var(--border-radius);
 }
 .button:hover {
-  background-color: var(--accent-gold);
-  color: var(--text-dark);
-  border-color: var(--accent-gold);
+  background-color: var(--primary-accent);
+  color: var(--text-on-accent);
+  border-color: var(--primary-accent);
 }
 
-/* CORREÇÃO: Esta classe não precisa mais controlar a rolagem */
 .scrollableContent {
   display: flex;
   flex-direction: column;
-  gap: 1.5rem; /* Espaçamento entre a lista de campos e a de colaboradores */
+  gap: 1.5rem;
 }
 
 .fieldsList {
@@ -186,41 +182,39 @@
 }
 .fieldsList:empty {
   min-height: 120px;
-  background-color: rgba(0,0,0,0.1);
-  border: 1px dashed var(--accent-brass);
-  border-radius: 3px;
+  border: 2px dashed #495057;
+  border-radius: var(--border-radius);
   display: flex;
   align-items: center;
   justify-content: center;
-  color: var(--accent-brass);
-  font-family: var(--font-display);
+  color: #6c757d;
 }
 .fieldsList:empty::after {
     content: "Adicione campos ao seu formulário";
 }
 
 .fieldEditor {
-  background-color: rgba(0,0,0,0.2);
+  background-color: #343a40;
   padding: 1rem;
-  border: 1px solid var(--accent-brass);
-  border-radius: 3px;
+  border: 1px solid #495057;
+  border-radius: var(--border-radius);
 }
 .fieldHeader {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 0.5rem;
+  margin-bottom: 0.75rem;
 }
 .fieldTypeLabel {
   font-size: 0.75rem;
-  color: var(--accent-gold);
+  color: #adb5bd;
   text-transform: uppercase;
   font-weight: 500;
 }
 .deleteFieldButton {
   background: none;
   border: none;
-  color: var(--accent-brass);
+  color: #adb5bd;
   cursor: pointer;
 }
 .deleteFieldButton:hover {
@@ -229,10 +223,8 @@
 
 .optionsEditor {
   margin-top: 1rem;
-  padding: 1rem;
-  border-top: 1px solid var(--accent-brass);
-  background-color: var(--secondary-bg);
-  border-radius: 3px;
+  padding-top: 1rem;
+  border-top: 1px solid #495057;
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
@@ -245,15 +237,15 @@
 .optionInput {
   flex-grow: 1;
   padding: 0.5rem 0.75rem;
-  background-color: rgba(0,0,0,0.3);
-  border: 1px solid var(--accent-brass);
-  color: var(--text-ivory);
-  border-radius: 2px;
+  background-color: #212529;
+  border: 1px solid #495057;
+  color: #f8f9fa;
+  border-radius: var(--border-radius);
 }
 .removeOptionButton {
   background: none;
   border: none;
-  color: var(--accent-brass);
+  color: #adb5bd;
   cursor: pointer;
   padding: 0.25rem;
 }
@@ -261,65 +253,73 @@
   margin-top: 0.5rem;
   padding: 0.6rem;
   background-color: transparent;
-  border: 1px solid var(--accent-brass);
-  color: var(--accent-gold);
+  border: 1px solid #495057;
+  color: var(--primary-accent);
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 0.5rem;
-  font-family: var(--font-display);
+  border-radius: var(--border-radius);
+  font-weight: 500;
+}
+.addOptionButton:hover {
+  background-color: var(--primary-accent);
+  color: var(--text-on-accent);
+  border-color: var(--primary-accent);
 }
 
 .collaboratorSection {
+    margin-top: 1.5rem;
     padding-top: 1.5rem;
-    border-top: 1px solid var(--accent-brass);
+    border-top: 1px solid #495057;
 }
 
 .collaboratorList {
   max-height: 150px;
   overflow-y: auto;
   padding: 0.5rem;
-  background-color: var(--secondary-bg);
-  border-radius: 2px;
+  background-color: #212529;
+  border: 1px solid #495057;
+  border-radius: var(--border-radius);
 }
 .collaboratorItem {
   display: flex;
   align-items: center;
   gap: 0.75rem;
   padding: 0.5rem;
-  color: var(--text-ivory);
+  color: #f8f9fa;
   cursor: pointer;
-  border-radius: 2px;
+  border-radius: var(--border-radius);
   transition: background-color 0.2s ease;
 }
 .collaboratorItem:hover {
-    background-color: rgba(201, 162, 94, 0.1);
+    background-color: rgba(255,255,255,0.1);
 }
 .collaboratorItem input[type="checkbox"] {
-  accent-color: var(--accent-gold);
+  accent-color: var(--primary-accent);
   width: 16px;
   height: 16px;
 }
 .emptyListText {
-    color: var(--accent-brass);
+    color: #6c757d;
     font-style: italic;
     padding: 1rem;
     text-align: center;
 }
 
-/* --- NOVA SEÇÃO DE AUTOMAÇÃO --- */
+/* --- SEÇÃO DE AUTOMAÇÃO --- */
 .automationSection {
-  border: 1px solid var(--accent-brass);
-  background-color: rgba(0,0,0,0.2);
+  border: 1px solid #495057;
+  background-color: #343a40;
   padding: 1rem;
-  border-radius: 3px;
+  border-radius: var(--border-radius);
 }
 
 .automationToggle {
   display: flex;
-  border: 1px solid var(--accent-brass);
-  border-radius: 3px;
+  border: 1px solid #495057;
+  border-radius: var(--border-radius);
   overflow: hidden;
   margin-bottom: 1rem;
 }
@@ -327,31 +327,30 @@
 .toggleButton {
   flex: 1;
   padding: 0.6rem;
-  background-color: transparent;
+  background-color: #343a40;
   border: none;
-  color: var(--text-ivory);
+  color: #adb5bd;
   cursor: pointer;
-  transition: background-color 0.2s ease;
+  transition: all 0.2s ease;
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 0.5rem;
+  font-weight: 500;
 }
 .toggleButton.active {
-  background-color: var(--accent-gold);
-  color: var(--text-dark);
-  font-weight: bold;
+  background-color: var(--primary-accent);
+  color: var(--text-on-accent);
 }
 .toggleButton:not(.active):hover {
-    background-color: rgba(201, 162, 94, 0.2);
+    background-color: #495057;
 }
 
-/* --- FIM DA SEÇÃO DE AUTOMAÇÃO --- */
-
+/* --- RODAPÉ E PREVIEW --- */
 .panelFooter {
   padding: 1rem 1.5rem;
-  border-top: 2px solid var(--accent-brass);
-  background: linear-gradient(to top, var(--secondary-bg), var(--primary-bg));
+  border-top: 1px solid #495057;
+  background-color: #343a40;
   display: flex;
   justify-content: flex-end;
   gap: 1rem;
@@ -359,26 +358,30 @@
 }
 .formButton {
     padding: 0.75rem 1.5rem;
-    font-family: var(--font-display);
+    font-family: var(--font-sans);
     font-size: 1rem;
-    border-radius: 2px;
-    border: 1px solid var(--accent-brass);
+    font-weight: 500;
+    border-radius: var(--border-radius);
+    border: 1px solid #495057;
     cursor: pointer;
     transition: all 0.2s ease;
 }
 .formButtonPrimary {
-    background: linear-gradient(to bottom, var(--accent-gold), var(--accent-brass));
-    color: var(--text-dark);
+    background-color: var(--primary-accent);
+    color: var(--text-on-accent);
+    border-color: var(--primary-accent);
 }
 .formButtonPrimary:hover {
-    filter: brightness(1.1);
+    background-color: var(--primary-accent-dark);
+    border-color: var(--primary-accent-dark);
 }
 .formButtonSecondary {
-    background-color: transparent;
-    color: var(--text-ivory);
+    background-color: #495057;
+    color: #f8f9fa;
+    border-color: #495057;
 }
 .formButtonSecondary:hover {
-    background-color: rgba(255,255,255,0.1);
+    background-color: #6c757d;
 }
 .errorMessage {
   color: var(--error-red);
@@ -386,25 +389,23 @@
   padding: 0.75rem;
 }
 
-
-/* --- PREVIEW E RODAPÉ --- */
 .previewColumn {
-  background-color: #c7c1b3;
-  background-image: var(--paper-texture);
+  background-color: #e9ecef; /* Um cinza claro para o fundo do preview */
+  color: #212529; /* Texto escuro para o preview */
 }
 .previewFrame {
   padding: 2rem;
   height: 100%;
-  color: var(--text-dark);
-  border: 1px solid var(--accent-brass);
-  box-shadow: inset 0 0 20px rgba(0,0,0,0.4);
+  border: 1px solid #dee2e6;
+  border-radius: var(--border-radius);
+  background-color: #fff;
   display: flex;
   flex-direction: column;
 }
 .previewTitle {
   font-family: var(--font-display);
-  font-size: 2rem;
-  color: #333;
+  font-size: 1.75rem;
+  color: #212529;
   text-align: center;
   margin-bottom: 2rem;
   overflow-wrap: break-word;
@@ -413,12 +414,12 @@
   flex-grow: 1;
 }
 .previewFieldWrapper {
-  margin-bottom: 1rem;
+  margin-bottom: 1.5rem;
 }
 .previewLabel {
   display: block;
   margin-bottom: 0.5rem;
-  color: #555;
+  color: #495057;
   font-weight: 500;
   overflow-wrap: break-word;
   white-space: normal;
@@ -426,28 +427,29 @@
 .previewInput {
   height: 2.5rem;
   border: none;
-  border-bottom: 2px solid rgba(140, 109, 63, 0.5);
+  border-bottom: 1px solid #ced4da;
   background-color: transparent;
   width: 100%;
 }
 .previewAttachment, .previewSignature {
   height: 6rem;
-  border: 2px dashed rgba(140, 109, 63, 0.7);
+  border: 2px dashed #adb5bd;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: var(--accent-brass);
-  background-color: rgba(140, 109, 63, 0.05);
-  border-radius: 4px;
+  color: #6c757d;
+  background-color: #f8f9fa;
+  border-radius: var(--border-radius);
 }
 .previewSignature span {
-  font-family: var(--font-display);
+  font-family: var(--font-sans);
 }
 .previewDateInput {
   width: 100%;
-  padding: 0.5rem;
-  border: 1px solid rgba(140, 109, 63, 0.5);
-  background-color: rgba(0,0,0,0.05);
+  padding: 0.75rem;
+  border: 1px solid #ced4da;
+  background-color: #fff;
+  border-radius: var(--border-radius);
 }
 .previewOptionItem {
   display: flex;
@@ -458,16 +460,16 @@
 .previewCheckbox, .previewRadio {
   width: 16px;
   height: 16px;
-  border: 2px solid var(--accent-brass);
+  border: 2px solid #6c757d;
   flex-shrink: 0;
 }
 .previewRadio { border-radius: 50%; }
 .previewSectionHeader {
   font-family: var(--font-display);
   font-size: 1.25rem;
-  color: #444;
-  border-bottom: 1px solid rgba(140, 109, 63, 0.5);
-  padding-bottom: 0.25rem;
+  color: #343a40;
+  border-bottom: 1px solid #dee2e6;
+  padding-bottom: 0.5rem;
   margin-top: 1.5rem;
   margin-bottom: 1rem;
 }
@@ -475,12 +477,13 @@
   width: 100%;
   padding: 0.75rem;
   margin-top: 2rem;
-  font-family: var(--font-display);
-  font-size: 1.25rem;
-  color: var(--text-dark);
-  background: linear-gradient(to bottom, var(--accent-gold), var(--accent-brass));
-  border: 1px solid #ffffffaa;
-  border-radius: 2px;
+  font-family: var(--font-sans);
+  font-size: 1.1rem;
+  font-weight: 500;
+  color: var(--text-on-accent);
+  background-color: var(--primary-accent);
+  border: 1px solid var(--primary-accent);
+  border-radius: var(--border-radius);
   cursor: pointer;
   flex-shrink: 0;
 }

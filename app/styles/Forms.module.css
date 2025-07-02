@@ -1,179 +1,160 @@
 /*
 ================================================================================
 |
-|   ARQUIVO: Forms.module.css (REVISADO)
-|   TEMA: BioShock - Rapture Art Deco
-|   DESCRIÇÃO:
-|   A gestão de formulários ganha um ar de arquivo confidencial de Rapture.
-|   - Botões com gradiente e sombra para um efeito 3D.
-|   - Cards com animação de "hover" que os levanta e ilumina.
-|   - Filtros que se parecem com painéis de controle de latão.
+|   ARQUIVO: app/styles/Forms.module.css
+|   TEMA: Bravo TI (Moderno e Corporativo) - VERSÃO MELHORADA
 |
 ================================================================================
 */
 
 .header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 2rem;
-  padding-bottom: 1rem;
-  border-bottom: 1px solid var(--accent-brass);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 2rem;
+    padding-bottom: 1.5rem;
+    border-bottom: 1px solid var(--border-color);
 }
 
 .title {
-  font-family: var(--font-display);
-  font-size: 2.2rem;
-  color: var(--accent-gold);
-  text-shadow: 1px 1px 4px rgba(0,0,0,0.6);
+    font-family: var(--font-display);
+    color: var(--text-primary);
+    font-size: 2rem;
+    font-weight: 700;
 }
 
 .button {
-  padding: 0.8rem 1.6rem;
-  font-family: var(--font-display);
-  color: var(--text-dark);
-  background: linear-gradient(to bottom, var(--accent-gold), var(--accent-brass));
-  border: 1px solid var(--accent-gold);
-  border-radius: 3px;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  transition: all 0.2s ease;
-  box-shadow: 0 3px 8px rgba(0,0,0,0.4), inset 0 1px 1px rgba(255, 255, 255, 0.2);
-  position: relative;
-  overflow: hidden;
+    padding: 0.75rem 1.5rem;
+    font-family: var(--font-sans);
+    font-weight: 500;
+    color: var(--text-on-accent);
+    background-color: var(--primary-accent);
+    border: 1px solid var(--primary-accent);
+    border-radius: var(--border-radius);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    transition: all 0.2s ease;
 }
 
 .button:hover {
-  filter: brightness(1.1);
-  box-shadow: 0 5px 15px rgba(0,0,0,0.5), 0 0 15px rgba(201, 162, 94, 0.4);
-  transform: translateY(-2px);
-}
-
-.button::after {
-  content: '';
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  width: 5px;
-  height: 5px;
-  background: rgba(255, 255, 255, 0.7);
-  border-radius: 50%;
-  transform: scale(0) translate(-50%, -50%);
-  transition: all 0.5s ease;
-}
-
-.button:active::after {
-  transform: scale(50) translate(-50%, -50%);
-  opacity: 0;
+    background-color: var(--primary-accent-dark);
+    border-color: var(--primary-accent-dark);
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
 }
 
 .filters {
-  background-color: rgba(10, 46, 54, 0.6);
-  border: 1px solid var(--accent-brass);
-  padding: 1.5rem;
-  margin-bottom: 2rem;
-  box-shadow: inset 0 0 15px rgba(0,0,0,0.6);
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 1.5rem;
-  align-items: flex-end;
+    background-color: var(--secondary-bg);
+    border: 1px solid var(--border-color);
+    padding: 1.5rem;
+    margin-bottom: 2rem;
+    border-radius: var(--border-radius);
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 1.5rem;
+    align-items: flex-end;
 }
 
 .filterInput {
-  width: 100%;
-  padding: 0.75rem;
-  background-color: var(--primary-bg);
-  border: 1px solid var(--accent-brass);
-  color: var(--text-ivory);
-  border-radius: 2px;
-  transition: all 0.2s ease;
-  box-shadow: inset 0 1px 4px rgba(0,0,0,0.5);
+    width: 100%;
+    padding: 0.75rem;
+    background-color: var(--secondary-bg);
+    border: 1px solid var(--border-color);
+    color: var(--text-primary);
+    border-radius: var(--border-radius);
+    font-size: 1rem;
+    transition: all 0.2s ease;
 }
 .filterInput:focus {
-  outline: none;
-  border-color: var(--accent-gold);
-  box-shadow: 0 0 8px rgba(201, 162, 94, 0.5), inset 0 1px 4px rgba(0,0,0,0.5);
+    outline: none;
+    border-color: var(--primary-accent);
+    box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
 }
 
 .cardGrid {
-  margin-top: 1.5rem;
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-  gap: 2rem;
+    margin-top: 1.5rem;
+    display: grid;
+    grid-template-columns: 1fr; /* Alterado para uma única coluna */
+    gap: 1rem; /* Reduzido o espaçamento */
 }
 
+/* --- ESTILOS DE CARD CORRIGIDOS --- */
 .formCard {
-  background-color: rgba(0,0,0,0.4);
-  border: 1px solid var(--accent-brass);
-  border-top: 4px solid var(--accent-gold);
-  padding: 1.5rem;
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  transition: all 0.35s cubic-bezier(0.25, 0.46, 0.45, 0.94);
-  box-shadow: 0 5px 15px rgba(0,0,0,0.5);
-  position: relative;
+    background-color: var(--secondary-bg);
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
+    box-shadow: var(--box-shadow);
+    display: flex;
+    flex-direction: row; /* Itens em linha */
+    justify-content: space-between; /* Alinha o título à esquerda e ações à direita */
+    align-items: center; /* Alinha verticalmente */
+    transition: all 0.3s ease;
+    padding: 1rem 1.5rem; /* Adiciona padding interno */
 }
 .formCard:hover {
-  transform: translateY(-10px);
-  border-color: var(--accent-gold);
-  box-shadow: 0 12px 25px rgba(0,0,0,0.6);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 10px rgba(0,0,0,0.08);
+    border-color: var(--primary-accent);
 }
 
 .cardTitle {
-  font-family: var(--font-display);
-  color: var(--text-ivory);
-  font-size: 1.5rem;
-  margin-bottom: 1rem;
-  word-break: break-word;
+    font-family: var(--font-sans); /* Fonte mais limpa para o título do item */
+    color: var(--text-primary);
+    font-size: 1.1rem; /* Tamanho ajustado */
+    font-weight: 500;
+    margin: 0;
+    word-break: break-word;
+    flex-grow: 1; /* Permite que o título ocupe o espaço disponível */
 }
 
 .cardActions {
-  margin-top: 1.5rem;
-  padding-top: 1rem;
-  border-top: 1px solid var(--accent-brass);
-  display: flex;
-  justify-content: flex-end;
-  gap: 0.75rem;
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.75rem;
+    flex-shrink: 0; /* Impede que os botões encolham */
 }
 
 .actionButton {
-  background: transparent;
-  border: 1px solid var(--accent-brass);
-  padding: 0.6rem;
-  border-radius: 50%;
-  width: 40px;
-  height: 40px;
-  cursor: pointer;
-  color: var(--accent-brass);
-  transition: all 0.2s ease;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+    background: transparent;
+    border: 1px solid transparent; /* Bordas transparentes por padrão */
+    padding: 0.5rem;
+    border-radius: 50%;
+    width: 36px;
+    height: 36px;
+    cursor: pointer;
+    color: var(--text-secondary);
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 .actionButton:hover {
-  background-color: var(--accent-gold);
-  color: var(--text-dark);
-  border-color: var(--accent-gold);
-  transform: scale(1.1);
+    background-color: rgba(0,0,0,0.05); /* Fundo sutil no hover */
+    color: var(--primary-accent);
 }
 
 .deleteButton:hover {
-  background-color: var(--error-red);
-  border-color: var(--error-red);
-  color: var(--text-ivory);
+    background-color: rgba(220, 53, 69, 0.1);
+    color: var(--error-red);
 }
 
 .emptyState {
-  text-align: center;
-  padding: 4rem;
-  color: var(--accent-brass);
-  font-size: 1.2rem;
-  grid-column: 1 / -1;
-  border: 2px dashed var(--accent-brass);
-  border-radius: 4px;
-  opacity: 0.7;
-  animation: pulse 3s infinite;
+    text-align: center;
+    padding: 4rem;
+    color: var(--text-secondary);
+    font-size: 1.1rem;
+    grid-column: 1 / -1;
+    border: 2px dashed var(--border-color);
+    border-radius: var(--border-radius);
+    background-color: var(--secondary-bg);
 }
+.formResponse {
+    background-color: var(--secondary-bg);
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
+    padding: 1.5rem;
+    box-shadow: var(--box-shadow);
+    transition: all 0.3s ease;
+}
+
