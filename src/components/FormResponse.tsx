@@ -2,31 +2,74 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { db } from '../../firebase/config';
-import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
-import { type Form, type FormField, type Collaborator } from '@/types';
+import { doc, addDoc, updateDoc, collection, serverTimestamp } from 'firebase/firestore';
+import { type Form, type Collaborator, type FormResponse as FormResponseType, type FormField } from '@/types';
 import styles from '../../app/styles/FormResponse.module.css';
 import { X, Send, Eraser, UploadCloud } from 'lucide-react';
 
 interface FormResponseProps {
-  form: Form;
-  collaborator: Collaborator;
+  form: Form | null;
+  collaborator: {
+    id: string;
+    username: React.ReactNode;
+    companyId: string;
+    departmentId: string;
+    canViewHistory?: boolean;
+    canEditHistory?: boolean;
+  };
   onClose: () => void;
+  existingResponse?: FormResponseType | null;
+  canEdit?: boolean;
 }
 
-export default function FormResponse({ form, collaborator, onClose }: FormResponseProps) {
+export default function FormResponse({ form, collaborator, onClose, existingResponse, canEdit }: FormResponseProps) {
+  if (!form) {
+    return null;
+  }
+
   const [responses, setResponses] = useState<Record<string, any>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
 
   const signaturePads = useRef<Record<string, HTMLCanvasElement | null>>({});
 
-  // A lógica do canvas de assinatura permanece a mesma
+  // CORREÇÃO: Usando useEffect para popular o estado inicial de forma mais robusta.
+  // Este efeito é executado sempre que um novo 'existingResponse' é passado para o componente.
   useEffect(() => {
-    Object.values(signaturePads.current).forEach(canvas => {
+    if (existingResponse?.responses && form.fields) {
+      const initialState: Record<string, any> = {};
+      form.fields.forEach((field: FormField) => {
+        if (Object.prototype.hasOwnProperty.call(existingResponse.responses, field.label)) {
+          initialState[String(field.id)] = existingResponse.responses[field.label];
+        }
+      });
+      setResponses(initialState);
+    } else {
+      setResponses({}); // Limpa as respostas se for um formulário novo
+    }
+  }, [existingResponse, form.fields]);
+
+
+  // Efeito para desenhar a assinatura existente no canvas
+  useEffect(() => {
+    Object.entries(signaturePads.current).forEach(([fieldId, canvas]) => {
       if (canvas) {
         const ctx = canvas.getContext('2d');
         if (!ctx) return;
 
+        // Limpa o canvas antes de desenhar
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        // Se houver uma assinatura no estado, desenha-a
+        if (responses[fieldId] && typeof responses[fieldId] === 'string' && responses[fieldId].startsWith('data:image')) {
+            const img = new Image();
+            img.src = responses[fieldId];
+            img.onload = () => {
+                ctx.drawImage(img, 0, 0);
+            };
+        }
+        
+        // A lógica de desenho manual permanece a mesma...
         ctx.strokeStyle = '#333';
         ctx.lineWidth = 2;
         ctx.lineCap = 'round';
@@ -38,16 +81,17 @@ export default function FormResponse({ form, collaborator, onClose }: FormRespon
           const rect = canvas.getBoundingClientRect();
           if (e instanceof MouseEvent) {
             return { x: e.clientX - rect.left, y: e.clientY - rect.top };
-          } else if (e.touches.length > 0) {
+          } else if (e.touches && e.touches.length > 0) {
             return { x: e.touches[0].clientX - rect.left, y: e.touches[0].clientY - rect.top };
           }
-          return { x: 0, y: 0 };
+          return null;
         };
 
         const startDrawing = (e: MouseEvent | TouchEvent) => {
           e.preventDefault();
-          isDrawing = true;
           const coords = getCoords(e);
+          if (!coords) return;
+          isDrawing = true;
           [lastX, lastY] = [coords.x, coords.y];
         };
 
@@ -55,6 +99,7 @@ export default function FormResponse({ form, collaborator, onClose }: FormRespon
           e.preventDefault();
           if (!isDrawing) return;
           const coords = getCoords(e);
+          if (!coords) return;
           ctx.beginPath();
           ctx.moveTo(lastX, lastY);
           ctx.lineTo(coords.x, coords.y);
@@ -79,9 +124,9 @@ export default function FormResponse({ form, collaborator, onClose }: FormRespon
         canvas.addEventListener('touchend', stopDrawing);
       }
     });
-  }, [form.fields]);
+  // A dependência agora inclui 'responses' para garantir que a assinatura seja desenhada quando o estado for atualizado.
+  }, [form.fields, responses]);
 
-  // CORREÇÃO: A função de guardar a resposta agora usa o ID do campo como chave, que é mais estável.
   const handleInputChange = (fieldId: string, value: any) => {
     setResponses(prev => ({ ...prev, [fieldId]: value }));
   };
@@ -93,11 +138,11 @@ export default function FormResponse({ form, collaborator, onClose }: FormRespon
   };
 
   const clearSignature = (fieldId: string) => {
-    const canvas = signaturePads.current[fieldId];
+    const canvas = signaturePads.current[String(fieldId)];
     if (canvas) {
       const ctx = canvas.getContext('2d');
       ctx?.clearRect(0, 0, canvas.width, canvas.height);
-      handleInputChange(fieldId, null);
+      handleInputChange(String(fieldId), null);
     }
   };
 
@@ -111,30 +156,34 @@ export default function FormResponse({ form, collaborator, onClose }: FormRespon
         return;
     }
 
-    // CORREÇÃO: Transforma o objeto de respostas para o formato correto antes de enviar.
     const formattedAnswers: Record<string, any> = {};
-    for (const field of form.fields) {
+    form.fields.forEach(field => {
         const fieldIdStr = String(field.id);
-        // Verifica se existe uma resposta para este campo
         if (Object.prototype.hasOwnProperty.call(responses, fieldIdStr)) {
-            // Cria a nova chave usando o label da pergunta
             formattedAnswers[field.label] = responses[fieldIdStr];
         }
-    }
+    });
 
     try {
-      const responseCollectionRef = collection(db, 'forms', form.id, 'responses');
-      
-      await addDoc(responseCollectionRef, {
-        collaboratorId: collaborator.id,
-        collaboratorUsername: collaborator.username,
-        formId: form.id,
-        formTitle: form.title,
-        companyId: form.companyId,
-        departmentId: form.departmentId,
-        answers: formattedAnswers, // Envia o objeto de respostas formatado
-        createdAt: serverTimestamp(),
-      });
+      if (existingResponse?.id) {
+        const responseRef = doc(db, 'forms', form.id, 'responses', existingResponse.id);
+        await updateDoc(responseRef, {
+            answers: formattedAnswers,
+            updatedAt: serverTimestamp(),
+        });
+      } else {
+        const responseCollectionRef = collection(db, 'forms', form.id, 'responses');
+        await addDoc(responseCollectionRef, {
+          collaboratorId: collaborator.id,
+          collaboratorUsername: collaborator.username,
+          formId: form.id,
+          formTitle: form.title,
+          companyId: form.companyId,
+          departmentId: form.departmentId,
+          answers: formattedAnswers,
+          createdAt: serverTimestamp(),
+        });
+      }
 
       onClose();
     } catch (err) {
@@ -157,44 +206,66 @@ export default function FormResponse({ form, collaborator, onClose }: FormRespon
             <div key={field.id} className={styles.fieldWrapper}>
               <label className={styles.label}>{field.label}</label>
 
-              {/* CORREÇÃO: Usando o ID do campo (field.id) para guardar o estado internamente */}
               {field.type === 'Texto' && (
-                <textarea className={styles.textarea} onChange={(e) => handleInputChange(String(field.id), e.target.value)} />
+                <textarea 
+                    className={styles.textarea} 
+                    value={responses[String(field.id)] || ''}
+                    onChange={(e) => handleInputChange(String(field.id), e.target.value)} 
+                    disabled={!canEdit && !!existingResponse}
+                />
               )}
 
               {field.type === 'Data' && (
-                <input type="date" className={styles.input} onChange={(e) => handleInputChange(String(field.id), e.target.value)} />
+                <input 
+                    type="date" 
+                    className={styles.input} 
+                    value={responses[String(field.id)] || ''}
+                    onChange={(e) => handleInputChange(String(field.id), e.target.value)} 
+                    disabled={!canEdit && !!existingResponse}
+                />
               )}
 
               {field.type === 'Caixa de Seleção' && field.options?.map(option => (
                 <label key={option} className={styles.checkboxLabel}>
-                  <input type="checkbox" onChange={(e) => {
-                    const current = responses[String(field.id)] || [];
-                    const newValue = e.target.checked
-                      ? [...current, option]
-                      : current.filter((item: string) => item !== option);
-                    handleInputChange(String(field.id), newValue);
-                  }} />
+                  <input 
+                    type="checkbox" 
+                    checked={(responses[String(field.id)] || []).includes(option)}
+                    onChange={(e) => {
+                      const current = responses[String(field.id)] || [];
+                      const newValue = e.target.checked
+                        ? [...current, option]
+                        : current.filter((item: string) => item !== option);
+                      handleInputChange(String(field.id), newValue);
+                    }} 
+                    disabled={!canEdit && !!existingResponse}
+                  />
                   <span>{option}</span>
                 </label>
               ))}
 
               {field.type === 'Múltipla Escolha' && field.options?.map(option => (
                 <label key={option} className={styles.radioLabel}>
-                  <input type="radio" name={`field_${field.id}`} onChange={() => handleInputChange(String(field.id), option)} />
+                  <input 
+                    type="radio" 
+                    name={`field_${field.id}`} 
+                    checked={responses[String(field.id)] === option}
+                    onChange={() => handleInputChange(String(field.id), option)} 
+                    disabled={!canEdit && !!existingResponse}
+                  />
                   <span>{option}</span>
                 </label>
               ))}
 
-              {field.type === 'Anexo' && (
+               {field.type === 'Anexo' && (
                 <div className={styles.fileInputWrapper}>
                   <input
                     type="file"
                     id={`file_${field.id}`}
                     className={styles.fileInput}
                     onChange={(e) => handleFileChange(String(field.id), e.target.files ? e.target.files[0] : null)}
+                    disabled={!canEdit && !!existingResponse}
                   />
-                  <label htmlFor={`file_${field.id}`} className={styles.fileInputButton}>
+                  <label htmlFor={`file_${field.id}`} className={`${styles.fileInputButton} ${(!canEdit && !!existingResponse) ? styles.disabledButton : ''}`}>
                     <UploadCloud size={18} /><span>Escolher Ficheiro</span>
                   </label>
                   {responses[String(field.id)] && (
@@ -206,13 +277,17 @@ export default function FormResponse({ form, collaborator, onClose }: FormRespon
               {field.type === 'Assinatura' && (
                 <div className={styles.signatureWrapper}>
                   <canvas
-                    ref={(el) => { signaturePads.current[String(field.id)] = el; }} // Usa o ID como chave
-                    data-field-id={String(field.id)} // Usa o ID como data attribute
+                    ref={(el) => { signaturePads.current[String(field.id)] = el; }}
+                    data-field-id={String(field.id)}
                     className={styles.signaturePad}
                     width="600"
                     height="200"
                   ></canvas>
-                  <button onClick={() => clearSignature(String(field.id))} className={styles.clearButton}>
+                  <button 
+                    onClick={() => clearSignature(String(field.id))} 
+                    className={styles.clearButton}
+                    disabled={!canEdit && !!existingResponse}
+                  >
                     <Eraser size={16} /> Limpar
                   </button>
                 </div>
@@ -223,10 +298,12 @@ export default function FormResponse({ form, collaborator, onClose }: FormRespon
 
         <div className={styles.panelFooter}>
           {error && <p className={styles.errorText}>{error}</p>}
-          <button onClick={handleSubmit} className={styles.submitButton} disabled={isSubmitting}>
-            <Send size={18} />
-            <span>{isSubmitting ? 'A Enviar...' : 'Submeter Resposta'}</span>
-          </button>
+          {canEdit || !existingResponse ? (
+            <button onClick={handleSubmit} className={styles.submitButton} disabled={isSubmitting}>
+                <Send size={18} />
+                <span>{isSubmitting ? 'A Enviar...' : (existingResponse ? 'Atualizar Resposta' : 'Submeter Resposta')}</span>
+            </button>
+          ) : null}
         </div>
       </div>
     </div>

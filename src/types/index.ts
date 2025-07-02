@@ -14,6 +14,8 @@ export interface AppUser {
   companyId?: string;
   departmentId?: string;
   createdAt?: Timestamp;
+  canViewHistory?: boolean;
+  canEditHistory?: boolean;
 }
 
 // --- Tipos de Formulários ---

@@ -1,4 +1,12 @@
-/* Estilo para a Página de Visualização do Colaborador */
+/*
+================================================================================
+|
+|   ARQUIVO: CollaboratorView.module.css (ATUALIZADO)
+|   TEMA: BioShock - Rapture Art Deco
+|
+================================================================================
+*/
+
 .main {
   background-color: var(--primary-bg);
   min-height: 100vh;
@@ -59,6 +67,39 @@
   padding: 2rem;
   max-width: 1200px;
   margin: 0 auto;
+}
+
+/* --- NOVO: Botões de Alternância de Vista --- */
+.viewToggle {
+    display: flex;
+    gap: 1rem;
+    margin-bottom: 2rem;
+    border-bottom: 1px solid var(--accent-brass);
+    padding-bottom: 1rem;
+}
+
+.toggleButton {
+    padding: 0.6rem 1.2rem;
+    font-family: var(--font-display);
+    font-size: 1.1rem;
+    background-color: transparent;
+    border: 1px solid var(--accent-brass);
+    color: var(--accent-brass);
+    border-radius: 3px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.toggleButton.active {
+    background-color: var(--accent-gold);
+    color: var(--text-dark);
+    border-color: var(--accent-gold);
+    box-shadow: 0 0 10px var(--accent-gold);
+}
+
+.toggleButton:not(.active):hover {
+    color: var(--accent-gold);
+    border-color: var(--accent-gold);
 }
 
 .grid {
@@ -123,6 +164,41 @@
 .cardButton:hover {
   filter: brightness(1.2);
 }
+
+/* --- NOVO: Estilos para a Lista de Histórico --- */
+.historyCard {
+    background-color: rgba(0,0,0,0.2);
+    border: 1px solid var(--accent-brass);
+    padding: 1rem 1.5rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-radius: 3px;
+    transition: all 0.2s ease;
+    cursor: pointer;
+}
+.historyCard:hover {
+    background-color: rgba(201, 162, 94, 0.1);
+    border-color: var(--accent-gold);
+}
+.historyInfo h4 {
+    margin: 0;
+    font-size: 1.1rem;
+    color: var(--text-ivory);
+}
+.historyInfo p {
+    margin: 0;
+    font-size: 0.85rem;
+    color: var(--accent-brass);
+}
+.historyStatus {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.9rem;
+    color: var(--success-green);
+}
+
 
 /* Estados de Carregamento, Erro e Vazio */
 .loadingText, .errorText {
