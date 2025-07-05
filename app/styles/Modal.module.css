@@ -193,3 +193,27 @@
     cursor: not-allowed;
     border-color: var(--border-color);
 }
+
+/* ... (todo o seu css existente) ... */
+
+.panel {
+  width: 100%;
+  max-width: 32rem; /* Este é o tamanho padrão */
+  background-color: var(--secondary-bg);
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius);
+  box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+  z-index: 50;
+  display: flex;
+  flex-direction: column;
+  max-height: 90vh;
+}
+
+/* ADICIONE ESTA NOVA CLASSE */
+.panelLarge {
+  max-width: 90vw; /* Define a largura máxima para 90% da largura da janela */
+  max-height: 90vh;
+}
+
+/* ... (resto do seu css) ... */
+

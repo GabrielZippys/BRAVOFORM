@@ -19,14 +19,21 @@ export interface AppUser {
 }
 
 // --- Tipos de Formulários ---
-export interface FormField {
+export type FormField = {
   id: number;
-  type: 'Texto' | 'Anexo' | 'Assinatura' | 'Caixa de Seleção' | 'Múltipla Escolha' | 'Data' | 'Cabeçalho';
+  type: 'Texto' | 'Anexo' | 'Assinatura' | 'Caixa de Seleção' | 'Múltipla Escolha' | 'Data' | 'Cabeçalho' | 'Tabela';
   label: string;
-  required?: boolean;
   options?: string[];
-  placeholder?: string;
-}
+  columns?: {
+    id: number;
+    label: string;
+    type: 'Texto' | 'Data' | 'Caixa de Seleção' | 'Múltipla Escolha';
+  }[];
+};
+
+// Define a estrutura de um formulário, incluindo campos, automação e colaboradores.
+
+
 
 export interface Form {
   id: string;
@@ -51,6 +58,7 @@ export interface Form {
 
 // --- Tipo de Resposta de Formulário ---
 export interface FormResponse {
+  answers(answers: any, label: string): unknown;
   id: string;
   formId: string;
   formTitle: string;

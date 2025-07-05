@@ -8,40 +8,557 @@
 */
 
 /* --- PAINEL PRINCIPAL E OVERLAY --- */
-.overlay {
-  position: fixed;
-  inset: 0;
-  background-color: rgba(0, 0, 0, 0.6);
-  backdrop-filter: blur(5px);
-  z-index: 40;
-  animation: fadeIn 0.3s ease;
-}
 
-.panel {
-  position: fixed;
-  top: 0;
-  right: 0;
-  height: 100%;
-  width: 100%;
-  max-width: 60rem;
-  background-color: #212529; /* Cinza muito escuro */
-  border-left: 1px solid #495057; /* Borda mais escura */
-  box-shadow: -5px 0 20px rgba(0,0,0,0.3);
+/* Adicione estas classes ao seu FormEditor.module.css */
+
+/* Adicione estas classes ao seu FormEditor.module.css */
+
+/*
+================================================================================
+|
+|   ARQUIVO: app/styles/FormEditor.module.css
+|   TEMA: Bravo TI - Layout Profissional do Editor de Formulários
+|
+================================================================================
+*/
+
+/* --- LAYOUT GERAL DA PÁGINA/ECRÃ --- */
+
+.editorPageWrapper {
   display: flex;
   flex-direction: column;
-  z-index: 50;
-  font-family: var(--font-sans);
-  transform: translateX(100%);
-  animation: slideIn 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+  height: 100vh;
+  width: 100%;
+  background-color: var(--primary-bg);
+  color: var(--text-primary);
+  overflow: hidden;
 }
 
-@keyframes slideIn {
-  to { transform: translateX(0); }
+.editorHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem 1.5rem;
+  border-bottom: 1px solid var(--border-color);
+  flex-shrink: 0;
+  background-color: var(--secondary-bg);
 }
-@keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
+
+.editorHeaderTitle {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  font-size: 1.1rem;
+  font-weight: 600;
 }
+
+.backButton {
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 0.5rem;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color 0.2s ease;
+}
+
+.backButton:hover {
+  background-color: var(--hover-bg);
+}
+
+.editorHeaderActions {
+  display: flex;
+  gap: 1rem;
+}
+
+.editorButtonSecondary, .editorButtonPrimary {
+  padding: 0.6rem 1.2rem;
+  font-weight: 500;
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.editorButtonSecondary {
+  background-color: transparent;
+  color: var(--text-primary);
+}
+
+.editorButtonSecondary:hover {
+   background-color: var(--hover-bg);
+}
+
+.editorButtonPrimary {
+  background-color: var(--primary-accent);
+  border-color: var(--primary-accent);
+  color: var(--text-on-accent);
+}
+
+.editorButtonPrimary:hover {
+  background-color: var(--primary-accent-dark);
+}
+
+.editorButtonPrimary:disabled {
+    background-color: var(--disabled-bg);
+    color: var(--text-disabled);
+    cursor: not-allowed;
+    border-color: var(--border-color);
+}
+
+.editorGrid {
+  flex-grow: 1;
+  display: grid;
+  grid-template-columns: 380px 1fr;
+  overflow: hidden;
+}
+
+/* --- COLUNA DE CONTROLOS (ESQUERDA) --- */
+
+.controlsColumn {
+  background-color: var(--secondary-bg);
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  overflow-y: auto;
+  border-right: 1px solid var(--border-color);
+}
+
+.scrollableContent {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.label, .subTitle {
+  display: block;
+  margin-bottom: 0.75rem;
+  color: var(--text-primary);
+  font-weight: 500;
+  font-size: 0.9rem;
+}
+
+.subTitle {
+  font-size: 1rem;
+  border-bottom: 1px solid var(--border-color);
+  padding-bottom: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.input {
+  width: 100%;
+  padding: 0.75rem;
+  background-color: var(--primary-bg);
+  border: 1px solid var(--border-color);
+  color: var(--text-primary);
+  border-radius: var(--border-radius);
+  transition: all 0.2s ease;
+}
+.input:focus {
+  outline: none;
+  border-color: var(--primary-accent);
+  box-shadow: 0 0 0 2px var(--primary-accent-glow);
+}
+
+.fieldButtons {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+}
+
+.button {
+  padding: 0.6rem;
+  background-color: var(--primary-bg);
+  border: 1px solid var(--border-color);
+  color: var(--text-secondary);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  transition: all 0.2s ease;
+  border-radius: var(--border-radius);
+}
+.button:hover {
+  background-color: var(--primary-accent);
+  color: var(--text-on-accent);
+  border-color: var(--primary-accent);
+}
+
+.fieldsList {
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
+    padding: 0.5rem;
+    min-height: 100px;
+}
+
+.fieldItem {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.75rem;
+    border-radius: var(--border-radius);
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.fieldItem.selected {
+    background-color: var(--primary-accent);
+    color: var(--text-on-accent);
+}
+.fieldItem.selected .gripIcon, .fieldItem.selected .deleteFieldButton {
+    color: var(--text-on-accent);
+}
+
+.fieldItemLabel {
+    flex-grow: 1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.gripIcon {
+    color: var(--text-secondary);
+    cursor: grab;
+}
+
+.deleteFieldButton {
+    background: none;
+    border: none;
+    color: var(--text-secondary);
+    cursor: pointer;
+}
+.deleteFieldButton:hover {
+    color: var(--danger-red);
+}
+
+/* --- PAINEL DE PROPRIEDADES DO CAMPO SELECIONADO --- */
+.selectedFieldEditor {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border-color);
+}
+
+.selectedFieldHeader {
+  font-size: 1rem;
+  font-weight: 600;
+  margin-bottom: 1rem;
+  color: var(--text-primary);
+}
+
+.propertyGroup {
+  margin-bottom: 1.5rem;
+}
+
+.propertyLabel {
+  display: block;
+  font-size: 0.875rem;
+  font-weight: 500;
+  margin-bottom: 0.5rem;
+  color: var(--text-secondary);
+}
+
+.propertyListItem {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background-color: var(--primary-bg);
+  padding: 0.5rem;
+  border-radius: var(--border-radius);
+  margin-bottom: 0.5rem;
+  border: 1px solid var(--border-color);
+}
+
+.propertyInput {
+  flex-grow: 1;
+  background: none;
+  border: none;
+  color: var(--text-primary);
+  outline: none;
+  font-size: 0.9rem;
+}
+
+.propertyDeleteButton {
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 50%;
+}
+.propertyDeleteButton:hover {
+  background-color: var(--danger-red-dark);
+  color: white;
+}
+
+.propertyAddButton {
+  width: 100%;
+  padding: 0.6rem;
+  background-color: transparent;
+  border: 1px dashed var(--border-color);
+  color: var(--primary-accent);
+  border-radius: var(--border-radius);
+  cursor: pointer;
+  transition: background-color 0.2s, border-color 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+}
+.propertyAddButton:hover {
+  background-color: var(--hover-bg);
+  border-color: var(--primary-accent);
+}
+
+
+/* --- COLUNA DE PREVIEW (DIREITA) --- */
+.previewColumn {
+  background-color: #f8f9fa;
+  padding: 1.5rem;
+  overflow-y: auto;
+}
+
+.previewFrame {
+  padding: 2rem;
+  height: 100%;
+  border: 1px solid #dee2e6;
+  border-radius: var(--border-radius);
+  background-color: #fff;
+  display: flex;
+  flex-direction: column;
+  color: #212529;
+}
+
+.previewTitle {
+  font-size: 1.75rem;
+  text-align: center;
+  margin-bottom: 2rem;
+  overflow-wrap: break-word;
+}
+
+.previewFieldsContainer {
+  flex-grow: 1;
+}
+
+.previewFieldWrapper {
+  margin-bottom: 1.5rem;
+}
+
+.previewLabel {
+  display: block;
+  margin-bottom: 0.5rem;
+  font-weight: 500;
+}
+
+.previewInput, .previewInputSmall {
+  width: 100%;
+  padding: 0.75rem;
+  border: 1px solid #ced4da;
+  border-radius: var(--border-radius);
+}
+.previewInputSmall {
+    padding: 0.5rem;
+    font-size: 0.9rem;
+}
+
+/* --- PREVIEW DA TABELA --- */
+.tablePreviewWrapper {
+    overflow-x: auto;
+}
+
+.tablePreview {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 0.5rem;
+}
+
+.tablePreviewTh, .tablePreviewTd {
+    border: 1px solid #dee2e6;
+    padding: 0.75rem;
+    text-align: left;
+}
+
+.tablePreviewTh {
+    background-color: #f1f3f5;
+}
+
+.tablePreviewFirstCol {
+    background-color: #f1f3f5;
+    font-weight: 600;
+    width: 200px; /* Largura fixa para a primeira coluna */
+}
+
+.errorMessage {
+  color: var(--error-red);
+  text-align: center;
+  padding: 0.75rem;
+  background-color: rgba(255, 0, 0, 0.1);
+  border: 1px solid var(--error-red);
+  border-radius: var(--border-radius);
+  margin-top: 1rem;
+}
+
+
+/* Estilos para o sub-editor de opções da coluna */
+.columnOptionsEditor {
+  padding-left: 2.5rem; /* Alinha com o input da coluna */
+  margin-top: 0.5rem;
+  border-left: 2px solid var(--border-color);
+}
+
+.columnOptionInputGroup {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.columnOptionInput {
+  flex-grow: 1;
+  background-color: var(--primary-bg); /* Fundo um pouco diferente */
+  border: 1px solid var(--border-color);
+  color: var(--text-primary);
+  padding: 0.5rem;
+  border-radius: var(--border-radius);
+  font-size: 0.875rem;
+}
+
+.removeColumnOptionButton {
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+}
+.removeColumnOptionButton:hover {
+    background-color: var(--danger-red-dark);
+    color: white;
+}
+
+.addColumnOptionButton {
+  background: none;
+  border: none;
+  color: var(--primary-accent);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+  padding: 0.25rem;
+}
+.addColumnOptionButton:hover {
+    text-decoration: underline;
+}
+
+/* Estilos para o dropdown na pré-visualização da tabela */
+.previewSelectSmall {
+    width: 100%;
+    padding: 0.5rem;
+    background-color: var(--secondary-bg);
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
+    color: var(--text-primary);
+}
+
+
+.editorPageWrapper {
+  display: flex;
+  flex-direction: column;
+  height: 100%; /* Ocupa a altura do container pai */
+  width: 100%;
+  background-color: var(--primary-bg);
+}
+
+.editorHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem 1.5rem;
+  border-bottom: 1px solid var(--border-color);
+  flex-shrink: 0;
+  background-color: var(--secondary-bg);
+}
+
+.editorHeaderTitle {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+.backButton {
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 0.5rem;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color 0.2s ease;
+}
+
+.backButton:hover {
+  background-color: var(--hover-bg);
+}
+
+.editorHeaderActions {
+  display: flex;
+  gap: 1rem;
+}
+
+.editorButtonSecondary, .editorButtonPrimary {
+  padding: 0.6rem 1.2rem;
+  font-weight: 500;
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.editorButtonSecondary {
+  background-color: var(--secondary-bg);
+  color: var(--text-primary);
+}
+
+.editorButtonSecondary:hover {
+   background-color: var(--hover-bg);
+}
+
+.editorButtonPrimary {
+  background-color: var(--primary-accent);
+  border-color: var(--primary-accent);
+  color: var(--text-on-accent);
+}
+
+.editorButtonPrimary:hover {
+  background-color: var(--primary-accent-dark);
+}
+
+/* O .editorGrid agora ocupa o espaço restante */
+.editorGrid {
+  flex-grow: 1;
+  display: grid;
+  grid-template-columns: 350px 1fr; /* Coluna de controlos fixa, preview flexível */
+  overflow: hidden; /* Previne duplo scroll */
+  height: calc(100% - 65px); /* Altura total menos o cabeçalho */
+}
+
 
 .panelHeader {
   display: flex;
@@ -83,6 +600,19 @@
   flex-grow: 1;
   display: flex;
   overflow: hidden;
+}
+.panelContent {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden; /* Previne scroll na área de conteúdo */
+}
+
+.panelBody {
+  flex-grow: 1;
+  padding: 1.5rem;
+  overflow-y: auto; /* Permite scroll apenas na área de conteúdo */
+  background-color: #212529; /* Fundo escuro */
 }
 
 .controlsColumn, .previewColumn {
@@ -486,4 +1016,92 @@
   border-radius: var(--border-radius);
   cursor: pointer;
   flex-shrink: 0;
+}
+
+/*
+================================================================================
+|
+|   ARQUIVO: app/styles/FormEditorPage.module.css
+|   TEMA: Estilos para a página de edição de formulário em tela cheia
+|
+================================================================================
+*/
+
+.pageWrapper {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  width: 100vw;
+  background-color: var(--primary-bg);
+  color: var(--text-primary);
+  overflow: hidden; /* Previne scroll na página inteira */
+}
+
+.pageHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem 2rem;
+  border-bottom: 1px solid var(--border-color);
+  background-color: var(--secondary-bg);
+  flex-shrink: 0;
+  z-index: 10;
+}
+
+.headerTitle {
+  font-size: 1.25rem;
+  font-weight: 600;
+}
+
+.headerActions {
+  display: flex;
+  gap: 1rem;
+}
+
+.buttonSecondary, .buttonPrimary {
+  padding: 0.6rem 1.2rem;
+  font-weight: 500;
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background-color: var(--secondary-bg);
+  color: var(--text-primary);
+}
+
+.buttonSecondary:hover {
+  background-color: var(--hover-bg);
+}
+
+.buttonPrimary {
+  background-color: var(--primary-accent);
+  border-color: var(--primary-accent);
+  color: var(--text-on-accent);
+}
+
+.buttonPrimary:hover {
+  background-color: var(--primary-accent-dark);
+  border-color: var(--primary-accent-dark);
+}
+
+
+.pageContent {
+  flex-grow: 1;
+  /* O FormEditor interno terá o seu próprio scroll */
+  overflow: hidden; 
+}
+
+.loading, .error {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    font-size: 1.2rem;
+}
+
+.error {
+    color: var(--error-red);
 }

@@ -1,248 +1,359 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { X, Type, Paperclip, PenSquare, Trash2, CheckSquare, CircleDot, Calendar, Heading2, PlusCircle, Mail, MessageCircle } from 'lucide-react';
-import { type Form, type FormField, type Collaborator } from '@/types';
+import { ArrowLeft, Save, Type, Paperclip, PenSquare, Trash2, CheckSquare, CircleDot, Calendar, Heading2, PlusCircle, Mail, MessageCircle, Table2, GripVertical } from 'lucide-react';
+import { type Form, type FormField as ImportedFormField, type Collaborator } from '@/types';
 import styles from '../../app/styles/FormEditor.module.css';
 import { db, auth } from '../../firebase/config';
 import { collection, addDoc, doc, updateDoc, onSnapshot, query, serverTimestamp } from 'firebase/firestore';
 
+// --- TIPOS LOCAIS COMPLETOS ---
+type Column = {
+  id: number;
+  label: string;
+};
+
+type Row = {
+  id: number;
+  label: string;
+};
+
+type EditorFormField = Omit<ImportedFormField, 'type' | 'columns' | 'rows'> & {
+  type: ImportedFormField['type'] | 'Tabela';
+  columns?: Column[];
+  rows?: Row[]; 
+  tableData?: Record<string, Record<string, any>>; 
+};
 
 interface FormEditorProps {
-  isOpen: boolean;
-  onClose: () => void;
   companyId: string | null;
   departmentId: string | null;
   existingForm: Form | null;
+  onSaveSuccess: () => void;
+  onCancel: () => void;
 }
 
-export default function FormEditor({ isOpen, onClose, companyId, departmentId, existingForm }: FormEditorProps) {
+export default function FormEditor({ companyId, departmentId, existingForm, onSaveSuccess, onCancel }: FormEditorProps) {
   const [formTitle, setFormTitle] = useState("");
-  const [fields, setFields] = useState<FormField[]>([]);
+  const [fields, setFields] = useState<EditorFormField[]>([]);
+  const [selectedFieldId, setSelectedFieldId] = useState<number | null>(null);
   const [automation, setAutomation] = useState({ type: 'email', target: '' });
   const [error, setError] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
   
   const [collaborators, setCollaborators] = useState<Collaborator[]>([]);
   const [assignedCollaborators, setAssignedCollaborators] = useState<string[]>([]);
 
-  useEffect(() => {
-    if (isOpen) {
-      if (existingForm) {
-        setFormTitle(existingForm.title);
-        setFields(existingForm.fields || []);
-        setAutomation(existingForm.automation || { type: 'email', target: '' });
-        setAssignedCollaborators(existingForm.collaborators || []); 
-      } else {
-        setFormTitle("Novo Formulário");
-        setFields([]);
-        setAutomation({ type: 'email', target: '' });
-        setAssignedCollaborators([]);
-      }
-    }
-  }, [existingForm, isOpen]);
+  const selectedField = fields.find(f => f.id === selectedFieldId);
 
   useEffect(() => {
-    if (isOpen && departmentId) {
+    if (existingForm) {
+      setFormTitle(existingForm.title);
+      const initialFields = (existingForm.fields as EditorFormField[] || []);
+      setFields(initialFields);
+      setAutomation(existingForm.automation || { type: 'email', target: '' });
+      setAssignedCollaborators(existingForm.collaborators || []); 
+      if (initialFields.length > 0) {
+        setSelectedFieldId(initialFields[0].id);
+      }
+    } else {
+      setFormTitle("Novo Formulário");
+      setFields([]);
+      setAutomation({ type: 'email', target: '' });
+      setAssignedCollaborators([]);
+    }
+  }, [existingForm]);
+
+  useEffect(() => {
+    if (departmentId) {
       const collaboratorsPath = `departments/${departmentId}/collaborators`;
       const collaboratorsQuery = query(collection(db, collaboratorsPath));
-  
       const unsubscribe = onSnapshot(collaboratorsQuery, (snapshot) => {
-        const collaboratorsData = snapshot.docs.map(doc => ({
-          id: doc.id,
-          username: doc.data().username
-        } as unknown as Collaborator));
+        const collaboratorsData = snapshot.docs.map(doc => ({ id: doc.id, username: doc.data().username } as unknown as Collaborator));
         setCollaborators(collaboratorsData);
       }, (err) => {
         console.error("Erro ao buscar colaboradores:", err);
-        setError("Não foi possível carregar a lista de colaboradores.");
       });
-  
       return () => unsubscribe();
     }
-  }, [departmentId, isOpen]);
+  }, [departmentId]);
   
-  const addField = (type: FormField['type']) => {
-    const newField: FormField = { id: Date.now(), type, label: 'Nova Pergunta' };
-    if (type === 'Assinatura') newField.label = 'Assinatura';
-    else if (type === 'Caixa de Seleção' || type === 'Múltipla Escolha') newField.options = ['Opção 1'];
+  const addField = (type: EditorFormField['type']) => {
+    let newField: EditorFormField = { id: Date.now(), type, label: 'Novo Campo' };
+    
+    switch(type) {
+        case 'Assinatura':
+            newField.label = 'Assinatura';
+            break;
+        case 'Caixa de Seleção':
+        case 'Múltipla Escolha':
+            newField.options = ['Opção 1'];
+            break;
+        case 'Tabela':
+            newField.label = 'Tabela de Pedidos';
+            newField.columns = [{ id: Date.now() + 1, label: 'Coluna' }];
+            newField.rows = [{ id: Date.now() + 2, label: 'Linha' }];
+            newField.tableData = {};
+            break;
+    }
     setFields(prev => [...prev, newField]);
+    setSelectedFieldId(newField.id);
   };
   
-  const updateFieldLabel = (id: number, newLabel: string) => { setFields(prev => prev.map(f => f.id === id ? { ...f, label: newLabel } : f)); };
-  const removeField = (id: number) => { setFields(prev => prev.filter(f => f.id !== id)); };
+  const updateField = (fieldId: number, newValues: Partial<EditorFormField>) => {
+    setFields(prev => prev.map(f => f.id === fieldId ? { ...f, ...newValues } : f));
+  };
+
+  const removeField = (fieldId: number) => {
+    setFields(prev => {
+        const newFields = prev.filter(f => f.id !== fieldId);
+        if (selectedFieldId === fieldId) {
+            setSelectedFieldId(newFields[0]?.id || null);
+        }
+        return newFields;
+    });
+  };
 
   const addOption = (fieldId: number) => { setFields(prev => prev.map(f => (f.id === fieldId && (f.type === 'Caixa de Seleção' || f.type === 'Múltipla Escolha')) ? { ...f, options: [...(f.options || []), `Nova Opção`] } : f)); };
   const updateOption = (fieldId: number, optionIndex: number, newText: string) => { setFields(prev => prev.map(f => { if (f.id === fieldId && f.options) { const newOptions = [...f.options]; newOptions[optionIndex] = newText; return { ...f, options: newOptions }; } return f; })); };
   const removeOption = (fieldId: number, optionIndex: number) => { setFields(prev => prev.map(f => { if (f.id === fieldId && f.options) { const newOptions = [...f.options]; newOptions.splice(optionIndex, 1); return { ...f, options: newOptions }; } return f; })); };
 
+  const addTableRow = (fieldId: number) => {
+    const newRows = [...(selectedField?.rows || []), { id: Date.now(), label: 'Nova Linha' }];
+    updateField(fieldId, { rows: newRows });
+  };
+  const updateTableRow = (fieldId: number, rowId: number, newLabel: string) => {
+    const newRows = selectedField?.rows?.map(r => r.id === rowId ? { ...r, label: newLabel } : r);
+    updateField(fieldId, { rows: newRows });
+  };
+  const removeTableRow = (fieldId: number, rowId: number) => {
+    const newRows = selectedField?.rows?.filter(r => r.id !== rowId);
+    updateField(fieldId, { rows: newRows });
+  };
+
+  const addTableColumn = (fieldId: number) => {
+    const newCols = [...(selectedField?.columns || []), { id: Date.now(), label: 'Nova Coluna' }];
+    updateField(fieldId, { columns: newCols });
+  };
+  const updateTableColumn = (fieldId: number, colId: number, newLabel: string) => {
+    const newCols = selectedField?.columns?.map(c => c.id === colId ? { ...c, label: newLabel } : c);
+    updateField(fieldId, { columns: newCols });
+  };
+  const removeTableColumn = (fieldId: number, colId: number) => {
+    const newCols = selectedField?.columns?.filter(c => c.id !== colId);
+    updateField(fieldId, { columns: newCols });
+  };
+
+  const handleTableCellChange = (fieldId: number, rowId: number, columnId: number, value: any) => {
+    const currentField = fields.find(f => f.id === fieldId);
+    if (!currentField) return;
+
+    const newTableData = {
+        ...currentField.tableData,
+        [rowId]: {
+            ...currentField.tableData?.[rowId],
+            [columnId]: value,
+        }
+    };
+    updateField(fieldId, { tableData: newTableData });
+  };
+
   const handleCollaboratorToggle = (collaboratorId: string) => { setAssignedCollaborators(prev => prev.includes(collaboratorId) ? prev.filter(id => id !== collaboratorId) : [...prev, collaboratorId]); };
 
   const handleSave = async () => {
+    setIsSaving(true);
     const currentUser = auth.currentUser;
-    if (!currentUser) return setError("Utilizador não autenticado.");
-    if (!formTitle.trim() || !companyId || !departmentId) return setError("Título, empresa e departamento são obrigatórios.");
+    if (!currentUser) { setError("Utilizador não autenticado."); setIsSaving(false); return; }
+    if (!formTitle.trim() || !companyId || !departmentId) { setError("Título, empresa e departamento são obrigatórios."); setIsSaving(false); return; }
     setError('');
 
     try {
         const uniqueCollaborators = [...new Set(assignedCollaborators)];
         const formPayload = {
-            title: formTitle,
-            fields,
-            automation, // Salva a configuração de automação
-            companyId,
-            departmentId,
-            ownerId: currentUser.uid,
-            collaborators: uniqueCollaborators,
-            authorizedUsers: [...new Set([currentUser.uid, ...uniqueCollaborators])],
-            createdAt: serverTimestamp()
+            title: formTitle, fields, automation, companyId, departmentId, ownerId: currentUser.uid,
+            collaborators: uniqueCollaborators, authorizedUsers: [...new Set([currentUser.uid, ...uniqueCollaborators])],
         };
 
         if (existingForm?.id) {
-            const formRef = doc(db, "forms", existingForm.id);
-            await updateDoc(formRef, {
-                title: formTitle,
-                fields,
-                automation, // Atualiza a automação
-                collaborators: uniqueCollaborators,
-                authorizedUsers: [...new Set([currentUser.uid, ...uniqueCollaborators])]
-            });
+            await updateDoc(doc(db, "forms", existingForm.id), { ...formPayload, updatedAt: serverTimestamp() });
         } else {
-            await addDoc(collection(db, "forms"), formPayload);
+            await addDoc(collection(db, "forms"), { ...formPayload, createdAt: serverTimestamp() });
         }
-        onClose();
-    } catch (e) { console.error("Erro ao salvar formulário: ", e); setError("Não foi possível salvar o formulário."); }
+        onSaveSuccess();
+    } catch (e) { console.error("Erro ao salvar formulário: ", e); setError("Não foi possível salvar o formulário."); } 
+      finally { setIsSaving(false); }
   };
 
-  if (!isOpen) return null;
-
   return (
-    <div className={styles.overlay}>
-      <div className={styles.panel}>
-        <div className={styles.panelHeader}>
-          <h3 className={styles.panelTitle}>{existingForm ? 'Editar Formulário' : 'Novo Formulário'}</h3>
-          <button onClick={onClose} className={styles.closeButton}><X /></button>
-        </div>
-        
+    <div className={styles.editorPageWrapper}>
+        <header className={styles.editorHeader}>
+            <div className={styles.editorHeaderTitle}>
+                <button onClick={onCancel} className={styles.backButton} title="Voltar"><ArrowLeft size={20} /></button>
+                <h2>{existingForm ? 'Editar Formulário' : 'Criar Novo Formulário'}</h2>
+            </div>
+            <div className={styles.editorHeaderActions}>
+                <button onClick={onCancel} className={styles.editorButtonSecondary} disabled={isSaving}>Cancelar</button>
+                <button onClick={handleSave} className={styles.editorButtonPrimary} disabled={isSaving}>
+                    {isSaving ? 'Salvando...' : <><Save size={16}/> Salvar</>}
+                </button>
+            </div>
+        </header>
+
         <div className={styles.editorGrid}>
-          {/* Coluna da Esquerda (Controlos) */}
-          <div className={styles.controlsColumn}>
-            {/* Secção de Título */}
-            <div>
-              <label htmlFor="form-title" className={styles.label}>Título do Formulário</label>
-              <input type="text" id="form-title" value={formTitle} onChange={(e) => setFormTitle(e.target.value)} className={styles.input}/>
-            </div>
-
-            {/* NOVA SEÇÃO DE AUTOMAÇÃO */}
-            <div className={styles.automationSection}>
-                <h4 className={styles.subTitle}>Automação de Notificação</h4>
-                <div className={styles.automationToggle}>
-                    <button 
-                        className={`${styles.toggleButton} ${automation.type === 'email' ? styles.active : ''}`}
-                        onClick={() => setAutomation({ type: 'email', target: '' })}
-                    >
-                        <Mail size={16} /> E-mail
-                    </button>
-                    <button 
-                        className={`${styles.toggleButton} ${automation.type === 'whatsapp' ? styles.active : ''}`}
-                        onClick={() => setAutomation({ type: 'whatsapp', target: '' })}
-                    >
-                        <MessageCircle size={16} /> WhatsApp
-                    </button>
+            <div className={styles.controlsColumn}>
+                <div>
+                    <label htmlFor="form-title" className={styles.label}>Título do Formulário</label>
+                    <input type="text" id="form-title" value={formTitle} onChange={(e) => setFormTitle(e.target.value)} className={styles.input}/>
                 </div>
-                <input 
-                    type={automation.type === 'email' ? 'email' : 'tel'}
-                    value={automation.target}
-                    onChange={(e) => setAutomation({ ...automation, target: e.target.value })}
-                    placeholder={automation.type === 'email' ? 'Digite o e-mail para notificação' : 'Digite o nº de WhatsApp (ex: 55119...)'}
-                    className={styles.input}
-                />
-            </div>
-            
-            {/* Seção de Adicionar Campos */}
-            <div>
-              <h4 className={styles.subTitle}>Adicionar Campos</h4>
-              <div className={styles.fieldButtons}>
-                <button onClick={() => addField('Texto')} className={styles.button}><Type size={16} /><span>Texto</span></button>
-                <button onClick={() => addField('Anexo')} className={styles.button}><Paperclip size={16} /><span>Anexo</span></button>
-                <button onClick={() => addField('Assinatura')} className={styles.button}><PenSquare size={16} /><span>Assinatura</span></button>
-                <button onClick={() => addField('Caixa de Seleção')} className={styles.button}><CheckSquare size={16} /><span>Seleção</span></button>
-                <button onClick={() => addField('Múltipla Escolha')} className={styles.button}><CircleDot size={16} /><span>Escolha</span></button>
-                <button onClick={() => addField('Data')} className={styles.button}><Calendar size={16} /><span>Data</span></button>
-                <button onClick={() => addField('Cabeçalho')} className={styles.button}><Heading2 size={16} /><span>Cabeçalho</span></button>
-              </div>
-            </div>
-
-            {/* Conteúdo rolável com a lista de campos e colaboradores */}
-            <div className={styles.scrollableContent}>
-                <div className={styles.fieldsList}>
-                    {fields.map(field => (
-                        <div key={field.id} className={styles.fieldEditor}>
-                            <div className={styles.fieldHeader}>
-                                <span className={styles.fieldTypeLabel}>{field.type}</span>
-                                <button onClick={() => removeField(field.id)} className={styles.deleteFieldButton}><Trash2 size={16}/></button>
+                <div className={styles.automationSection}>
+                    <h4 className={styles.subTitle}>Automação de Notificação</h4>
+                    <div className={styles.automationToggle}>
+                        <button className={`${styles.toggleButton} ${automation.type === 'email' ? styles.active : ''}`} onClick={() => setAutomation({ type: 'email', target: '' })}><Mail size={16} /> E-mail</button>
+                        <button className={`${styles.toggleButton} ${automation.type === 'whatsapp' ? styles.active : ''}`} onClick={() => setAutomation({ type: 'whatsapp', target: '' })}><MessageCircle size={16} /> WhatsApp</button>
+                    </div>
+                    <input type={automation.type === 'email' ? 'email' : 'tel'} value={automation.target} onChange={(e) => setAutomation({ ...automation, target: e.target.value })} placeholder={automation.type === 'email' ? 'Digite o e-mail' : 'Digite o nº de WhatsApp'} className={styles.input}/>
+                </div>
+                <div>
+                    <h4 className={styles.subTitle}>Adicionar Campos</h4>
+                    <div className={styles.fieldButtons}>
+                        <button onClick={() => addField('Texto')} className={styles.button}><Type size={16} /><span>Texto</span></button>
+                        <button onClick={() => addField('Anexo')} className={styles.button}><Paperclip size={16} /><span>Anexo</span></button>
+                        <button onClick={() => addField('Assinatura')} className={styles.button}><PenSquare size={16} /><span>Assinatura</span></button>
+                        <button onClick={() => addField('Caixa de Seleção')} className={styles.button}><CheckSquare size={16} /><span>Seleção</span></button>
+                        <button onClick={() => addField('Múltipla Escolha')} className={styles.button}><CircleDot size={16} /><span>Escolha</span></button>
+                        <button onClick={() => addField('Data')} className={styles.button}><Calendar size={16} /><span>Data</span></button>
+                        <button onClick={() => addField('Cabeçalho')} className={styles.button}><Heading2 size={16} /><span>Cabeçalho</span></button>
+                        <button onClick={() => addField('Tabela')} className={styles.button}><Table2 size={16} /><span>Tabela</span></button>
+                    </div>
+                </div>
+                <div className={styles.scrollableContent}>
+                    <div className={styles.fieldsList}>
+                        {fields.map(field => (
+                            <div 
+                                key={field.id} 
+                                className={`${styles.fieldItem} ${selectedFieldId === field.id ? styles.selected : ''}`}
+                                onClick={() => setSelectedFieldId(field.id)}
+                            >
+                                <GripVertical size={18} className={styles.gripIcon} />
+                                <span className={styles.fieldItemLabel}>{field.label}</span>
+                                <button onClick={(e) => { e.stopPropagation(); removeField(field.id); }} className={styles.deleteFieldButton}><Trash2 size={16}/></button>
                             </div>
-                            {field.type !== 'Assinatura' && (<input type="text" value={field.label} placeholder={field.type === 'Cabeçalho' ? 'Texto do Cabeçalho' : 'Digite a sua pergunta'} onChange={(e) => updateFieldLabel(field.id, e.target.value)} className={styles.input}/>)}
-                            {(field.type === 'Caixa de Seleção' || field.type === 'Múltipla Escolha') && (
-                                <div className={styles.optionsEditor}>
-                                    {field.options?.map((option, index) => (<div key={index} className={styles.optionInputGroup}><input type="text" value={option} onChange={(e) => updateOption(field.id, index, e.target.value)} className={styles.optionInput}/><button onClick={() => removeOption(field.id, index)} className={styles.removeOptionButton}><X size={14} /></button></div>))}
-                                    <button onClick={() => addOption(field.id)} className={styles.addOptionButton}><PlusCircle size={16} /> Adicionar Opção</button>
+                        ))}
+                    </div>
+                    
+                    {selectedField && (
+                        <div className={styles.selectedFieldEditor}>
+                            <h3 className={styles.selectedFieldHeader}>Propriedades do Campo</h3>
+                            <div className={styles.propertyGroup}>
+                                <label className={styles.propertyLabel}>Título do Campo</label>
+                                <input type="text" value={selectedField.label} onChange={(e) => updateField(selectedField.id, { label: e.target.value })} className={styles.input}/>
+                            </div>
+
+                            {(selectedField.type === 'Caixa de Seleção' || selectedField.type === 'Múltipla Escolha') && (
+                                <div className={styles.propertyGroup}>
+                                    <label className={styles.propertyLabel}>Opções</label>
+                                    {selectedField.options?.map((option, index) => (
+                                        <div key={index} className={styles.propertyListItem}>
+                                            <input type="text" value={option} onChange={(e) => updateOption(selectedField.id, index, e.target.value)} className={styles.propertyInput}/>
+                                            <button onClick={() => removeOption(selectedField.id, index)} className={styles.propertyDeleteButton}><Trash2 size={14} /></button>
+                                        </div>
+                                    ))}
+                                    <button onClick={() => addOption(selectedField.id)} className={styles.propertyAddButton}><PlusCircle size={16} /> Adicionar Opção</button>
                                 </div>
                             )}
+
+                            {selectedField.type === 'Tabela' && (
+                                <>
+                                    <div className={styles.propertyGroup}>
+                                        <label className={styles.propertyLabel}>Linhas</label>
+                                        {selectedField.rows?.map(row => (
+                                            <div key={row.id} className={styles.propertyListItem}>
+                                                <GripVertical size={18} className={styles.gripIcon} />
+                                                <input type="text" value={row.label} onChange={(e) => updateTableRow(selectedField.id, row.id, e.target.value)} className={styles.propertyInput} />
+                                                <button onClick={() => removeTableRow(selectedField.id, row.id)} className={styles.propertyDeleteButton}><Trash2 size={14} /></button>
+                                            </div>
+                                        ))}
+                                        <button onClick={() => addTableRow(selectedField.id)} className={styles.propertyAddButton}><PlusCircle size={16} /> Adicionar Linha</button>
+                                    </div>
+                                    <div className={styles.propertyGroup}>
+                                        <label className={styles.propertyLabel}>Colunas</label>
+                                        {selectedField.columns?.map(col => (
+                                            <div key={col.id} className={styles.propertyListItem}>
+                                                <GripVertical size={18} className={styles.gripIcon} />
+                                                <input type="text" value={col.label} onChange={(e) => updateTableColumn(selectedField.id, col.id, e.target.value)} className={styles.propertyInput} />
+                                                <button onClick={() => removeTableColumn(selectedField.id, col.id)} className={styles.propertyDeleteButton}><Trash2 size={14} /></button>
+                                            </div>
+                                        ))}
+                                        <button onClick={() => addTableColumn(selectedField.id)} className={styles.propertyAddButton}><PlusCircle size={16} /> Adicionar Coluna</button>
+                                    </div>
+                                </>
+                            )}
                         </div>
-                    ))}
-                </div>
-    
-                <div className={styles.collaboratorSection}>
-                    <h4 className={styles.subTitle}>Atribuir a Colaboradores</h4>
-                    <div className={styles.collaboratorList}>
-                        {collaborators.length > 0 ? collaborators.map(collab => {
-                            const collabIdStr = String(collab.id);
-                            return (
-                                <label key={collabIdStr} className={styles.collaboratorItem}>
+                    )}
+                     <div className={styles.collaboratorSection}>
+                        <h4 className={styles.subTitle}>Atribuir a Colaboradores</h4>
+                        <div className={styles.collaboratorList}>
+                            {collaborators.length > 0 ? collaborators.map(collab => (
+                                <label key={String(collab.id)} className={styles.collaboratorItem}>
                                     <input
                                         type="checkbox"
-                                        checked={assignedCollaborators.includes(collabIdStr)}
-                                        onChange={() => handleCollaboratorToggle(collabIdStr)}
+                                        checked={assignedCollaborators.includes(String(collab.id))}
+                                        onChange={() => handleCollaboratorToggle(String(collab.id))}
                                     />
                                     <span>{collab.username}</span>
                                 </label>
-                            );
-                        }) : <p className={styles.emptyListText}>Nenhum colaborador encontrado.</p>}
+                            )) : <p className={styles.emptyListText}>Nenhum colaborador encontrado.</p>}
+                        </div>
                     </div>
                 </div>
             </div>
-            
-            {error && <p className={styles.errorMessage}>{error}</p>}
-          </div>
 
-          {/* Coluna da Direita (Preview) */}
-          <div className={styles.previewColumn}>
-            <div className={styles.previewFrame}>
-              <h2 className={styles.previewTitle}>{formTitle}</h2>
-              <div className={styles.previewFieldsContainer}>
-                {fields.map((field) => (
-                  <div key={field.id} className={styles.previewFieldWrapper}>
-                    {field.type === 'Cabeçalho' ? <h3 className={styles.previewSectionHeader}>{field.label}</h3> :
-                     field.type !== 'Assinatura' ? <label className={styles.previewLabel}>{field.label}</label> : null}
-                    {field.type === 'Texto' && <div className={styles.previewInput}></div>}
-                    {field.type === 'Anexo' && <div className={styles.previewAttachment}><Paperclip size={24}/></div>}
-                    {field.type === 'Assinatura' && <div className={styles.previewSignature}><span>Assine Aqui</span></div>}
-                    {field.type === 'Data' && <input type="date" className={styles.previewDateInput} />}
-                    {field.type === 'Caixa de Seleção' && field.options?.map((opt, i) => (<div key={i} className={styles.previewOptionItem}><div className={styles.previewCheckbox}></div><span>{opt}</span></div>))}
-                    {field.type === 'Múltipla Escolha' && field.options?.map((opt, i) => (<div key={i} className={styles.previewOptionItem}><div className={styles.previewRadio}></div><span>{opt}</span></div>))}
-                  </div>
-                ))}
-              </div>
-              <button className={styles.previewButton} type="button">Submeter</button>
+            <div className={styles.previewColumn}>
+                <div className={styles.previewFrame}>
+                    <h2 className={styles.previewTitle}>{formTitle}</h2>
+                    <div className={styles.previewFieldsContainer}>
+                        {fields.map((field) => (
+                            <div key={field.id} className={styles.previewFieldWrapper}>
+                                <label className={styles.previewLabel}>{field.label}</label>
+                                {field.type === 'Texto' && <input type="text" className={styles.previewInput} readOnly />}
+                                {field.type === 'Anexo' && <div className={styles.previewAttachment}><Paperclip size={24}/></div>}
+                                {field.type === 'Assinatura' && <div className={styles.previewSignature}><span>Assine Aqui</span></div>}
+                                {field.type === 'Data' && <input type="date" className={styles.previewDateInput} readOnly />}
+                                {field.type === 'Caixa de Seleção' && field.options?.map((opt, i) => (<div key={i} className={styles.previewOptionItem}><input type="checkbox" disabled /><span>{opt}</span></div>))}
+                                {field.type === 'Múltipla Escolha' && field.options?.map((opt, i) => (<div key={i} className={styles.previewOptionItem}><input type="radio" disabled name={`preview-${field.id}`} /><span>{opt}</span></div>))}
+                                
+                                {field.type === 'Tabela' && (
+                                    <div className={styles.tablePreviewWrapper}>
+                                        <table className={styles.tablePreview}>
+                                            <thead>
+                                                <tr>
+                                                    <th className={styles.tablePreviewTh}></th>
+                                                    {field.columns?.map(col => <th key={col.id} className={styles.tablePreviewTh}>{col.label}</th>)}
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {field.rows?.map((row) => (
+                                                    <tr key={row.id}>
+                                                        <td className={styles.tablePreviewFirstCol}>{row.label}</td>
+                                                        {field.columns?.map(col => (
+                                                            <td key={col.id} className={styles.tablePreviewTd}>
+                                                                <input type="text" className={styles.previewInputSmall} value={field.tableData?.[row.id]?.[col.id] || ''} onChange={(e) => handleTableCellChange(field.id, row.id, col.id, e.target.value)} />
+                                                            </td>
+                                                        ))}
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                )}
+                            </div>
+                        ))}
+                    </div>
+                    <button className={styles.previewButton} type="button">Submeter</button>
+                </div>
             </div>
-          </div>
         </div>
-        
-        <div className={styles.panelFooter}>
-            <button onClick={onClose} className={`${styles.formButton} ${styles.formButtonSecondary}`}>Cancelar</button>
-            <button onClick={handleSave} className={`${styles.formButton} ${styles.formButtonPrimary}`}>Salvar Formulário</button>
-        </div>
-      </div>
+         {error && <p className={styles.errorMessage}>{error}</p>}
     </div>
   );
 }

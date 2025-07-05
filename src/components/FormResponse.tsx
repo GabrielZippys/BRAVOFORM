@@ -3,9 +3,15 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { db } from '../../firebase/config';
 import { doc, addDoc, updateDoc, collection, serverTimestamp } from 'firebase/firestore';
-import { type Form, type Collaborator, type FormResponse as FormResponseType, type FormField } from '@/types';
+import { type Form, type Collaborator, type FormResponse, type FormField } from '@/types';
 import styles from '../../app/styles/FormResponse.module.css';
 import { X, Send, Eraser, UploadCloud } from 'lucide-react';
+
+// Estendemos o tipo FormField para incluir as propriedades da tabela
+type EditorFormField = FormField & {
+  columns?: { id: number; label: string }[];
+  rows?: { id: number; label: string }[];
+};
 
 interface FormResponseProps {
   form: Form | null;
@@ -18,7 +24,7 @@ interface FormResponseProps {
     canEditHistory?: boolean;
   };
   onClose: () => void;
-  existingResponse?: FormResponseType | null;
+  existingResponse?: FormResponse | null;
   canEdit?: boolean;
 }
 
@@ -33,34 +39,33 @@ export default function FormResponse({ form, collaborator, onClose, existingResp
 
   const signaturePads = useRef<Record<string, HTMLCanvasElement | null>>({});
 
-  // CORREÇÃO: Usando useEffect para popular o estado inicial de forma mais robusta.
-  // Este efeito é executado sempre que um novo 'existingResponse' é passado para o componente.
   useEffect(() => {
-    if (existingResponse?.responses && form.fields) {
+    if (existingResponse?.answers && form.fields) {
       const initialState: Record<string, any> = {};
-      form.fields.forEach((field: FormField) => {
-        if (Object.prototype.hasOwnProperty.call(existingResponse.responses, field.label)) {
-          initialState[String(field.id)] = existingResponse.responses[field.label];
+      form.fields.forEach((field: EditorFormField) => {
+        // A chave para buscar a resposta é o 'label' do campo
+        if (
+          typeof existingResponse.answers === 'object' &&
+          existingResponse.answers !== null &&
+          Object.prototype.hasOwnProperty.call(existingResponse.answers, field.label)
+        ) {
+          // A chave para guardar no estado é o 'id' do campo, para consistência
+          initialState[String(field.id)] = (existingResponse.answers as Record<string, any>)[field.label];
         }
       });
       setResponses(initialState);
     } else {
-      setResponses({}); // Limpa as respostas se for um formulário novo
+      setResponses({});
     }
   }, [existingResponse, form.fields]);
 
 
-  // Efeito para desenhar a assinatura existente no canvas
   useEffect(() => {
     Object.entries(signaturePads.current).forEach(([fieldId, canvas]) => {
       if (canvas) {
         const ctx = canvas.getContext('2d');
         if (!ctx) return;
-
-        // Limpa o canvas antes de desenhar
         ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-        // Se houver uma assinatura no estado, desenha-a
         if (responses[fieldId] && typeof responses[fieldId] === 'string' && responses[fieldId].startsWith('data:image')) {
             const img = new Image();
             img.src = responses[fieldId];
@@ -69,7 +74,6 @@ export default function FormResponse({ form, collaborator, onClose, existingResp
             };
         }
         
-        // A lógica de desenho manual permanece a mesma...
         ctx.strokeStyle = '#333';
         ctx.lineWidth = 2;
         ctx.lineCap = 'round';
@@ -124,11 +128,24 @@ export default function FormResponse({ form, collaborator, onClose, existingResp
         canvas.addEventListener('touchend', stopDrawing);
       }
     });
-  // A dependência agora inclui 'responses' para garantir que a assinatura seja desenhada quando o estado for atualizado.
   }, [form.fields, responses]);
 
   const handleInputChange = (fieldId: string, value: any) => {
     setResponses(prev => ({ ...prev, [fieldId]: value }));
+  };
+  
+  // NOVA FUNÇÃO para gerir a mudança de valores nas células da tabela
+  const handleTableInputChange = (fieldId: string, rowId: string, columnId: string, value: string) => {
+    setResponses(prev => ({
+        ...prev,
+        [fieldId]: {
+            ...prev[fieldId],
+            [rowId]: {
+                ...prev[fieldId]?.[rowId],
+                [columnId]: value,
+            }
+        }
+    }));
   };
 
   const handleFileChange = (fieldId: string, file: File | null) => {
@@ -202,7 +219,7 @@ export default function FormResponse({ form, collaborator, onClose, existingResp
         </div>
 
         <div className={styles.panelBody}>
-          {form.fields.map(field => (
+          {(form.fields as EditorFormField[]).map(field => (
             <div key={field.id} className={styles.fieldWrapper}>
               <label className={styles.label}>{field.label}</label>
 
@@ -256,7 +273,7 @@ export default function FormResponse({ form, collaborator, onClose, existingResp
                 </label>
               ))}
 
-               {field.type === 'Anexo' && (
+              {field.type === 'Anexo' && (
                 <div className={styles.fileInputWrapper}>
                   <input
                     type="file"
@@ -292,6 +309,38 @@ export default function FormResponse({ form, collaborator, onClose, existingResp
                   </button>
                 </div>
               )}
+
+              {/* --- LÓGICA DE RENDERIZAÇÃO DA TABELA --- */}
+              {field.type === 'Tabela' && (
+                <div className={styles.tableResponseWrapper}>
+                    <table className={styles.tableResponse}>
+                        <thead>
+                            <tr>
+                                <th className={styles.tableResponseTh}></th>
+                                {field.columns?.map(col => <th key={col.id} className={styles.tableResponseTh}>{col.label}</th>)}
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {field.rows?.map(row => (
+                                <tr key={row.id}>
+                                    <td className={styles.tableResponseFirstCol}>{row.label}</td>
+                                    {field.columns?.map(col => (
+                                        <td key={col.id} className={styles.tableResponseTd}>
+                                            <input 
+                                                type="text" 
+                                                className={styles.tableResponseInput}
+                                                value={responses[String(field.id)]?.[String(row.id)]?.[String(col.id)] || ''}
+                                                onChange={(e) => handleTableInputChange(String(field.id), String(row.id), String(col.id), e.target.value)}
+                                                disabled={!canEdit && !!existingResponse}
+                                            />
+                                        </td>
+                                    ))}
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+              )}
             </div>
           ))}
         </div>
@@ -300,8 +349,8 @@ export default function FormResponse({ form, collaborator, onClose, existingResp
           {error && <p className={styles.errorText}>{error}</p>}
           {canEdit || !existingResponse ? (
             <button onClick={handleSubmit} className={styles.submitButton} disabled={isSubmitting}>
-                <Send size={18} />
-                <span>{isSubmitting ? 'A Enviar...' : (existingResponse ? 'Atualizar Resposta' : 'Submeter Resposta')}</span>
+              <Send size={18} />
+              <span>{isSubmitting ? 'A Enviar...' : (existingResponse ? 'Atualizar Resposta' : 'Submeter Resposta')}</span>
             </button>
           ) : null}
         </div>
