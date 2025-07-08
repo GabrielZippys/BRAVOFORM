@@ -53,7 +53,16 @@ export default function FormEditor({ companyId, departmentId, existingForm, onSa
   useEffect(() => {
     if (existingForm) {
       setFormTitle(existingForm.title);
-      const initialFields = (existingForm.fields as EditorFormField[] || []);
+      const initialFields = (existingForm.fields as EditorFormField[] || []).map(field => {
+          if (field.type === 'Tabela' && field.rows) {
+              const rowsWithIds = field.rows.map((row, index) => ({
+                  ...row,
+                  id: row.id || Date.now() + index
+              }));
+              return { ...field, rows: rowsWithIds };
+          }
+          return field;
+      });
       setFields(initialFields);
       setAutomation(existingForm.automation || { type: 'email', target: '' });
       setAssignedCollaborators(existingForm.collaborators || []); 
