@@ -199,13 +199,16 @@ export default function FormResponse({ form, collaborator, onClose, existingResp
         return;
     }
 
-    const formattedAnswers: Record<string, any> = {};
-    form.fields.forEach(field => {
-        const fieldIdStr = String(field.id);
-        if (Object.prototype.hasOwnProperty.call(responses, fieldIdStr)) {
-            formattedAnswers[field.label] = responses[fieldIdStr];
-        }
-    });
+   // DENTRO DE handleSubmit
+
+const formattedAnswers: Record<string, any> = {};
+form.fields.forEach(field => {
+    const fieldIdStr = String(field.id);
+    if (Object.prototype.hasOwnProperty.call(responses, fieldIdStr)) {
+        // A ÚNICA MUDANÇA É AQUI:
+        formattedAnswers[fieldIdStr] = responses[fieldIdStr]; 
+    }
+});
 
     try {
       if (existingResponse?.id) {
