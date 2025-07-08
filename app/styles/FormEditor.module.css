@@ -2,7 +2,7 @@
 ================================================================================
 |
 |   ARQUIVO: app/styles/FormEditor.module.css
-|   TEMA: Bravo TI - Layout Profissional do Editor de Formulários (Tema Escuro)
+|   TEMA: Bravo TI - Layout Profissional do Editor (Tema Escuro)
 |
 ================================================================================
 */
@@ -311,7 +311,7 @@
 
 /* --- COLUNA DE PREVIEW (DIREITA) --- */
 .previewColumn {
-  background-color: #e2e8f0;
+  background-color: #f3f4f6;
   padding: 1.5rem;
   overflow-y: auto;
 }
@@ -319,7 +319,6 @@
 .previewFrame {
   padding: 2rem;
   height: 100%;
-  border: 1px solid #dee2e6;
   border-radius: var(--border-radius);
   background-color: #fff;
   display: flex;
