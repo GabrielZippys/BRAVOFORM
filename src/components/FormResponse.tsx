@@ -3,14 +3,15 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { db } from '../../firebase/config';
 import { doc, addDoc, updateDoc, collection, serverTimestamp } from 'firebase/firestore';
-import { type Form, type Collaborator, type FormResponse, type FormField } from '@/types';
+import { type Form, type Collaborator, type FormResponse as FormResponseType, type FormField } from '@/types';
 import styles from '../../app/styles/FormResponse.module.css';
-import { X, Send, Eraser, UploadCloud } from 'lucide-react';
+import { X, Send, Eraser, UploadCloud, FileText } from 'lucide-react';
 
 // Estendemos o tipo FormField para incluir as propriedades da tabela
 type EditorFormField = FormField & {
-  columns?: { id: number; label: string }[];
+  columns?: { id: number; label: string; type: string; options?: string[] }[];
   rows?: { id: number; label: string }[];
+  options?: string[];
 };
 
 interface FormResponseProps {
@@ -24,7 +25,7 @@ interface FormResponseProps {
     canEditHistory?: boolean;
   };
   onClose: () => void;
-  existingResponse?: FormResponse | null;
+  existingResponse?: FormResponseType | null;
   canEdit?: boolean;
 }
 
@@ -43,13 +44,11 @@ export default function FormResponse({ form, collaborator, onClose, existingResp
     if (existingResponse?.answers && form.fields) {
       const initialState: Record<string, any> = {};
       form.fields.forEach((field: EditorFormField) => {
-        // A chave para buscar a resposta é o 'label' do campo
         if (
           typeof existingResponse.answers === 'object' &&
           existingResponse.answers !== null &&
           Object.prototype.hasOwnProperty.call(existingResponse.answers, field.label)
         ) {
-          // A chave para guardar no estado é o 'id' do campo, para consistência
           initialState[String(field.id)] = (existingResponse.answers as Record<string, any>)[field.label];
         }
       });
@@ -61,22 +60,13 @@ export default function FormResponse({ form, collaborator, onClose, existingResp
 
 
   useEffect(() => {
-    Object.entries(signaturePads.current).forEach(([fieldId, canvas]) => {
+    const allPads = Object.entries(signaturePads.current);
+
+    allPads.forEach(([fieldId, canvas]) => {
       if (canvas) {
         const ctx = canvas.getContext('2d');
         if (!ctx) return;
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        if (responses[fieldId] && typeof responses[fieldId] === 'string' && responses[fieldId].startsWith('data:image')) {
-            const img = new Image();
-            img.src = responses[fieldId];
-            img.onload = () => {
-                ctx.drawImage(img, 0, 0);
-            };
-        }
         
-        ctx.strokeStyle = '#333';
-        ctx.lineWidth = 2;
-        ctx.lineCap = 'round';
         let isDrawing = false;
         let lastX = 0;
         let lastY = 0;
@@ -94,64 +84,100 @@ export default function FormResponse({ form, collaborator, onClose, existingResp
         const startDrawing = (e: MouseEvent | TouchEvent) => {
           e.preventDefault();
           const coords = getCoords(e);
-          if (!coords) return;
-          isDrawing = true;
-          [lastX, lastY] = [coords.x, coords.y];
+          if (coords) {
+            isDrawing = true;
+            [lastX, lastY] = [coords.x, coords.y];
+          }
         };
 
         const draw = (e: MouseEvent | TouchEvent) => {
           e.preventDefault();
           if (!isDrawing) return;
           const coords = getCoords(e);
-          if (!coords) return;
-          ctx.beginPath();
-          ctx.moveTo(lastX, lastY);
-          ctx.lineTo(coords.x, coords.y);
-          ctx.stroke();
-          [lastX, lastY] = [coords.x, coords.y];
+          if (coords) {
+            ctx.beginPath();
+            ctx.moveTo(lastX, lastY);
+            ctx.lineTo(coords.x, coords.y);
+            ctx.stroke();
+            [lastX, lastY] = [coords.x, coords.y];
+          }
         };
 
         const stopDrawing = () => {
-          if (!isDrawing) return;
-          isDrawing = false;
-          if (canvas.dataset.fieldId) {
-            handleInputChange(canvas.dataset.fieldId, canvas.toDataURL('image/png'));
+          if (isDrawing) {
+            isDrawing = false;
+            if (canvas.dataset.fieldId) {
+              handleInputChange(canvas.dataset.fieldId, canvas.toDataURL('image/png'));
+            }
           }
         };
+
+        ctx.strokeStyle = '#333';
+        ctx.lineWidth = 2;
+        ctx.lineCap = 'round';
 
         canvas.addEventListener('mousedown', startDrawing);
         canvas.addEventListener('mousemove', draw);
         canvas.addEventListener('mouseup', stopDrawing);
         canvas.addEventListener('mouseout', stopDrawing);
-        canvas.addEventListener('touchstart', startDrawing);
-        canvas.addEventListener('touchmove', draw);
+        canvas.addEventListener('touchstart', startDrawing, { passive: false });
+        canvas.addEventListener('touchmove', draw, { passive: false });
         canvas.addEventListener('touchend', stopDrawing);
+
+        // Função de limpeza
+        return () => {
+          canvas.removeEventListener('mousedown', startDrawing);
+          canvas.removeEventListener('mousemove', draw);
+          canvas.removeEventListener('mouseup', stopDrawing);
+          canvas.removeEventListener('mouseout', stopDrawing);
+          canvas.removeEventListener('touchstart', startDrawing);
+          canvas.removeEventListener('touchmove', draw);
+          canvas.removeEventListener('touchend', stopDrawing);
+        };
       }
     });
-  }, [form.fields, responses]);
+  }, [form.fields]);
+
+  useEffect(() => {
+    Object.entries(signaturePads.current).forEach(([fieldId, canvas]) => {
+        if (canvas) {
+            const ctx = canvas.getContext('2d');
+            if (!ctx) return;
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            if (responses[fieldId] && typeof responses[fieldId] === 'string' && responses[fieldId].startsWith('data:image')) {
+                const img = new Image();
+                img.src = responses[fieldId];
+                img.onload = () => ctx.drawImage(img, 0, 0);
+            }
+        }
+    });
+  }, [responses]);
 
   const handleInputChange = (fieldId: string, value: any) => {
     setResponses(prev => ({ ...prev, [fieldId]: value }));
   };
   
-  // NOVA FUNÇÃO para gerir a mudança de valores nas células da tabela
-  const handleTableInputChange = (fieldId: string, rowId: string, columnId: string, value: string) => {
+  const handleTableInputChange = (fieldId: string, rowId: string, columnId: string, value: any) => {
     setResponses(prev => ({
         ...prev,
-        [fieldId]: {
-            ...prev[fieldId],
-            [rowId]: {
-                ...prev[fieldId]?.[rowId],
-                [columnId]: value,
-            }
-        }
+        [fieldId]: { ...prev[fieldId], [rowId]: { ...prev[fieldId]?.[rowId], [columnId]: value } }
     }));
   };
 
-  const handleFileChange = (fieldId: string, file: File | null) => {
-    if (file) {
-      handleInputChange(fieldId, { name: file.name, type: file.type, size: file.size });
+  const handleFileChange = (fieldId: string, files: FileList | null) => {
+    if (files && files.length > 0) {
+      const newFiles = Array.from(files).map(file => ({
+        name: file.name, type: file.type, size: file.size,
+      }));
+      const existingFiles = responses[fieldId] || [];
+      handleInputChange(fieldId, [...existingFiles, ...newFiles]);
     }
+  };
+
+  const removeFile = (fieldId: string, fileIndex: number) => {
+    const currentFiles = responses[fieldId] || [];
+    const updatedFiles = currentFiles.filter((_: any, index: number) => index !== fileIndex);
+    handleInputChange(fieldId, updatedFiles);
   };
 
   const clearSignature = (fieldId: string) => {
@@ -184,10 +210,7 @@ export default function FormResponse({ form, collaborator, onClose, existingResp
     try {
       if (existingResponse?.id) {
         const responseRef = doc(db, 'forms', form.id, 'responses', existingResponse.id);
-        await updateDoc(responseRef, {
-            answers: formattedAnswers,
-            updatedAt: serverTimestamp(),
-        });
+        await updateDoc(responseRef, { answers: formattedAnswers, updatedAt: serverTimestamp() });
       } else {
         const responseCollectionRef = collection(db, 'forms', form.id, 'responses');
         await addDoc(responseCollectionRef, {
@@ -201,12 +224,36 @@ export default function FormResponse({ form, collaborator, onClose, existingResp
           createdAt: serverTimestamp(),
         });
       }
-
       onClose();
     } catch (err) {
       console.error("Erro ao submeter resposta: ", err);
       setError("Não foi possível enviar a sua resposta. Tente novamente.");
       setIsSubmitting(false);
+    }
+  };
+
+  const renderTableCell = (field: EditorFormField, row: { id: number; label: string }, col: { id: number; label: string; type: string; options?: string[] }) => {
+    const value = responses[String(field.id)]?.[String(row.id)]?.[String(col.id)] || '';
+    const isDisabled = !canEdit && !!existingResponse;
+
+    switch (col.type) {
+      case 'Data':
+        return <input type="date" className={styles.tableResponseInput} value={value} onChange={(e) => handleTableInputChange(String(field.id), String(row.id), String(col.id), e.target.value)} disabled={isDisabled} />;
+      
+      case 'Caixa de Seleção':
+        return <input type="checkbox" className={styles.tableResponseCheckbox} checked={!!value} onChange={(e) => handleTableInputChange(String(field.id), String(row.id), String(col.id), e.target.checked)} disabled={isDisabled} />;
+
+      case 'Múltipla Escolha':
+        return (
+          <select className={styles.tableResponseSelect} value={value} onChange={(e) => handleTableInputChange(String(field.id), String(row.id), String(col.id), e.target.value)} disabled={isDisabled}>
+            <option value="">Selecione</option>
+            {col.options?.map(opt => <option key={opt} value={opt}>{opt}</option>)}
+          </select>
+        );
+
+      case 'Texto':
+      default:
+        return <input type="text" className={styles.tableResponseInput} value={value} onChange={(e) => handleTableInputChange(String(field.id), String(row.id), String(col.id), e.target.value)} disabled={isDisabled} />;
     }
   };
 
@@ -223,25 +270,9 @@ export default function FormResponse({ form, collaborator, onClose, existingResp
             <div key={field.id} className={styles.fieldWrapper}>
               <label className={styles.label}>{field.label}</label>
 
-              {field.type === 'Texto' && (
-                <textarea 
-                    className={styles.textarea} 
-                    value={responses[String(field.id)] || ''}
-                    onChange={(e) => handleInputChange(String(field.id), e.target.value)} 
-                    disabled={!canEdit && !!existingResponse}
-                />
-              )}
-
-              {field.type === 'Data' && (
-                <input 
-                    type="date" 
-                    className={styles.input} 
-                    value={responses[String(field.id)] || ''}
-                    onChange={(e) => handleInputChange(String(field.id), e.target.value)} 
-                    disabled={!canEdit && !!existingResponse}
-                />
-              )}
-
+              {field.type === 'Texto' && ( <textarea className={styles.textarea} value={responses[String(field.id)] || ''} onChange={(e) => handleInputChange(String(field.id), e.target.value)} disabled={!canEdit && !!existingResponse} /> )}
+              {field.type === 'Data' && ( <input type="datetime-local" className={styles.input} value={responses[String(field.id)] || ''} onChange={(e) => handleInputChange(String(field.id), e.target.value)} disabled={!canEdit && !!existingResponse} /> )}
+              
               {field.type === 'Caixa de Seleção' && field.options?.map(option => (
                 <label key={option} className={styles.checkboxLabel}>
                   <input 
@@ -274,19 +305,32 @@ export default function FormResponse({ form, collaborator, onClose, existingResp
               ))}
 
               {field.type === 'Anexo' && (
-                <div className={styles.fileInputWrapper}>
-                  <input
-                    type="file"
-                    id={`file_${field.id}`}
-                    className={styles.fileInput}
-                    onChange={(e) => handleFileChange(String(field.id), e.target.files ? e.target.files[0] : null)}
-                    disabled={!canEdit && !!existingResponse}
-                  />
-                  <label htmlFor={`file_${field.id}`} className={`${styles.fileInputButton} ${(!canEdit && !!existingResponse) ? styles.disabledButton : ''}`}>
-                    <UploadCloud size={18} /><span>Escolher Ficheiro</span>
-                  </label>
-                  {responses[String(field.id)] && (
-                    <span className={styles.fileName}>{responses[String(field.id)].name}</span>
+                <div>
+                  <div className={styles.fileInputWrapper}>
+                    <input
+                      type="file"
+                      id={`file_${field.id}`}
+                      className={styles.fileInput}
+                      onChange={(e) => handleFileChange(String(field.id), e.target.files)}
+                      disabled={!canEdit && !!existingResponse}
+                      multiple 
+                    />
+                    <label htmlFor={`file_${field.id}`} className={`${styles.fileInputButton} ${(!canEdit && !!existingResponse) ? styles.disabledButton : ''}`}>
+                      <UploadCloud size={18} /><span>Escolher Ficheiros</span>
+                    </label>
+                  </div>
+                  {Array.isArray(responses[String(field.id)]) && (
+                    <div className={styles.fileList}>
+                      {responses[String(field.id)].map((file: any, index: number) => (
+                        <div key={index} className={styles.fileListItem}>
+                          <FileText size={16} />
+                          <span className={styles.fileName}>{file.name}</span>
+                          <button onClick={() => removeFile(String(field.id), index)} className={styles.removeFileButton} title="Remover ficheiro">
+                            <X size={14} />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
                   )}
                 </div>
               )}
@@ -310,7 +354,6 @@ export default function FormResponse({ form, collaborator, onClose, existingResp
                 </div>
               )}
 
-              {/* --- LÓGICA DE RENDERIZAÇÃO DA TABELA --- */}
               {field.type === 'Tabela' && (
                 <div className={styles.tableResponseWrapper}>
                     <table className={styles.tableResponse}>
@@ -326,13 +369,7 @@ export default function FormResponse({ form, collaborator, onClose, existingResp
                                     <td className={styles.tableResponseFirstCol}>{row.label}</td>
                                     {field.columns?.map(col => (
                                         <td key={col.id} className={styles.tableResponseTd}>
-                                            <input 
-                                                type="text" 
-                                                className={styles.tableResponseInput}
-                                                value={responses[String(field.id)]?.[String(row.id)]?.[String(col.id)] || ''}
-                                                onChange={(e) => handleTableInputChange(String(field.id), String(row.id), String(col.id), e.target.value)}
-                                                disabled={!canEdit && !!existingResponse}
-                                            />
+                                            {renderTableCell(field, row, col)}
                                         </td>
                                     ))}
                                 </tr>
