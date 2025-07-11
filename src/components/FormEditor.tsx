@@ -1,32 +1,34 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { ArrowLeft, Save, Type, Paperclip, PenSquare, Trash2, CheckSquare, CircleDot, Calendar, Heading2, PlusCircle, Mail, MessageCircle, Table2, GripVertical } from 'lucide-react';
+// --- ADIÇÃO: Ícones extras e importações do Dnd-kit ---
+import { ArrowLeft, Save, Type, Paperclip, PenSquare, Trash2, CheckSquare, CircleDot, Calendar, Heading2, PlusCircle, Mail, MessageCircle, Table2, GripVertical, Edit, Eye } from 'lucide-react';
+import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent } from '@dnd-kit/core';
+import { arrayMove, SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
+
 import { type Form, type FormField as ImportedFormField, type Collaborator } from '@/types';
 import styles from '../../app/styles/FormEditor.module.css';
 import { db, auth } from '../../firebase/config';
 import { collection, addDoc, doc, updateDoc, onSnapshot, query, serverTimestamp } from 'firebase/firestore';
 
-// --- TIPOS LOCAIS COMPLETOS ---
+// --- TIPOS LOCAIS (sem alterações) ---
 type Column = {
   id: number;
   label: string;
   type: 'Texto' | 'Data' | 'Caixa de Seleção' | 'Múltipla Escolha';
   options?: string[];
 };
-
 type Row = {
   id: number;
   label: string;
 };
-
 type EditorFormField = Omit<ImportedFormField, 'type' | 'columns' | 'rows'> & {
   type: ImportedFormField['type'] | 'Tabela';
   columns?: Column[];
   rows?: Row[]; 
   tableData?: Record<string, Record<string, any>>; 
 };
-
 interface FormEditorProps {
   companyId: string | null;
   departmentId: string | null;
@@ -34,22 +36,78 @@ interface FormEditorProps {
   onSaveSuccess: () => void;
   onCancel: () => void;
 }
-
 const allowedColumnTypes: Column['type'][] = ['Texto', 'Data', 'Múltipla Escolha', 'Caixa de Seleção'];
 
+
+// --- NOVO COMPONENTE AUXILIAR PARA O ITEM ARRASTÁVEL ---
+const SortableFieldItem = ({ field, selectedFieldId, setSelectedFieldId, removeField }: { field: EditorFormField, selectedFieldId: number | null, setSelectedFieldId: (id: number) => void, removeField: (id: number) => void }) => {
+    const {
+        attributes,
+        listeners,
+        setNodeRef,
+        transform,
+        transition,
+    } = useSortable({id: field.id});
+
+    const style = {
+        transform: CSS.Transform.toString(transform),
+        transition,
+    };
+
+    // Este JSX é o mesmo do seu .fieldItem original, mas com as propriedades do dnd-kit
+    return (
+        <div 
+            ref={setNodeRef} 
+            style={style}
+            className={`${styles.fieldItem} ${selectedFieldId === field.id ? styles.selected : ''}`}
+            onClick={() => setSelectedFieldId(field.id)}
+        >
+            <span {...attributes} {...listeners} className={styles.gripIconWrapper} title="Arrastar para reordenar">
+              <GripVertical size={18} className={styles.gripIcon} />
+            </span>
+            <span className={styles.fieldItemLabel}>{field.label}</span>
+            <button onClick={(e) => { e.stopPropagation(); removeField(field.id); }} className={styles.deleteFieldButton}><Trash2 size={16}/></button>
+        </div>
+    );
+};
+
+
+// --- COMPONENTE PRINCIPAL ---
 export default function FormEditor({ companyId, departmentId, existingForm, onSaveSuccess, onCancel }: FormEditorProps) {
+  // Seus estados originais (sem alterações)
   const [formTitle, setFormTitle] = useState("");
   const [fields, setFields] = useState<EditorFormField[]>([]);
   const [selectedFieldId, setSelectedFieldId] = useState<number | null>(null);
   const [automation, setAutomation] = useState({ type: 'email', target: '' });
   const [error, setError] = useState('');
   const [isSaving, setIsSaving] = useState(false);
-  
   const [collaborators, setCollaborators] = useState<Collaborator[]>([]);
   const [assignedCollaborators, setAssignedCollaborators] = useState<string[]>([]);
 
+  // --- ADIÇÃO: Estado para controlar a visão mobile ---
+  const [mobileView, setMobileView] = useState<'editor' | 'preview'>('editor');
+
   const selectedField = fields.find(f => f.id === selectedFieldId);
 
+  // --- ADIÇÃO: Lógica do Drag and Drop ---
+  const sensors = useSensors(
+      useSensor(PointerSensor),
+      useSensor(KeyboardSensor, {
+          coordinateGetter: sortableKeyboardCoordinates,
+      })
+  );
+  function handleDragEnd(event: DragEndEvent) {
+      const {active, over} = event;
+      if (over && active.id !== over.id) {
+          setFields((items) => {
+              const oldIndex = items.findIndex(item => item.id === active.id);
+              const newIndex = items.findIndex(item => item.id === over.id);
+              return arrayMove(items, oldIndex, newIndex);
+          });
+      }
+  }
+  
+  // Seus hooks e funções originais (sem alterações)
   useEffect(() => {
     if (existingForm) {
       setFormTitle(existingForm.title);
@@ -285,22 +343,27 @@ export default function FormEditor({ companyId, departmentId, existingForm, onSa
   };
 
   return (
-    <div className={styles.editorPageWrapper}>
-        <header className={styles.editorHeader}>
-            <div className={styles.editorHeaderTitle}>
-                <button onClick={onCancel} className={styles.backButton} title="Voltar"><ArrowLeft size={20} /></button>
+    <div className={`${styles.editorPageWrapper} ${mobileView === 'preview' ? styles.showPreviewOnly : ''}`}>
+        
+        <header className={styles.mainHeader}>
+            <div className={styles.headerTitle}>
+                <button onClick={onCancel} className={styles.backButton} title="Voltar"><ArrowLeft size={27} /></button>
                 <h2>{existingForm ? 'Editar Formulário' : 'Criar Novo Formulário'}</h2>
             </div>
-            <div className={styles.editorHeaderActions}>
-                <button onClick={onCancel} className={styles.editorButtonSecondary} disabled={isSaving}>Cancelar</button>
-                <button onClick={handleSave} className={styles.editorButtonPrimary} disabled={isSaving}>
-                    {isSaving ? 'Salvando...' : <><Save size={16}/> Salvar</>}
-                </button>
-            </div>
         </header>
+        
+        <div className={styles.mobileViewToggle}>
+            <button className={`${styles.toggleButton} ${mobileView === 'editor' ? styles.active : ''}`} onClick={() => setMobileView('editor')}>
+                <Edit size={16} /> Editar Campos
+            </button>
+            <button className={`${styles.toggleButton} ${mobileView === 'preview' ? styles.active : ''}`} onClick={() => setMobileView('preview')}>
+                <Eye size={16} /> Visualizar
+            </button>
+        </div>
 
         <div className={styles.editorGrid}>
-            <div className={styles.controlsColumn}>
+            <div className={`${styles.controlsColumn} ${mobileView === 'editor' ? styles.mobileVisible : styles.mobileHidden}`}>
+                {/* O conteúdo original da sua coluna de controle está aqui */}
                 <div>
                     <label htmlFor="form-title" className={styles.label}>Título do Formulário</label>
                     <input type="text" id="form-title" value={formTitle} onChange={(e) => setFormTitle(e.target.value)} className={styles.input}/>
@@ -327,23 +390,25 @@ export default function FormEditor({ companyId, departmentId, existingForm, onSa
                     </div>
                 </div>
                 <div className={styles.scrollableContent}>
-                    <div className={styles.fieldsList}>
-                        {fields.map(field => (
-                            <div 
-                                key={field.id} 
-                                className={`${styles.fieldItem} ${selectedFieldId === field.id ? styles.selected : ''}`}
-                                onClick={() => setSelectedFieldId(field.id)}
-                            >
-                                <GripVertical size={18} className={styles.gripIcon} />
-                                <span className={styles.fieldItemLabel}>{field.label}</span>
-                                <button onClick={(e) => { e.stopPropagation(); removeField(field.id); }} className={styles.deleteFieldButton}><Trash2 size={16}/></button>
+                    <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+                        <SortableContext items={fields} strategy={verticalListSortingStrategy}>
+                            <div className={styles.fieldsList}>
+                                {fields.map(field => (
+                                    <SortableFieldItem 
+                                        key={field.id}
+                                        field={field} 
+                                        selectedFieldId={selectedFieldId} 
+                                        setSelectedFieldId={setSelectedFieldId} 
+                                        removeField={removeField}
+                                    />
+                                ))}
                             </div>
-                        ))}
-                    </div>
+                        </SortableContext>
+                    </DndContext>
                     
                     {selectedField && (
                         <div className={styles.selectedFieldEditor}>
-                            <h3 className={styles.selectedFieldHeader}>Propriedades do Campo</h3>
+                             <h3 className={styles.selectedFieldHeader}>Propriedades: {selectedField.label}</h3>
                             <div className={styles.propertyGroup}>
                                 <label className={styles.propertyLabel}>Título do Campo</label>
                                 <input type="text" value={selectedField.label} onChange={(e) => updateFieldLabel(selectedField.id, e.target.value)} className={styles.input}/>
@@ -406,7 +471,7 @@ export default function FormEditor({ companyId, departmentId, existingForm, onSa
                             )}
                         </div>
                     )}
-                     <div className={styles.collaboratorSection}>
+                    <div className={styles.collaboratorSection}>
                         <h4 className={styles.subTitle}>Atribuir a Colaboradores</h4>
                         <div className={styles.collaboratorList}>
                             {collaborators.length > 0 ? collaborators.map(collab => (
@@ -424,8 +489,8 @@ export default function FormEditor({ companyId, departmentId, existingForm, onSa
                 </div>
             </div>
 
-            <div className={styles.previewColumn}>
-                <div className={styles.previewFrame}>
+            <div className={`${styles.previewColumn} ${mobileView === 'preview' ? styles.mobileVisible : styles.mobileHidden}`}>
+                 <div className={styles.previewFrame}>
                     <h2 className={styles.previewTitle}>{formTitle}</h2>
                     <div className={styles.previewFieldsContainer}>
                         {fields.map((field) => (
@@ -477,7 +542,22 @@ export default function FormEditor({ companyId, departmentId, existingForm, onSa
                 </div>
             </div>
         </div>
-         {error && <p className={styles.errorMessage}>{error}</p>}
-    </div>
+
+        <footer className={styles.editorFooter}>
+            <div className={styles.footerContent}>
+                 <div className={styles.errorWrapper}>
+                    {error && <p className={styles.errorMessage}>{error}</p>}
+                 </div>
+                 <div className={styles.editorHeaderActions}>
+                    {/* Botões do seu <header> original */}
+                    <button onClick={onCancel} className={styles.editorButtonSecondary} disabled={isSaving}>Cancelar</button>
+                    <button onClick={handleSave} className={styles.editorButtonPrimary} disabled={isSaving}>
+                        {isSaving ? 'Salvando...' : <><Save size={16}/> Salvar</>}
+                    </button>
+                </div>
+            </div>
+        </footer>
+        {error && <p className={styles.errorMessage}>{error}</p>}
+     </div>
   );
 }

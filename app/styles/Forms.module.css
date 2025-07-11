@@ -16,6 +16,7 @@
     border-bottom: 1px solid var(--border-color);
 }
 
+
 .title {
     font-family: var(--font-display);
     color: var(--text-primary);
@@ -158,3 +159,89 @@
     transition: all 0.3s ease;
 }
 
+/* Adicionar ao seu styles/Forms.module.css */
+
+/* Efeito de fundo quando o editor está ativo */
+.container.editorActive > *:not(.editorPanel) {
+    filter: blur(4px);
+    transition: filter 0.3s ease-in-out;
+}
+
+/* --- ESTILOS DO PAINEL DESLIZANTE (EDITOR) --- */
+.editorPanel {
+    position: fixed;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    z-index: 1000;
+    pointer-events: none; /* Não interage quando escondido */
+    transition: all 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
+}
+
+.editorPanelOverlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0);
+    transition: background-color 0.4s ease;
+}
+
+.editorPanelContent {
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 85%; /* O painel ocupa 85% da tela */
+    max-width: 1400px; /* Mas no máximo 1400px */
+    height: 100%;
+    background-color: #f9f9f9; /* Um fundo levemente diferente para destacar */
+    box-shadow: -5px 0 25px rgba(0,0,0,0.15);
+    transform: translateX(100%); /* Começa fora da tela */
+    transition: transform 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
+    overflow-y: auto; /* Permite rolagem dentro do painel */
+}
+
+/* Estilos quando o painel está aberto */
+.editorPanel.isOpen {
+    pointer-events: all; /* Permite interação */
+}
+
+.editorPanel.isOpen .editorPanelOverlay {
+    background-color: rgba(0, 0, 0, 0.4);
+}
+
+.editorPanel.isOpen .editorPanelContent {
+    transform: translateX(0); /* Desliza para dentro da tela */
+}
+
+
+/* --- ESTILOS PARA O DRAG AND DROP NOS CARDS --- */
+.formCard {
+    /* Adicione position relative para o handle */
+    position: relative;
+    padding-left: 40px; /* Espaço para o drag handle */
+}
+
+.dragHandle {
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: grab;
+    color: #cccccc;
+    transition: color 0.2s;
+}
+
+.formCard:hover .dragHandle {
+    color: #888888;
+}
+
+.dragHandle:active {
+    cursor: grabbing;
+}
