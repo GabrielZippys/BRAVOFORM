@@ -41,15 +41,15 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
     return (
         <aside className={styles.sidebar}>
             <div className={styles.sidebarHeader}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '1px' }}>
                     <Image 
-                        src="/formbravo-logo.png"
+                        src="/formbravo-logo-escuro.png"
                         alt="Logo FORMBRAVO"
-                        width={50}
-                        height={60}
+                        width={80}
+                        height={55}
                         priority 
                     />
-                    <h1 className={styles.sidebarTitle} style={{fontSize: '1.25rem'}}>BRAVOFORM</h1>
+                    <h1 className={styles.sidebarTitle} style={{fontSize: '1.50rem'}}>BRAVOFORM</h1>
                 </div>
             </div>
             <nav className={styles.nav}>
