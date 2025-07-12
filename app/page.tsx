@@ -1,154 +1,183 @@
 'use client'; 
 
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { signInWithEmailAndPassword } from 'firebase/auth';
-// Importações necessárias do Firestore
 import { doc, getDoc, collection, query, where, getDocs, collectionGroup } from 'firebase/firestore';
 import { auth, db } from '../firebase/config';
 import styles from '../app/styles/Login.module.css';
 import Image from 'next/image';
-import { type AppUser, type Collaborator } from '../src/types';
+import { KeyRound, User, LogIn, AlertCircle, X, Mail, Shield } from 'lucide-react'; 
 
+// Importe os tipos que definimos e corrigimos anteriormente
+import { type AppUser, type Collaborator } from '../src/types'; 
+
+// O componente de Modal permanece o mesmo
+const ForgotPasswordModal = ({ onClose }: { onClose: () => void }) => {
+    // ... (toda a lógica do seu modal continua aqui, sem alterações) ...
+    const [username, setUsername] = useState('');
+    const [step, setStep] = useState(1);
+    const [isLoading, setIsLoading] = useState(false);
+    const [error, setError] = useState('');
+    const [answers, setAnswers] = useState({ company: '', department: '' });
+    const handleAnswerChange = (field: keyof typeof answers, value: string) => { setAnswers(prev => ({ ...prev, [field]: value })); };
+    const handleUsernameSubmit = (e: React.FormEvent) => { e.preventDefault(); if(!username) { setError("Por favor, insira um nome de usuário."); return; } setError(''); setStep(2); };
+    const handleSecuritySubmit = async (e: React.FormEvent) => {
+        e.preventDefault(); setIsLoading(true); setError('');
+        try {
+            const response = await fetch('https://us-central1-formbravo-8854e.cloudfunctions.net/ResetSenha', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username, answers }),
+            });
+            const result = await response.json();
+            if (response.ok) { setStep(3); } 
+            else { setError(result.error || 'Falha ao verificar as informações.'); }
+        } catch (apiError) {
+            setError('Não foi possível conectar ao servidor. Tente novamente.');
+        } finally { setIsLoading(false); }
+    };
+    return ( <div className={styles.modalOverlay}> <div className={styles.modalContent}> <button onClick={onClose} className={styles.closeModalButton}><X size={24} /></button> {step === 1 && ( <form onSubmit={handleUsernameSubmit}> <h3 className={styles.modalTitle}>Recuperar Senha de Colaborador</h3> <p className={styles.modalDescription}>Digite seu nome de usuário para começar.</p> <div className={styles.inputGroup}> <User className={styles.inputIcon} size={20} /> <input type="text" value={username} onChange={(e) => setUsername(e.target.value)} required className={styles.input} placeholder="seu.usuario" /> </div> {error && <p className={styles.error} style={{textAlign: 'center'}}>{error}</p>} <button type="submit" className={styles.button}>Continuar</button> </form> )} {step === 2 && ( <form onSubmit={handleSecuritySubmit}> <h3 className={styles.modalTitle}>Verificação de Segurança</h3> <p className={styles.modalDescription}>Confirme suas informações para continuar.</p> <div className={styles.inputGroup} style={{marginBottom: '1rem'}}> <label className={styles.label}>Empresa a que pertence</label> <input type="text" value={answers.company} onChange={(e) => handleAnswerChange('company', e.target.value)} required className={styles.input} /> </div> <div className={styles.inputGroup} style={{marginBottom: '1rem'}}> <label className={styles.label}>Seu Departamento</label> <input type="text" value={answers.department} onChange={(e) => handleAnswerChange('department', e.target.value)} required className={styles.input} /> </div> {error && <p className={styles.error} style={{textAlign: 'center'}}>{error}</p>} <button type="submit" className={styles.button} disabled={isLoading}> {isLoading ? <div className={styles.spinner}></div> : 'Verificar e Solicitar'} </button> </form> )} {step === 3 && ( <div className={styles.successStep}> <Shield size={48} className={styles.successIcon} /> <h3 className={styles.modalTitle}>Solicitação Enviada!</h3> <p className={styles.modalDescription}>Sua solicitação foi enviada para um administrador, que irá analisar e entrar em contato.</p> <button onClick={onClose} className={styles.button}>Fechar</button> </div> )} </div> </div> );
+};
+
+// --- COMPONENTE DE LOGIN PRINCIPAL ---
 export default function LoginPage() {
-  const [credential, setCredential] = useState('');
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
-  const router = useRouter();
+    const [credential, setCredential] = useState('');
+    const [password, setPassword] = useState('');
+    const [error, setError] = useState('');
+    const [isLoading, setIsLoading] = useState(false);
+    const [isRecovering, setIsRecovering] = useState(false);
+    const router = useRouter();
 
-  const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
+    const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    if (isLoading) return;
     setError('');
     setIsLoading(true);
 
     const isEmail = credential.includes('@');
+    
+    if (isEmail) { // Lógica de Admin
+        try {
+            const userCredential = await signInWithEmailAndPassword(auth, credential, password);
+            const user = userCredential.user;
+            
+            const usersQuery = query(collection(db, "users"), where("uid", "==", user.uid));
+            const querySnapshot = await getDocs(usersQuery);
 
-    if (isEmail) {
-      // --- TENTATIVA DE LOGIN DE ADMINISTRADOR (LÓGICA CORRIGIDA) ---
-      try {
-        const userCredential = await signInWithEmailAndPassword(auth, credential, password);
-        const user = userCredential.user;
-        
-        // LÓGICA CORRIGIDA: Em vez de procurar pelo ID do documento,
-        // fazemos uma consulta para encontrar o documento onde o CAMPO 'uid' corresponde.
-        const usersQuery = query(collection(db, "users"), where("uid", "==", user.uid));
-        const querySnapshot = await getDocs(usersQuery);
+            if (!querySnapshot.empty) {
+                const userDoc = querySnapshot.docs[0];
+                const appUser = userDoc.data() as AppUser;
 
-        if (!querySnapshot.empty) {
-          // Assume que há apenas um utilizador com este UID
-          const userDoc = querySnapshot.docs[0];
-          const appUser = userDoc.data() as AppUser;
-
-          if (appUser.role === 'Admin') {
-            router.push('/dashboard');
-          } else {
-            await auth.signOut();
-            setError('Este utilizador não tem permissões de administrador.');
-          }
-        } else {
-            await auth.signOut();
-            setError('Utilizador autenticado, mas sem perfil na base de dados.');
+                if (appUser.role === 'Admin') {
+                    router.push('/dashboard');
+                    // Não precisamos desativar o isLoading aqui, pois a página vai mudar
+                } else {
+                    await auth.signOut();
+                    setError('Este utilizador não tem permissões de administrador.');
+                    setIsLoading(false); // Desativa o loading se o usuário não for admin
+                }
+            } else {
+                await auth.signOut();
+                setError('Utilizador autenticado, mas sem perfil na base de dados.');
+                setIsLoading(false); // Desativa o loading se não encontrar perfil
+            }
+        } catch (error) {
+            setError('Credenciais de administrador inválidas. Verifique o email e a senha.');
+            console.error("Erro no login de Admin:", error);
+            setIsLoading(false); // Desativa o loading em caso de falha no login
         }
+        // O finally foi removido para termos controle explícito
 
-      } catch (error) {
-        setError('Credenciais de administrador inválidas. Verifique o email e a senha.');
-        console.error("Erro no login de Admin:", error);
-      } finally {
-        setIsLoading(false);
-      }
-
-    } else {
-      // --- TENTATIVA DE LOGIN DE COLABORADOR ---
-      try {
-        const collaboratorsQuery = query(
-          collectionGroup(db, 'collaborators'), 
-          where("username", "==", credential)
-        );
+// DENTRO DE handleLogin
+} else { // Lógica de Colaborador
+     try {
+        const collaboratorsQuery = query(collectionGroup(db, 'collaborators'), where("username", "==", credential));
         const querySnapshot = await getDocs(collaboratorsQuery);
 
         if (querySnapshot.empty) {
-          setError('Colaborador não encontrado.');
-          setIsLoading(false);
-          return;
+            setError('Colaborador não encontrado.');
+            setIsLoading(false);
+            return;
         }
-
+        
         let loggedIn = false;
         for (const docSnap of querySnapshot.docs) {
-          const collaboratorData = docSnap.data() as Collaborator;
-          if (collaboratorData.password === password) {
-            loggedIn = true;
+            // Garantimos que o TypeScript use o tipo 'Collaborator' correto
+            const collaboratorData = docSnap.data() as Collaborator;
             
-            const departmentId = docSnap.ref.parent.parent?.id;
-            const sessionData = {
-                id: docSnap.id,
-                username: collaboratorData.username,
-                departmentId: departmentId,
-            };
-            sessionStorage.setItem('collaborator_data', JSON.stringify(sessionData));
-            
-            router.push('/collaborator-view');
-            break; 
-          }
+            if (collaboratorData.password === password) {
+                loggedIn = true;
+                const departmentDoc = docSnap.ref.parent.parent;
+
+                if (departmentDoc) {
+                    const sessionData = { 
+                        id: docSnap.id, 
+                        username: collaboratorData.username, 
+                        departmentId: departmentDoc.id, 
+                        companyId: collaboratorData.companyId 
+                    };
+                    sessionStorage.setItem('collaborator_data', JSON.stringify(sessionData));
+
+                    // AGORA ESTA VERIFICAÇÃO FUNCIONARÁ CORRETAMENTE
+                    if (collaboratorData.isTemporaryPassword === true) {
+                     router.push('/set-new-password'); // <-- CORRIGIDO
+                    } else {
+                        router.push('/collaborator-view');
+                    }
+                } else {
+                    setError('Não foi possível identificar o departamento do colaborador.');
+                    setIsLoading(false);
+                }
+                break; 
+            }
         };
 
         if (!loggedIn) {
-          setError('Senha de colaborador incorreta.');
+            setError('Senha de colaborador incorreta.');
+            setIsLoading(false);
         }
+     } catch (collabError: any) {
+         console.error("Erro na busca por colaborador:", collabError);
+         setError("Erro na base de dados. Contate o suporte.");
+         setIsLoading(false);
+     }
+}
+};
 
-      } catch (collabError: any) {
-        console.error("Erro na busca por colaborador:", collabError);
-        setError("Erro na base de dados. Verifique o índice do Firestore.");
-      } finally {
-        setIsLoading(false);
-      }
-    }
-  };
+    return (
+        <main className={styles.main}>
+            <div className={styles.backgroundShapes}></div>
+            <div className={styles.frame}>
+                <div className={styles.logoContainer}>
+                    <Image src="/formbravo-logo.png" alt="Logo FORMBRAVO" width={120} height={120} priority className={styles.logo} />
+                </div>
+                
+                <form onSubmit={handleLogin} className={styles.form}>
+                     <div className={styles.inputGroup}>
+                        <User className={styles.inputIcon} size={20} />
+                        <input type="text" id="credential" value={credential} onChange={(e) => setCredential(e.target.value)} className={styles.input} placeholder="Email ou Nome de Usuário" required disabled={isLoading}/>
+                    </div>
+                    <div className={styles.inputGroup}>
+                        <KeyRound className={styles.inputIcon} size={20} />
+                        <input type="password" id="password" value={password} onChange={(e) => setPassword(e.target.value)} className={styles.input} placeholder="Senha" required disabled={isLoading}/>
+                    </div>
+                    
+                    {error && <div className={styles.errorContainer}><AlertCircle size={18} /><p className={styles.error}>{error}</p></div>}
 
-  return (
-      <main className={styles.main}>
-        <div className={styles.frame}>
-            <Image
-              src="/formbravo-logo.png"
-              alt="Logo FORMBRAVO"
-              width={250}
-              height={150}
-              priority
-              className={styles.logo}
-            />
+                    <button type="submit" className={styles.button} disabled={isLoading}>
+                        {isLoading ? <div className={styles.spinner}></div> : <><LogIn size={20} /><span>Acessar</span></>}
+                    </button>
+                </form>
+
+                <div className={styles.forgotPasswordContainer}>
+                    <button onClick={() => setIsRecovering(true)} className={styles.forgotPasswordButton}>
+                        Esqueci minha senha
+                    </button>
+                </div>
+            </div>
             
-            <form onSubmit={handleLogin} className={styles.form}>
-                <div>
-                    <label htmlFor="credential" className={styles.label}>Email ou Nome de Usuário</label>
-                    <input
-                        type="text"
-                        id="credential"
-                        value={credential}
-                        onChange={(e) => setCredential(e.target.value)}
-                        className={styles.input}
-                        placeholder="Digite sua credencial de acesso"
-                        required
-                        disabled={isLoading}
-                    />
-                </div>
-                <div>
-                    <label htmlFor="password" className={styles.label}>Senha</label>
-                    <input
-                        type="password"
-                        id="password"
-                        value={password}
-                        onChange={(e) => setPassword(e.target.value)}
-                        className={styles.input}
-                        required
-                        disabled={isLoading}
-                    />
-                </div>
-                {error && <p className={styles.error}>{error}</p>}
-                <button type="submit" className={styles.button} disabled={isLoading}>
-                    {isLoading ? 'A verificar...' : 'Acessar'}
-                </button>
-            </form>
-        </div>
-      </main>
-  );
+            {isRecovering && <ForgotPasswordModal onClose={() => setIsRecovering(false)} />}
+        </main>
+    );
 }

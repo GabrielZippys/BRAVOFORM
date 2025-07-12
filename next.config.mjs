@@ -5,10 +5,14 @@ const nextConfig = {
       {
         protocol: 'https',
         hostname: 'upload.wikimedia.org',
+         hostname: 'ui-avatars.com',
+             port: '',
+        pathname: '/api/**',
       },
       {
         protocol: 'https',
         hostname: 'placehold.co',
+         hostname: 'lh3.googleusercontent.com',
       },
     ],
   },

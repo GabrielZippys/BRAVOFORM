@@ -241,3 +241,300 @@
   box-shadow: var(--box-shadow);
   transition: all 0.3s ease;
 }
+
+/*
+================================================================================
+|
+|   ARQUIVO: app/styles/Login.module.css
+|   TEMA: BRAVOFORM - Login de Alto Impacto (Glassmorphism & Animações)
+|
+================================================================================
+*/
+
+@keyframes gradientAnimation {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+}
+
+@keyframes fadeInSlideUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes pulse {
+    0% { box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.7); }
+    70% { box-shadow: 0 0 0 10px rgba(59, 130, 246, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(59, 130, 246, 0); }
+}
+
+@keyframes shake {
+    10%, 90% { transform: translate3d(-1px, 0, 0); }
+    20%, 80% { transform: translate3d(2px, 0, 0); }
+    30%, 50%, 70% { transform: translate3d(-4px, 0, 0); }
+    40%, 60% { transform: translate3d(4px, 0, 0); }
+}
+
+/* --- ESTRUTURA PRINCIPAL --- */
+.main {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    width: 100%;
+    background: linear-gradient(-45deg, #0f2027, #203a43, #2c5364, #1a202c);
+    background-size: 400% 400%;
+    animation: gradientAnimation 15s ease infinite;
+    padding: 1rem;
+}
+
+.frame {
+    width: 100%;
+    max-width: 400px;
+    padding: 2.5rem 2rem;
+    border-radius: 20px;
+    background: rgba(255, 255, 255, 0.05);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+    animation: fadeInSlideUp 0.8s cubic-bezier(0.25, 0.8, 0.25, 1) forwards;
+}
+
+.logoContainer {
+    text-align: center;
+    margin-bottom: 2rem;
+    animation: fadeInSlideUp 1s cubic-bezier(0.25, 0.8, 0.25, 1) forwards;
+}
+.logo {
+    width: 100px;
+    height: auto;
+    filter: drop-shadow(0 4px 8px rgba(0,0,0,0.4));
+}
+
+/* --- FORMULÁRIO --- */
+.form {
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+    animation: fadeInSlideUp 1.2s cubic-bezier(0.25, 0.8, 0.25, 1) forwards;
+}
+
+.inputGroup {
+    position: relative;
+}
+
+.inputIcon {
+    position: absolute;
+    top: 50%;
+    left: 1rem;
+    transform: translateY(-50%);
+    color: #9ca3af;
+    pointer-events: none;
+}
+
+.input {
+    width: 100%;
+    padding: 1rem 1rem 1rem 3rem; /* Espaço para o ícone */
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 10px;
+    color: #f9fafb;
+    font-size: 1rem;
+    transition: all 0.3s ease;
+}
+.input::placeholder { color: #9ca3af; }
+.input:focus {
+    outline: none;
+    background: rgba(255, 255, 255, 0.15);
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.5);
+}
+
+/* --- BOTÕES --- */
+.button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.75rem;
+    padding: 1rem;
+    background: linear-gradient(90deg, #3b82f6, #60a5fa);
+    color: white;
+    border: none;
+    border-radius: 10px;
+    font-size: 1.1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+    animation: pulse 2s infinite;
+}
+.button:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 6px 20px rgba(59, 130, 246, 0.4);
+    animation-play-state: paused;
+}
+.button:active {
+    transform: translateY(-1px);
+    box-shadow: 0 3px 10px rgba(59, 130, 246, 0.3);
+}
+.button:disabled {
+    background: #4b5563;
+    cursor: not-allowed;
+    animation: none;
+}
+
+.googleButton {
+    composes: button; /* Herda os estilos do botão principal */
+    background: #ffffff;
+    color: #1f2937;
+    animation: none;
+}
+.googleButton:hover {
+    background: #f3f4f6;
+    transform: translateY(-3px);
+    box-shadow: 0 6px 20px rgba(255, 255, 255, 0.2);
+}
+
+/* --- FEEDBACK E OUTROS --- */
+.errorContainer {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.75rem 1rem;
+    background-color: rgba(239, 68, 68, 0.1);
+    border: 1px solid rgba(239, 68, 68, 0.4);
+    border-radius: 10px;
+    color: #f87171;
+    animation: shake 0.5s;
+}
+.error {
+    margin: 0;
+    font-weight: 500;
+}
+
+.divider {
+    display: flex;
+    align-items: center;
+    text-align: center;
+    color: #9ca3af;
+    margin: 1.5rem 0;
+    font-size: 0.9rem;
+    animation: fadeInSlideUp 1.4s cubic-bezier(0.25, 0.8, 0.25, 1) forwards;
+}
+.divider::before, .divider::after {
+    content: '';
+    flex: 1;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+}
+.divider:not(:empty)::before { margin-right: .5em; }
+.divider:not(:empty)::after { margin-left: .5em; }
+
+.spinner {
+    width: 20px;
+    height: 20px;
+    border: 3px solid rgba(255, 255, 255, 0.3);
+    border-top-color: #fff;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+/* Adicione estas classes ao seu Login.module.css */
+
+.forgotPasswordContainer {
+    text-align: center;
+    margin-top: 1.5rem;
+}
+
+.forgotPasswordButton {
+    background: none;
+    border: none;
+    color: #a0aec0;
+    cursor: pointer;
+    font-size: 0.9rem;
+    transition: color 0.2s ease;
+}
+.forgotPasswordButton:hover {
+    color: #ffffff;
+    text-decoration: underline;
+}
+
+/* Estilos do Modal */
+.modalOverlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.6);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+    animation: fadeIn 0.3s ease;
+}
+
+.modalContent {
+    position: relative;
+    width: 100%;
+    max-width: 450px;
+    padding: 2.5rem;
+    border-radius: 20px;
+    background: #1a202c; /* Fundo escuro do modal */
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+    color: #f9fafb;
+}
+
+.closeModalButton {
+    position: absolute;
+    top: 1rem;
+    right: 1rem;
+    background: none;
+    border: none;
+    color: #9ca3af;
+    cursor: pointer;
+    padding: 0.5rem;
+    transition: color 0.2s ease, transform 0.2s ease;
+}
+.closeModalButton:hover {
+    color: #ffffff;
+    transform: rotate(90deg);
+}
+
+.modalTitle {
+    text-align: center;
+    font-size: 1.5rem;
+    margin-top: 0;
+    margin-bottom: 0.5rem;
+}
+
+.modalDescription {
+    text-align: center;
+    color: #9ca3af;
+    margin-top: 0;
+    margin-bottom: 2rem;
+}
+
+.successStep {
+    text-align: center;
+}
+
+.successIcon {
+    color: #22c55e; /* Verde */
+    margin-bottom: 1rem;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}

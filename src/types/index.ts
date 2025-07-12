@@ -1,24 +1,34 @@
-import { Timestamp } from "firebase/firestore";
+import { Timestamp, DocumentReference, DocumentData } from "firebase/firestore";
 import { ReactNode } from "react";
 
-// --- Tipo de Utilizador Unificado ---
-// Define a estrutura de um utilizador na coleção 'users' do Firestore.
+// --- TIPO PARA UTILIZADORES DO FIREBASE AUTH (ADMINS) ---
 export interface AppUser {
-  password: string;
-  id(arg0: string, arg1: string, id: any): import("@firebase/firestore").QueryConstraint;
-  username: ReactNode;
   uid: string;
   name: string;
   email: string;
-  role: 'Admin' | 'Collaborator';
+  role: 'Admin';
+  // Admins podem não ter essas associações diretas, tornando-as opcionais
   companyId?: string;
   departmentId?: string;
   createdAt?: Timestamp;
-  canViewHistory?: boolean;
-  canEditHistory?: boolean;
 }
 
-// --- Tipos de Formulários ---
+// --- TIPO PARA COLABORADORES (GERENCIADOS NO FIRESTORE) ---
+// Este é um tipo separado e mais preciso para seus colaboradores
+export interface Collaborator {
+  id: string;          // O ID do documento do colaborador
+  username: string;
+  password?: string;     // A senha que você armazena
+  email?: string;        // Para envio de notificações ou resets
+  companyId: string;
+  departmentId: string;
+  isTemporaryPassword?: boolean; // Para o fluxo de reset de senha
+  canViewHistory?: boolean;
+  canEditHistory?: boolean;
+  ref?: DocumentReference<DocumentData, DocumentData>; // Referência para o documento
+}
+
+// --- TIPOS DE FORMULÁRIOS ---
 export type FormField = {
   id: number;
   type: 'Texto' | 'Anexo' | 'Assinatura' | 'Caixa de Seleção' | 'Múltipla Escolha' | 'Data' | 'Cabeçalho' | 'Tabela';
@@ -28,101 +38,61 @@ export type FormField = {
     id: number;
     label: string;
     type: 'Texto' | 'Data' | 'Caixa de Seleção' | 'Múltipla Escolha';
+    options?: string[];
   }[];
+  rows?: { id: number; label: string; }[];
 };
-
-// Define a estrutura de um formulário, incluindo campos, automação e colaboradores.
-
-
 
 export interface Form {
   id: string;
   title: string;
-  description?: string;
   fields: FormField[];
   companyId: string;
   departmentId: string;
   automation: {
-    type: string;
+    type: 'email' | 'whatsapp';
     target: string;
-    frequency?: string;
   };
   ownerId: string;
   collaborators: string[];
   authorizedUsers: string[];
   createdAt: Timestamp;
   updatedAt?: Timestamp;
-  status: 'active' | 'draft' | 'archived';
-  responseCount?: number;
 }
 
-// --- Tipo de Resposta de Formulário ---
+// --- TIPO DE RESPOSTA DE FORMULÁRIO (CORRIGIDO) ---
 export interface FormResponse {
-  answers(answers: any, label: string): unknown;
   id: string;
   formId: string;
   formTitle: string;
   companyId: string;
   departmentId: string;
   collaboratorId: string;
-  collaboratorName: string;
-  responses: Record<string, any>;
+  collaboratorUsername: string; // Trocado de 'Name' para 'Username' para consistência
+  answers: Record<string, any>; // Nome corrigido de 'responses' para 'answers'
   submittedAt: Timestamp;
-  completed: boolean;
-  status: 'pending' | 'submitted' | 'approved' | 'rejected';
-  reviewedBy?: string;
-  reviewedAt?: Timestamp;
-  reviewComments?: string;
 }
 
-// --- Tipos de Organização ---
+// --- TIPOS DE ORGANIZAÇÃO ---
 export interface Company {
   id: string;
   name: string;
-  description?: string;
   createdAt: Timestamp;
-  updatedAt?: Timestamp;
-  ownerId: string;
-  departmentsCount?: number;
-  usersCount?: number;
+  // Outros campos podem ser adicionados conforme necessário
 }
 
 export interface Department {
   id: string;
   name: string;
   companyId: string;
-  description?: string;
   createdAt: Timestamp;
-  updatedAt?: Timestamp;
-  managerId?: string;
-  usersCount?: number;
 }
 
-// --- Tipos Adicionais ---
-export type Collaborator = AppUser;
-
-export interface DashboardStats {
-  totalForms: number;
-  totalResponses: number;
-  activeUsers: number;
-  completionRate: number;
-  responsesByDay: Array<{ date: string; count: number }>;
-  formsByStatus: Array<{ status: string; count: number }>;
-  recentForms: Form[];
-  recentResponses: FormResponse[];
-}
-
-export interface ChartData {
-  name: string;
-  value: number;
-  color?: string;
-}
-
-export interface FilterOptions {
-  companyId: string;
-  departmentId: string;
-  timeRange: 'day' | 'week' | 'month' | 'year' | 'custom';
-  startDate?: Date;
-  endDate?: Date;
-  status?: string;
+// --- TIPO PARA NOTIFICAÇÕES (COMO NO HEADER) ---
+export interface ResetNotification {
+  id: string;
+  collaboratorId: string;
+  collaboratorUsername: string;
+  status: 'pending' | 'completed';
+  createdAt: Timestamp;
 }
