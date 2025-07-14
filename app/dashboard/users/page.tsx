@@ -107,26 +107,41 @@ export default function UsersPage() {
         }
     };
     
-    // CORREÇÃO: Adiciona as novas permissões como false por padrão
-    const handleAddCollaborator = async (e: React.FormEvent) => {
-        e.preventDefault();
-        setFormError('');
-        if (!formState.collabUsername.trim() || !formState.collabPassword.trim() || !selectedDepartment) return;
-        try {
-            await addDoc(collection(db, `departments/${selectedDepartment.id}/collaborators`), {
+
+// Substitua sua função handleAddCollaborator por esta
+
+const handleAddCollaborator = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setFormError('');
+
+    if (!formState.collabUsername.trim() || !formState.collabPassword.trim() || !selectedCompany || !selectedDepartment) {
+        setFormError("Nome de usuário, senha, empresa e setor são obrigatórios.");
+        return;
+    }
+
+    try {
+        const response = await fetch('https://southamerica-east1-formbravo-8854e.cloudfunctions.net/createCollaborator', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
                 username: formState.collabUsername,
                 password: formState.collabPassword,
-                companyId: selectedCompany?.id,    
-                departmentId: selectedDepartment.id,
-                canViewHistory: false,
-                canEditHistory: false // Nova permissão
-            });
+                companyId: selectedCompany.id,
+                departmentId: selectedDepartment.id
+            })
+        });
+
+        if (response.ok) {
             closeModal();
-        } catch (error) {
-            setFormError("Não foi possível criar o acesso.");
-            console.error("Erro ao criar acesso de colaborador:", error);
+        } else {
+            const result = await response.json();
+            setFormError(result.error || "Não foi possível criar o acesso.");
         }
-    };
+    } catch (error) {
+        setFormError("Erro de comunicação ao criar o acesso.");
+        console.error("Erro ao criar acesso de colaborador:", error);
+    }
+};
 
     // --- NOVAS FUNÇÕES DE GESTÃO ---
     const handleTogglePermission = async (collaborator: Collaborator, permission: 'canViewHistory' | 'canEditHistory') => {

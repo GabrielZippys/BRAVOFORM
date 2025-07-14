@@ -68,9 +68,10 @@ export interface FormResponse {
   companyId: string;
   departmentId: string;
   collaboratorId: string;
-  collaboratorUsername: string; // Trocado de 'Name' para 'Username' para consistência
-  answers: Record<string, any>; // Nome corrigido de 'responses' para 'answers'
+  collaboratorUsername: string; 
+  answers: Record<string, any>;
   submittedAt: Timestamp;
+  status: 'pending' | 'approved' | 'rejected';
 }
 
 // --- TIPOS DE ORGANIZAÇÃO ---

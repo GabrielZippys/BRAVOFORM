@@ -9,12 +9,11 @@ import styles from '../app/styles/Login.module.css';
 import Image from 'next/image';
 import { KeyRound, User, LogIn, AlertCircle, X, Mail, Shield } from 'lucide-react'; 
 
-// Importe os tipos que definimos e corrigimos anteriormente
 import { type AppUser, type Collaborator } from '../src/types'; 
 
 // O componente de Modal permanece o mesmo
 const ForgotPasswordModal = ({ onClose }: { onClose: () => void }) => {
-    // ... (toda a lógica do seu modal continua aqui, sem alterações) ...
+    // ... (toda a lógica do seu modal) ...
     const [username, setUsername] = useState('');
     const [step, setStep] = useState(1);
     const [isLoading, setIsLoading] = useState(false);
@@ -40,6 +39,7 @@ const ForgotPasswordModal = ({ onClose }: { onClose: () => void }) => {
     return ( <div className={styles.modalOverlay}> <div className={styles.modalContent}> <button onClick={onClose} className={styles.closeModalButton}><X size={24} /></button> {step === 1 && ( <form onSubmit={handleUsernameSubmit}> <h3 className={styles.modalTitle}>Recuperar Senha de Colaborador</h3> <p className={styles.modalDescription}>Digite seu nome de usuário para começar.</p> <div className={styles.inputGroup}> <User className={styles.inputIcon} size={20} /> <input type="text" value={username} onChange={(e) => setUsername(e.target.value)} required className={styles.input} placeholder="seu.usuario" /> </div> {error && <p className={styles.error} style={{textAlign: 'center'}}>{error}</p>} <button type="submit" className={styles.button}>Continuar</button> </form> )} {step === 2 && ( <form onSubmit={handleSecuritySubmit}> <h3 className={styles.modalTitle}>Verificação de Segurança</h3> <p className={styles.modalDescription}>Confirme suas informações para continuar.</p> <div className={styles.inputGroup} style={{marginBottom: '1rem'}}> <label className={styles.label}>Empresa a que pertence</label> <input type="text" value={answers.company} onChange={(e) => handleAnswerChange('company', e.target.value)} required className={styles.input} /> </div> <div className={styles.inputGroup} style={{marginBottom: '1rem'}}> <label className={styles.label}>Seu Departamento</label> <input type="text" value={answers.department} onChange={(e) => handleAnswerChange('department', e.target.value)} required className={styles.input} /> </div> {error && <p className={styles.error} style={{textAlign: 'center'}}>{error}</p>} <button type="submit" className={styles.button} disabled={isLoading}> {isLoading ? <div className={styles.spinner}></div> : 'Verificar e Solicitar'} </button> </form> )} {step === 3 && ( <div className={styles.successStep}> <Shield size={48} className={styles.successIcon} /> <h3 className={styles.modalTitle}>Solicitação Enviada!</h3> <p className={styles.modalDescription}>Sua solicitação foi enviada para um administrador, que irá analisar e entrar em contato.</p> <button onClick={onClose} className={styles.button}>Fechar</button> </div> )} </div> </div> );
 };
 
+
 // --- COMPONENTE DE LOGIN PRINCIPAL ---
 export default function LoginPage() {
     const [credential, setCredential] = useState('');
@@ -49,101 +49,69 @@ export default function LoginPage() {
     const [isRecovering, setIsRecovering] = useState(false);
     const router = useRouter();
 
+    // --- FUNÇÃO handleLogin CORRIGIDA ---
     const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    if (isLoading) return;
-    setError('');
-    setIsLoading(true);
+        e.preventDefault();
+        if (isLoading) return;
+        
+        setError('');
+        setIsLoading(true);
 
-    const isEmail = credential.includes('@');
-    
-    if (isEmail) { // Lógica de Admin
-        try {
-            const userCredential = await signInWithEmailAndPassword(auth, credential, password);
-            const user = userCredential.user;
-            
-            const usersQuery = query(collection(db, "users"), where("uid", "==", user.uid));
-            const querySnapshot = await getDocs(usersQuery);
+        const isEmail = credential.includes('@');
+        
+        if (isEmail) { // Lógica de Admin
+            try {
+                const userCredential = await signInWithEmailAndPassword(auth, credential, password);
+                const user = userCredential.user;
+                const usersQuery = query(collection(db, "users"), where("uid", "==", user.uid));
+                const querySnapshot = await getDocs(usersQuery);
 
-            if (!querySnapshot.empty) {
-                const userDoc = querySnapshot.docs[0];
-                const appUser = userDoc.data() as AppUser;
-
-                if (appUser.role === 'Admin') {
-                    router.push('/dashboard');
-                    // Não precisamos desativar o isLoading aqui, pois a página vai mudar
+                if (!querySnapshot.empty) {
+                    const appUser = querySnapshot.docs[0].data() as AppUser;
+                    if (appUser.role === 'Admin') {
+                        router.push('/dashboard');
+                    } else {
+                        await auth.signOut();
+                        setError('Este utilizador não tem permissões de administrador.');
+                        setIsLoading(false);
+                    }
                 } else {
                     await auth.signOut();
-                    setError('Este utilizador não tem permissões de administrador.');
-                    setIsLoading(false); // Desativa o loading se o usuário não for admin
+                    setError('Utilizador autenticado, mas sem perfil na base de dados.');
+                    setIsLoading(false);
                 }
-            } else {
-                await auth.signOut();
-                setError('Utilizador autenticado, mas sem perfil na base de dados.');
-                setIsLoading(false); // Desativa o loading se não encontrar perfil
+            } catch (error) {
+                setError('Credenciais de administrador inválidas.');
+                setIsLoading(false);
             }
-        } catch (error) {
-            setError('Credenciais de administrador inválidas. Verifique o email e a senha.');
-            console.error("Erro no login de Admin:", error);
-            setIsLoading(false); // Desativa o loading em caso de falha no login
-        }
-        // O finally foi removido para termos controle explícito
+        } else { // Lógica de Colaborador agora usando a Cloud Function
+            try {
+                const response = await fetch('https://southamerica-east1-formbravo-8854e.cloudfunctions.net/collaboratorLogin', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username: credential, password: password })
+                });
 
-// DENTRO DE handleLogin
-} else { // Lógica de Colaborador
-     try {
-        const collaboratorsQuery = query(collectionGroup(db, 'collaborators'), where("username", "==", credential));
-        const querySnapshot = await getDocs(collaboratorsQuery);
+                const sessionData = await response.json();
 
-        if (querySnapshot.empty) {
-            setError('Colaborador não encontrado.');
-            setIsLoading(false);
-            return;
-        }
-        
-        let loggedIn = false;
-        for (const docSnap of querySnapshot.docs) {
-            // Garantimos que o TypeScript use o tipo 'Collaborator' correto
-            const collaboratorData = docSnap.data() as Collaborator;
-            
-            if (collaboratorData.password === password) {
-                loggedIn = true;
-                const departmentDoc = docSnap.ref.parent.parent;
-
-                if (departmentDoc) {
-                    const sessionData = { 
-                        id: docSnap.id, 
-                        username: collaboratorData.username, 
-                        departmentId: departmentDoc.id, 
-                        companyId: collaboratorData.companyId 
-                    };
+                if (response.ok) {
                     sessionStorage.setItem('collaborator_data', JSON.stringify(sessionData));
-
-                    // AGORA ESTA VERIFICAÇÃO FUNCIONARÁ CORRETAMENTE
-                    if (collaboratorData.isTemporaryPassword === true) {
-                     router.push('/set-new-password'); // <-- CORRIGIDO
+                    if (sessionData.isTemporaryPassword) {
+                        router.push('/set-new-password');
                     } else {
                         router.push('/collaborator-view');
                     }
                 } else {
-                    setError('Não foi possível identificar o departamento do colaborador.');
+                    setError(sessionData.error || 'Falha no login.');
                     setIsLoading(false);
                 }
-                break; 
+            } catch (apiError) {
+                console.error("Erro de comunicação no login do colaborador:", apiError);
+                setError('Não foi possível conectar ao servidor.');
+                setIsLoading(false);
             }
-        };
-
-        if (!loggedIn) {
-            setError('Senha de colaborador incorreta.');
-            setIsLoading(false);
         }
-     } catch (collabError: any) {
-         console.error("Erro na busca por colaborador:", collabError);
-         setError("Erro na base de dados. Contate o suporte.");
-         setIsLoading(false);
-     }
-}
-};
+    };
 
     return (
         <main className={styles.main}>

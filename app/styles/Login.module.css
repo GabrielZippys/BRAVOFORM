@@ -44,12 +44,6 @@
   animation: fadeIn 0.5s ease-out;
 }
 
-.logo {
-  width: 180px;
-  height: auto;
-  margin: 0 auto 2.5rem auto;
-}
-
 .form {
   display: flex;
   flex-direction: column;
@@ -309,13 +303,34 @@
 
 .logoContainer {
     text-align: center;
-    margin-bottom: 2rem;
-    animation: fadeInSlideUp 1s cubic-bezier(0.25, 0.8, 0.25, 1) forwards;
+    width: 100%;
+    margin-bottom: 5cap;
+
 }
 .logo {
-    width: 100px;
+    width: 150px;
     height: auto;
-    filter: drop-shadow(0 4px 8px rgba(0,0,0,0.4));
+     filter: drop-shadow(0 4px 8px rgba(0,0,0,0.4));
+    animation: logoEntrance 0.9s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+
+  }
+
+@keyframes logoEntrance {
+  0% {
+    opacity: 0;
+    transform: scale(0.3) translateY(40px);
+  }
+  60% {
+    opacity: 1;
+    transform: scale(1.1) translateY(0);
+  }
+  80% {
+    transform: scale(0.95);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1.0);
+  }
 }
 
 /* --- FORMULÁRIO --- */
@@ -537,4 +552,15 @@
 @keyframes fadeIn {
     from { opacity: 0; }
     to { opacity: 1; }
+}
+
+@keyframes logoFlipIn {
+  from {
+    opacity: 0;
+    transform: perspective(600px) rotateY(-90deg);
+  }
+  to {
+    opacity: 1;
+    transform: perspective(600px) rotateY(0deg);
+  }
 }
