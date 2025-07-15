@@ -3,12 +3,12 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { db } from '../../firebase/config';
 import { doc, addDoc, updateDoc, collection, serverTimestamp } from 'firebase/firestore';
-import { type Form, type Collaborator, type FormResponse as FormResponseType, type FormField } from '@/types';
+import { type Form, type FormField, type FormResponse as FormResponseType } from '@/types';
 import styles from '../../app/styles/FormResponse.module.css';
-import { X, Send, Eraser, UploadCloud, FileText } from 'lucide-react';
+import { X, Send, Eraser } from 'lucide-react';
 
-// Estendemos o tipo FormField para incluir as propriedades da tabela
-type EditorFormField = FormField & {
+type ResponseFormField = FormField & {
+  allowOther?: boolean;
   columns?: { id: number; label: string; type: string; options?: string[] }[];
   rows?: { id: number; label: string }[];
   options?: string[];
@@ -18,7 +18,7 @@ interface FormResponseProps {
   form: Form | null;
   collaborator: {
     id: string;
-    username: React.ReactNode;
+    username: string;
     companyId: string;
     departmentId: string;
     canViewHistory?: boolean;
@@ -30,233 +30,508 @@ interface FormResponseProps {
 }
 
 export default function FormResponse({ form, collaborator, onClose, existingResponse, canEdit }: FormResponseProps) {
-  if (!form) {
-    return null;
-  }
+  if (!form) return null;
 
   const [responses, setResponses] = useState<Record<string, any>>({});
+  const [otherInputValues, setOtherInputValues] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
-
   const signaturePads = useRef<Record<string, HTMLCanvasElement | null>>({});
 
+  // Restaura valores de edição
   useEffect(() => {
-    if (existingResponse?.answers && form.fields) {
-      const initialState: Record<string, any> = {};
-      form.fields.forEach((field: EditorFormField) => {
-        if (
-          typeof existingResponse.answers === 'object' &&
-          existingResponse.answers !== null &&
-          Object.prototype.hasOwnProperty.call(existingResponse.answers, field.label)
-        ) {
-          initialState[String(field.id)] = (existingResponse.answers as Record<string, any>)[field.label];
-        }
-      });
-      setResponses(initialState);
-    } else {
-      setResponses({});
+    if (existingResponse && typeof existingResponse === 'object') {
+      const initial: Record<string, any> = {};
+      const initialOthers: Record<string, string> = {};
+      Object.entries(existingResponse)
+        .filter(([k]) => k !== 'id')
+        .forEach(([k, v]) => {
+          // Se veio de flattened (BI), preenche por label
+          const field = (form.fields as ResponseFormField[]).find(f => f.label === k || String(f.id) === k);
+          if (!field) return;
+          const fieldId = String(field.id);
+          if ((field.type === 'Caixa de Seleção' || field.type === 'Múltipla Escolha') && field.allowOther) {
+            // Outros para checkbox/radio
+            if (typeof v === 'string' && v && field.options && !field.options.includes(v)) {
+              initial[fieldId] = '___OTHER___';
+              initialOthers[fieldId] = v;
+            } else if (Array.isArray(v)) {
+              const normal = v.filter(opt => field.options?.includes(opt));
+              const other = v.find(opt => field.options?.indexOf(opt) === -1);
+              if (other) initialOthers[fieldId] = other;
+              if (normal.length > 0) initial[fieldId] = [...normal, ...(other ? ['___OTHER___'] : [])];
+            } else {
+              initial[fieldId] = v;
+            }
+          } else {
+            initial[fieldId] = v;
+          }
+        });
+      setResponses(initial);
+      setOtherInputValues(initialOthers);
     }
   }, [existingResponse, form.fields]);
 
-
-  useEffect(() => {
-    const allPads = Object.entries(signaturePads.current);
-
-    allPads.forEach(([fieldId, canvas]) => {
-      if (canvas) {
-        const ctx = canvas.getContext('2d');
-        if (!ctx) return;
-        
-        let isDrawing = false;
-        let lastX = 0;
-        let lastY = 0;
-
-        const getCoords = (e: MouseEvent | TouchEvent) => {
-          const rect = canvas.getBoundingClientRect();
-          if (e instanceof MouseEvent) {
-            return { x: e.clientX - rect.left, y: e.clientY - rect.top };
-          } else if (e.touches && e.touches.length > 0) {
-            return { x: e.touches[0].clientX - rect.left, y: e.touches[0].clientY - rect.top };
-          }
-          return null;
-        };
-
-        const startDrawing = (e: MouseEvent | TouchEvent) => {
-          e.preventDefault();
-          const coords = getCoords(e);
-          if (coords) {
-            isDrawing = true;
-            [lastX, lastY] = [coords.x, coords.y];
-          }
-        };
-
-        const draw = (e: MouseEvent | TouchEvent) => {
-          e.preventDefault();
-          if (!isDrawing) return;
-          const coords = getCoords(e);
-          if (coords) {
-            ctx.beginPath();
-            ctx.moveTo(lastX, lastY);
-            ctx.lineTo(coords.x, coords.y);
-            ctx.stroke();
-            [lastX, lastY] = [coords.x, coords.y];
-          }
-        };
-
-        const stopDrawing = () => {
-          if (isDrawing) {
-            isDrawing = false;
-            if (canvas.dataset.fieldId) {
-              handleInputChange(canvas.dataset.fieldId, canvas.toDataURL('image/png'));
-            }
-          }
-        };
-
-        ctx.strokeStyle = '#333';
-        ctx.lineWidth = 2;
-        ctx.lineCap = 'round';
-
-        canvas.addEventListener('mousedown', startDrawing);
-        canvas.addEventListener('mousemove', draw);
-        canvas.addEventListener('mouseup', stopDrawing);
-        canvas.addEventListener('mouseout', stopDrawing);
-        canvas.addEventListener('touchstart', startDrawing, { passive: false });
-        canvas.addEventListener('touchmove', draw, { passive: false });
-        canvas.addEventListener('touchend', stopDrawing);
-
-        // Função de limpeza
-        return () => {
-          canvas.removeEventListener('mousedown', startDrawing);
-          canvas.removeEventListener('mousemove', draw);
-          canvas.removeEventListener('mouseup', stopDrawing);
-          canvas.removeEventListener('mouseout', stopDrawing);
-          canvas.removeEventListener('touchstart', startDrawing);
-          canvas.removeEventListener('touchmove', draw);
-          canvas.removeEventListener('touchend', stopDrawing);
-        };
-      }
-    });
-  }, [form.fields]);
-
+  // --- CANVAS DE ASSINATURA ---
   useEffect(() => {
     Object.entries(signaturePads.current).forEach(([fieldId, canvas]) => {
-        if (canvas) {
-            const ctx = canvas.getContext('2d');
-            if (!ctx) return;
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            if (responses[fieldId] && typeof responses[fieldId] === 'string' && responses[fieldId].startsWith('data:image')) {
-                const img = new Image();
-                img.src = responses[fieldId];
-                img.onload = () => ctx.drawImage(img, 0, 0);
-            }
+      if (!canvas) return;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return;
+      let drawing = false;
+      let lastX = 0, lastY = 0;
+
+      const getPos = (e: MouseEvent | TouchEvent) => {
+        const rect = canvas.getBoundingClientRect();
+        if ('touches' in e && e.touches.length > 0) {
+          return { x: e.touches[0].clientX - rect.left, y: e.touches[0].clientY - rect.top };
+        } else if ('clientX' in e) {
+          return { x: (e as MouseEvent).clientX - rect.left, y: (e as MouseEvent).clientY - rect.top };
         }
+        return null;
+      };
+
+      const startDraw = (e: MouseEvent | TouchEvent) => {
+        e.preventDefault();
+        const pos = getPos(e);
+        if (!pos) return;
+        drawing = true;
+        lastX = pos.x;
+        lastY = pos.y;
+      };
+      const draw = (e: MouseEvent | TouchEvent) => {
+        if (!drawing) return;
+        e.preventDefault();
+        const pos = getPos(e);
+        if (!pos) return;
+        ctx.beginPath();
+        ctx.moveTo(lastX, lastY);
+        ctx.lineTo(pos.x, pos.y);
+        ctx.strokeStyle = '#222';
+        ctx.lineWidth = 2;
+        ctx.lineCap = 'round';
+        ctx.stroke();
+        lastX = pos.x;
+        lastY = pos.y;
+      };
+      const stopDraw = () => {
+        drawing = false;
+        if (canvas.dataset.fieldId) {
+          handleInputChange(canvas.dataset.fieldId, canvas.toDataURL('image/png'));
+        }
+      };
+
+      canvas.addEventListener('mousedown', startDraw);
+      canvas.addEventListener('mousemove', draw);
+      canvas.addEventListener('mouseup', stopDraw);
+      canvas.addEventListener('mouseleave', stopDraw);
+      canvas.addEventListener('touchstart', startDraw, { passive: false });
+      canvas.addEventListener('touchmove', draw, { passive: false });
+      canvas.addEventListener('touchend', stopDraw);
+
+      // Limpar eventos ao desmontar
+      return () => {
+        canvas.removeEventListener('mousedown', startDraw);
+        canvas.removeEventListener('mousemove', draw);
+        canvas.removeEventListener('mouseup', stopDraw);
+        canvas.removeEventListener('mouseleave', stopDraw);
+        canvas.removeEventListener('touchstart', startDraw);
+        canvas.removeEventListener('touchmove', draw);
+        canvas.removeEventListener('touchend', stopDraw);
+      };
+    });
+  }, [responses, form.fields]); // Reage ao mount
+
+  // Restaura imagem de assinatura caso exista
+  useEffect(() => {
+    Object.entries(signaturePads.current).forEach(([fieldId, canvas]) => {
+      if (canvas && responses[fieldId]?.startsWith?.('data:image')) {
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return;
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        const img = new window.Image();
+        img.src = responses[fieldId];
+        img.onload = () => ctx.drawImage(img, 0, 0);
+      }
     });
   }, [responses]);
 
-  const handleInputChange = (fieldId: string, value: any) => {
+  const handleInputChange = (fieldId: string, value: any) =>
     setResponses(prev => ({ ...prev, [fieldId]: value }));
-  };
-  
-  const handleTableInputChange = (fieldId: string, rowId: string, columnId: string, value: any) => {
+
+  const handleOtherInputChange = (fieldId: string, text: string) =>
+    setOtherInputValues(prev => ({ ...prev, [fieldId]: text }));
+
+  const handleTableInputChange = (
+    fieldId: string,
+    rowId: string,
+    colId: string,
+    value: any
+  ) => {
     setResponses(prev => ({
-        ...prev,
-        [fieldId]: { ...prev[fieldId], [rowId]: { ...prev[fieldId]?.[rowId], [columnId]: value } }
+      ...prev,
+      [fieldId]: {
+        ...(prev[fieldId] || {}),
+        [rowId]: {
+          ...(prev[fieldId]?.[rowId] || {}),
+          [colId]: value,
+        },
+      },
     }));
   };
 
   const handleFileChange = (fieldId: string, files: FileList | null) => {
     if (files && files.length > 0) {
-      const newFiles = Array.from(files).map(file => ({
-        name: file.name, type: file.type, size: file.size,
+      const newFiles = Array.from(files).map(f => ({
+        name: f.name,
+        size: f.size,
+        type: f.type,
       }));
-      const existingFiles = responses[fieldId] || [];
-      handleInputChange(fieldId, [...existingFiles, ...newFiles]);
+      handleInputChange(fieldId, [...(responses[fieldId] || []), ...newFiles]);
     }
   };
 
-  const removeFile = (fieldId: string, fileIndex: number) => {
-    const currentFiles = responses[fieldId] || [];
-    const updatedFiles = currentFiles.filter((_: any, index: number) => index !== fileIndex);
-    handleInputChange(fieldId, updatedFiles);
+  const removeFile = (fieldId: string, index: number) => {
+    const files = responses[fieldId] || [];
+    handleInputChange(fieldId, files.filter((_: any, idx: number) => idx !== index));
   };
 
   const clearSignature = (fieldId: string) => {
-    const canvas = signaturePads.current[String(fieldId)];
+    const canvas = signaturePads.current[fieldId];
     if (canvas) {
       const ctx = canvas.getContext('2d');
       ctx?.clearRect(0, 0, canvas.width, canvas.height);
-      handleInputChange(String(fieldId), null);
+      handleInputChange(fieldId, '');
     }
   };
 
   const handleSubmit = async () => {
     setIsSubmitting(true);
     setError('');
-
-    if (!form.companyId || !form.departmentId) {
-        setError("Dados do formulário incompletos. Contate o administrador.");
-        setIsSubmitting(false);
-        return;
-    }
-
-   // DENTRO DE handleSubmit
-
-const formattedAnswers: Record<string, any> = {};
-form.fields.forEach(field => {
-    const fieldIdStr = String(field.id);
-    if (Object.prototype.hasOwnProperty.call(responses, fieldIdStr)) {
-        // A ÚNICA MUDANÇA É AQUI:
-        formattedAnswers[fieldIdStr] = responses[fieldIdStr]; 
-    }
-});
-
     try {
+      const flattened: Record<string, any> = {
+        collaboratorId: collaborator.id,
+        collaboratorUsername: collaborator.username,
+        formId: form.id,
+        formTitle: form.title,
+        companyId: form.companyId,
+        departmentId: form.departmentId,
+        status: 'pending',
+        submittedAt: serverTimestamp(),
+      };
+      (form.fields as ResponseFormField[]).forEach(field => {
+        const fieldIdStr = String(field.id);
+        let answerVal = responses[fieldIdStr];
+        if ((field.type === 'Caixa de Seleção' || field.type === 'Múltipla Escolha') && field.allowOther) {
+          const otherVal = otherInputValues[fieldIdStr] || '';
+          if (Array.isArray(answerVal)) {
+            answerVal = answerVal.map((v: string) => (v === '___OTHER___' ? otherVal : v)).filter(Boolean);
+          } else if (answerVal === '___OTHER___') {
+            answerVal = otherVal;
+          }
+        }
+        flattened[field.label] = answerVal ?? '';
+      });
       if (existingResponse?.id) {
-        const responseRef = doc(db, 'forms', form.id, 'responses', existingResponse.id);
-        await updateDoc(responseRef, { answers: formattedAnswers, updatedAt: serverTimestamp() });
+        await updateDoc(doc(db, 'forms', form.id, 'responses', existingResponse.id), { ...flattened, updatedAt: serverTimestamp() });
       } else {
-        const responseCollectionRef = collection(db, 'forms', form.id, 'responses');
-        await addDoc(responseCollectionRef, {
-          collaboratorId: collaborator.id,
-          collaboratorUsername: collaborator.username,
-          formId: form.id,
-          formTitle: form.title,
-          companyId: form.companyId,
-          departmentId: form.departmentId,
-          answers: formattedAnswers,
-          createdAt: serverTimestamp(),
-        });
+        await addDoc(collection(db, 'forms', form.id, 'responses'), flattened);
       }
       onClose();
     } catch (err) {
-      console.error("Erro ao submeter resposta: ", err);
-      setError("Não foi possível enviar a sua resposta. Tente novamente.");
+      setError('Não foi possível enviar a resposta.');
+    } finally {
       setIsSubmitting(false);
     }
   };
 
-  const renderTableCell = (field: EditorFormField, row: { id: number; label: string }, col: { id: number; label: string; type: string; options?: string[] }) => {
+  const renderTableCell = (
+    field: ResponseFormField,
+    row: { id: number; label: string },
+    col: { id: number; label: string; type: string; options?: string[] }
+  ) => {
     const value = responses[String(field.id)]?.[String(row.id)]?.[String(col.id)] || '';
-    const isDisabled = !canEdit && !!existingResponse;
-
+    const disabled = !canEdit && !!existingResponse;
     switch (col.type) {
+      case 'Texto':
+        return (
+          <input
+            className={styles.tableResponseInput}
+            type="text"
+            value={value}
+            onChange={e =>
+              handleTableInputChange(
+                String(field.id),
+                String(row.id),
+                String(col.id),
+                e.target.value
+              )
+            }
+            disabled={disabled}
+          />
+        );
       case 'Data':
-        return <input type="date" className={styles.tableResponseInput} value={value} onChange={(e) => handleTableInputChange(String(field.id), String(row.id), String(col.id), e.target.value)} disabled={isDisabled} />;
-      
+        return (
+          <input
+            className={styles.tableResponseInput}
+            type="date"
+            value={value}
+            onChange={e =>
+              handleTableInputChange(
+                String(field.id),
+                String(row.id),
+                String(col.id),
+                e.target.value
+              )
+            }
+            disabled={disabled}
+          />
+        );
       case 'Caixa de Seleção':
-        return <input type="checkbox" className={styles.tableResponseCheckbox} checked={!!value} onChange={(e) => handleTableInputChange(String(field.id), String(row.id), String(col.id), e.target.checked)} disabled={isDisabled} />;
-
+        return (
+          <input
+            type="checkbox"
+            checked={!!value}
+            onChange={e =>
+              handleTableInputChange(
+                String(field.id),
+                String(row.id),
+                String(col.id),
+                e.target.checked
+              )
+            }
+            disabled={disabled}
+          />
+        );
       case 'Múltipla Escolha':
         return (
-          <select className={styles.tableResponseSelect} value={value} onChange={(e) => handleTableInputChange(String(field.id), String(row.id), String(col.id), e.target.value)} disabled={isDisabled}>
+          <select
+            className={styles.tableResponseSelect}
+            value={value}
+            onChange={e =>
+              handleTableInputChange(
+                String(field.id),
+                String(row.id),
+                String(col.id),
+                e.target.value
+              )
+            }
+            disabled={disabled}
+          >
             <option value="">Selecione</option>
-            {col.options?.map(opt => <option key={opt} value={opt}>{opt}</option>)}
+            {col.options?.map((opt: string) => (
+              <option key={opt} value={opt}>
+                {opt}
+              </option>
+            ))}
           </select>
         );
-
-      case 'Texto':
       default:
-        return <input type="text" className={styles.tableResponseInput} value={value} onChange={(e) => handleTableInputChange(String(field.id), String(row.id), String(col.id), e.target.value)} disabled={isDisabled} />;
+        return (
+          <input
+            className={styles.tableResponseInput}
+            type="text"
+            value={value}
+            onChange={e =>
+              handleTableInputChange(
+                String(field.id),
+                String(row.id),
+                String(col.id),
+                e.target.value
+              )
+            }
+            disabled={disabled}
+          />
+        );
+    }
+  };
+
+  const renderField = (field: ResponseFormField) => {
+    const fieldId = String(field.id);
+    const disabled = !canEdit && !!existingResponse;
+    const otherVal = '___OTHER___';
+    switch (field.type) {
+      case 'Tabela':
+        return (
+          <div className={styles.tableResponseWrapper}>
+            <table className={styles.tableResponse}>
+              <thead>
+                <tr>
+                  <th></th>
+                  {field.columns?.map(col => (
+                    <th key={col.id}>{col.label}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {field.rows?.map(row => (
+                  <tr key={row.id}>
+                    <td>{row.label}</td>
+                    {field.columns?.map(col => (
+                      <td key={col.id}>{renderTableCell(field, row, col)}</td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        );
+      case 'Anexo':
+        return (
+          <div>
+            <input
+              type="file"
+              onChange={e => handleFileChange(fieldId, e.target.files)}
+              disabled={disabled}
+              multiple
+            />
+            {Array.isArray(responses[fieldId]) &&
+              responses[fieldId].map((file: any, i: number) => (
+                <div key={i}>
+                  <span>{file.name}</span>{' '}
+                  <button onClick={() => removeFile(fieldId, i)} type="button">
+                    Remover
+                  </button>
+                </div>
+              ))}
+          </div>
+        );
+      case 'Assinatura':
+        return (
+          <div className={styles.signatureWrapper}>
+            <canvas
+              ref={el => {
+                signaturePads.current[fieldId] = el;
+              }}
+              data-field-id={fieldId}
+              className={styles.signaturePad}
+              width={600}
+              height={200}
+            ></canvas>
+            <button
+              onClick={() => clearSignature(fieldId)}
+              type="button"
+              className={styles.clearButton}
+            >
+              <Eraser size={16} /> Limpar
+            </button>
+          </div>
+        );
+      case 'Caixa de Seleção':
+        return (
+          <div>
+            {field.options?.map((opt: string) => (
+              <label key={opt} className={styles.checkboxLabel}>
+                <input
+                  type="checkbox"
+                  checked={(responses[fieldId] || []).includes(opt)}
+                  onChange={e => {
+                    const current = responses[fieldId] || [];
+                    handleInputChange(
+                      fieldId,
+                      e.target.checked
+                        ? [...current, opt]
+                        : current.filter((v: string) => v !== opt)
+                    );
+                  }}
+                  disabled={disabled}
+                />
+                <span>{opt}</span>
+              </label>
+            ))}
+            {field.allowOther && (
+              <>
+                <label className={styles.checkboxLabel}>
+                  <input
+                    type="checkbox"
+                    checked={(responses[fieldId] || []).includes(otherVal)}
+                    onChange={e => {
+                      const current = responses[fieldId] || [];
+                      handleInputChange(
+                        fieldId,
+                        e.target.checked
+                          ? [...current, otherVal]
+                          : current.filter((v: string) => v !== otherVal)
+                      );
+                    }}
+                    disabled={disabled}
+                  />
+                  <span>Outros</span>
+                </label>
+                {(responses[fieldId] || []).includes(otherVal) && (
+                  <input
+                    className={styles.otherInput}
+                    value={otherInputValues[fieldId] || ''}
+                    onChange={e => handleOtherInputChange(fieldId, e.target.value)}
+                    placeholder="Por favor, especifique"
+                    disabled={disabled}
+                  />
+                )}
+              </>
+            )}
+          </div>
+        );
+      case 'Múltipla Escolha':
+        return (
+          <div>
+            {field.options?.map((opt: string) => (
+              <label key={opt} className={styles.radioLabel}>
+                <input
+                  type="radio"
+                  name={`field_${field.id}`}
+                  checked={responses[fieldId] === opt}
+                  onChange={() => handleInputChange(fieldId, opt)}
+                  disabled={disabled}
+                />
+                <span>{opt}</span>
+              </label>
+            ))}
+            {field.allowOther && (
+              <>
+                <label className={styles.radioLabel}>
+                  <input
+                    type="radio"
+                    name={`field_${field.id}`}
+                    checked={responses[fieldId] === otherVal}
+                    onChange={() => handleInputChange(fieldId, otherVal)}
+                    disabled={disabled}
+                  />
+                  <span>Outros</span>
+                </label>
+                {responses[fieldId] === otherVal && (
+                  <input
+                    className={styles.otherInput}
+                    value={otherInputValues[fieldId] || ''}
+                    onChange={e => handleOtherInputChange(fieldId, e.target.value)}
+                    placeholder="Por favor, especifique"
+                    disabled={disabled}
+                  />
+                )}
+              </>
+            )}
+          </div>
+        );
+      case 'Texto':
+        return (
+          <textarea
+            className={styles.textarea}
+            value={responses[fieldId] || ''}
+            onChange={e => handleInputChange(fieldId, e.target.value)}
+            disabled={disabled}
+          />
+        );
+      case 'Data':
+        return (
+          <input
+            type="datetime-local"
+            className={styles.input}
+            value={responses[fieldId] || ''}
+            onChange={e => handleInputChange(fieldId, e.target.value)}
+            disabled={disabled}
+          />
+        );
+      default:
+        return <p>Tipo {field.type} não implementado</p>;
     }
   };
 
@@ -265,132 +540,34 @@ form.fields.forEach(field => {
       <div className={styles.panel}>
         <div className={styles.panelHeader}>
           <h3 className={styles.panelTitle}>{form.title}</h3>
-          <button onClick={onClose} className={styles.closeButton}><X /></button>
+          <button onClick={onClose} className={styles.closeButton}>
+            <X />
+          </button>
         </div>
-
         <div className={styles.panelBody}>
-          {(form.fields as EditorFormField[]).map(field => (
+          {(form.fields as ResponseFormField[]).map(field => (
             <div key={field.id} className={styles.fieldWrapper}>
               <label className={styles.label}>{field.label}</label>
-
-              {field.type === 'Texto' && ( <textarea className={styles.textarea} value={responses[String(field.id)] || ''} onChange={(e) => handleInputChange(String(field.id), e.target.value)} disabled={!canEdit && !!existingResponse} /> )}
-              {field.type === 'Data' && ( <input type="datetime-local" className={styles.input} value={responses[String(field.id)] || ''} onChange={(e) => handleInputChange(String(field.id), e.target.value)} disabled={!canEdit && !!existingResponse} /> )}
-              
-              {field.type === 'Caixa de Seleção' && field.options?.map(option => (
-                <label key={option} className={styles.checkboxLabel}>
-                  <input 
-                    type="checkbox" 
-                    checked={(responses[String(field.id)] || []).includes(option)}
-                    onChange={(e) => {
-                      const current = responses[String(field.id)] || [];
-                      const newValue = e.target.checked
-                        ? [...current, option]
-                        : current.filter((item: string) => item !== option);
-                      handleInputChange(String(field.id), newValue);
-                    }} 
-                    disabled={!canEdit && !!existingResponse}
-                  />
-                  <span>{option}</span>
-                </label>
-              ))}
-
-              {field.type === 'Múltipla Escolha' && field.options?.map(option => (
-                <label key={option} className={styles.radioLabel}>
-                  <input 
-                    type="radio" 
-                    name={`field_${field.id}`} 
-                    checked={responses[String(field.id)] === option}
-                    onChange={() => handleInputChange(String(field.id), option)} 
-                    disabled={!canEdit && !!existingResponse}
-                  />
-                  <span>{option}</span>
-                </label>
-              ))}
-
-              {field.type === 'Anexo' && (
-                <div>
-                  <div className={styles.fileInputWrapper}>
-                    <input
-                      type="file"
-                      id={`file_${field.id}`}
-                      className={styles.fileInput}
-                      onChange={(e) => handleFileChange(String(field.id), e.target.files)}
-                      disabled={!canEdit && !!existingResponse}
-                      multiple 
-                    />
-                    <label htmlFor={`file_${field.id}`} className={`${styles.fileInputButton} ${(!canEdit && !!existingResponse) ? styles.disabledButton : ''}`}>
-                      <UploadCloud size={18} /><span>Escolher Ficheiros</span>
-                    </label>
-                  </div>
-                  {Array.isArray(responses[String(field.id)]) && (
-                    <div className={styles.fileList}>
-                      {responses[String(field.id)].map((file: any, index: number) => (
-                        <div key={index} className={styles.fileListItem}>
-                          <FileText size={16} />
-                          <span className={styles.fileName}>{file.name}</span>
-                          <button onClick={() => removeFile(String(field.id), index)} className={styles.removeFileButton} title="Remover ficheiro">
-                            <X size={14} />
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {field.type === 'Assinatura' && (
-                <div className={styles.signatureWrapper}>
-                  <canvas
-                    ref={(el) => { signaturePads.current[String(field.id)] = el; }}
-                    data-field-id={String(field.id)}
-                    className={styles.signaturePad}
-                    width="600"
-                    height="200"
-                  ></canvas>
-                  <button 
-                    onClick={() => clearSignature(String(field.id))} 
-                    className={styles.clearButton}
-                    disabled={!canEdit && !!existingResponse}
-                  >
-                    <Eraser size={16} /> Limpar
-                  </button>
-                </div>
-              )}
-
-              {field.type === 'Tabela' && (
-                <div className={styles.tableResponseWrapper}>
-                    <table className={styles.tableResponse}>
-                        <thead>
-                            <tr>
-                                <th className={styles.tableResponseTh}></th>
-                                {field.columns?.map(col => <th key={col.id} className={styles.tableResponseTh}>{col.label}</th>)}
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {field.rows?.map(row => (
-                                <tr key={row.id}>
-                                    <td className={styles.tableResponseFirstCol}>{row.label}</td>
-                                    {field.columns?.map(col => (
-                                        <td key={col.id} className={styles.tableResponseTd}>
-                                            {renderTableCell(field, row, col)}
-                                        </td>
-                                    ))}
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                </div>
-              )}
+              {renderField(field)}
             </div>
           ))}
         </div>
-
         <div className={styles.panelFooter}>
           {error && <p className={styles.errorText}>{error}</p>}
           {canEdit || !existingResponse ? (
-            <button onClick={handleSubmit} className={styles.submitButton} disabled={isSubmitting}>
+            <button
+              onClick={handleSubmit}
+              className={styles.submitButton}
+              disabled={isSubmitting}
+            >
               <Send size={18} />
-              <span>{isSubmitting ? 'A Enviar...' : (existingResponse ? 'Atualizar Resposta' : 'Submeter Resposta')}</span>
+              <span>
+                {isSubmitting
+                  ? 'A Enviar...'
+                  : existingResponse
+                  ? 'Atualizar Resposta'
+                  : 'Submeter Resposta'}
+              </span>
             </button>
           ) : null}
         </div>

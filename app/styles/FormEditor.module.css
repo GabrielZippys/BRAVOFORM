@@ -8,6 +8,29 @@
 ================================================================================
 */
 
+/* Adicione ao seu FormEditor.module.css */
+
+.checkboxOptionLabel {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.5rem;
+    color: #a0aec0;
+    cursor: pointer;
+    border-radius: 6px;
+    transition: background-color 0.2s;
+}
+
+.checkboxOptionLabel:hover {
+    background-color: #2d3748;
+}
+
+.checkboxOptionLabel input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+    accent-color: #3b82f6; /* Cor do checkbox quando marcado */
+}
+
 
 /* --- LAYOUT GERAL E FUNDOS --- */
 

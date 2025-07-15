@@ -25,6 +25,7 @@ type Row = {
 };
 type EditorFormField = Omit<ImportedFormField, 'type' | 'columns' | 'rows'> & {
   type: ImportedFormField['type'] | 'Tabela';
+  allowOther?: boolean;
   columns?: Column[];
   rows?: Row[]; 
   tableData?: Record<string, Record<string, any>>; 
@@ -406,27 +407,44 @@ export default function FormEditor({ companyId, departmentId, existingForm, onSa
                         </SortableContext>
                     </DndContext>
                     
-                    {selectedField && (
+                     {selectedField && (
                         <div className={styles.selectedFieldEditor}>
-                             <h3 className={styles.selectedFieldHeader}>Propriedades: {selectedField.label}</h3>
+                            <h3 className={styles.selectedFieldHeader}>Propriedades do Campo</h3>
                             <div className={styles.propertyGroup}>
                                 <label className={styles.propertyLabel}>Título do Campo</label>
                                 <input type="text" value={selectedField.label} onChange={(e) => updateFieldLabel(selectedField.id, e.target.value)} className={styles.input}/>
                             </div>
 
                             {(selectedField.type === 'Caixa de Seleção' || selectedField.type === 'Múltipla Escolha') && (
-                                <div className={styles.propertyGroup}>
-                                    <label className={styles.propertyLabel}>Opções</label>
-                                    {selectedField.options?.map((option, index) => (
-                                        <div key={index} className={styles.propertyListItem}>
-                                            <input type="text" value={option} onChange={(e) => updateOption(selectedField.id, index, e.target.value)} className={styles.propertyInput}/>
-                                            <button onClick={() => removeOption(selectedField.id, index)} className={styles.propertyDeleteButton}><Trash2 size={14} /></button>
-                                        </div>
-                                    ))}
-                                    <button onClick={() => addOption(selectedField.id)} className={styles.propertyAddButton}><PlusCircle size={16} /> Adicionar Opção</button>
-                                </div>
+                                <>
+                                    <div className={styles.propertyGroup}>
+                                        <label className={styles.propertyLabel}>Opções</label>
+                                        {selectedField.options?.map((option, index) => (
+                                            <div key={index} className={styles.propertyListItem}>
+                                                <input type="text" value={option} onChange={(e) => updateOption(selectedField.id, index, e.target.value)} className={styles.propertyInput}/>
+                                                <button onClick={() => removeOption(selectedField.id, index)} className={styles.propertyDeleteButton}><Trash2 size={14} /></button>
+                                            </div>
+                                        ))}
+                                        <button onClick={() => addOption(selectedField.id)} className={styles.propertyAddButton}><PlusCircle size={16} /> Adicionar Opção</button>
+                                    </div>
+                                    
+                                    {/* --- ADIÇÃO DA OPÇÃO "OUTROS" --- */}
+                                    <div className={styles.propertyGroup}>
+                                        <label className={styles.checkboxOptionLabel}>
+                                            <input 
+                                                type="checkbox" 
+                                                checked={!!selectedField.allowOther} 
+                                                onChange={(e) => {
+                                                    const newFields = fields.map(f => f.id === selectedField.id ? { ...f, allowOther: e.target.checked } : f);
+                                                    setFields(newFields);
+                                                }}
+                                            />
+                                            <span>Permitir uma opção "Outros" com texto livre</span>
+                                        </label>
+                                    </div>
+                                </>
                             )}
-
+                            
                             {selectedField.type === 'Tabela' && (
                                 <>
                                     <div className={styles.propertyGroup}>
