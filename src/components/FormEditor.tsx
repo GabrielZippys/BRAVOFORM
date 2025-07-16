@@ -27,9 +27,11 @@ type EditorFormField = Omit<ImportedFormField, 'type' | 'columns' | 'rows'> & {
   type: ImportedFormField['type'] | 'Tabela';
   allowOther?: boolean;
   columns?: Column[];
-  rows?: Row[]; 
-  tableData?: Record<string, Record<string, any>>; 
+  rows?: Row[];
+  tableData?: Record<string, Record<string, any>>;
+  placeholder?: string;
 };
+
 interface FormEditorProps {
   companyId: string | null;
   departmentId: string | null;
@@ -414,6 +416,21 @@ export default function FormEditor({ companyId, departmentId, existingForm, onSa
                                 <label className={styles.propertyLabel}>Título do Campo</label>
                                 <input type="text" value={selectedField.label} onChange={(e) => updateFieldLabel(selectedField.id, e.target.value)} className={styles.input}/>
                             </div>
+                            <div className={styles.propertyGroup}>
+  <label className={styles.propertyLabel}>Legenda / Placeholder</label>
+  <input
+    type="text"
+    value={selectedField.placeholder || ''}
+    onChange={(e) => {
+      const newFields = fields.map(f =>
+        f.id === selectedField.id ? { ...f, placeholder: e.target.value } : f
+      );
+      setFields(newFields);
+    }}
+    className={styles.input}
+    placeholder="Ex: 16"
+  />
+</div>
 
                             {(selectedField.type === 'Caixa de Seleção' || selectedField.type === 'Múltipla Escolha') && (
                                 <>
@@ -514,7 +531,14 @@ export default function FormEditor({ companyId, departmentId, existingForm, onSa
                         {fields.map((field) => (
                             <div key={field.id} className={styles.previewFieldWrapper}>
                                 <label className={styles.previewLabel}>{field.label}</label>
-                                {field.type === 'Texto' && <input type="text" className={styles.previewInput} readOnly />}
+                                {field.type === 'Texto' && (
+                                  <input
+                                   type="text"
+                                   className={styles.previewInput}
+                                   readOnly
+                                   placeholder={field.placeholder || ''}
+                                  />
+                               )}
                                 {field.type === 'Anexo' && <div className={styles.previewAttachment}><Paperclip size={24}/></div>}
                                 {field.type === 'Assinatura' && <div className={styles.previewSignature}><span>Assine Aqui</span></div>}
                                 {field.type === 'Data' && <input type="date" className={styles.previewDateInput} readOnly />}
