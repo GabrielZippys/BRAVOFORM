@@ -410,15 +410,3 @@
   box-shadow: 0 1px 8px #1e2226;
 }
 
-/* Scrollbar custom (dark) */
-::-webkit-scrollbar {
-  width: 10px;
-  background: #222a3c;
-}
-::-webkit-scrollbar-thumb {
-  background: #33405c;
-  border-radius: 7px;
-}
-::-webkit-scrollbar-thumb:hover {
-  background: #465573;
-}

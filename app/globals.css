@@ -79,3 +79,16 @@ body {
     transform: rotate(360deg);
   }
 }
+
+/* Scrollbar custom (dark) */
+::-webkit-scrollbar {
+  width: 10px;
+  background: #222a3c;
+}
+::-webkit-scrollbar-thumb {
+  background: #33405c;
+  border-radius: 7px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #465573;
+}
