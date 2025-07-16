@@ -79,6 +79,7 @@ const SortableFieldItem = ({ field, selectedFieldId, setSelectedFieldId, removeF
 export default function FormEditor({ companyId, departmentId, existingForm, onSaveSuccess, onCancel }: FormEditorProps) {
   // Seus estados originais (sem alterações)
   const [formTitle, setFormTitle] = useState("");
+  const [formDescription, setFormDescription] = useState("");
   const [fields, setFields] = useState<EditorFormField[]>([]);
   const [selectedFieldId, setSelectedFieldId] = useState<number | null>(null);
   const [automation, setAutomation] = useState({ type: 'email', target: '' });
@@ -114,6 +115,7 @@ export default function FormEditor({ companyId, departmentId, existingForm, onSa
   useEffect(() => {
     if (existingForm) {
       setFormTitle(existingForm.title);
+      setFormDescription(existingForm.description || "");
       const initialFields = (existingForm.fields as EditorFormField[] || []).map(field => {
           if (field.type === 'Tabela' && field.rows) {
               const rowsWithIds = field.rows.map((row, index) => ({
@@ -331,7 +333,7 @@ export default function FormEditor({ companyId, departmentId, existingForm, onSa
     try {
         const uniqueCollaborators = [...new Set(assignedCollaborators)];
         const formPayload = {
-            title: formTitle, fields, automation, companyId, departmentId, ownerId: currentUser.uid,
+            title: formTitle,  description: formDescription, fields, automation, companyId, departmentId, ownerId: currentUser.uid,
             collaborators: uniqueCollaborators, authorizedUsers: [...new Set([currentUser.uid, ...uniqueCollaborators])],
         };
 
@@ -371,6 +373,19 @@ export default function FormEditor({ companyId, departmentId, existingForm, onSa
                     <label htmlFor="form-title" className={styles.label}>Título do Formulário</label>
                     <input type="text" id="form-title" value={formTitle} onChange={(e) => setFormTitle(e.target.value)} className={styles.input}/>
                 </div>
+
+<div>
+  <label htmlFor="form-description" className={styles.label}>Descrição do Formulário</label>
+  <textarea
+    id="form-description"
+    value={formDescription}
+    onChange={(e) => setFormDescription(e.target.value)}
+    className={styles.input}
+    placeholder="Ex: Este formulário é para monitoramento diário..."
+    rows={3}
+  />
+</div>
+
                 <div className={styles.automationSection}>
                     <h4 className={styles.subTitle}>Automação de Notificação</h4>
                     <div className={styles.automationToggle}>

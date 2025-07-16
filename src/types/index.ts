@@ -46,6 +46,7 @@ export type FormField = {
 export interface Form {
   id: string;
   title: string;
+  description?: string; // descrição opcional do formulário
   fields: FormField[];
   companyId: string;
   departmentId: string;

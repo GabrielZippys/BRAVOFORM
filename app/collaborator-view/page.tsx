@@ -184,18 +184,47 @@ export default function CollaboratorView() {
         return formsToFill.length === 0 ? (
             <div className={styles.emptyState}><FileText size={48} /><p>Nenhuma diretiva encontrada para si.</p></div>
         ) : (
-            <div className={styles.grid}>
-                {formsToFill.map(form => (
-                    <div key={form.id} className={styles.card}>
-                        <div className={styles.cardIcon}><FileText size={32} /></div>
-                        <div className={styles.cardBody}>
-                            <h2 className={styles.cardTitle}>{form.title}</h2>
-                            <p className={styles.cardSubtitle}>Diretiva de {form.departmentId}</p>
-                        </div>
-                        <button onClick={() => handleOpenResponseModal(form)} className={styles.cardButton}>Responder</button>
-                    </div>
-                ))}
-            </div>
+           <div className={styles.grid}>
+  {formsToFill.map(form => {
+    const isNovo =
+      form.createdAt &&
+      Date.now() - form.createdAt.seconds * 1000 < 7 * 24 * 60 * 60 * 1000;
+
+    return (
+      <div key={form.id} className={styles.card}>
+        <div className={styles.cardIcon}>
+          <FileText size={32} />
+        </div>
+        <div className={styles.cardBody}>
+          <h2 className={styles.cardTitle}>
+            {form.title}
+            {isNovo && <span className={styles.newBadge}>Novo</span>}
+          </h2>
+
+          {/* ✅ Se tiver descrição, mostra */}
+          {form.description && (
+            <p className={styles.cardSubtitle}>{form.description}</p>
+          )}
+
+          {/* ✅ Se tiver data de criação, mostra */}
+          {form.createdAt && (
+            <p className={styles.cardSubtitle}>
+              Criado em{" "}
+              {new Date(form.createdAt.seconds * 1000).toLocaleDateString()}
+            </p>
+          )}
+        </div>
+        <button
+          onClick={() => handleOpenResponseModal(form)}
+          className={styles.cardButton}
+        >
+          Responder
+        </button>
+      </div>
+    );
+  })}
+</div>
+
         );
     };
 
