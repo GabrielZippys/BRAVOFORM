@@ -59,6 +59,8 @@ export interface Form {
   authorizedUsers: string[];
   createdAt: Timestamp;
   updatedAt?: Timestamp;
+    status?: 'active' | 'draft' | 'archived'; // <- Adicione esta linha!
+
 }
 
 // --- TIPO DE RESPOSTA DE FORMULÁRIO (CORRIGIDO) ---
