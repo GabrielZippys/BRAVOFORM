@@ -17,7 +17,7 @@ function toDateCompat(val: any): Date | null {
     return null;
 }
 
-// --- Stat Card (animado, com destaque para maior KPI) ---
+// --- Stat Card
 const StatCard = ({ title, value, icon, highlight = false, isLoading = false }: any) => (
     <div className={`${styles.statCard} ${highlight ? styles.statCardHighlight : ''}`}>
         <div className={styles.statCardIcon}>{icon}</div>
@@ -37,8 +37,7 @@ function TopUsers({ responses }: { responses: FormResponse[] }) {
         responses.forEach(r => {
             if (r.collaboratorUsername) map[r.collaboratorUsername] = (map[r.collaboratorUsername] || 0) + 1;
         });
-        const arr = Object.entries(map).sort((a, b) => b[1] - a[1]);
-        return arr.slice(0, 5);
+        return Object.entries(map).sort((a, b) => b[1] - a[1]).slice(0, 5);
     }, [responses]);
     return (
         <div className={styles.topUsersCard}>
@@ -69,12 +68,11 @@ export default function DashboardPage() {
     const [loading, setLoading] = useState({ companies: true, departments: true, responses: true, forms: true });
     const [error, setError] = useState('');
 
-    // Carregar dados (sem root, sem var)
     useEffect(() => {
         getDocs(query(collection(db, "companies"))).then(qs => {
             setCompanies(qs.docs.map(doc => ({ id: doc.id, ...doc.data() } as Company)));
             setLoading(l => ({ ...l, companies: false }));
-        }).catch(() => setLoading(l => ({ ...l, companies: false })));
+        });
     }, []);
     useEffect(() => {
         if (selectedCompanyId === 'all' || !selectedCompanyId) {
@@ -103,7 +101,6 @@ export default function DashboardPage() {
         });
     }, [user]);
 
-    // Filtragem
     const filteredResponses = useMemo(() => allResponses.filter(r => (
         (selectedCompanyId === 'all' || r.companyId === selectedCompanyId) &&
         (selectedDepartmentId === 'all' || r.departmentId === selectedDepartmentId)
@@ -140,7 +137,7 @@ export default function DashboardPage() {
         return Object.entries(dayMap).map(([date, count]) => ({ date, count })).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()).slice(-7);
     }, [filteredResponses]);
 
-    // Ícones modernos (SVG direto)
+    // Ícones SVG moderno (sem dependência externa)
     const icons = {
         responses: (
             <svg width="26" height="26" viewBox="0 0 24 24" fill="none">
@@ -194,14 +191,14 @@ export default function DashboardPage() {
             <div className={styles.filtersContainer}>
                 <div className={styles.filterGroup}>
                     <label htmlFor="empresa" className={styles.filterLabel}>Empresa</label>
-                    <select id="empresa" value={selectedCompanyId} onChange={e => setSelectedCompanyId(e.target.value)} className={styles.filterSelect} disabled={loading.companies}>
+                    <select id="empresa" value={selectedCompanyId} onChange={e => { setSelectedCompanyId(e.target.value); setSelectedDepartmentId('all'); }} className={styles.filterSelect} disabled={loading.companies}>
                         <option value="all">Todas as Empresas</option>
                         {companies.map(c => (<option key={c.id} value={c.id}>{c.name}</option>))}
                     </select>
                 </div>
                 <div className={styles.filterGroup}>
                     <label htmlFor="departamento" className={styles.filterLabel}>Departamento</label>
-                    <select id="departamento" value={selectedDepartmentId} onChange={e => setSelectedDepartmentId(e.target.value)} className={styles.filterSelect} disabled={!selectedCompanyId || selectedCompanyId === 'all' || loading.departments}>
+                    <select id="departamento" value={selectedDepartmentId} onChange={e => setSelectedDepartmentId(e.target.value)} className={styles.filterSelect} disabled={departments.length === 0 || loading.departments}>
                         <option value="all">Todos os Departamentos</option>
                         {departments.map(d => (<option key={d.id} value={d.id}>{d.name}</option>))}
                     </select>
