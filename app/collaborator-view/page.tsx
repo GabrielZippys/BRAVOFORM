@@ -6,8 +6,10 @@ import { db } from '../../firebase/config';
 import { doc, getDoc, collection, query, where, onSnapshot, collectionGroup } from 'firebase/firestore';
 import styles from '../styles/CollaboratorView.module.css';
 import { FileText, LogOut, History, User2, Edit, Eye } from 'lucide-react';
-import CollaboratorHistoryModal from '@/components/CollaboratorView'; // <---
+import CollaboratorHistoryModal from '@/components/CollaboratorView'; // Modal de histórico
+import FormResponse from '@/components/FormResponse'; // Modal para responder formulário
 
+// TIPOS principais
 interface Collaborator {
   id: string;
   username: string;
@@ -23,6 +25,12 @@ interface Form {
   description?: string;
   createdAt?: { seconds: number };
   fields?: any[]; // Para exibir as perguntas
+  companyId?: string;
+  departmentId?: string;
+  automation?: any;
+  ownerId?: string;
+  collaborators?: string[];
+  authorizedUsers?: string[];
 }
 interface FormResponseType {
   id: string;
@@ -41,13 +49,18 @@ export default function CollaboratorView() {
   const [view, setView] = useState<'forms' | 'history'>('forms');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  // Modal
+
+  // MODAIS
   const [modalOpen, setModalOpen] = useState(false);
   const [formSelecionado, setFormSelecionado] = useState<Form | null>(null);
   const [respostaSelecionada, setRespostaSelecionada] = useState<FormResponseType | null>(null);
 
+  // Modal de resposta de formulário
+  const [formToAnswer, setFormToAnswer] = useState<Form | null>(null);
+
   const router = useRouter();
 
+  // Carrega colaborador
   useEffect(() => {
     const loadCollaborator = async () => {
       try {
@@ -57,7 +70,6 @@ export default function CollaboratorView() {
           return;
         }
         const parsed = JSON.parse(storedData) as Collaborator;
-        // Busca atualizado do Firestore
         const collRef = doc(db, `departments/${parsed.departmentId}/collaborators`, parsed.id);
         const snap = await getDoc(collRef);
         if (snap.exists()) setCollaborator({ ...parsed, ...snap.data() });
@@ -69,7 +81,7 @@ export default function CollaboratorView() {
     loadCollaborator();
   }, [router]);
 
-  // Nome de empresa/depto
+  // Nomes empresa/depto
   useEffect(() => {
     if (collaborator?.companyId) {
       getDoc(doc(db, 'companies', collaborator.companyId)).then(snap => {
@@ -116,18 +128,33 @@ export default function CollaboratorView() {
     router.push('/');
   };
 
-  // Abrir modal histórico
+  // MODAL HISTÓRICO
   const handleHistoryOpen = async (response: FormResponseType) => {
-  const formSnap = await getDoc(doc(db, 'forms', response.formId));
-  const form = formSnap.exists() ? { id: formSnap.id, ...formSnap.data() } as Form : null;
-  setFormSelecionado(form ? { ...form, fields: Array.isArray(form.fields) ? form.fields : [] } : null);
-  setRespostaSelecionada(response);
-  setModalOpen(true);
-};
+    const formSnap = await getDoc(doc(db, 'forms', response.formId));
+    const form = formSnap.exists() ? { id: formSnap.id, ...formSnap.data() } as Form : null;
+    setFormSelecionado(form ? { ...form, fields: Array.isArray(form.fields) ? form.fields : [] } : null);
+    setRespostaSelecionada(response);
+    setModalOpen(true);
+  };
 
+  // MODAL DE RESPOSTA
+  const handleResponder = async (form: Form) => {
+    // Sempre busca o form completo do banco (garante tipo completo!)
+    const snap = await getDoc(doc(db, 'forms', form.id));
+    if (snap.exists()) {
+      const firestoreForm = snap.data() as Form;
+      setFormToAnswer({
+        ...firestoreForm,
+        id: form.id,
+        fields: Array.isArray(firestoreForm.fields) ? firestoreForm.fields : [],
+      });
+    }
+  };
+  const closeFormResponse = () => setFormToAnswer(null);
 
   return (
     <main className={styles.main}>
+      {/* HEADER */}
       <header className={styles.header}>
         <div className={styles.headerContent}>
           <div className={styles.userInfoBox}>
@@ -151,6 +178,7 @@ export default function CollaboratorView() {
         </div>
       </header>
 
+      {/* CONTEÚDO */}
       <div className={styles.content}>
         <div className={styles.viewToggle}>
           <button className={`${styles.toggleButton} ${view === 'forms' ? styles.active : ''}`} onClick={() => setView('forms')}>
@@ -183,7 +211,7 @@ export default function CollaboratorView() {
                       </p>
                     )}
                   </div>
-                  <button className={styles.cardButton} onClick={() => {/* implementar resposta */}}>
+                  <button className={styles.cardButton} onClick={() => handleResponder(form)}>
                     Responder
                   </button>
                 </div>
@@ -222,14 +250,23 @@ export default function CollaboratorView() {
 
       {/* MODAL DE HISTÓRICO */}
       {modalOpen && formSelecionado && respostaSelecionada && (
-       <CollaboratorHistoryModal
-  isOpen={modalOpen}
-  onClose={() => setModalOpen(false)}
-  form={formSelecionado ? { ...formSelecionado, fields: Array.isArray(formSelecionado.fields) ? formSelecionado.fields : [] } : { title: '', fields: [] }}
-  response={respostaSelecionada}
-  canEdit={!!collaborator?.canEditHistory}
-/>
+        <CollaboratorHistoryModal
+          isOpen={modalOpen}
+          onClose={() => setModalOpen(false)}
+          form={formSelecionado ? { ...formSelecionado, fields: Array.isArray(formSelecionado.fields) ? formSelecionado.fields : [] } : { title: '', fields: [] }}
+          response={respostaSelecionada}
+          canEdit={!!collaborator?.canEditHistory}
+        />
+      )}
 
+      {/* MODAL DE FORMULÁRIO DE RESPOSTA */}
+      {formToAnswer && (
+        <FormResponse
+          form={formToAnswer}
+          collaborator={collaborator!}
+          onClose={closeFormResponse}
+          canEdit={true}
+        />
       )}
     </main>
   );
