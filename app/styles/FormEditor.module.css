@@ -330,3 +330,19 @@
     .controlsColumn { border-right: none; padding: 0; }
     .editorHeader { position: sticky; top: 0; z-index: 10; }
 }
+
+.selectedFieldEditor textarea,
+.propertyGroup textarea,
+.myTextarea {
+  font-family: inherit;
+  background: #23293b;
+  color: #c1fcff;
+  border: 1.5px solid #314056;
+  border-radius: 7px;
+  resize: vertical;
+  width: 100%;
+  padding: 0.6em 0.9em;
+}
+.selectedFieldEditor textarea:focus,
+.propertyGroup textarea:focus,
+.myTextarea:focus { border-color: #30d6fd; }
