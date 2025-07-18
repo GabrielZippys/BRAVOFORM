@@ -1,266 +1,236 @@
 'use client';
 
-import { useState, useEffect, ReactNode } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import styles from '../styles/CollaboratorView.module.css';
 import { db } from '../../firebase/config';
-import { collection, query, where, onSnapshot, getDoc, doc, collectionGroup } from 'firebase/firestore';
-import { type Form, type Collaborator as CollaboratorType, type FormResponse as FormResponseType } from '@/types';
-
-import FormResponse from '@/components/FormResponse';
-import { FileText, LogOut, History, Edit } from 'lucide-react';
+import { doc, getDoc, collection, query, where, onSnapshot, collectionGroup } from 'firebase/firestore';
+import styles from '../styles/CollaboratorView.module.css';
+import { FileText, LogOut, History, User2, Edit, Eye } from 'lucide-react';
+import CollaboratorHistoryModal from '@/components/CollaboratorView'; // <---
 
 interface Collaborator {
-    id: string;
-    username: string;
-    email: string;
-    companyId: string;
-    departmentId: string;
-    canViewHistory?: boolean;
-    canEditHistory?: boolean;
+  id: string;
+  username: string;
+  email?: string;
+  companyId: string;
+  departmentId: string;
+  canViewHistory?: boolean;
+  canEditHistory?: boolean;
+}
+interface Form {
+  id: string;
+  title: string;
+  description?: string;
+  createdAt?: { seconds: number };
+  fields?: any[]; // Para exibir as perguntas
+}
+interface FormResponseType {
+  id: string;
+  formId: string;
+  formTitle: string;
+  answers?: any;
+  createdAt?: { seconds: number };
 }
 
-type FormResponseWithTimestamp = FormResponseType & {
-    createdAt?: { seconds: number; nanoseconds: number; };
+export default function CollaboratorView() {
+  const [collaborator, setCollaborator] = useState<Collaborator | null>(null);
+  const [companyName, setCompanyName] = useState('');
+  const [departmentName, setDepartmentName] = useState('');
+  const [formsToFill, setFormsToFill] = useState<Form[]>([]);
+  const [submittedResponses, setSubmittedResponses] = useState<FormResponseType[]>([]);
+  const [view, setView] = useState<'forms' | 'history'>('forms');
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  // Modal
+  const [modalOpen, setModalOpen] = useState(false);
+  const [formSelecionado, setFormSelecionado] = useState<Form | null>(null);
+  const [respostaSelecionada, setRespostaSelecionada] = useState<FormResponseType | null>(null);
+
+  const router = useRouter();
+
+  useEffect(() => {
+    const loadCollaborator = async () => {
+      try {
+        const storedData = sessionStorage.getItem('collaborator_data');
+        if (!storedData) {
+          router.push('/');
+          return;
+        }
+        const parsed = JSON.parse(storedData) as Collaborator;
+        // Busca atualizado do Firestore
+        const collRef = doc(db, `departments/${parsed.departmentId}/collaborators`, parsed.id);
+        const snap = await getDoc(collRef);
+        if (snap.exists()) setCollaborator({ ...parsed, ...snap.data() });
+        else setCollaborator(parsed);
+      } catch {
+        router.push('/');
+      }
+    };
+    loadCollaborator();
+  }, [router]);
+
+  // Nome de empresa/depto
+  useEffect(() => {
+    if (collaborator?.companyId) {
+      getDoc(doc(db, 'companies', collaborator.companyId)).then(snap => {
+        setCompanyName(snap.exists() ? snap.data().name : '');
+      });
+    }
+    if (collaborator?.companyId && collaborator?.departmentId) {
+      getDoc(doc(db, `companies/${collaborator.companyId}/departments`, collaborator.departmentId)).then(snap => {
+        setDepartmentName(snap.exists() ? snap.data().name : '');
+      });
+    }
+  }, [collaborator?.companyId, collaborator?.departmentId]);
+
+  // Formulários
+  useEffect(() => {
+    if (!collaborator?.id) return;
+    setLoading(true);
+    const q = query(
+      collection(db, "forms"),
+      where("authorizedUsers", "array-contains", collaborator.id)
+    );
+    const unsub = onSnapshot(q, (snapshot) => {
+      setFormsToFill(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Form)));
+      setLoading(false);
+    }, () => setLoading(false));
+    return () => unsub();
+  }, [collaborator?.id]);
+
+  // Histórico
+  useEffect(() => {
+    if (view === 'history' && collaborator?.id) {
+      setLoading(true);
+      const q = query(collectionGroup(db, "responses"), where("collaboratorId", "==", collaborator.id));
+      const unsub = onSnapshot(q, (snapshot) => {
+        setSubmittedResponses(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as FormResponseType)));
+        setLoading(false);
+      }, () => setLoading(false));
+      return () => unsub();
+    }
+  }, [view, collaborator?.id]);
+
+  const handleLogout = () => {
+    sessionStorage.removeItem('collaborator_data');
+    router.push('/');
+  };
+
+  // Abrir modal histórico
+  const handleHistoryOpen = async (response: FormResponseType) => {
+  const formSnap = await getDoc(doc(db, 'forms', response.formId));
+  const form = formSnap.exists() ? { id: formSnap.id, ...formSnap.data() } as Form : null;
+  setFormSelecionado(form ? { ...form, fields: Array.isArray(form.fields) ? form.fields : [] } : null);
+  setRespostaSelecionada(response);
+  setModalOpen(true);
 };
 
 
-export default function CollaboratorView() {
-    const [collaborator, setCollaborator] = useState<Collaborator | null>(null);
-    const [view, setView] = useState<'forms' | 'history'>('forms');
-    
-    const [formsToFill, setFormsToFill] = useState<Form[]>([]);
-    const [submittedResponses, setSubmittedResponses] = useState<FormResponseType[]>([]);
-
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState('');
-    
-    const [selectedForm, setSelectedForm] = useState<Form | null>(null);
-    const [selectedResponse, setSelectedResponse] = useState<FormResponseType | null>(null);
-
-    const router = useRouter();
-
-    useEffect(() => {
-        try {
-            const storedData = sessionStorage.getItem('collaborator_data');
-            if (!storedData) {
-                router.push('/');
-                return;
-            }
-            const parsedData: Collaborator = JSON.parse(storedData);
-            setCollaborator(parsedData);
-        } catch (e) {
-            console.error("Erro ao ler dados da sessão:", e);
-            router.push('/');
-        }
-    }, [router]);
-
-    useEffect(() => {
-        if (collaborator?.id && collaborator.departmentId) {
-            const collaboratorRef = doc(db, `departments/${collaborator.departmentId}/collaborators`, collaborator.id);
-            
-            const unsubscribe = onSnapshot(collaboratorRef, (docSnap) => {
-                if (docSnap.exists()) {
-                    setCollaborator(prev => ({ ...prev, ...docSnap.data() } as Collaborator));
-                }
-            });
-
-            return () => unsubscribe();
-        }
-    }, [collaborator?.id, collaborator?.departmentId]);
-
-
-    useEffect(() => {
-        if (!collaborator?.id) return;
-
-        setLoading(true);
-        const q = query(
-            collection(db, "forms"),
-            where("authorizedUsers", "array-contains", collaborator.id)
-        );
-
-        const unsubscribe = onSnapshot(q, (snapshot) => {
-            const formsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Form));
-            setFormsToFill(formsData);
-            setLoading(false);
-        }, (err) => {
-            console.error("Erro ao buscar formulários: ", err);
-            setError("Não foi possível carregar os formulários.");
-            setLoading(false);
-        });
-
-        return () => unsubscribe();
-    }, [collaborator?.id]);
-
-    useEffect(() => {
-        if (view === 'history' && collaborator?.id) {
-            setLoading(true);
-            const responsesQuery = query(
-                collectionGroup(db, "responses"), 
-                where("collaboratorId", "==", collaborator.id)
-            );
-            const unsubscribe = onSnapshot(responsesQuery, (snapshot) => {
-                const responsesData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as FormResponseType));
-                setSubmittedResponses(responsesData);
-                setLoading(false);
-            }, (err) => {
-                console.error("Erro ao buscar histórico: ", err);
-                setError("Não foi possível carregar o histórico.");
-                setLoading(false);
-            });
-            return () => unsubscribe();
-        }
-    }, [view, collaborator?.id]);
-
-    const handleLogout = () => {
-        sessionStorage.removeItem('collaborator_data');
-        router.push('/');
-    };
-
-    const handleOpenResponseModal = (form: Form) => {
-        setSelectedResponse(null);
-        setSelectedForm(form);
-    };
-
-    // CORREÇÃO: Adicionada uma verificação de permissão antes de abrir o modal.
-    const handleOpenHistoryModal = async (response: FormResponseType) => {
-        // Se não tiver permissão para editar, não faz nada.
-        if (!collaborator?.canEditHistory) {
-            return;
-        }
-
-        const formRef = doc(db, 'forms', response.formId);
-        const formSnap = await getDoc(formRef);
-        if (formSnap.exists()) {
-            const formData = formSnap.data();
-            const validForm = { 
-                id: formSnap.id, 
-                ...formData,
-                fields: formData.fields || [] 
-            } as Form;
-            
-            setSelectedResponse(response);
-            setSelectedForm(validForm);
-        } else {
-            setError("Não foi possível encontrar a estrutura do formulário original.");
-        }
-    };
-    
-    const handleCloseResponseModal = () => {
-        setSelectedForm(null);
-        setSelectedResponse(null);
-    }
-
-    const renderContent = () => {
-        if (loading) return <p className={styles.loadingText}>A procurar diretivas...</p>;
-        if (error) return <p className={styles.errorText}>{error}</p>;
-
-        if (view === 'history') {
-            return submittedResponses.length === 0 ? (
-                <div className={styles.emptyState}><History size={48} /><p>Nenhum histórico encontrado.</p></div>
-            ) : (
-                <div className={styles.grid}>
-                    {(submittedResponses as FormResponseWithTimestamp[]).map(response => (
-                        // CORREÇÃO: Adicionada uma classe condicional para desativar o card
-                        <div 
-                            key={response.id} 
-                            className={`${styles.historyCard} ${!collaborator?.canEditHistory ? styles.disabled : ''}`} 
-                            onClick={() => handleOpenHistoryModal(response)}
-                        >
-                            <div className={styles.historyInfo}>
-                                <h4>{response.formTitle}</h4>
-                                <p>Enviado em: {response.createdAt ? new Date(response.createdAt.seconds * 1000).toLocaleDateString() : 'Data desconhecida'}</p>
-                            </div>
-                            <div className={styles.historyStatus}>
-                                {collaborator?.canEditHistory ? <Edit size={18} /> : <FileText size={18} />}
-                                <span>{collaborator?.canEditHistory ? 'Editar' : 'Ver'}</span>
-                            </div>
-                        </div>
-                    ))}
-                </div>
-            );
-        }
-
-        return formsToFill.length === 0 ? (
-            <div className={styles.emptyState}><FileText size={48} /><p>Nenhuma diretiva encontrada para si.</p></div>
-        ) : (
-           <div className={styles.grid}>
-  {formsToFill.map(form => {
-    const isNovo =
-      form.createdAt &&
-      Date.now() - form.createdAt.seconds * 1000 < 7 * 24 * 60 * 60 * 1000;
-
-    return (
-      <div key={form.id} className={styles.card}>
-        <div className={styles.cardIcon}>
-          <FileText size={32} />
-        </div>
-        <div className={styles.cardBody}>
-          <h2 className={styles.cardTitle}>
-            {form.title}
-            {isNovo && <span className={styles.newBadge}>Novo</span>}
-          </h2>
-
-          {/* ✅ Se tiver descrição, mostra */}
-          {form.description && (
-            <p className={styles.cardSubtitle}>{form.description}</p>
-          )}
-
-          {/* ✅ Se tiver data de criação, mostra */}
-          {form.createdAt && (
-            <p className={styles.cardSubtitle}>
-              Criado em{" "}
-              {new Date(form.createdAt.seconds * 1000).toLocaleDateString()}
-            </p>
-          )}
-        </div>
-        <button
-          onClick={() => handleOpenResponseModal(form)}
-          className={styles.cardButton}
-        >
-          Responder
-        </button>
-      </div>
-    );
-  })}
-</div>
-
-        );
-    };
-
-    return (
-        <main className={styles.main}>
-            <header className={styles.header}>
-                <div className={styles.headerContent}>
-                    <h1 className={styles.title}>Portal do Colaborador</h1>
-                    {collaborator && (
-                        <div className={styles.userInfo}>
-                            <span>Bem-vindo, {collaborator.username}</span>
-                            <button onClick={handleLogout} className={styles.logoutButton} title="Sair"><LogOut size={20} /></button>
-                        </div>
-                    )}
-                </div>
-            </header>
-
-            <div className={styles.content}>
-                <div className={styles.viewToggle}>
-                    <button className={`${styles.toggleButton} ${view === 'forms' ? styles.active : ''}`} onClick={() => setView('forms')}>Formulários</button>
-                    {collaborator?.canViewHistory && (
-                        <button className={`${styles.toggleButton} ${view === 'history' ? styles.active : ''}`} onClick={() => setView('history')}>Histórico</button>
-                    )}
-                </div>
-                {renderContent()}
+  return (
+    <main className={styles.main}>
+      <header className={styles.header}>
+        <div className={styles.headerContent}>
+          <div className={styles.userInfoBox}>
+            <span className={styles.userAvatar}><User2 size={28} /></span>
+            <div>
+              <div className={styles.userNameRow}>{collaborator?.username || <span>...</span>}</div>
+              <div className={styles.userInfoLine}>
+                <span className={styles.userInfoLabel}>Departamento:</span>{' '}
+                <span>{departmentName || <span>...</span>}</span>
+              </div>
+              <div className={styles.userInfoLine}>
+                <span className={styles.userInfoLabel}>Empresa:</span>{' '}
+                <span>{companyName || <span>...</span>}</span>
+              </div>
             </div>
+            <button onClick={handleLogout} className={styles.logoutButton} title="Sair">
+              <LogOut size={20} />
+            </button>
+          </div>
+          <h1 className={styles.title}>Portal do Colaborador</h1>
+        </div>
+      </header>
 
-            {selectedForm && collaborator && (
-                <FormResponse 
-                    form={selectedForm}
-                    collaborator={collaborator}
-                    onClose={handleCloseResponseModal}
-                    existingResponse={selectedResponse}
-                    canEdit={!!collaborator.canEditHistory}
-                />
-            )}
-        </main>
-    );
+      <div className={styles.content}>
+        <div className={styles.viewToggle}>
+          <button className={`${styles.toggleButton} ${view === 'forms' ? styles.active : ''}`} onClick={() => setView('forms')}>
+            Formulários
+          </button>
+          {collaborator?.canViewHistory && (
+            <button className={`${styles.toggleButton} ${view === 'history' ? styles.active : ''}`} onClick={() => setView('history')}>
+              Histórico
+            </button>
+          )}
+        </div>
+        {loading && <p className={styles.loadingText}>Carregando dados...</p>}
+        {error && <p className={styles.errorText}>{error}</p>}
+
+        {/* FORMULÁRIOS */}
+        {!loading && view === 'forms' && (
+          formsToFill.length === 0 ?
+            <div className={styles.emptyState}><FileText size={48} /><p>Nenhuma diretiva encontrada para você.</p></div>
+            :
+            <div className={styles.grid}>
+              {formsToFill.map(form => (
+                <div key={form.id} className={styles.card}>
+                  <div className={styles.cardIcon}><FileText size={32} /></div>
+                  <div className={styles.cardBody}>
+                    <h2 className={styles.cardTitle}>{form.title}</h2>
+                    {form.description && <p className={styles.cardSubtitle}>{form.description}</p>}
+                    {form.createdAt && (
+                      <p className={styles.cardSubtitle}>
+                        Criado em {new Date(form.createdAt.seconds * 1000).toLocaleDateString()}
+                      </p>
+                    )}
+                  </div>
+                  <button className={styles.cardButton} onClick={() => {/* implementar resposta */}}>
+                    Responder
+                  </button>
+                </div>
+              ))}
+            </div>
+        )}
+
+        {/* HISTÓRICO */}
+        {!loading && view === 'history' && (
+          submittedResponses.length === 0 ?
+            <div className={styles.emptyState}><History size={48} /><p>Nenhum histórico encontrado.</p></div>
+            :
+            <div className={styles.grid}>
+              {submittedResponses.map(response => (
+                <div key={response.id} className={styles.card}>
+                  <div className={styles.cardIcon}><History size={32} /></div>
+                  <div className={styles.cardBody}>
+                    <h2 className={styles.cardTitle}>{response.formTitle}</h2>
+                    {response.createdAt && (
+                      <p className={styles.cardSubtitle}>
+                        Respondido em {new Date(response.createdAt.seconds * 1000).toLocaleDateString()}
+                      </p>
+                    )}
+                  </div>
+                  <button className={styles.cardButton} onClick={() => handleHistoryOpen(response)}>
+                    {collaborator?.canEditHistory
+                      ? <><Edit size={16} style={{ marginRight: 5, verticalAlign: 'middle' }} /> Editar</>
+                      : <><Eye size={16} style={{ marginRight: 5, verticalAlign: 'middle' }} /> Visualizar</>
+                    }
+                  </button>
+                </div>
+              ))}
+            </div>
+        )}
+      </div>
+
+      {/* MODAL DE HISTÓRICO */}
+      {modalOpen && formSelecionado && respostaSelecionada && (
+       <CollaboratorHistoryModal
+  isOpen={modalOpen}
+  onClose={() => setModalOpen(false)}
+  form={formSelecionado ? { ...formSelecionado, fields: Array.isArray(formSelecionado.fields) ? formSelecionado.fields : [] } : { title: '', fields: [] }}
+  response={respostaSelecionada}
+  canEdit={!!collaborator?.canEditHistory}
+/>
+
+      )}
+    </main>
+  );
 }

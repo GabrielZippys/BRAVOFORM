@@ -1,219 +1,125 @@
-/*
-================================================================================
-|
-|   ARQUIVO: app/styles/Modal.module.css
-|   TEMA: Bravo TI (Moderno e Corporativo)
-|
-================================================================================
-*/
-
 .overlay {
   position: fixed;
   inset: 0;
-  background-color: rgba(0, 0, 0, 0.5);
-  backdrop-filter: blur(8px);
-  z-index: 40;
+  z-index: 9000;
+  background: rgba(24, 28, 38, 0.82);
+  backdrop-filter: blur(2px);
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 1rem;
-  animation: fadeIn 0.3s ease;
+  animation: modalFadeIn 0.2s;
 }
 
-@keyframes fadeIn {
+@keyframes modalFadeIn {
   from { opacity: 0; }
   to { opacity: 1; }
 }
 
 .panel {
-  width: 100%;
-  max-width: 32rem;
-  background-color: var(--secondary-bg);
-  border: 1px solid var(--border-color);
-  border-radius: var(--border-radius);
-  box-shadow: 0 5px 15px rgba(0,0,0,0.1);
-  z-index: 50;
+  width: 95vw;
+  max-width: 540px;
+  background: #232b3b;
+  border-radius: 14px;
+  box-shadow: 0 6px 32px #1a1c2040;
+  padding: 0 0 2.2rem 0;
+  overflow: auto;
+  animation: slideInModal 0.24s;
+  max-height: 92vh;
   display: flex;
   flex-direction: column;
-  max-height: 90vh;
+}
+
+@keyframes slideInModal {
+  from { transform: translateY(40px) scale(0.97); opacity: 0; }
+  to { transform: none; opacity: 1; }
 }
 
 .panelHeader {
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  padding: 1rem 1.5rem;
-  border-bottom: 1px solid var(--border-color);
-  flex-shrink: 0;
+  justify-content: space-between;
+  background: #1a202c;
+  padding: 1.2rem 2rem 1.2rem 2rem;
+  border-top-left-radius: 14px;
+  border-top-right-radius: 14px;
+  border-bottom: 1px solid #293044;
 }
 
 .panelTitle {
-  font-family: var(--font-display);
-  font-size: 1.25rem;
-  color: var(--text-primary);
+  color: #fff;
+  font-size: 1.15rem;
   font-weight: 700;
+  letter-spacing: 0.01em;
+  margin: 0;
 }
 
 .closeButton {
-  background: transparent;
+  background: none;
   border: none;
-  color: var(--text-secondary);
-  cursor: pointer;
-  padding: 0.5rem;
+  color: #9dc6fb;
+  font-size: 1.3rem;
   border-radius: 50%;
-  transition: background-color 0.2s ease;
+  cursor: pointer;
+  padding: 5px;
+  transition: background 0.15s;
 }
 .closeButton:hover {
-    background-color: var(--primary-bg);
+  background: #162037;
+  color: #45e2f2;
 }
 
-.panelBody {
-    padding: 1.5rem;
-    overflow-y: auto;
-}
-
-.form {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-}
-
-.formGroup {
-  display: flex;
-  flex-direction: column;
-}
-
-.label {
-  margin-bottom: 0.5rem;
-  font-size: 0.875rem;
-  color: var(--text-primary);
-  font-weight: 500;
-}
-
-.input {
-  background-color: var(--secondary-bg);
-  border: 1px solid var(--border-color);
-  color: var(--text-primary);
-  width: 100%;
-  padding: 0.75rem;
-  border-radius: var(--border-radius);
-  box-sizing: border-box; 
+.modalContent {
+  padding: 1.8rem 2rem 0.7rem 2rem;
+  flex: 1 1 auto;
+  overflow-y: auto;
   font-size: 1rem;
-  transition: all 0.2s ease;
-}
-.input:focus {
-    outline: none;
-    border-color: var(--primary-accent);
-    box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
+  color: #e2eafc;
 }
 
-.passwordWrapper {
-    position: relative;
-    display: flex;
-    align-items: center;
-}
-.passwordWrapper .input {
-    padding-right: 3rem;
-}
-.eyeButton {
-    position: absolute;
-    right: 0;
-    top: 0;
-    height: 100%;
-    width: 3rem;
-    background: transparent;
-    border: none;
-    color: var(--text-secondary);
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-.eyeButton:hover {
-    color: var(--primary-accent);
-}
-
-.error {
-    color: var(--error-red);
-    font-size: 0.875rem;
-    text-align: center;
-    margin-top: 0.5rem;
-}
-
-.buttonContainer {
-    padding: 1rem 1.5rem;
-    border-top: 1px solid var(--border-color);
-    background-color: var(--primary-bg);
-    display: flex;
-    justify-content: flex-end;
-    gap: 1rem;
-    flex-shrink: 0;
-}
-
-.button {
-  padding: 0.6rem 1.5rem;
-  font-family: var(--font-sans);
-  font-weight: 500;
-  border: 1px solid;
-  border-radius: var(--border-radius);
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.buttonPrimary {
-    color: var(--text-on-accent);
-    background-color: var(--primary-accent);
-    border-color: var(--primary-accent);
-}
-.buttonPrimary:hover {
-    background-color: var(--primary-accent-dark);
-    border-color: var(--primary-accent-dark);
-}
-
-.buttonSecondary {
-    color: var(--text-primary);
-    background-color: var(--secondary-bg);
-    border-color: var(--border-color);
-}
-.buttonSecondary:hover {
-    background-color: #e9ecef; /* Um cinza um pouco mais escuro para o hover */
-}
-.buttonDanger {
-    color: var(--text-on-danger);
-    background-color: var(--danger-red);
-    border-color: var(--danger-red);
-}
-.buttonDanger:hover {
-    background-color: var(--danger-red-dark);
-    border-color: var(--danger-red-dark);
-}
-.buttonDisabled {
-    background-color: var(--disabled-bg);
-    color: var(--text-disabled);
-    cursor: not-allowed;
-    border-color: var(--border-color);
-}
-
-/* ... (todo o seu css existente) ... */
-
-.panel {
+.responseTable {
   width: 100%;
-  max-width: 32rem; /* Este é o tamanho padrão */
-  background-color: var(--secondary-bg);
-  border: 1px solid var(--border-color);
-  border-radius: var(--border-radius);
-  box-shadow: 0 5px 15px rgba(0,0,0,0.1);
-  z-index: 50;
-  display: flex;
-  flex-direction: column;
-  max-height: 90vh;
+  border-collapse: collapse;
+  background: #202837;
+  border-radius: 10px;
+  margin-top: 0.4rem;
+  box-shadow: 0 2px 18px #10101522;
+  overflow: hidden;
 }
 
-/* ADICIONE ESTA NOVA CLASSE */
-.panelLarge {
-  max-width: 90vw; /* Define a largura máxima para 90% da largura da janela */
-  max-height: 90vh;
+.responseTable th,
+.responseTable td {
+  padding: 10px 12px;
+  border-bottom: 1px solid #2a3550;
+  vertical-align: top;
 }
 
-/* ... (resto do seu css) ... */
+.responseTable th {
+  color: #82d6fa;
+  background: #1a202c;
+  font-size: 1rem;
+  font-weight: 600;
+  text-align: left;
+  min-width: 110px;
+  width: 36%;
+}
 
+.responseTable td {
+  color: #f7fafd;
+  background: #232b3b;
+  font-size: 1.04rem;
+}
+
+@media (max-width: 800px) {
+  .panel {
+    max-width: 97vw;
+    padding: 0 0 1.2rem 0;
+  }
+  .panelHeader, .modalContent {
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+  .responseTable th, .responseTable td {
+    padding: 9px 6px;
+    font-size: 0.97rem;
+  }
+}
