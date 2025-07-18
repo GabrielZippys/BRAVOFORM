@@ -4,19 +4,31 @@ import React from "react";
 import Modal from "@/components/Modal";
 import styles from "../../app/styles/Modal.module.css";
 
-interface Field {
+// ----------------------------------
+// TIPOS
+// ----------------------------------
+
+export interface Field {
   id: string | number;
   label: string;
   type?: string;
+  columns?: { id: number; label: string; type: string; options?: string[] }[];
+  rows?: { id: number; label: string }[];
+  options?: string[];
 }
-interface FormType {
+
+export interface FormType {
   title: string;
   fields: Field[];
 }
-interface ResponseType {
+
+export interface ResponseType {
   answers?: Record<string, any>;
   createdAt?: { seconds: number };
+  // Dinamicamente aceita qualquer campo extra (flattened)
+  [key: string]: any;
 }
+
 interface Props {
   isOpen: boolean;
   onClose: () => void;
@@ -25,23 +37,62 @@ interface Props {
   canEdit?: boolean;
 }
 
+// ----------------------------------
+// RENDERIZAÇÃO DA RESPOSTA
+// ----------------------------------
+
 function renderAnswer(field: Field, value: any) {
   if (value == null || value === "") return <span style={{ opacity: 0.6 }}>Sem resposta</span>;
-  // Assinatura base64
+
+  // Renderização especial para tabelas
+  if (field.type === "Tabela" && typeof value === "object" && value !== null) {
+    const columns = field.columns || [];
+    const rows = field.rows || [];
+    return (
+      <div style={{ overflowX: "auto", margin: "6px 0" }}>
+        <table style={{
+          width: "100%", background: "#191c24", borderRadius: 7, borderCollapse: "collapse", marginTop: 4
+        }}>
+          <thead>
+            <tr>
+              <th style={{ background: "#16181e", color: "#7ddfff", padding: "6px 12px", minWidth: 70, fontWeight: 600, fontSize: 14, border: "1px solid #20232d" }}></th>
+              {columns.map((col) => (
+                <th key={col.id} style={{ background: "#16181e", color: "#7ddfff", padding: "6px 12px", fontWeight: 600, fontSize: 14, border: "1px solid #20232d" }}>
+                  {col.label}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((row) => (
+              <tr key={row.id}>
+                <td style={{ color: "#fff", fontWeight: 600, padding: "5px 12px", border: "1px solid #20232d", background: "#23263b" }}>{row.label}</td>
+                {columns.map((col) => {
+                  const cellValue =
+                    value?.[String(row.id)]?.[String(col.id)] ??
+                    value?.[row.id]?.[col.id] ??
+                    "";
+                  return (
+                    <td key={col.id} style={{ color: "#fff", padding: "5px 12px", border: "1px solid #20232d" }}>
+                      {cellValue !== "" && cellValue !== undefined
+                        ? String(cellValue)
+                        : <span style={{ opacity: 0.45 }}>–</span>}
+                    </td>
+                  );
+                })}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    );
+  }
+
+  // Outras respostas (igual já estava)
   if (typeof value === "string" && value.startsWith("data:image")) {
     return <img src={value} alt="Assinatura" style={{ maxWidth: 170, borderRadius: 6, background: "#181b22", margin: 4, boxShadow: "0 2px 8px #111" }} />;
   }
   if (Array.isArray(value)) return value.join(", ");
-  if (typeof value === "object" && value?.type?.includes("image")) {
-    if (value.url?.startsWith("data:image")) {
-      return <img src={value.url} alt={value.name || "imagem"} style={{ maxWidth: 170, borderRadius: 7, margin: 4, background: "#191b24" }} />;
-    }
-    return (
-      <a href={value.url} target="_blank" rel="noopener noreferrer" style={{ color: "#61b0ff" }}>
-        {value.name || "Ver imagem"}
-      </a>
-    );
-  }
   if (typeof value === "object" && value?.name && value?.url) {
     return (
       <a href={value.url} target="_blank" rel="noopener noreferrer" style={{ color: "#61b0ff" }}>
@@ -49,25 +100,16 @@ function renderAnswer(field: Field, value: any) {
       </a>
     );
   }
-  if (field.type === "Tabela" && typeof value === "object" && value !== null) {
-    return (
-      <table style={{ width: "100%", border: "1px solid #1a202c", margin: "5px 0", background: "#191c24", borderRadius: 7 }}>
-        <tbody>
-          {Object.values(value).map((row: any, idx: number) => (
-            <tr key={idx}>
-              {Array.isArray(row)
-                ? row.map((cell, j) => <td key={j} style={{ color: "#fff" }}>{String(cell)}</td>)
-                : <td>{String(row)}</td>
-              }
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    );
+  if (typeof value === "object") {
+    return <span style={{ opacity: 0.7, wordBreak: "break-all" }}>{JSON.stringify(value, null, 2)}</span>;
   }
-  if (typeof value === "object") return <span style={{ opacity: 0.7 }}>{JSON.stringify(value, null, 2)}</span>;
   return String(value);
 }
+
+
+// ----------------------------------
+// COMPONENTE MODAL
+// ----------------------------------
 
 export default function CollaboratorHistoryModal({ isOpen, onClose, form, response, canEdit }: Props) {
   return (
@@ -86,12 +128,19 @@ export default function CollaboratorHistoryModal({ isOpen, onClose, form, respon
         )}
         <table className={styles.responseTable}>
           <tbody>
-            {form.fields.map((field) => (
-              <tr key={String(field.id)}>
-                <th>{field.label}</th>
-                <td>{renderAnswer(field, response.answers?.[field.id] ?? response.answers?.[String(field.id)])}</td>
-              </tr>
-            ))}
+            {form.fields.map((field) => {
+              // Busca tanto por id, String(id) quanto por label (flattened)
+              const answer =
+                (response.answers?.[field.id] ??
+                  response.answers?.[String(field.id)] ??
+                  response[field.label]) ?? "";
+              return (
+                <tr key={String(field.id)}>
+                  <th>{field.label}</th>
+                  <td>{renderAnswer(field, answer)}</td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>

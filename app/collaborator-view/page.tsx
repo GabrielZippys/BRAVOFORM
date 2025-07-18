@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { db } from '../../firebase/config';
-import { doc, getDoc, collection, query, where, onSnapshot, collectionGroup } from 'firebase/firestore';
+import { doc, getDoc, collection, query, where, onSnapshot, collectionGroup, Timestamp, serverTimestamp } from 'firebase/firestore';
 import styles from '../styles/CollaboratorView.module.css';
 import { FileText, LogOut, History, User2, Edit, Eye } from 'lucide-react';
 import CollaboratorHistoryModal from '@/components/CollaboratorView'; // Modal de histórico
@@ -23,10 +23,10 @@ interface Form {
   id: string;
   title: string;
   description?: string;
-  createdAt?: { seconds: number };
-  fields?: any[]; // Para exibir as perguntas
-  companyId?: string;
-  departmentId?: string;
+  createdAt?: Timestamp;
+  fields: any[]; // Para exibir as perguntas
+  companyId: string;
+  departmentId: string;
   automation?: any;
   ownerId?: string;
   collaborators?: string[];
@@ -37,7 +37,8 @@ interface FormResponseType {
   formId: string;
   formTitle: string;
   answers?: any;
-  createdAt?: { seconds: number };
+  createdAt?: Timestamp; // Correto! Timestamp
+  submittedAt?: Timestamp; // para garantir compatibilidade
 }
 
 export default function CollaboratorView() {
@@ -49,13 +50,9 @@ export default function CollaboratorView() {
   const [view, setView] = useState<'forms' | 'history'>('forms');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-
-  // MODAIS
   const [modalOpen, setModalOpen] = useState(false);
   const [formSelecionado, setFormSelecionado] = useState<Form | null>(null);
   const [respostaSelecionada, setRespostaSelecionada] = useState<FormResponseType | null>(null);
-
-  // Modal de resposta de formulário
   const [formToAnswer, setFormToAnswer] = useState<Form | null>(null);
 
   const router = useRouter();
@@ -104,7 +101,19 @@ export default function CollaboratorView() {
       where("authorizedUsers", "array-contains", collaborator.id)
     );
     const unsub = onSnapshot(q, (snapshot) => {
-      setFormsToFill(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Form)));
+      setFormsToFill(
+        snapshot.docs.map(doc => {
+          const data = doc.data();
+          return {
+            id: doc.id,
+            ...data,
+            fields: Array.isArray(data.fields) ? data.fields : [],
+            createdAt: data.createdAt instanceof Timestamp ? data.createdAt : undefined,
+            companyId: data.companyId ?? "",
+            departmentId: data.departmentId ?? "",
+          } as Form;
+        })
+      );
       setLoading(false);
     }, () => setLoading(false));
     return () => unsub();
@@ -116,7 +125,19 @@ export default function CollaboratorView() {
       setLoading(true);
       const q = query(collectionGroup(db, "responses"), where("collaboratorId", "==", collaborator.id));
       const unsub = onSnapshot(q, (snapshot) => {
-        setSubmittedResponses(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as FormResponseType)));
+        setSubmittedResponses(
+          snapshot.docs.map(doc => {
+            const d = doc.data();
+            return {
+              id: doc.id,
+              ...d,
+              // usa o campo submittedAt ou createdAt, sempre como Timestamp!
+              createdAt: (d.submittedAt instanceof Timestamp) ? d.submittedAt
+                : (d.createdAt instanceof Timestamp) ? d.createdAt
+                : undefined,
+            } as FormResponseType;
+          })
+        );
         setLoading(false);
       }, () => setLoading(false));
       return () => unsub();
@@ -131,22 +152,31 @@ export default function CollaboratorView() {
   // MODAL HISTÓRICO
   const handleHistoryOpen = async (response: FormResponseType) => {
     const formSnap = await getDoc(doc(db, 'forms', response.formId));
-    const form = formSnap.exists() ? { id: formSnap.id, ...formSnap.data() } as Form : null;
-    setFormSelecionado(form ? { ...form, fields: Array.isArray(form.fields) ? form.fields : [] } : null);
+    const form = formSnap.exists()
+      ? {
+        id: formSnap.id,
+        ...(formSnap.data() as any),
+        fields: Array.isArray((formSnap.data() as any).fields) ? (formSnap.data() as any).fields : [],
+        companyId: (formSnap.data() as any).companyId ?? "",
+        departmentId: (formSnap.data() as any).departmentId ?? "",
+      }
+      : null;
+    setFormSelecionado(form);
     setRespostaSelecionada(response);
     setModalOpen(true);
   };
 
   // MODAL DE RESPOSTA
   const handleResponder = async (form: Form) => {
-    // Sempre busca o form completo do banco (garante tipo completo!)
     const snap = await getDoc(doc(db, 'forms', form.id));
     if (snap.exists()) {
-      const firestoreForm = snap.data() as Form;
+      const firestoreForm = snap.data() as any;
       setFormToAnswer({
         ...firestoreForm,
         id: form.id,
         fields: Array.isArray(firestoreForm.fields) ? firestoreForm.fields : [],
+        companyId: firestoreForm.companyId ?? "",
+        departmentId: firestoreForm.departmentId ?? "",
       });
     }
   };
@@ -205,11 +235,11 @@ export default function CollaboratorView() {
                   <div className={styles.cardBody}>
                     <h2 className={styles.cardTitle}>{form.title}</h2>
                     {form.description && <p className={styles.cardSubtitle}>{form.description}</p>}
-                    {form.createdAt && (
+                    {form.createdAt &&
                       <p className={styles.cardSubtitle}>
-                        Criado em {new Date(form.createdAt.seconds * 1000).toLocaleDateString()}
+                        Criado em {form.createdAt.seconds ? new Date(form.createdAt.seconds * 1000).toLocaleDateString() : ''}
                       </p>
-                    )}
+                    }
                   </div>
                   <button className={styles.cardButton} onClick={() => handleResponder(form)}>
                     Responder
@@ -230,11 +260,11 @@ export default function CollaboratorView() {
                   <div className={styles.cardIcon}><History size={32} /></div>
                   <div className={styles.cardBody}>
                     <h2 className={styles.cardTitle}>{response.formTitle}</h2>
-                    {response.createdAt && (
+                    {response.createdAt &&
                       <p className={styles.cardSubtitle}>
-                        Respondido em {new Date(response.createdAt.seconds * 1000).toLocaleDateString()}
+                        Respondido em {response.createdAt.seconds ? new Date(response.createdAt.seconds * 1000).toLocaleDateString('pt-BR') : 'Sem data'}
                       </p>
-                    )}
+                    }
                   </div>
                   <button className={styles.cardButton} onClick={() => handleHistoryOpen(response)}>
                     {collaborator?.canEditHistory
@@ -253,7 +283,7 @@ export default function CollaboratorView() {
         <CollaboratorHistoryModal
           isOpen={modalOpen}
           onClose={() => setModalOpen(false)}
-          form={formSelecionado ? { ...formSelecionado, fields: Array.isArray(formSelecionado.fields) ? formSelecionado.fields : [] } : { title: '', fields: [] }}
+          form={formSelecionado}
           response={respostaSelecionada}
           canEdit={!!collaborator?.canEditHistory}
         />

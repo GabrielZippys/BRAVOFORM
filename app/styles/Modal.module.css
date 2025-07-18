@@ -123,3 +123,80 @@
     font-size: 0.97rem;
   }
 }
+
+
+/* Modal.module.css */
+.overlay {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(10, 20, 30, 0.74);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1100;
+}
+
+.panel {
+  background: #232b38;
+  border-radius: 16px;
+  box-shadow: 0 8px 44px #000a;
+  width: 95vw;
+  max-width: 650px;     /* aumente para 750px ou mais se quiser ainda maior */
+  min-width: 380px;
+  min-height: 180px;
+  padding: 0 0 18px 0;
+  animation: modalIn 0.3s;
+  display: flex;
+  flex-direction: column;
+  max-height: 92vh;     /* Permite rolar se tiver muito conteúdo */
+}
+
+@media (min-width: 700px) {
+  .panel {
+    max-width: 800px;   /* use 900px ou até 1000px para telas grandes */
+  }
+}
+
+.panelHeader {
+  padding: 20px 28px 12px 28px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1.3px solid #2a384c;
+}
+
+.panelTitle {
+  font-size: 1.33rem;
+  font-weight: 800;
+  color: #fff;
+  letter-spacing: 0.03em;
+  flex: 1;
+}
+
+.closeButton {
+  background: transparent;
+  border: none;
+  color: #b7c0d1;
+  cursor: pointer;
+  font-size: 1.3rem;
+  padding: 2px 5px;
+  margin-left: 18px;
+  border-radius: 50%;
+  transition: background 0.15s;
+}
+.closeButton:hover {
+  background: #e25b6355;
+  color: #e25b63;
+}
+
+.panelBody, .modalContent {
+  padding: 28px 28px 12px 28px;
+  overflow-y: auto;
+}
+
+@keyframes modalIn {
+  from { opacity: 0; transform: translateY(12px) scale(0.97); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}

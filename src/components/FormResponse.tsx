@@ -205,146 +205,176 @@ export default function FormResponse({ form, collaborator, onClose, existingResp
     }
   };
 
-  const handleSubmit = async () => {
-    setIsSubmitting(true);
-    setError('');
-    try {
-      const flattened: Record<string, any> = {
-        collaboratorId: collaborator.id,
-        collaboratorUsername: collaborator.username,
-        formId: form.id,
-        formTitle: form.title,
-        companyId: form.companyId,
-        departmentId: form.departmentId,
-        status: 'pending',
-        submittedAt: serverTimestamp(),
-      };
-      (form.fields as ResponseFormField[]).forEach(field => {
-        const fieldIdStr = String(field.id);
-        let answerVal = responses[fieldIdStr];
-        if ((field.type === 'Caixa de Seleção' || field.type === 'Múltipla Escolha') && field.allowOther) {
-          const otherVal = otherInputValues[fieldIdStr] || '';
-          if (Array.isArray(answerVal)) {
-            answerVal = answerVal.map((v: string) => (v === '___OTHER___' ? otherVal : v)).filter(Boolean);
-          } else if (answerVal === '___OTHER___') {
-            answerVal = otherVal;
-          }
+ const handleSubmit = async () => {
+  setIsSubmitting(true);
+  setError('');
+  try {
+    const flattened: Record<string, any> = {
+      collaboratorId: collaborator.id,
+      collaboratorUsername: collaborator.username,
+      formId: form.id,
+      formTitle: form.title,
+      companyId: form.companyId,
+      departmentId: form.departmentId,
+      status: 'pending',
+      submittedAt: serverTimestamp()
+    };
+
+    // Salva SEM ___OTHER___ (substitui sempre pelo texto real!)
+    (form.fields as ResponseFormField[]).forEach(field => {
+      const fieldIdStr = String(field.id);
+      let answerVal = responses[fieldIdStr];
+
+      if ((field.type === 'Caixa de Seleção' || field.type === 'Múltipla Escolha') && field.allowOther) {
+        const otherVal = otherInputValues[fieldIdStr] || '';
+        if (Array.isArray(answerVal)) {
+          answerVal = answerVal
+            .map((v: string) => (v === '___OTHER___' ? (otherVal || '') : v))
+            .filter(v => v !== '');
+          // Se só tinha outro e estava vazio, salva como string vazia
+          if (answerVal.length === 1 && answerVal[0] === '') answerVal = '';
+        } else if (answerVal === '___OTHER___') {
+          answerVal = otherVal;
         }
-        flattened[field.label] = answerVal ?? '';
-      });
-      if (existingResponse?.id) {
-        await updateDoc(doc(db, 'forms', form.id, 'responses', existingResponse.id), { ...flattened, updatedAt: serverTimestamp() });
-      } else {
-        await addDoc(collection(db, 'forms', form.id, 'responses'), flattened);
       }
-      onClose();
-    } catch (err) {
-      setError('Não foi possível enviar a resposta.');
-    } finally {
-      setIsSubmitting(false);
+      flattened[field.label] = answerVal ?? '';
+    });
+
+    // Também deixa o campo answers pronto para histórico
+    const answers: Record<string, any> = {};
+    (form.fields as ResponseFormField[]).forEach(field => {
+      const fieldIdStr = String(field.id);
+      let answerVal = responses[fieldIdStr];
+      if ((field.type === 'Caixa de Seleção' || field.type === 'Múltipla Escolha') && field.allowOther) {
+        const otherVal = otherInputValues[fieldIdStr] || '';
+        if (Array.isArray(answerVal)) {
+          answerVal = answerVal
+            .map((v: string) => (v === '___OTHER___' ? (otherVal || '') : v))
+            .filter(v => v !== '');
+          if (answerVal.length === 1 && answerVal[0] === '') answerVal = '';
+        } else if (answerVal === '___OTHER___') {
+          answerVal = otherVal;
+        }
+      }
+      answers[fieldIdStr] = answerVal ?? '';
+    });
+
+    flattened.answers = answers;
+
+    if (existingResponse?.id) {
+      await updateDoc(doc(db, 'forms', form.id, 'responses', existingResponse.id), { ...flattened, updatedAt: serverTimestamp() });
+    } else {
+      await addDoc(collection(db, 'forms', form.id, 'responses'), flattened, );
+        submittedAt: serverTimestamp() // CORRETO!
+
     }
-  };
+    onClose();
+  } catch (err) {
+    setError('Não foi possível enviar a resposta.');
+  } finally {
+    setIsSubmitting(false);
+  }
+};
+
+
 
   const renderTableCell = (
-    field: ResponseFormField,
-    row: { id: number; label: string },
-    col: { id: number; label: string; type: string; options?: string[] }
-  ) => {
-    const value = responses[String(field.id)]?.[String(row.id)]?.[String(col.id)] || '';
-    const disabled = !canEdit && !!existingResponse;
-    switch (col.type) {
-      case 'Texto':
-        return (
-          <input
-            className={styles.tableResponseInput}
-            type="text"
-            value={value}
-            onChange={e =>
-              handleTableInputChange(
-                String(field.id),
-                String(row.id),
-                String(col.id),
-                e.target.value
-              )
-            }
-            disabled={disabled}
-          />
-        );
-      case 'Data':
-        return (
-          <input
-            className={styles.tableResponseInput}
-            type="date"
-            value={value}
-            onChange={e =>
-              handleTableInputChange(
-                String(field.id),
-                String(row.id),
-                String(col.id),
-                e.target.value
-              )
-            }
-            disabled={disabled}
-          />
-        );
-      case 'Caixa de Seleção':
-        return (
-          <input
-            type="checkbox"
-            checked={!!value}
-            onChange={e =>
-              handleTableInputChange(
-                String(field.id),
-                String(row.id),
-                String(col.id),
-                e.target.checked
-              )
-            }
-            disabled={disabled}
-          />
-        );
-      case 'Múltipla Escolha':
-        return (
-          <select
-            className={styles.tableResponseSelect}
-            value={value}
-            onChange={e =>
-              handleTableInputChange(
-                String(field.id),
-                String(row.id),
-                String(col.id),
-                e.target.value
-              )
-            }
-            disabled={disabled}
-          >
-            <option value="">Selecione</option>
-            {col.options?.map((opt: string) => (
-              <option key={opt} value={opt}>
-                {opt}
-              </option>
-            ))}
-          </select>
-        );
-      default:
-        return (
-          <input
-            className={styles.tableResponseInput}
-            type="text"
-            value={value}
-            onChange={e =>
-              handleTableInputChange(
-                String(field.id),
-                String(row.id),
-                String(col.id),
-                e.target.value
-              )
-            }
-            disabled={disabled}
-          />
-        );
-    }
-  };
+  field: ResponseFormField,
+  row: { id: number; label: string },
+  col: { id: number; label: string; type: string; options?: string[] }
+) => {
+  // Sempre acessa com segurança!
+  const fieldId = String(field.id);
+  const rowId = String(row.id);
+  const colId = String(col.id);
+
+  // Garante caminhos intermediários como objeto
+  const value =
+    responses[fieldId]?.[rowId]?.[colId] !== undefined
+      ? responses[fieldId][rowId][colId]
+      : '';
+
+  const disabled = !canEdit && !!existingResponse;
+
+  switch (col.type) {
+    case 'Texto':
+      return (
+        <input
+          className={styles.tableResponseInput}
+          type="text"
+          value={value}
+          onChange={e =>
+            handleTableInputChange(
+              fieldId,
+              rowId,
+              colId,
+              e.target.value
+            )
+          }
+          disabled={disabled}
+        />
+      );
+    case 'Data':
+      return (
+        <input
+          className={styles.tableResponseInput}
+          type="date"
+          value={value}
+          onChange={e =>
+            handleTableInputChange(
+              fieldId,
+              rowId,
+              colId,
+              e.target.value
+            )
+          }
+          disabled={disabled}
+        />
+      );
+    case 'Caixa de Seleção':
+    case 'Múltipla Escolha':
+      return (
+        <select
+          className={styles.tableResponseSelect}
+          value={value}
+          onChange={e =>
+            handleTableInputChange(
+              fieldId,
+              rowId,
+              colId,
+              e.target.value
+            )
+          }
+          disabled={disabled}
+        >
+          <option value="">Selecione</option>
+          {col.options?.map((opt: string) => (
+            <option key={opt} value={opt}>
+              {opt}
+            </option>
+          ))}
+        </select>
+      );
+    default:
+      return (
+        <input
+          className={styles.tableResponseInput}
+          type="text"
+          value={value}
+          onChange={e =>
+            handleTableInputChange(
+              fieldId,
+              rowId,
+              colId,
+              e.target.value
+            )
+          }
+          disabled={disabled}
+        />
+      );
+  }
+};
+
 
   const renderField = (field: ResponseFormField) => {
     const fieldId = String(field.id);
