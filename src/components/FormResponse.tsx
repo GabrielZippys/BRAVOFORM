@@ -72,75 +72,104 @@ export default function FormResponse({ form, collaborator, onClose, existingResp
     }
   }, [existingResponse, form.fields]);
 
-  // --- CANVAS DE ASSINATURA ---
-  useEffect(() => {
-    Object.entries(signaturePads.current).forEach(([fieldId, canvas]) => {
-      if (!canvas) return;
-      const ctx = canvas.getContext('2d');
-      if (!ctx) return;
-      let drawing = false;
-      let lastX = 0, lastY = 0;
+  // --- CANVAS DE ASSINATURA --- (versão robusta, universal)
+useEffect(() => {
+  Object.entries(signaturePads.current).forEach(([fieldId, canvas]) => {
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    let drawing = false;
+    let lastX = 0, lastY = 0;
 
-      const getPos = (e: MouseEvent | TouchEvent) => {
-        const rect = canvas.getBoundingClientRect();
-        if ('touches' in e && e.touches.length > 0) {
-          return { x: e.touches[0].clientX - rect.left, y: e.touches[0].clientY - rect.top };
-        } else if ('clientX' in e) {
-          return { x: (e as MouseEvent).clientX - rect.left, y: (e as MouseEvent).clientY - rect.top };
-        }
-        return null;
-      };
+    // Ajuste para suportar corretamente mouse/touch (tablets e desktop)
+    const getPos = (e: MouseEvent | TouchEvent) => {
+      const rect = canvas.getBoundingClientRect();
+      if ('touches' in e && e.touches.length > 0) {
+        return {
+          x: e.touches[0].clientX - rect.left,
+          y: e.touches[0].clientY - rect.top,
+        };
+      } else if ('changedTouches' in e && e.changedTouches.length > 0) {
+        // Para touchend, que não tem touches, mas tem changedTouches
+        return {
+          x: e.changedTouches[0].clientX - rect.left,
+          y: e.changedTouches[0].clientY - rect.top,
+        };
+      } else if ('clientX' in e) {
+        return {
+          x: (e as MouseEvent).clientX - rect.left,
+          y: (e as MouseEvent).clientY - rect.top,
+        };
+      }
+      return null;
+    };
 
-      const startDraw = (e: MouseEvent | TouchEvent) => {
-        e.preventDefault();
-        const pos = getPos(e);
-        if (!pos) return;
-        drawing = true;
-        lastX = pos.x;
-        lastY = pos.y;
-      };
-      const draw = (e: MouseEvent | TouchEvent) => {
-        if (!drawing) return;
-        e.preventDefault();
-        const pos = getPos(e);
-        if (!pos) return;
-        ctx.beginPath();
-        ctx.moveTo(lastX, lastY);
-        ctx.lineTo(pos.x, pos.y);
-        ctx.strokeStyle = '#222';
-        ctx.lineWidth = 2;
-        ctx.lineCap = 'round';
-        ctx.stroke();
-        lastX = pos.x;
-        lastY = pos.y;
-      };
-      const stopDraw = () => {
-        drawing = false;
-        if (canvas.dataset.fieldId) {
-          handleInputChange(canvas.dataset.fieldId, canvas.toDataURL('image/png'));
-        }
-      };
+    // HANDLERS universais:
+    const startDraw = (e: MouseEvent | TouchEvent) => {
+      e.preventDefault();
+      const pos = getPos(e);
+      if (!pos) return;
+      drawing = true;
+      lastX = pos.x;
+      lastY = pos.y;
+    };
+    const draw = (e: MouseEvent | TouchEvent) => {
+      if (!drawing) return;
+      e.preventDefault();
+      const pos = getPos(e);
+      if (!pos) return;
+      ctx.beginPath();
+      ctx.moveTo(lastX, lastY);
+      ctx.lineTo(pos.x, pos.y);
+      ctx.strokeStyle = '#222';
+      ctx.lineWidth = 2;
+      ctx.lineCap = 'round';
+      ctx.stroke();
+      lastX = pos.x;
+      lastY = pos.y;
+    };
+    const stopDraw = (e?: MouseEvent | TouchEvent) => {
+      drawing = false;
+      // Salva assinatura no campo correspondente!
+      if (canvas.dataset.fieldId) {
+        handleInputChange(canvas.dataset.fieldId, canvas.toDataURL('image/png'));
+      }
+    };
 
-      canvas.addEventListener('mousedown', startDraw);
-      canvas.addEventListener('mousemove', draw);
-      canvas.addEventListener('mouseup', stopDraw);
-      canvas.addEventListener('mouseleave', stopDraw);
-      canvas.addEventListener('touchstart', startDraw, { passive: false });
-      canvas.addEventListener('touchmove', draw, { passive: false });
-      canvas.addEventListener('touchend', stopDraw);
+    // Mouse events
+    canvas.addEventListener('mousedown', startDraw);
+    canvas.addEventListener('mousemove', draw);
+    canvas.addEventListener('mouseup', stopDraw);
+    canvas.addEventListener('mouseleave', stopDraw);
 
-      // Limpar eventos ao desmontar
-      return () => {
-        canvas.removeEventListener('mousedown', startDraw);
-        canvas.removeEventListener('mousemove', draw);
-        canvas.removeEventListener('mouseup', stopDraw);
-        canvas.removeEventListener('mouseleave', stopDraw);
-        canvas.removeEventListener('touchstart', startDraw);
-        canvas.removeEventListener('touchmove', draw);
-        canvas.removeEventListener('touchend', stopDraw);
-      };
-    });
-  }, [responses, form.fields]); // Reage ao mount
+    // Touch events (sempre passive: false)
+    canvas.addEventListener('touchstart', startDraw, { passive: false });
+    canvas.addEventListener('touchmove', draw, { passive: false });
+    canvas.addEventListener('touchend', stopDraw, { passive: false });
+    canvas.addEventListener('touchcancel', stopDraw, { passive: false });
+
+    // Bloqueia scroll com dois dedos durante assinatura!
+    const preventScroll = (e: TouchEvent) => {
+      if (drawing) e.preventDefault();
+    };
+    canvas.addEventListener('touchmove', preventScroll, { passive: false });
+
+    // Limpar eventos ao desmontar:
+    return () => {
+      canvas.removeEventListener('mousedown', startDraw);
+      canvas.removeEventListener('mousemove', draw);
+      canvas.removeEventListener('mouseup', stopDraw);
+      canvas.removeEventListener('mouseleave', stopDraw);
+
+      canvas.removeEventListener('touchstart', startDraw);
+      canvas.removeEventListener('touchmove', draw);
+      canvas.removeEventListener('touchend', stopDraw);
+      canvas.removeEventListener('touchcancel', stopDraw);
+
+      canvas.removeEventListener('touchmove', preventScroll);
+    };
+  });
+}, [form.fields]); 
 
   // Restaura imagem de assinatura caso exista
   useEffect(() => {
