@@ -1,0 +1,255 @@
+.modalOverlay {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(14, 21, 38, 0.65);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 99;
+  animation: fadeInModal 0.23s;
+}
+@keyframes fadeInModal { from { opacity: 0; } to { opacity: 1; } }
+
+.modalPanel {
+  background: #fff;
+  border-radius: 17px;
+  max-width: 950px;
+  min-width: 440px;
+  width: 95vw;
+  max-height: 86vh;
+  box-shadow: 0 8px 36px rgba(50,56,80,0.17);
+  position: relative;
+  animation: zoomInModal 0.19s;
+  display: flex;
+  flex-direction: column;
+}
+@keyframes zoomInModal { from { transform: scale(0.96); } to { transform: scale(1); } }
+
+.modalHeader {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 1.1rem 1.3rem 0.4rem 1.3rem;
+  border-bottom: 1px solid #e8e3ce;
+  background: #f8f5ed;
+  border-radius: 17px 17px 0 0;
+}
+.modalHeader h2 {
+  font-size: 1.28rem;
+  color: #07485B;
+  font-weight: 800;
+  margin: 0;
+}
+.company {
+  font-weight: 400;
+  font-size: 15px;
+  margin-left: 12px;
+  color: #b18f42;
+}
+.modalClose {
+  background: #f6ece2;
+  border: none;
+  border-radius: 11px;
+  color: #b18f42;
+  cursor: pointer;
+  font-size: 1.25rem;
+  padding: 0.32em 0.9em;
+  margin-left: 1.5em;
+  transition: background 0.13s, color 0.13s;
+}
+.modalClose:hover { background: #b18f42; color: #fff; }
+
+.modalBody {
+  padding: 1.2rem 1.3rem 1.8rem 1.3rem;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.emptyMessage {
+  color: #bbb;
+  text-align: center;
+  margin: 2.2em 0;
+}
+
+.responsesList {
+  display: flex;
+  flex-direction: column;
+  gap: 1.2rem;
+}
+
+.responseCard {
+  border: 1.2px solid #ececec;
+  border-radius: 13px;
+  padding: 1.2rem 1.1rem 1.4rem 1.1rem;
+  background: #f9f8f6;
+  box-shadow: 0 2px 12px rgba(177,143,66,0.04);
+}
+
+.responseHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 12px;
+}
+
+.formTitle {
+  color: #0a283b;
+  font-weight: 700;
+  font-size: 1.08rem;
+}
+
+.answeredAt {
+  color: #7b8490;
+  font-size: 0.98rem;
+  margin-left: 2em;
+  font-weight: 400;
+}
+
+.respostaGridWrapper {
+  overflow-x: auto;
+  margin-top: 7px;
+  border-radius: 8px;
+  background: #fff;
+}
+
+.respostaGrid {
+  width: 100%;
+  min-width: 370px;
+  border-collapse: collapse;
+  font-size: 1rem;
+}
+.respostaGrid th, .respostaGrid td {
+  border: 1px solid #e5e5e5;
+  padding: 7px 11px;
+}
+.respostaGrid th {
+  background: #f8f2e0;
+  color: #b18f42;
+  font-weight: 700;
+  text-align: left;
+}
+.respostaGrid td {
+  color: #07485B;
+  background: #fff;
+  vertical-align: top;
+}
+.respostaGrid tr:nth-child(even) td {
+  background: #faf7ef;
+}
+
+.fieldLabel {
+  color: #07485B;
+  font-weight: 600;
+}
+
+.emptyValue {
+  color: #bbb;
+  font-style: italic;
+}
+.imageTag {
+  color: #b18f42;
+  font-size: 1.03em;
+  font-style: italic;
+}
+
+.tabelaField {
+  padding: 9px 0 2px 0;
+  background: #fcfcfa;
+}
+.tableWrapper {
+  overflow-x: auto;
+  margin: 7px 0;
+}
+.innerTable {
+  border-collapse: collapse;
+  width: 99%;
+  font-size: 0.98em;
+}
+.innerTable th, .innerTable td {
+  border: 1px solid #e8e3ce;
+  padding: 5px 7px;
+}
+.innerTable th {
+  background: #f8f5e3;
+  color: #b18f42;
+  font-weight: 700;
+}
+.innerTable td {
+  background: #f7f5ef;
+  color: #35515e;
+}
+.innerTable tr:nth-child(even) td {
+  background: #f4eee0;
+}
+
+/* Responsividade */
+@media (max-width: 650px) {
+  .modalPanel { min-width: 0; width: 99vw; }
+  .modalHeader, .modalBody { padding-left: 0.6rem; padding-right: 0.6rem; }
+  .responseCard { padding: 0.7rem 0.5rem; }
+}
+
+.modalPanel {
+  max-width: 1200px !important;
+  min-width: 520px !important;
+  height: 85vh !important;
+  max-height: 94vh !important;
+}
+.modalFilters {
+  display: flex;
+  align-items: center;
+  gap: 1.2rem;
+  background: #f8f5ed;
+  border-bottom: 1px solid #ede6ce;
+  padding: 0.6rem 1.3rem 0.7rem 1.3rem;
+  border-radius: 0 0 0 0;
+  position: sticky;
+  top: 0; z-index: 2;
+}
+.modalFilters select, .modalFilters input {
+  border-radius: 8px;
+  border: 1px solid #ded6be;
+  background: #fff;
+  font-size: 1rem;
+  padding: 0.37em 1.1em;
+  color: #07485B;
+  font-weight: 500;
+  margin-right: 0.2em;
+}
+.modalFilters select:focus, .modalFilters input:focus {
+  border-color: #b18f42;
+  outline: none;
+}
+.searchBox { min-width: 180px; }
+
+.paginationInfo {
+  margin-left: auto;
+  font-size: 0.96em;
+  color: #b18f42;
+  font-weight: 500;
+}
+
+.paginationBar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1.6em;
+  margin: 12px 0 7px 0;
+}
+.paginationBar button {
+  padding: 0.45em 1.15em;
+  border: none;
+  background: #f8f5ed;
+  color: #b18f42;
+  font-size: 1.12em;
+  font-weight: bold;
+  border-radius: 9px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.paginationBar button:disabled { color: #d7ca97; background: #f4f0e1; cursor: not-allowed; }
+.paginationBar span {
+  font-size: 1.06em;
+  color: #07485B;
+  font-weight: 600;
+}
+
+/* Modal overlay e outros estilos do exemplo anterior permanecem iguais */

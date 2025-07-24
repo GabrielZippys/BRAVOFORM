@@ -7,17 +7,17 @@ import { db } from '../../firebase/config';
 import { useAuth } from '@/hooks/useAuth';
 import { Company, Department, Form, FormResponse } from '@/types';
 import styles from '../styles/Dashboard.module.css';
+import AdminHistoryModal from '@/components/AdminHistoryModal'; // Caminho do componente do modal
 
-// --- Universal date compat ---
+// Util para datas Firestore ou string
 function toDateCompat(val: any): Date | null {
     if (!val) return null;
     if (typeof val.toDate === 'function') return val.toDate();
     if (typeof val === 'string') return new Date(val);
-    if (typeof val === 'object' && '_seconds' in val) return new Date(val._seconds * 1000);
+    if (typeof val === 'object' && (val._seconds || val.seconds)) return new Date((val._seconds || val.seconds) * 1000);
     return null;
 }
 
-// --- Stat Card
 const StatCard = ({ title, value, icon, highlight = false, isLoading = false }: any) => (
     <div className={`${styles.statCard} ${highlight ? styles.statCardHighlight : ''}`}>
         <div className={styles.statCardIcon}>{icon}</div>
@@ -30,7 +30,6 @@ const StatCard = ({ title, value, icon, highlight = false, isLoading = false }: 
     </div>
 );
 
-// --- Top Usuários Card ---
 function TopUsers({ responses }: { responses: FormResponse[] }) {
     const ranking = useMemo(() => {
         const map: Record<string, number> = {};
@@ -67,7 +66,18 @@ export default function DashboardPage() {
     const [allForms, setAllForms] = useState<Form[]>([]);
     const [loading, setLoading] = useState({ companies: true, departments: true, responses: true, forms: true });
     const [error, setError] = useState('');
+    // Modal detalhado:
+   
+ type ModalColabType = { 
+  username: string; 
+  empresa: string; 
+  depto: string; 
+  responses: FormResponse[]; 
+} | null;
+const [modalOpen, setModalOpen] = useState<ModalColabType>(null);
+    const [selectedCollab, setSelectedCollab] = useState<any>(null);
 
+    // --- Dados do banco
     useEffect(() => {
         getDocs(query(collection(db, "companies"))).then(qs => {
             setCompanies(qs.docs.map(doc => ({ id: doc.id, ...doc.data() } as Company)));
@@ -101,6 +111,7 @@ export default function DashboardPage() {
         });
     }, [user]);
 
+    // --- Filtros
     const filteredResponses = useMemo(() => allResponses.filter(r => (
         (selectedCompanyId === 'all' || r.companyId === selectedCompanyId) &&
         (selectedDepartmentId === 'all' || r.departmentId === selectedDepartmentId)
@@ -124,47 +135,42 @@ export default function DashboardPage() {
         }
     });
 
-    // Gráfico por dia (7 últimos)
-    const submissionsByDay = useMemo(() => {
-        const dayMap: Record<string, number> = {};
-        filteredResponses.forEach(r => {
-            const date = toDateCompat((r as any).createdAt) || toDateCompat((r as any).submittedAt);
-            if (date) {
-                const ds = date.toLocaleDateString('pt-BR');
-                dayMap[ds] = (dayMap[ds] || 0) + 1;
-            }
-        });
-        return Object.entries(dayMap).map(([date, count]) => ({ date, count })).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()).slice(-7);
-    }, [filteredResponses]);
+    const uniqueUsers = useMemo(() => [...new Set(filteredResponses.map(r => r.collaboratorId))], [filteredResponses]);
+    // Nova lógica de taxa (máximo esperado: cada colaborador preencher cada formulário)
+    const taxaResposta = useMemo(() => {
+        const totalFormularios = filteredForms.length;
+        const totalColaboradores = uniqueUsers.length;
+        const maxEsperado = totalFormularios * totalColaboradores || 1;
+        const taxa = Math.min((filteredByTime.length / maxEsperado) * 100, 100);
+        return taxa.toFixed(1) + '%';
+    }, [filteredByTime.length, filteredForms.length, uniqueUsers.length]);
 
-    // Ícones SVG moderno (sem dependência externa)
+    // --- SVG Ícones (fixos)
     const icons = {
-        responses: (
-            <svg width="26" height="26" viewBox="0 0 24 24" fill="none">
-                <rect x="3" y="5" width="18" height="14" rx="2" fill="#B18F42" />
-                <rect x="7" y="11" width="10" height="2" rx="1" fill="#fff" />
-            </svg>
-        ),
-        forms: (
-            <svg width="26" height="26" viewBox="0 0 24 24" fill="none">
-                <rect x="4" y="2" width="16" height="20" rx="2" fill="#07485B" />
-                <rect x="8" y="6" width="8" height="2" rx="1" fill="#C5A05C" />
-            </svg>
-        ),
-        users: (
-            <svg width="26" height="26" viewBox="0 0 24 24" fill="none">
-                <circle cx="8" cy="8" r="4" fill="#B18F42" />
-                <circle cx="16" cy="8" r="4" fill="#C5A05C" />
-                <rect x="2" y="16" width="20" height="6" rx="3" fill="#E8EAD6" />
-            </svg>
-        ),
-        rate: (
-            <svg width="26" height="26" viewBox="0 0 24 24" fill="none">
-                <circle cx="12" cy="12" r="10" fill="#B18F42" />
-                <path d="M8 12l2 2l4 -4" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
-            </svg>
-        ),
+        responses: (<svg width="26" height="26" viewBox="0 0 24 24" fill="none"><rect x="3" y="5" width="18" height="14" rx="2" fill="#B18F42" /><rect x="7" y="11" width="10" height="2" rx="1" fill="#fff" /></svg>),
+        forms: (<svg width="26" height="26" viewBox="0 0 24 24" fill="none"><rect x="4" y="2" width="16" height="20" rx="2" fill="#07485B" /><rect x="8" y="6" width="8" height="2" rx="1" fill="#C5A05C" /></svg>),
+        users: (<svg width="26" height="26" viewBox="0 0 24 24" fill="none"><circle cx="8" cy="8" r="4" fill="#B18F42" /><circle cx="16" cy="8" r="4" fill="#C5A05C" /><rect x="2" y="16" width="20" height="6" rx="3" fill="#E8EAD6" /></svg>),
+        rate: (<svg width="26" height="26" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" fill="#B18F42" /><path d="M8 12l2 2l4 -4" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" fill="none"/></svg>),
     };
+
+    // --- Agrupamento por colaborador (para tabela administrativa detalhada)
+    const colaboradorRows = useMemo(() => {
+        const userMap: Record<string, { id: string, username: string, companyId: string, departmentId: string, responses: FormResponse[] }> = {};
+        filteredResponses.forEach(r => {
+            if (!r.collaboratorId) return;
+            if (!userMap[r.collaboratorId]) {
+                userMap[r.collaboratorId] = {
+                    id: r.collaboratorId,
+                    username: r.collaboratorUsername || r.collaboratorId,
+                    companyId: r.companyId,
+                    departmentId: r.departmentId,
+                    responses: []
+                };
+            }
+            userMap[r.collaboratorId].responses.push(r);
+        });
+        return Object.values(userMap);
+    }, [filteredResponses]);
 
     return (
         <div className={styles.dashboardContainer}>
@@ -184,8 +190,8 @@ export default function DashboardPage() {
             <div className={styles.statsGrid}>
                 <StatCard title="Respostas no Período" value={filteredByTime.length} icon={icons.responses} isLoading={loading.responses}/>
                 <StatCard title="Formulários Criados" value={filteredForms.length} icon={icons.forms} isLoading={loading.forms}/>
-                <StatCard title="Usuários Ativos" value={new Set(filteredResponses.map(r => r.collaboratorId)).size} icon={icons.users} isLoading={loading.responses}/>
-                <StatCard title="Taxa de Resposta" value={`${filteredForms.length > 0 ? ((filteredResponses.length / filteredForms.length)*100).toFixed(1) : 0}%`} icon={icons.rate} highlight isLoading={loading.forms || loading.responses}/>
+                <StatCard title="Usuários Ativos" value={uniqueUsers.length} icon={icons.users} isLoading={loading.responses}/>
+                <StatCard title="Taxa de Resposta" value={taxaResposta} icon={icons.rate} highlight isLoading={loading.forms || loading.responses}/>
             </div>
 
             <div className={styles.filtersContainer}>
@@ -209,7 +215,17 @@ export default function DashboardPage() {
                 <div className={styles.chartContainer}>
                     <h3 className={styles.chartTitle}>Respostas por Dia (últimos 7 dias)</h3>
                     <ResponsiveContainer width="100%" height={260}>
-                        <BarChart data={submissionsByDay}>
+                        <BarChart data={(() => {
+                            const dayMap: Record<string, number> = {};
+                            filteredResponses.forEach(r => {
+                                const date = toDateCompat((r as any).createdAt) || toDateCompat((r as any).submittedAt);
+                                if (date) {
+                                    const ds = date.toLocaleDateString('pt-BR');
+                                    dayMap[ds] = (dayMap[ds] || 0) + 1;
+                                }
+                            });
+                            return Object.entries(dayMap).map(([date, count]) => ({ date, count })).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()).slice(-7);
+                        })()}>
                             <CartesianGrid strokeDasharray="3 3" stroke="#E8EAD6" />
                             <XAxis dataKey="date" stroke="#B18F42" />
                             <YAxis stroke="#B18F42" />
@@ -269,6 +285,72 @@ export default function DashboardPage() {
                     </div>
                 </div>
             </div>
+
+            {/* ADMIN VISÃO DETALHADA */}
+            <div className={styles.adminSection}>
+                <h3 className={styles.adminTitle}>Resumo Detalhado por Colaborador / Depto / Empresa</h3>
+                <div className={styles.adminTableWrapper}>
+                    <table className={styles.adminTable}>
+                        <thead>
+                            <tr>
+                                <th>Empresa</th>
+                                <th>Departamento</th>
+                                <th>Colaborador</th>
+                                <th>Respostas</th>
+                                <th>Última Resposta</th>
+                                <th>Histórico</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {colaboradorRows.map((row, i) => {
+                                const empresa = companies.find(c => c.id === row.companyId)?.name || '';
+                                const depto = departments.find(d => d.id === row.departmentId)?.name || '';
+                                const ultima = row.responses.reduce((acc, curr) => {
+                                    const dt = toDateCompat(curr.createdAt) || toDateCompat(curr.submittedAt);
+                                    if (!acc) return dt;
+                                    return dt && dt > acc ? dt : acc;
+                                }, null as Date | null);
+
+                                return (
+                                    <tr key={row.id}>
+                                        <td>{empresa}</td>
+                                        <td>{depto}</td>
+                                        <td>{row.username}</td>
+                                        <td>{row.responses.length}</td>
+                                        <td>{ultima ? ultima.toLocaleString('pt-BR') : '-'}</td>
+                                        <td>
+                                            <button
+                                                className={styles.viewButton}
+onClick={() => setModalOpen({ 
+  username: row.username, 
+  empresa, 
+  depto, 
+  responses: row.responses 
+})}
+                                            >Histórico</button>
+                                        </td>
+                                    </tr>
+                                )
+                            })}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            {/* MODAL HISTÓRICO ADMIN */}
+           {modalOpen && (
+  <AdminHistoryModal
+    open={!!modalOpen}
+    onClose={() => setModalOpen(null)}
+    collaboratorName={modalOpen.username}
+    companyName={modalOpen.empresa}
+    responses={modalOpen.responses}
+    forms={allForms}
+  />
+)}
+
+
+
             {error && <div className={styles.errorAlert}>{error}</div>}
         </div>
     );

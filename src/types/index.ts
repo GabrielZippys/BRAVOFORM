@@ -67,6 +67,7 @@ export interface Form {
 export interface FormResponse {
   id: string;
   formId: string;
+  createdAt: Timestamp;
   formTitle: string;
   companyId: string;
   departmentId: string;

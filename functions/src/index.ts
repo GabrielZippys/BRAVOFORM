@@ -3,11 +3,9 @@ import * as admin from "firebase-admin";
 import * as nodemailer from "nodemailer";
 import { Twilio } from "twilio";
 
-// Inicializa o Firebase Admin SDK para ter acesso ao Firestore
 admin.initializeApp();
 const db = admin.firestore();
 
-// --- Configuração dos Serviços Externos ---
 const mailTransport = nodemailer.createTransport({
   service: "gmail",
   auth: {
@@ -15,28 +13,60 @@ const mailTransport = nodemailer.createTransport({
     pass: functions.config().nodemailer.pass,
   },
 });
-
 const twilioClient = new Twilio(
   functions.config().twilio.sid,
   functions.config().twilio.token,
 );
 
-/**
- * Gera um e-mail em HTML com o tema BioShock.
- * @param {any} formData - Os dados do formulário (título, etc.).
- * @param {any} responseData - Os dados da resposta submetida.
- * @return {string} O corpo do e-mail em HTML.
- */
-const generateBioShockEmailHTML = (formData: any, responseData: any): string => {
-  let answersHTML = "";
-  for (const [question, answer] of Object.entries(responseData.answers)) {
-    if (question === 'Assinatura') {
-      continue;
+// Função utilitária para transformar respostas em texto legível
+function formatAnswerValue(answer: any, field?: any): string {
+  // Assinatura (imagem base64)
+  if (typeof answer === 'string' && answer.startsWith('data:image')) {
+    return '[Assinatura anexada]';
+  }
+  // Array de imagens/arquivos
+  if (Array.isArray(answer) && answer.length && typeof answer[0] === "object" && answer[0].type?.startsWith("image")) {
+    return answer.map((img: any, i: number) =>
+      img.url
+        ? `Imagem ${i + 1}: ${img.url}`
+        : '[imagem sem url]'
+    ).join('\n');
+  }
+  // Tabela (matriz de linhas/colunas)
+  if (field && field.type === 'Tabela' && typeof answer === 'object' && answer !== null) {
+    const rows = field.rows || [];
+    const cols = field.columns || [];
+    let table = '';
+    for (const row of rows) {
+      table += `\n${row.label}: `;
+      table += cols.map((col: any) => `${col.label}: ${answer?.[row.id]?.[col.id] ?? ''}`).join(' | ');
     }
+    return table.trim();
+  }
+  // Array simples
+  if (Array.isArray(answer)) return answer.join(', ');
+  // Boolean, number, string
+  if (typeof answer === 'boolean') return answer ? 'Sim' : 'Não';
+  if (typeof answer === 'number') return String(answer);
+  if (typeof answer === 'string') return answer;
+  // Qualquer outro objeto
+  if (typeof answer === 'object' && answer !== null) return JSON.stringify(answer);
+  return '';
+}
+
+// Gera o HTML do e-mail igual ao site
+function generateBravoformEmailHTML(formData: any, responseData: any): string {
+  let answersHTML = '';
+  const fields = formData.fields || [];
+  for (const field of fields) {
+    const label = field.label || field.id;
+    const answer = responseData.answers?.[field.id] ?? '';
+    if (label === 'Assinatura') continue;
+    const formatted = formatAnswerValue(answer, field);
     answersHTML += `
       <tr>
-        <td style="padding: 10px; border-bottom: 1px solid #b18f42; color: #c9a25e; font-family: 'Roboto', sans-serif; vertical-align: top;">${question}</td>
-        <td style="padding: 10px; border-bottom: 1px solid #b18f42; color: #f0ead6; font-family: 'Roboto', sans-serif;">${Array.isArray(answer) ? answer.join(", ") : answer}</td>
+        <td style="padding: 10px; border-bottom: 1px solid #b18f42; color: #c9a25e; font-family: 'Roboto', sans-serif; vertical-align: top;">${label}</td>
+        <td style="padding: 10px; border-bottom: 1px solid #b18f42; color: #f0ead6; font-family: 'Roboto', sans-serif;">${formatted.replace(/\n/g, "<br>")}</td>
       </tr>
     `;
   }
@@ -88,12 +118,23 @@ const generateBioShockEmailHTML = (formData: any, responseData: any): string => 
     </body>
     </html>
   `;
-};
+}
 
+// Gera mensagem detalhada para WhatsApp
+function generateWhatsappMessage(formData: any, responseData: any): string {
+  const fields = formData.fields || [];
+  let messageBody = `📝 *Nova resposta recebida para o formulário: "${formData.title}"*\n\n`;
+  for (const field of fields) {
+    const label = field.label || field.id;
+    const answer = responseData.answers?.[field.id] ?? '';
+    if (label === 'Assinatura') continue;
+    const formatted = formatAnswerValue(answer, field);
+    messageBody += `*${label}:* ${formatted}\n`;
+  }
+  return messageBody;
+}
 
-/**
- * Gatilho do Firestore que é acionado na criação de uma nova resposta de formulário.
- */
+// Firestore Trigger
 export const onNewFormResponse = functions.firestore
   .document("forms/{formId}/responses/{responseId}")
   .onCreate(async (snap, context) => {
@@ -122,7 +163,7 @@ export const onNewFormResponse = functions.firestore
       }
 
       if (type === "email") {
-        const htmlBody = generateBioShockEmailHTML(formData, responseData);
+        const htmlBody = generateBravoformEmailHTML(formData, responseData);
         const mailOptions = {
           from: `"BRAVOFORM" <${functions.config().nodemailer.user}>`,
           to: target,
@@ -134,17 +175,10 @@ export const onNewFormResponse = functions.firestore
         console.log("E-mail enviado com sucesso!");
 
       } else if (type === "whatsapp") {
-        let messageBody = `Nova resposta recebida para o formulário: "${formData.title}"\n\n`;
-        for (const [question, answer] of Object.entries(responseData.answers)) {
-            if (question === 'Assinatura') {
-                continue;
-            }
-            messageBody += `*${question}:* ${Array.isArray(answer) ? answer.join(", ") : answer}\n`;
-        }
-        
-        // CORREÇÃO: Usando o número de Sandbox correto da Twilio como remetente.
-        const twilioSandboxNumber = "+14155238886";
+        const messageBody = generateWhatsappMessage(formData, responseData);
 
+        // Usando o número de Sandbox correto da Twilio como remetente.
+        const twilioSandboxNumber = "+14155238886";
         console.log(`Enviando WhatsApp de ${twilioSandboxNumber} para ${target}...`);
         await twilioClient.messages.create({
           from: `whatsapp:${twilioSandboxNumber}`,
