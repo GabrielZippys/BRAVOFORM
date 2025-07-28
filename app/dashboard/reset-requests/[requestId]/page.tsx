@@ -1,3 +1,5 @@
+// app/reset-requests/[requestId]/page.tsx
+
 'use client';
 
 import React, { useState, useEffect } from 'react';
@@ -5,11 +7,9 @@ import { useParams, useRouter } from 'next/navigation';
 import { doc, getDoc, updateDoc, collection, getDocs, query, where, collectionGroup } from 'firebase/firestore';
 import { db } from '../../../../firebase/config';
 import styles from '../../../../app/styles/AdminPages.module.css';
+import Toast from '@/components/Toast';
+import bcrypt from 'bcryptjs'; // ADICIONE ESTA LINHA
 
-// --- ADIÇÃO: Importar o componente Toast ---
-import Toast from '@/components/Toast'; // Ajuste o caminho se necessário
-
-// Tipos locais
 type Collaborator = {
     id: string;
     ref: any;
@@ -36,8 +36,6 @@ export default function ResetRequestDetailsPage() {
     const [collaboratorRef, setCollaboratorRef] = useState<any>(null);
     const [newPassword, setNewPassword] = useState('');
     const [loading, setLoading] = useState(true);
-    
-    // --- MUDANÇA: O estado 'error' agora é controlado pelo Toast ---
     const [toast, setToast] = useState<{message: string, type: 'success' | 'error'} | null>(null);
 
     useEffect(() => {
@@ -45,7 +43,7 @@ export default function ResetRequestDetailsPage() {
 
         const fetchRequestDetails = async () => {
             setLoading(true);
-            setToast(null); // Limpa toasts antigos
+            setToast(null);
             
             const requestDocRef = doc(db, 'password_resets', requestId);
             const requestDocSnap = await getDoc(requestDocRef);
@@ -79,6 +77,7 @@ export default function ResetRequestDetailsPage() {
         fetchRequestDetails();
     }, [requestId]);
 
+    // ----------- ATUALIZE ESTA FUNÇÃO! -----------
     const handleResetPassword = async () => {
         if (!newPassword || newPassword.length < 6) {
             setToast({ message: 'A nova senha deve ter pelo menos 6 caracteres.', type: 'error'});
@@ -91,9 +90,13 @@ export default function ResetRequestDetailsPage() {
 
         setLoading(true);
         try {
+            // Aqui você gera o hash ANTES de salvar:
+            const saltRounds = 10;
+            const hashedPassword = await bcrypt.hash(newPassword, saltRounds);
+
             await updateDoc(collaboratorRef, {
-                password: newPassword,
-                isTemporaryPassword: true // Define como temporária
+                password: hashedPassword,         // Salva o hash, não texto puro!
+                isTemporaryPassword: true
             });
             
             const requestDocRef = doc(db, 'password_resets', request.id);
@@ -101,9 +104,7 @@ export default function ResetRequestDetailsPage() {
                 status: 'completed'
             });
 
-            // --- SUBSTITUIÇÃO DO ALERT ---
             setToast({ message: 'Senha do colaborador atualizada com sucesso!', type: 'success'});
-            
             setTimeout(() => {
                 router.push('/dashboard');
             }, 3000);
@@ -114,15 +115,14 @@ export default function ResetRequestDetailsPage() {
             setLoading(false);
         }
     };
+    // ----------- FIM DA FUNÇÃO -----------
 
     if (loading && !toast) return <p className={styles.loading}>Carregando detalhes...</p>;
     
     return (
         <>
             <div className={styles.container}>
-                {/* O conteúdo da página continua o mesmo */}
                 <h2 className={styles.title}>Detalhes da Solicitação de Reset</h2>
-                
                 {(!request || !collaborator) && !loading ? (
                     <p className={styles.error}>Não foi possível carregar os dados completos.</p>
                 ) : (
@@ -133,7 +133,6 @@ export default function ResetRequestDetailsPage() {
                             <p><strong>E-mail:</strong> {collaborator?.email || 'Não informado'}</p>
                             <p><strong>Status do Pedido:</strong> <span className={`${styles.status} ${styles[request?.status || '']}`}>{request?.status}</span></p>
                         </div>
-
                         {request?.status === 'pending' && (
                             <div className={`${styles.card} ${styles.actionCard}`}>
                                 <h3>Ação do Administrador</h3>
@@ -150,8 +149,6 @@ export default function ResetRequestDetailsPage() {
                     </>
                 )}
             </div>
-            
-            {/* O componente Toast é renderizado aqui quando houver uma mensagem */}
             {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
         </>
     );
