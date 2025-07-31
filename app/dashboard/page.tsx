@@ -460,36 +460,49 @@ export default function DashboardPage() {
                         )}
                     </div>
                 </div>
-                <div className={styles.listContainer}>
-                    <h3 className={styles.listTitle}>Respostas Recentes</h3>
-                    <div className={styles.responseList}>
-                        {filteredResponses.slice(0, 5).map(response => (
-                            <div key={response.id} className={styles.responseItem}>
-                                <div>
-                                    <h4 className={styles.responseForm}>
-                                        {allForms.find(f => f.id === response.formId)?.title || 'Formulário Desconhecido'}
-                                    </h4>
-                                    <p className={styles.responseMeta}>
-                                        {(() => {
-                                            const dt = toDateCompat((response as any).createdAt) || toDateCompat((response as any).submittedAt);
-                                            return dt ? dt.toLocaleString('pt-BR') : '';
-                                        })()} • {response.collaboratorUsername || 'Usuário Desconhecido'}
-                                    </p>
-                                </div>
-                                <div className={styles.responseStatus}>
-                                    <span className={styles.statusDot} />
-                                    Recebida
-                                </div>
-                            </div>
-                        ))}
-                        {filteredResponses.length === 0 && !loading.responses && (
-                            <p className={styles.emptyMessage}>Nenhuma resposta encontrada</p>
-                        )}
-                        {loading.responses && (
-                            <p className={styles.loadingMessage}>Carregando respostas...</p>
-                        )}
-                    </div>
-                </div>
+               <div className={styles.listContainer}>
+  <h3 className={styles.listTitle}>Respostas Recentes</h3>
+  <div className={styles.responseList}>
+    {[...filteredResponses]
+      .sort((a, b) => {
+        const da = toDateCompat(a.createdAt) || toDateCompat(a.submittedAt);
+        const db = toDateCompat(b.createdAt) || toDateCompat(b.submittedAt);
+        if (!db && !da) return 0;
+        if (!db) return -1;
+        if (!da) return 1;
+        // Mais novo primeiro (decrescente)
+        return db.getTime() - da.getTime();
+      })
+      .slice(0, 5)
+      .map(response => (
+        <div key={response.id} className={styles.responseItem}>
+          <div>
+            <h4 className={styles.responseForm}>
+              {allForms.find(f => f.id === response.formId)?.title || 'Formulário Desconhecido'}
+            </h4>
+            <p className={styles.responseMeta}>
+              {(() => {
+                const dt = toDateCompat(response.createdAt) || toDateCompat(response.submittedAt);
+                return dt ? dt.toLocaleString('pt-BR') : '';
+              })()} • {response.collaboratorUsername || 'Usuário Desconhecido'}
+            </p>
+          </div>
+          <div className={styles.responseStatus}>
+            <span className={styles.statusDot} />
+            Recebida
+          </div>
+        </div>
+      ))
+    }
+    {filteredResponses.length === 0 && !loading.responses && (
+      <p className={styles.emptyMessage}>Nenhuma resposta encontrada</p>
+    )}
+    {loading.responses && (
+      <p className={styles.loadingMessage}>Carregando respostas...</p>
+    )}
+  </div>
+</div>
+
             </div>
 
             <div className={styles.adminSection}>
