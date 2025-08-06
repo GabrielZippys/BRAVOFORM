@@ -3,15 +3,24 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { db } from '../../firebase/config';
 import { doc, addDoc, updateDoc, collection, serverTimestamp } from 'firebase/firestore';
-import { type Form, type FormField, type FormResponse as FormResponseType } from '@/types';
+import { type Form, type FormResponse as FormResponseType } from '@/types';
 import styles from '../../app/styles/FormResponse.module.css';
 import { X, Send, Eraser } from 'lucide-react';
 
-type ResponseFormField = FormField & {
-  allowOther?: boolean;
-  columns?: { id: number; label: string; type: string; options?: string[] }[];
-  rows?: { id: number; label: string }[];
+// Novo tipo: genérico para campos criados no builder
+type EnhancedFormField = {
+  id: string;
+  type: string;
+  label: string;
+  required?: boolean;
+  displayAs?: string;
+  placeholder?: string;
+  description?: string;
   options?: string[];
+  allowOther?: boolean;
+  columns?: { id: string; label: string; type: string; options?: string[] }[];
+  rows?: { id: string; label: string }[];
+  [key: string]: any; // permite campos dinâmicos futuros
 };
 
 interface FormResponseProps {
@@ -29,37 +38,52 @@ interface FormResponseProps {
   canEdit?: boolean;
 }
 
-export default function FormResponse({ form, collaborator, onClose, existingResponse, canEdit }: FormResponseProps) {
+export default function FormResponse({
+  form,
+  collaborator,
+  onClose,
+  existingResponse,
+  canEdit
+}: FormResponseProps) {
   if (!form) return null;
 
+  // Estado das respostas
   const [responses, setResponses] = useState<Record<string, any>>({});
   const [otherInputValues, setOtherInputValues] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
+  const [triedSubmit, setTriedSubmit] = useState(false);
   const signaturePads = useRef<Record<string, HTMLCanvasElement | null>>({});
 
-  // Restaura valores de edição
+  // Preenche para edição
   useEffect(() => {
-    if (existingResponse && typeof existingResponse === 'object') {
+    if (existingResponse) {
       const initial: Record<string, any> = {};
       const initialOthers: Record<string, string> = {};
+
       Object.entries(existingResponse)
-        .filter(([k]) => k !== 'id')
+        .filter(([k]) => !['id', 'createdAt', 'updatedAt'].includes(k))
         .forEach(([k, v]) => {
-          // Se veio de flattened (BI), preenche por label
-          const field = (form.fields as ResponseFormField[]).find(f => f.label === k || String(f.id) === k);
+          // Busca por ID ou label (para compatibilidade)
+          const field =
+            (form.fields as EnhancedFormField[]).find(f => String(f.id) === k || f.label === k);
           if (!field) return;
           const fieldId = String(field.id);
-          if ((field.type === 'Caixa de Seleção' || field.type === 'Múltipla Escolha') && field.allowOther) {
-            // Outros para checkbox/radio
+
+          // Múltipla escolha/checkbox com "outros"
+          if (
+            (field.type === 'Caixa de Seleção' || field.type === 'Múltipla Escolha') &&
+            field.allowOther
+          ) {
             if (typeof v === 'string' && v && field.options && !field.options.includes(v)) {
               initial[fieldId] = '___OTHER___';
               initialOthers[fieldId] = v;
             } else if (Array.isArray(v)) {
               const normal = v.filter(opt => field.options?.includes(opt));
-              const other = v.find(opt => field.options?.indexOf(opt) === -1);
+              const other = v.find(opt => !(field.options ?? []).includes(opt));
               if (other) initialOthers[fieldId] = other;
-              if (normal.length > 0) initial[fieldId] = [...normal, ...(other ? ['___OTHER___'] : [])];
+              if (normal.length > 0)
+                initial[fieldId] = [...normal, ...(other ? ['___OTHER___'] : [])];
             } else {
               initial[fieldId] = v;
             }
@@ -72,106 +96,88 @@ export default function FormResponse({ form, collaborator, onClose, existingResp
     }
   }, [existingResponse, form.fields]);
 
-  // --- CANVAS DE ASSINATURA --- (versão robusta, universal)
-useEffect(() => {
-  Object.entries(signaturePads.current).forEach(([fieldId, canvas]) => {
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-    let drawing = false;
-    let lastX = 0, lastY = 0;
+  // --- CANVAS DE ASSINATURA ---
+  useEffect(() => {
+    Object.entries(signaturePads.current).forEach(([fieldId, canvas]) => {
+      if (!canvas) return;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return;
+      let drawing = false;
+      let lastX = 0, lastY = 0;
 
-    // Ajuste para suportar corretamente mouse/touch (tablets e desktop)
-    const getPos = (e: MouseEvent | TouchEvent) => {
-      const rect = canvas.getBoundingClientRect();
-      if ('touches' in e && e.touches.length > 0) {
-        return {
-          x: e.touches[0].clientX - rect.left,
-          y: e.touches[0].clientY - rect.top,
-        };
-      } else if ('changedTouches' in e && e.changedTouches.length > 0) {
-        // Para touchend, que não tem touches, mas tem changedTouches
-        return {
-          x: e.changedTouches[0].clientX - rect.left,
-          y: e.changedTouches[0].clientY - rect.top,
-        };
-      } else if ('clientX' in e) {
-        return {
-          x: (e as MouseEvent).clientX - rect.left,
-          y: (e as MouseEvent).clientY - rect.top,
-        };
-      }
-      return null;
-    };
+      const getPos = (e: MouseEvent | TouchEvent) => {
+        const rect = canvas.getBoundingClientRect();
+        if ('touches' in e && e.touches.length > 0) {
+          return {
+            x: e.touches[0].clientX - rect.left,
+            y: e.touches[0].clientY - rect.top,
+          };
+        } else if ('changedTouches' in e && e.changedTouches.length > 0) {
+          return {
+            x: e.changedTouches[0].clientX - rect.left,
+            y: e.changedTouches[0].clientY - rect.top,
+          };
+        } else if ('clientX' in e) {
+          return {
+            x: (e as MouseEvent).clientX - rect.left,
+            y: (e as MouseEvent).clientY - rect.top,
+          };
+        }
+        return null;
+      };
 
-    // HANDLERS universais:
-    const startDraw = (e: MouseEvent | TouchEvent) => {
-      e.preventDefault();
-      const pos = getPos(e);
-      if (!pos) return;
-      drawing = true;
-      lastX = pos.x;
-      lastY = pos.y;
-    };
-    const draw = (e: MouseEvent | TouchEvent) => {
-      if (!drawing) return;
-      e.preventDefault();
-      const pos = getPos(e);
-      if (!pos) return;
-      ctx.beginPath();
-      ctx.moveTo(lastX, lastY);
-      ctx.lineTo(pos.x, pos.y);
-      ctx.strokeStyle = '#222';
-      ctx.lineWidth = 2;
-      ctx.lineCap = 'round';
-      ctx.stroke();
-      lastX = pos.x;
-      lastY = pos.y;
-    };
-    const stopDraw = (e?: MouseEvent | TouchEvent) => {
-      drawing = false;
-      // Salva assinatura no campo correspondente!
-      if (canvas.dataset.fieldId) {
-        handleInputChange(canvas.dataset.fieldId, canvas.toDataURL('image/png'));
-      }
-    };
+      const startDraw = (e: MouseEvent | TouchEvent) => {
+        e.preventDefault();
+        const pos = getPos(e);
+        if (!pos) return;
+        drawing = true;
+        lastX = pos.x;
+        lastY = pos.y;
+      };
+      const draw = (e: MouseEvent | TouchEvent) => {
+        if (!drawing) return;
+        e.preventDefault();
+        const pos = getPos(e);
+        if (!pos) return;
+        ctx.beginPath();
+        ctx.moveTo(lastX, lastY);
+        ctx.lineTo(pos.x, pos.y);
+        ctx.strokeStyle = '#222';
+        ctx.lineWidth = 2;
+        ctx.lineCap = 'round';
+        ctx.stroke();
+        lastX = pos.x;
+        lastY = pos.y;
+      };
+      const stopDraw = () => {
+        drawing = false;
+        if (canvas.dataset.fieldId) {
+          handleInputChange(canvas.dataset.fieldId, canvas.toDataURL('image/png'));
+        }
+      };
 
-    // Mouse events
-    canvas.addEventListener('mousedown', startDraw);
-    canvas.addEventListener('mousemove', draw);
-    canvas.addEventListener('mouseup', stopDraw);
-    canvas.addEventListener('mouseleave', stopDraw);
+      canvas.addEventListener('mousedown', startDraw);
+      canvas.addEventListener('mousemove', draw);
+      canvas.addEventListener('mouseup', stopDraw);
+      canvas.addEventListener('mouseleave', stopDraw);
+      canvas.addEventListener('touchstart', startDraw, { passive: false });
+      canvas.addEventListener('touchmove', draw, { passive: false });
+      canvas.addEventListener('touchend', stopDraw, { passive: false });
+      canvas.addEventListener('touchcancel', stopDraw, { passive: false });
+      return () => {
+        canvas.removeEventListener('mousedown', startDraw);
+        canvas.removeEventListener('mousemove', draw);
+        canvas.removeEventListener('mouseup', stopDraw);
+        canvas.removeEventListener('mouseleave', stopDraw);
+        canvas.removeEventListener('touchstart', startDraw);
+        canvas.removeEventListener('touchmove', draw);
+        canvas.removeEventListener('touchend', stopDraw);
+        canvas.removeEventListener('touchcancel', stopDraw);
+      };
+    });
+  }, [form.fields]);
 
-    // Touch events (sempre passive: false)
-    canvas.addEventListener('touchstart', startDraw, { passive: false });
-    canvas.addEventListener('touchmove', draw, { passive: false });
-    canvas.addEventListener('touchend', stopDraw, { passive: false });
-    canvas.addEventListener('touchcancel', stopDraw, { passive: false });
-
-    // Bloqueia scroll com dois dedos durante assinatura!
-    const preventScroll = (e: TouchEvent) => {
-      if (drawing) e.preventDefault();
-    };
-    canvas.addEventListener('touchmove', preventScroll, { passive: false });
-
-    // Limpar eventos ao desmontar:
-    return () => {
-      canvas.removeEventListener('mousedown', startDraw);
-      canvas.removeEventListener('mousemove', draw);
-      canvas.removeEventListener('mouseup', stopDraw);
-      canvas.removeEventListener('mouseleave', stopDraw);
-
-      canvas.removeEventListener('touchstart', startDraw);
-      canvas.removeEventListener('touchmove', draw);
-      canvas.removeEventListener('touchend', stopDraw);
-      canvas.removeEventListener('touchcancel', stopDraw);
-
-      canvas.removeEventListener('touchmove', preventScroll);
-    };
-  });
-}, [form.fields]); 
-
-  // Restaura imagem de assinatura caso exista
+  // Restaura imagem da assinatura se tiver
   useEffect(() => {
     Object.entries(signaturePads.current).forEach(([fieldId, canvas]) => {
       if (canvas && responses[fieldId]?.startsWith?.('data:image')) {
@@ -185,6 +191,7 @@ useEffect(() => {
     });
   }, [responses]);
 
+  // Manipuladores dinâmicos
   const handleInputChange = (fieldId: string, value: any) =>
     setResponses(prev => ({ ...prev, [fieldId]: value }));
 
@@ -234,181 +241,209 @@ useEffect(() => {
     }
   };
 
- const handleSubmit = async () => {
-  setIsSubmitting(true);
-  setError('');
-  try {
-    const flattened: Record<string, any> = {
-      collaboratorId: collaborator.id,
-      collaboratorUsername: collaborator.username,
-      formId: form.id,
-      formTitle: form.title,
-      companyId: form.companyId,
-      departmentId: form.departmentId,
-      status: 'pending',
-      submittedAt: serverTimestamp()
-    };
+  // SUBMIT
+  const handleSubmit = async () => {
+    setTriedSubmit(true);
 
-    // Salva SEM ___OTHER___ (substitui sempre pelo texto real!)
-    (form.fields as ResponseFormField[]).forEach(field => {
-      const fieldIdStr = String(field.id);
-      let answerVal = responses[fieldIdStr];
+const missingFields: string[] = [];
+(form.fields as EnhancedFormField[]).forEach(field => {
+  const fieldIdStr = String(field.id);
 
-      if ((field.type === 'Caixa de Seleção' || field.type === 'Múltipla Escolha') && field.allowOther) {
-        const otherVal = otherInputValues[fieldIdStr] || '';
-        if (Array.isArray(answerVal)) {
-          answerVal = answerVal
-            .map((v: string) => (v === '___OTHER___' ? (otherVal || '') : v))
-            .filter(v => v !== '');
-          // Se só tinha outro e estava vazio, salva como string vazia
-          if (answerVal.length === 1 && answerVal[0] === '') answerVal = '';
-        } else if (answerVal === '___OTHER___') {
-          answerVal = otherVal;
-        }
-      }
-      flattened[field.label] = answerVal ?? '';
-    });
-
-    // Também deixa o campo answers pronto para histórico
-    const answers: Record<string, any> = {};
-    (form.fields as ResponseFormField[]).forEach(field => {
-      const fieldIdStr = String(field.id);
-      let answerVal = responses[fieldIdStr];
-      if ((field.type === 'Caixa de Seleção' || field.type === 'Múltipla Escolha') && field.allowOther) {
-        const otherVal = otherInputValues[fieldIdStr] || '';
-        if (Array.isArray(answerVal)) {
-          answerVal = answerVal
-            .map((v: string) => (v === '___OTHER___' ? (otherVal || '') : v))
-            .filter(v => v !== '');
-          if (answerVal.length === 1 && answerVal[0] === '') answerVal = '';
-        } else if (answerVal === '___OTHER___') {
-          answerVal = otherVal;
-        }
-      }
-      answers[fieldIdStr] = answerVal ?? '';
-    });
-
-    flattened.answers = answers;
-
-    if (existingResponse?.id) {
-      await updateDoc(doc(db, 'forms', form.id, 'responses', existingResponse.id), { ...flattened, updatedAt: serverTimestamp() });
-    } else {
-      await addDoc(collection(db, 'forms', form.id, 'responses'), flattened, );
-        submittedAt: serverTimestamp() // CORRETO!
-
+  // Só valida campos obrigatórios que não são Cabeçalho, Anexo, Assinatura, ou Tabela
+  if (
+    field.required &&
+    !['Cabeçalho', 'Anexo', 'Assinatura', 'Tabela'].includes(field.type)
+  ) {
+    const val = responses[fieldIdStr];
+    if (
+      val === undefined ||
+      val === null ||
+      (typeof val === 'string' && val.trim() === '') ||
+      (Array.isArray(val) && val.length === 0)
+    ) {
+      missingFields.push(field.label);
     }
-    onClose();
-  } catch (err) {
-    setError('Não foi possível enviar a resposta.');
-  } finally {
-    setIsSubmitting(false);
   }
-};
+});
 
+if (missingFields.length > 0) {
+  setError("Preencha todos os campos obrigatórios!");
+  setIsSubmitting(false);
+  return;
+}
 
+    setError('');
+    try {
+      const flattened: Record<string, any> = {
+        collaboratorId: collaborator.id,
+        collaboratorUsername: collaborator.username,
+        formId: form.id,
+        formTitle: form.title,
+        companyId: form.companyId,
+        departmentId: form.departmentId,
+        status: 'pending',
+        submittedAt: serverTimestamp()
+      };
 
+      // 1. FLATTEN POR LABEL (para BI, facilidade)
+      (form.fields as EnhancedFormField[]).forEach(field => {
+        const fieldIdStr = String(field.id);
+        let answerVal = responses[fieldIdStr];
+
+        if (
+          (field.type === 'Caixa de Seleção' || field.type === 'Múltipla Escolha') &&
+          field.allowOther
+        ) {
+          const otherVal = otherInputValues[fieldIdStr] || '';
+          if (Array.isArray(answerVal)) {
+            answerVal = answerVal
+              .map((v: string) => (v === '___OTHER___' ? (otherVal || '') : v))
+              .filter(v => v !== '');
+            if (answerVal.length === 1 && answerVal[0] === '') answerVal = '';
+          } else if (answerVal === '___OTHER___') {
+            answerVal = otherVal;
+          }
+        }
+        flattened[field.label] = answerVal ?? '';
+      });
+
+      // 2. SALVAR answers por ID (histórico e compatibilidade)
+      const answers: Record<string, any> = {};
+      (form.fields as EnhancedFormField[]).forEach(field => {
+        const fieldIdStr = String(field.id);
+        let answerVal = responses[fieldIdStr];
+        if (
+          (field.type === 'Caixa de Seleção' || field.type === 'Múltipla Escolha') &&
+          field.allowOther
+        ) {
+          const otherVal = otherInputValues[fieldIdStr] || '';
+          if (Array.isArray(answerVal)) {
+            answerVal = answerVal
+              .map((v: string) => (v === '___OTHER___' ? (otherVal || '') : v))
+              .filter(v => v !== '');
+            if (answerVal.length === 1 && answerVal[0] === '') answerVal = '';
+          } else if (answerVal === '___OTHER___') {
+            answerVal = otherVal;
+          }
+        }
+        answers[fieldIdStr] = answerVal ?? '';
+      });
+
+      flattened.answers = answers;
+
+      // Firestore
+      if (existingResponse?.id) {
+        await updateDoc(
+          doc(db, 'forms', form.id, 'responses', existingResponse.id),
+          { ...flattened, updatedAt: serverTimestamp() }
+        );
+      } else {
+        await addDoc(collection(db, 'forms', form.id, 'responses'), flattened);
+      }
+      onClose();
+    } catch (err) {
+      setError('Não foi possível enviar a resposta.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  // --------- Renderização dinâmica dos campos
   const renderTableCell = (
-  field: ResponseFormField,
-  row: { id: number; label: string },
-  col: { id: number; label: string; type: string; options?: string[] }
-) => {
-  // Sempre acessa com segurança!
-  const fieldId = String(field.id);
-  const rowId = String(row.id);
-  const colId = String(col.id);
+    field: EnhancedFormField,
+    row: { id: string; label: string },
+    col: { id: string; label: string; type: string; options?: string[] }
+  ) => {
+    const fieldId = String(field.id);
+    const rowId = String(row.id);
+    const colId = String(col.id);
+    const value =
+      responses[fieldId]?.[rowId]?.[colId] !== undefined
+        ? responses[fieldId][rowId][colId]
+        : '';
+    const disabled = !canEdit && !!existingResponse;
 
-  // Garante caminhos intermediários como objeto
-  const value =
-    responses[fieldId]?.[rowId]?.[colId] !== undefined
-      ? responses[fieldId][rowId][colId]
-      : '';
+    // Mapeamento de tipos para inputs
+    switch (col.type) {
+      case 'text':
+      case 'Texto':
+        return (
+          <input
+            className={styles.tableResponseInput}
+            type="text"
+            value={value}
+            onChange={e =>
+              handleTableInputChange(fieldId, rowId, colId, e.target.value)
+            }
+            disabled={disabled}
+          />
+        );
+      case 'number':
+        return (
+          <input
+            className={styles.tableResponseInput}
+            type="number"
+            value={value}
+            onChange={e =>
+              handleTableInputChange(fieldId, rowId, colId, e.target.value)
+            }
+            disabled={disabled}
+          />
+        );
+      case 'date':
+      case 'Data':
+        return (
+          <input
+            className={styles.tableResponseInput}
+            type="date"
+            value={value}
+            onChange={e =>
+              handleTableInputChange(fieldId, rowId, colId, e.target.value)
+            }
+            disabled={disabled}
+          />
+        );
+      case 'select':
+      case 'Caixa de Seleção':
+      case 'Múltipla Escolha':
+        return (
+          <select
+            className={styles.tableResponseSelect}
+            value={value}
+            onChange={e =>
+              handleTableInputChange(fieldId, rowId, colId, e.target.value)
+            }
+            disabled={disabled}
+          >
+            <option value="">Selecione</option>
+            {col.options?.map((opt: string) => (
+              <option key={opt} value={opt}>
+                {opt}
+              </option>
+            ))}
+          </select>
+        );
+      default:
+        return (
+          <input
+            className={styles.tableResponseInput}
+            type="text"
+            value={value}
+            onChange={e =>
+              handleTableInputChange(fieldId, rowId, colId, e.target.value)
+            }
+            disabled={disabled}
+          />
+        );
+    }
+  };
 
-  const disabled = !canEdit && !!existingResponse;
-
-  switch (col.type) {
-    case 'Texto':
-      return (
-        <input
-          className={styles.tableResponseInput}
-          type="text"
-          value={value}
-          onChange={e =>
-            handleTableInputChange(
-              fieldId,
-              rowId,
-              colId,
-              e.target.value
-            )
-          }
-          disabled={disabled}
-        />
-      );
-    case 'Data':
-      return (
-        <input
-          className={styles.tableResponseInput}
-          type="date"
-          value={value}
-          onChange={e =>
-            handleTableInputChange(
-              fieldId,
-              rowId,
-              colId,
-              e.target.value
-            )
-          }
-          disabled={disabled}
-        />
-      );
-    case 'Caixa de Seleção':
-    case 'Múltipla Escolha':
-      return (
-        <select
-          className={styles.tableResponseSelect}
-          value={value}
-          onChange={e =>
-            handleTableInputChange(
-              fieldId,
-              rowId,
-              colId,
-              e.target.value
-            )
-          }
-          disabled={disabled}
-        >
-          <option value="">Selecione</option>
-          {col.options?.map((opt: string) => (
-            <option key={opt} value={opt}>
-              {opt}
-            </option>
-          ))}
-        </select>
-      );
-    default:
-      return (
-        <input
-          className={styles.tableResponseInput}
-          type="text"
-          value={value}
-          onChange={e =>
-            handleTableInputChange(
-              fieldId,
-              rowId,
-              colId,
-              e.target.value
-            )
-          }
-          disabled={disabled}
-        />
-      );
-  }
-};
-
-
-  const renderField = (field: ResponseFormField) => {
+  // Campo dinâmico
+  const renderField = (field: EnhancedFormField) => {
     const fieldId = String(field.id);
     const disabled = !canEdit && !!existingResponse;
     const otherVal = '___OTHER___';
+
     switch (field.type) {
       case 'Tabela':
         return (
@@ -417,16 +452,16 @@ useEffect(() => {
               <thead>
                 <tr>
                   <th></th>
-                  {field.columns?.map(col => (
+                  {field.columns?.map((col: any) => (
                     <th key={col.id}>{col.label}</th>
                   ))}
                 </tr>
               </thead>
               <tbody>
-                {field.rows?.map(row => (
+                {field.rows?.map((row: any) => (
                   <tr key={row.id}>
                     <td>{row.label}</td>
-                    {field.columns?.map(col => (
+                    {field.columns?.map((col: any) => (
                       <td key={col.id}>{renderTableCell(field, row, col)}</td>
                     ))}
                   </tr>
@@ -531,45 +566,64 @@ useEffect(() => {
           </div>
         );
       case 'Múltipla Escolha':
-        return (
-          <div>
-            {field.options?.map((opt: string) => (
-              <label key={opt} className={styles.radioLabel}>
-                <input
-                  type="radio"
-                  name={`field_${field.id}`}
-                  checked={responses[fieldId] === opt}
-                  onChange={() => handleInputChange(fieldId, opt)}
-                  disabled={disabled}
-                />
-                <span>{opt}</span>
-              </label>
-            ))}
-            {field.allowOther && (
-              <>
-                <label className={styles.radioLabel}>
-                  <input
-                    type="radio"
-                    name={`field_${field.id}`}
-                    checked={responses[fieldId] === otherVal}
-                    onChange={() => handleInputChange(fieldId, otherVal)}
-                    disabled={disabled}
-                  />
-                  <span>Outros</span>
-                </label>
-                {responses[fieldId] === otherVal && (
-                  <input
-                    className={styles.otherInput}
-                    value={otherInputValues[fieldId] || ''}
-                    onChange={e => handleOtherInputChange(fieldId, e.target.value)}
-                    placeholder="Por favor, especifique"
-                    disabled={disabled}
-                  />
-                )}
-              </>
-            )}
-          </div>
-        );
+  if (field.displayAs === 'dropdown') {
+    return (
+      <select
+        className={styles.input}
+        value={responses[fieldId] || ''}
+        onChange={e => handleInputChange(fieldId, e.target.value)}
+        disabled={disabled}
+      >
+        <option value="">Selecione</option>
+        {field.options?.map((opt: string) => (
+          <option key={opt} value={opt}>{opt}</option>
+        ))}
+        {field.allowOther && <option value="___OTHER___">Outros</option>}
+      </select>
+    );
+  }
+
+  // Versão radio (default)
+  return (
+    <div>
+      {field.options?.map((opt: string) => (
+        <label key={opt} className={styles.radioLabel}>
+          <input
+            type="radio"
+            name={`field_${field.id}`}
+            checked={responses[fieldId] === opt}
+            onChange={() => handleInputChange(fieldId, opt)}
+            disabled={disabled}
+          />
+          <span>{opt}</span>
+        </label>
+      ))}
+      {field.allowOther && (
+        <>
+          <label className={styles.radioLabel}>
+            <input
+              type="radio"
+              name={`field_${field.id}`}
+              checked={responses[fieldId] === '___OTHER___'}
+              onChange={() => handleInputChange(fieldId, '___OTHER___')}
+              disabled={disabled}
+            />
+            <span>Outros</span>
+          </label>
+          {responses[fieldId] === '___OTHER___' && (
+            <input
+              className={styles.otherInput}
+              value={otherInputValues[fieldId] || ''}
+              onChange={e => handleOtherInputChange(fieldId, e.target.value)}
+              placeholder="Por favor, especifique"
+              disabled={disabled}
+            />
+          )}
+        </>
+      )}
+    </div>
+  );
+
       case 'Texto':
         return (
           <textarea
@@ -589,8 +643,20 @@ useEffect(() => {
             disabled={disabled}
           />
         );
+     case 'Cabeçalho':
+  return <div className={styles.formSectionHeader}>{field.label}</div>;
+
       default:
-        return <p>Tipo {field.type} não implementado</p>;
+        // Suporte a campos futuros: input genérico texto
+        return (
+          <input
+            className={styles.input}
+            value={responses[fieldId] || ''}
+            onChange={e => handleInputChange(fieldId, e.target.value)}
+            placeholder={field.placeholder || ''}
+            disabled={disabled}
+          />
+        );
     }
   };
 
@@ -604,13 +670,38 @@ useEffect(() => {
           </button>
         </div>
         <div className={styles.panelBody}>
-          {(form.fields as ResponseFormField[]).map(field => (
+          {(form.fields as EnhancedFormField[]).map(field => (
             <div key={field.id} className={styles.fieldWrapper}>
-              <label className={styles.label}>{field.label}</label>
+              {field.type !== 'Cabeçalho' && (
+                <label
+  className={
+    styles.label +
+    (field.required &&
+      triedSubmit &&
+      (
+        responses[String(field.id)] === undefined ||
+        responses[String(field.id)] === null ||
+        responses[String(field.id)] === '' ||
+        (Array.isArray(responses[String(field.id)]) && responses[String(field.id)].length === 0)
+      )
+      ? ' ' + styles.requiredErrorLabel
+      : ''
+    )
+  }
+>
+  {field.label}
+  {field.required && <span style={{ color: '#ef4444', marginLeft: 4 }}>*</span>}
+</label>
+
+              )}
               {renderField(field)}
+              {field.description && (
+                <div className={styles.fieldDescription}>{field.description}</div>
+              )}
             </div>
           ))}
         </div>
+        
         <div className={styles.panelFooter}>
           {error && <p className={styles.errorText}>{error}</p>}
           {canEdit || !existingResponse ? (

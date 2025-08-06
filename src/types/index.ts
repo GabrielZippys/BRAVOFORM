@@ -1,4 +1,4 @@
-import { Timestamp, DocumentReference, DocumentData } from "firebase/firestore";
+import { Timestamp, DocumentReference, DocumentData, FieldValue } from "firebase/firestore";
 import { ReactNode } from "react";
 
 // --- TIPO PARA UTILIZADORES DO FIREBASE AUTH (ADMINS) ---
@@ -29,40 +29,65 @@ export interface Collaborator {
 }
 
 // --- TIPOS DE FORMULÁRIOS ---
-export type FormField = {
-  id: number;
+// Substitua as definições existentes por estas:
+
+// --- TIPOS DE FORMULÁRIOS (UNIFICADO E CORRIGIDO) ---
+
+// Tipo para os campos dentro de um formulário
+export interface FormField {
+  id: string; // IDs como string são mais flexíveis
   type: 'Texto' | 'Anexo' | 'Assinatura' | 'Caixa de Seleção' | 'Múltipla Escolha' | 'Data' | 'Cabeçalho' | 'Tabela';
-  label: string;
-  options?: string[];
-  columns?: {
-    id: number;
-    label: string;
-    type: 'Texto' | 'Data' | 'Caixa de Seleção' | 'Múltipla Escolha';
-    options?: string[];
-  }[];
-  rows?: { id: number; label: string; }[];
+  label: string;
+  required?: boolean;
+  displayAs?: 'radio' | 'dropdown';
+  placeholder?: string;
+  description?: string;
+  options?: string[];
+  columns?: {
+    id: string;
+    label: string;
+    type: 'text' | 'number' | 'date' | 'select';
+    options?: string[];
+  }[];
+  rows?: { id: string; label: string; }[];
 };
 
+// A interface principal e unificada para um Formulário
 export interface Form {
   id: string;
   title: string;
-  description?: string; // descrição opcional do formulário
-  fields: FormField[];
+  description?: string;
+  fields: FormField[]; // Certifique-se que FormField também está definido neste arquivo
   companyId: string;
   departmentId: string;
-  automation: {
+  collaborators: string[];
+  authorizedUsers: string[];
+  status?: 'active' | 'draft' | 'archived';
+  order?: number;
+  
+  // CORREÇÃO: Permite FieldValue (de serverTimestamp()) e null (para estado inicial)
+  createdAt: Timestamp | FieldValue | null;
+  updatedAt?: Timestamp | FieldValue;
+
+  // Campos que estavam faltando, vindos do 'EnhancedFormDraft'
+  theme: {
+    bgColor: string;
+    bgImage?: string;
+    accentColor: string;
+    fontColor: string;
+    borderRadius: number;
+    spacing: 'compact' | 'normal' | 'spacious';
+  };
+  settings: {
+    allowSave: boolean;
+    showProgress: boolean;
+    confirmBeforeSubmit: boolean;
+  };
+  automation?: {
     type: 'email' | 'whatsapp';
     target: string;
   };
-  ownerId: string;
-  collaborators: string[];
-  authorizedUsers: string[];
-  createdAt: Timestamp;
-  updatedAt?: Timestamp;
-    status?: 'active' | 'draft' | 'archived'; // <- Adicione esta linha!
-
 }
-
 // --- TIPO DE RESPOSTA DE FORMULÁRIO (CORRIGIDO) ---
 export interface FormResponse {
   id: string;

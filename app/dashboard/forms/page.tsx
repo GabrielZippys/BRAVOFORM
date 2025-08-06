@@ -7,7 +7,7 @@ import { arrayMove, SortableContext, sortableKeyboardCoordinates, useSortable, v
 import { CSS } from '@dnd-kit/utilities';
 
 import { Plus, Edit, Trash2, AlertTriangle, GripVertical } from 'lucide-react'; 
-import FormEditor from '@/components/FormEditor';
+import EnhancedFormBuilderPage  from '@/components/EnhancedFormBuilder';
 import styles from '../../styles/Forms.module.css';
 import { db, auth } from '../../../firebase/config';
 import { onAuthStateChanged, type User } from "firebase/auth";
@@ -37,7 +37,15 @@ const SortableFormCard = ({ form, onEdit, onDelete }: { form: Form, onEdit: (for
             </div>
             <h3 className={styles.cardTitle}>{form.title}</h3>
             <div className={styles.cardActions}>
-                <button onClick={() => onEdit(form)} className={styles.actionButton} title="Editar"><Edit size={16}/></button>
+<button
+  onClick={() => onEdit(form)}
+  className={styles.actionButton}
+  title="Editar"
+>
+  <Edit size={16}/>
+</button>
+
+
                 <button onClick={() => onDelete(form.id)} className={`${styles.actionButton} ${styles.deleteButton}`} title="Apagar"><Trash2 size={16}/></button>
             </div>
         </div>
@@ -73,6 +81,7 @@ export default function FormsPage() {
         }
     }
 
+    
     // Seus hooks e funções existentes continuam aqui...
     useEffect(() => { const unsubscribeAuth = onAuthStateChanged(auth, (user) => { setCurrentUser(user); setLoading(prev => ({ ...prev, auth: false })); }); return () => unsubscribeAuth(); }, []);
     useEffect(() => { const q = query(collection(db, "companies")); const unsubscribe = onSnapshot(q, (snapshot) => { const companiesData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Company)); setCompanies(companiesData); if(companiesData.length > 0 && !selectedCompanyId) { setSelectedCompanyId(companiesData[0].id); } setLoading(prev => ({...prev, companies: false})); }); return () => unsubscribe(); }, [selectedCompanyId]);
@@ -91,10 +100,18 @@ export default function FormsPage() {
         <div className={`${styles.container} ${isEditorOpen ? styles.editorActive : ''}`}>
             <header className={styles.header}>
                 <h2 className={styles.title}>Gerenciar Formulários</h2>
-                <button onClick={() => handleOpenEditor()} className={styles.button} disabled={!selectedCompanyId || !selectedDepartmentId} >
-                    <Plus size={16} />
-                    <span>Novo Formulário</span>
-                </button>
+<button
+    onClick={() => {
+        const url = `/forms/builder/novo?companyId=${selectedCompanyId}&departmentId=${selectedDepartmentId}`;
+        window.open(url, '_blank');
+    }}
+    className={styles.button}
+    disabled={!selectedCompanyId || !selectedDepartmentId}
+>
+    <Plus size={16} />
+    <span>Novo Formulário</span>
+</button>
+
             </header>
 
             <div className={styles.frame}>
@@ -122,13 +139,17 @@ export default function FormsPage() {
                             : firestoreError ? <div className={styles.errorState}><AlertTriangle size={24} /><p><strong>{firestoreError}</strong></p></div>
                             : forms.length > 0 ? (
                                 forms.map((form) => (
-                                    <SortableFormCard 
-                                        key={form.id}
-                                        form={form}
-                                        onEdit={handleOpenEditor}
-                                        onDelete={handleDeleteForm}
-                                    />
-                                ))
+    <SortableFormCard 
+        key={form.id}
+        form={form}
+        // Altere a prop onEdit para fazer o seguinte:
+       onEdit={(formToEdit) => {
+    const url = `/forms/builder/${formToEdit.id}?companyId=${formToEdit.companyId}&departmentId=${formToEdit.departmentId}`;
+    window.open(url, '_blank');
+}}
+        onDelete={handleDeleteForm}
+    />
+))
                             ) : <p className={styles.emptyState}>Nenhum formulário encontrado para este setor.</p>}
                         </div>
                     </SortableContext>
@@ -141,14 +162,14 @@ export default function FormsPage() {
                 <div className={styles.editorPanelContent}>
                     {/* Renderiza o editor apenas quando o painel deve estar visível para resetar o estado ao fechar */}
                     {isEditorOpen && (
-                        <FormEditor 
-                            companyId={selectedCompanyId}
-                            departmentId={selectedDepartmentId}
-                            existingForm={editingForm}
-                            onSaveSuccess={handleCloseEditor}
-                            onCancel={handleCloseEditor}
-                        />
-                    )}
+  <EnhancedFormBuilderPage
+  companyId={selectedCompanyId}
+  departmentId={selectedDepartmentId}
+  existingForm={editingForm}
+  onSaveSuccess={handleCloseEditor}
+  onCancel={handleCloseEditor}
+/>
+)}
                 </div>
             </div>
         </div>
