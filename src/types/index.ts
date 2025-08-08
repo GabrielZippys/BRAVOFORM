@@ -7,77 +7,90 @@ export interface AppUser {
   name: string;
   email: string;
   role: 'Admin';
-  // Admins podem não ter essas associações diretas, tornando-as opcionais
   companyId?: string;
   departmentId?: string;
   createdAt?: Timestamp;
 }
 
 // --- TIPO PARA COLABORADORES (GERENCIADOS NO FIRESTORE) ---
-// Este é um tipo separado e mais preciso para seus colaboradores
 export interface Collaborator {
-  id: string;          // O ID do documento do colaborador
+  id: string;
   username: string;
-  password?: string;     // A senha que você armazena
-  email?: string;        // Para envio de notificações ou resets
+  password?: string;
+  email?: string;
   companyId: string;
   departmentId: string;
-  isTemporaryPassword?: boolean; // Para o fluxo de reset de senha
+  isTemporaryPassword?: boolean;
   canViewHistory?: boolean;
   canEditHistory?: boolean;
-  ref?: DocumentReference<DocumentData, DocumentData>; // Referência para o documento
+  ref?: DocumentReference<DocumentData, DocumentData>;
 }
 
-// --- TIPOS DE FORMULÁRIOS ---
-// Substitua as definições existentes por estas:
+// --- FORM THEME INTERFACE ---
+export interface FormTheme {
+  bgColor: string;
+  bgImage?: string;
+  accentColor: string;
+  fontColor: string;
+  inputBgColor?: string;
+  inputFontColor?: string;
+  sectionHeaderBg?: string;
+  sectionHeaderFont?: string;
+  buttonBg?: string;
+  buttonFont?: string;
+  footerBg?: string;
+  footerFont?: string;
+  borderRadius: number;
+  spacing: 'compact' | 'normal' | 'spacious';
+  // Campos extras para tabela:
+  tableHeaderBg?: string;
+  tableHeaderFont?: string;
+  tableBorderColor?: string;
+  tableOddRowBg?: string;
+  tableEvenRowBg?: string;
+  tableCellFont?: string;
+}
 
-// --- TIPOS DE FORMULÁRIOS (UNIFICADO E CORRIGIDO) ---
-
-// Tipo para os campos dentro de um formulário
+// --- CAMPOS DO FORMULÁRIO ---
 export interface FormField {
-  id: string; // IDs como string são mais flexíveis
+  id: string;
   type: 'Texto' | 'Anexo' | 'Assinatura' | 'Caixa de Seleção' | 'Múltipla Escolha' | 'Data' | 'Cabeçalho' | 'Tabela';
-  label: string;
-  required?: boolean;
-  displayAs?: 'radio' | 'dropdown';
-  placeholder?: string;
-  description?: string;
-  options?: string[];
-  columns?: {
-    id: string;
-    label: string;
-    type: 'text' | 'number' | 'date' | 'select';
-    options?: string[];
-  }[];
-  rows?: { id: string; label: string; }[];
-};
+  label: string;
+  required?: boolean;
+  displayAs?: 'radio' | 'dropdown';
+  placeholder?: string;
+  description?: string;
+  options?: string[];
+  columns?: {
+    id: string;
+    label: string;
+    type: 'text' | 'number' | 'date' | 'select';
+    options?: string[];
+  }[];
+  rows?: { id: string; label: string; }[];
+}
 
-// A interface principal e unificada para um Formulário
+// --- FORMULÁRIO PRINCIPAL ---
 export interface Form {
   id: string;
   title: string;
   description?: string;
-  fields: FormField[]; // Certifique-se que FormField também está definido neste arquivo
+  fields: FormField[];
   companyId: string;
   departmentId: string;
   collaborators: string[];
   authorizedUsers: string[];
   status?: 'active' | 'draft' | 'archived';
   order?: number;
-  
-  // CORREÇÃO: Permite FieldValue (de serverTimestamp()) e null (para estado inicial)
+  logo?: {
+    url: string;
+    size: number;
+    align: 'left' | 'center' | 'right';
+    name?: string;
+  };
   createdAt: Timestamp | FieldValue | null;
   updatedAt?: Timestamp | FieldValue;
-
-  // Campos que estavam faltando, vindos do 'EnhancedFormDraft'
-  theme: {
-    bgColor: string;
-    bgImage?: string;
-    accentColor: string;
-    fontColor: string;
-    borderRadius: number;
-    spacing: 'compact' | 'normal' | 'spacious';
-  };
+  theme: FormTheme;
   settings: {
     allowSave: boolean;
     showProgress: boolean;
@@ -88,7 +101,8 @@ export interface Form {
     target: string;
   };
 }
-// --- TIPO DE RESPOSTA DE FORMULÁRIO (CORRIGIDO) ---
+
+// --- TIPO DE RESPOSTA DE FORMULÁRIO ---
 export interface FormResponse {
   id: string;
   formId: string;
@@ -108,7 +122,6 @@ export interface Company {
   id: string;
   name: string;
   createdAt: Timestamp;
-  // Outros campos podem ser adicionados conforme necessário
 }
 
 export interface Department {
@@ -118,7 +131,7 @@ export interface Department {
   createdAt: Timestamp;
 }
 
-// --- TIPO PARA NOTIFICAÇÕES (COMO NO HEADER) ---
+// --- TIPO PARA NOTIFICAÇÕES ---
 export interface ResetNotification {
   id: string;
   collaboratorId: string;

@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { useRouter, useParams, useSearchParams } from 'next/navigation';
-import { DndContext, closestCenter, PointerSensor, useSensor, useSensors, DragEndEvent, DragStartEvent, DragOverEvent } from '@dnd-kit/core';
+import { DndContext, closestCenter, PointerSensor, useSensor, useSensors, DragEndEvent, DragStartEvent } from '@dnd-kit/core';
 import { arrayMove, SortableContext, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import {
@@ -15,7 +15,25 @@ import { doc, getDoc, setDoc, addDoc, collection, serverTimestamp, query, onSnap
 import styles from '../../../../app/styles/FormBuilder.module.css';
 import type { Form, Collaborator } from "@/types";
 
-// Tipos principais
+// ---- ESTILO DO MENU SUSPENSO ----
+const menuBtnStyle: React.CSSProperties = {
+  background: 'none',
+  border: 'none',
+  color: '#fff',
+  padding: '8px 14px',
+  width: '100%',
+  textAlign: 'left',
+  fontSize: 15,
+  cursor: 'pointer',
+  display: 'flex',
+  alignItems: 'center',
+  gap: 8,
+  borderRadius: 6,
+  margin: 0,
+  transition: 'background 0.2s',
+};
+
+// ---- TIPOS
 type FieldType = 'Texto' | 'Caixa de Seleção' | 'Múltipla Escolha' | 'Data' | 'Assinatura' | 'Anexo' | 'Tabela' | 'Cabeçalho';
 
 interface TableColumn {
@@ -40,16 +58,60 @@ interface EnhancedFormField {
   style?: { width?: 'full' | 'half' | 'third'; alignment?: 'left' | 'center' | 'right'; };
 }
 
-interface FormTheme {
+// --- TEMA DO FORMULÁRIO (FormTheme) ---
+export interface FormTheme {
   bgColor: string;
   bgImage?: string;
   accentColor: string;
   fontColor: string;
+  inputBgColor?: string;
+  inputFontColor?: string;
+  sectionHeaderBg?: string;
+  sectionHeaderFont?: string;
+  buttonBg?: string;
+  buttonFont?: string;
+  footerBg?: string;
+  footerFont?: string;
   borderRadius: number;
   spacing: 'compact' | 'normal' | 'spacious';
+  // Novos campos para tabelas:
+  tableHeaderBg?: string;
+  tableHeaderFont?: string;
+  tableBorderColor?: string;
+  tableOddRowBg?: string;
+  tableEvenRowBg?: string;
+  tableCellFont?: string;
 }
 
-// Field Types
+
+
+// ---- THEME DEFAULT
+const defaultTheme: FormTheme = {
+  bgColor: '#ffffff',
+  accentColor: '#3b82f6',
+  fontColor: '#1f2937',
+  inputBgColor: '#171e2c',
+  inputFontColor: '#e8f2ff',
+  sectionHeaderBg: '#19263b',
+  sectionHeaderFont: '#49cfff',
+  buttonBg: '#000',
+  buttonFont: '#fff',
+  footerBg: '#182138',
+  footerFont: '#fff',
+  borderRadius: 8,
+  spacing: 'normal',
+
+  // NOVOS:
+  tableHeaderBg: '#1a2238',
+  tableHeaderFont: '#49cfff',
+  tableBorderColor: '#19263b',
+  tableOddRowBg: '#222c42',
+  tableEvenRowBg: '#171e2c',
+  tableCellFont: '#e0e6f7'
+};
+
+
+// ---- FIELD TYPES
 const FIELD_TYPES: Array<{
   type: FieldType;
   label: string;
@@ -66,30 +128,31 @@ const FIELD_TYPES: Array<{
   { type: 'Cabeçalho', label: 'Cabeçalho', icon: Heading, description: 'Título ou seção' }
 ];
 
-// Utils
+// ---- UTILS
 const FORM_KEY = (companyId: string, deptId: string, formId: string) =>
   `enhanced_formbuilder_draft_${companyId}_${deptId}_${formId || 'novo'}`;
 
 const generateFieldId = () => `field_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
 const generateTableId = (prefix: string) => `${prefix}_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
 
-// Estilo para botões do menu
-const menuBtnStyle: React.CSSProperties = {
-  width: '100%',
-  padding: '8px 12px',
-  background: 'none',
-  border: 'none',
-  color: '#fff',
-  textAlign: 'left',
-  cursor: 'pointer',
-  display: 'flex',
-  alignItems: 'center',
-  fontSize: '14px',
-  borderRadius: '4px',
-  transition: 'background-color 0.2s'
-};
+// ---- NORMALIZE FORM
+function normalizeForm(data: any) {
+  return {
+    ...data,
+    theme: { ...defaultTheme, ...(data.theme || {}) },
+    settings: {
+      allowSave: true,
+      showProgress: true,
+      confirmBeforeSubmit: false,
+      ...(data.settings || {}),
+    },
+    collaborators: data.collaborators || [],
+    authorizedUsers: data.authorizedUsers || [],
+    fields: data.fields || [],
+  };
+}
 
-// SortableField
+// ---- COMPONENTES AUXILIARES
 function SortableField({ field, onSelect, selected, onRemove, onDuplicate }: {
   field: EnhancedFormField;
   onSelect: (id: string) => void;
@@ -151,7 +214,6 @@ function SortableField({ field, onSelect, selected, onRemove, onDuplicate }: {
   );
 }
 
-// DraggableFieldType
 function DraggableFieldType({ fieldType }: { fieldType: typeof FIELD_TYPES[0] }) {
   const IconComponent = fieldType.icon;
   return (
@@ -527,6 +589,7 @@ function FieldProperties({ field, updateField }: {
 )}
 
 
+
       <div className={styles.propertyGroup}>
         <label>Descrição/Ajuda</label>
         <textarea
@@ -540,24 +603,52 @@ function FieldProperties({ field, updateField }: {
   );
 }
 
+
 // Componente de preview dos campos
-function PreviewFields({ fields }: { fields: EnhancedFormField[] }) {
+// Substitua TODO o PreviewFields por este novo:
+
+function PreviewFields({ fields, theme }: { fields: EnhancedFormField[], theme: FormTheme }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
       {fields.map((field) => (
         <div key={field.id} style={{ marginBottom: 16 }}>
           {field.type === 'Cabeçalho' ? (
-            <h3 style={{ margin: '0 0 8px 0', fontSize: '1.25rem', fontWeight: 'bold' }}>
+            <h3
+              style={{
+                margin: '0 0 8px 0',
+                fontSize: '1.25rem',
+                fontWeight: 'bold',
+                background: theme.sectionHeaderBg,
+                color: theme.sectionHeaderFont,
+                borderRadius: theme.borderRadius,
+                padding: 8,
+              }}
+            >
               {field.label}
             </h3>
           ) : (
             <>
-              <label style={{ display: 'block', marginBottom: 8, fontWeight: 500 }}>
+              <label
+                style={{
+                  display: 'block',
+                  marginBottom: 8,
+                  fontWeight: 500,
+                  color: theme.fontColor,
+                }}
+              >
                 {field.label}
-                {field.required && <span style={{ color: '#ef4444', marginLeft: 4 }}>*</span>}
+                {field.required && (
+                  <span style={{ color: '#ef4444', marginLeft: 4 }}>*</span>
+                )}
               </label>
               {field.description && (
-                <p style={{ margin: '0 0 8px 0', fontSize: '0.875rem', color: '#6b7280' }}>
+                <p
+                  style={{
+                    margin: '0 0 8px 0',
+                    fontSize: '0.875rem',
+                    color: '#6b7280',
+                  }}
+                >
                   {field.description}
                 </p>
               )}
@@ -568,9 +659,11 @@ function PreviewFields({ fields }: { fields: EnhancedFormField[] }) {
                   style={{
                     width: '100%',
                     padding: '8px 12px',
-                    border: '1px solid #d1d5db',
+                    border: `1px solid ${theme.tableBorderColor}`,
                     borderRadius: '6px',
-                    fontSize: '14px'
+                    fontSize: '14px',
+                    background: theme.inputBgColor,
+                    color: theme.inputFontColor || theme.fontColor,
                   }}
                   disabled
                 />
@@ -581,9 +674,11 @@ function PreviewFields({ fields }: { fields: EnhancedFormField[] }) {
                   style={{
                     width: '100%',
                     padding: '8px 12px',
-                    border: '1px solid #d1d5db',
+                    border: `1px solid ${theme.tableBorderColor}`,
                     borderRadius: '6px',
-                    fontSize: '14px'
+                    fontSize: '14px',
+                    background: theme.inputBgColor,
+                    color: theme.inputFontColor || theme.fontColor,
                   }}
                   disabled
                 />
@@ -591,22 +686,32 @@ function PreviewFields({ fields }: { fields: EnhancedFormField[] }) {
               {field.type === 'Caixa de Seleção' && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                   {field.options?.map((option, i) => (
-                    <label key={i} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <label
+                      key={i}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 8,
+                        color: theme.fontColor,
+                      }}
+                    >
                       <input type="checkbox" disabled />
                       <span>{option}</span>
                     </label>
                   ))}
                 </div>
               )}
-              {field.type === 'Múltipla Escolha' && (
-                field.displayAs === 'dropdown' ? (
+              {field.type === 'Múltipla Escolha' &&
+                (field.displayAs === 'dropdown' ? (
                   <select
                     style={{
                       width: '100%',
                       padding: '8px 12px',
-                      border: '1px solid #d1d5db',
+                      border: `1px solid ${theme.tableBorderColor}`,
                       borderRadius: '6px',
-                      fontSize: '14px'
+                      fontSize: '14px',
+                      background: theme.inputBgColor,
+                      color: theme.inputFontColor || theme.fontColor,
                     }}
                     disabled
                   >
@@ -618,23 +723,32 @@ function PreviewFields({ fields }: { fields: EnhancedFormField[] }) {
                 ) : (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                     {field.options?.map((option, i) => (
-                      <label key={i} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <label
+                        key={i}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 8,
+                          color: theme.fontColor,
+                        }}
+                      >
                         <input type="radio" name={field.id} disabled />
                         <span>{option}</span>
                       </label>
                     ))}
                   </div>
-                )
-              )}
+                ))}
               {field.type === 'Anexo' && (
                 <input
                   type="file"
                   style={{
                     width: '100%',
                     padding: '8px 12px',
-                    border: '1px solid #d1d5db',
+                    border: `1px solid ${theme.tableBorderColor}`,
                     borderRadius: '6px',
-                    fontSize: '14px'
+                    fontSize: '14px',
+                    background: theme.inputBgColor,
+                    color: theme.inputFontColor || theme.fontColor,
                   }}
                   disabled
                 />
@@ -644,13 +758,13 @@ function PreviewFields({ fields }: { fields: EnhancedFormField[] }) {
                   style={{
                     width: '100%',
                     height: '120px',
-                    border: '2px dashed #d1d5db',
+                    border: `2px dashed ${theme.tableBorderColor}`,
                     borderRadius: '6px',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
                     color: '#6b7280',
-                    fontSize: '14px'
+                    fontSize: '14px',
                   }}
                 >
                   Área de assinatura
@@ -658,29 +772,80 @@ function PreviewFields({ fields }: { fields: EnhancedFormField[] }) {
               )}
               {field.type === 'Tabela' && (
                 <div style={{ overflowX: 'auto' }}>
-                  <table style={{ width: '100%', borderCollapse: 'collapse', border: '1px solid #d1d5db' }}>
+                  <table
+                    style={{
+                      width: '100%',
+                      borderCollapse: 'collapse',
+                      border: `1px solid ${theme.tableBorderColor}`,
+                    }}
+                  >
                     <thead>
                       <tr>
-                        <th style={{ border: '1px solid #d1d5db', padding: '8px', background: '#f9fafb' }}>
-                          {/* Célula vazia para as labels das linhas */}
-                        </th>
+                        <th
+                          style={{
+                            border: `1px solid ${theme.tableBorderColor}`,
+                            padding: '8px',
+                            background: theme.tableHeaderBg,
+                            color: theme.tableHeaderFont,
+                          }}
+                        ></th>
                         {field.columns?.map((col) => (
-                          <th key={col.id} style={{ border: '1px solid #d1d5db', padding: '8px', background: '#f9fafb' }}>
+                          <th
+                            key={col.id}
+                            style={{
+                              border: `1px solid ${theme.tableBorderColor}`,
+                              padding: '8px',
+                              background: theme.tableHeaderBg,
+                              color: theme.tableHeaderFont,
+                            }}
+                          >
                             {col.label}
                           </th>
                         ))}
                       </tr>
                     </thead>
                     <tbody>
-                      {field.rows?.map((row) => (
-                        <tr key={row.id}>
-                          <td style={{ border: '1px solid #d1d5db', padding: '8px', background: '#f9fafb', fontWeight: 500 }}>
+                      {field.rows?.map((row, idx) => (
+                        <tr
+                          key={row.id}
+                          style={{
+                            background:
+                              idx % 2 === 0
+                                ? theme.tableOddRowBg
+                                : theme.tableEvenRowBg,
+                          }}
+                        >
+                          <td
+                            style={{
+                              border: `1px solid ${theme.tableBorderColor}`,
+                              padding: '8px',
+                              fontWeight: 500,
+                              color: theme.tableCellFont || theme.fontColor,
+                              background: theme.tableHeaderBg,
+                            }}
+                          >
                             {row.label}
                           </td>
                           {field.columns?.map((col) => (
-                            <td key={col.id} style={{ border: '1px solid #d1d5db', padding: '4px' }}>
+                            <td
+                              key={col.id}
+                              style={{
+                                border: `1px solid ${theme.tableBorderColor}`,
+                                padding: '4px',
+                                color: theme.tableCellFont || theme.fontColor,
+                              }}
+                            >
                               {col.type === 'select' ? (
-                                <select style={{ width: '100%', padding: '4px', border: 'none' }} disabled>
+                                <select
+                                  style={{
+                                    width: '100%',
+                                    padding: '4px',
+                                    border: 'none',
+                                    background: theme.inputBgColor,
+                                    color: theme.inputFontColor || theme.fontColor,
+                                  }}
+                                  disabled
+                                >
                                   <option>Selecionar</option>
                                   {col.options?.map((opt, i) => (
                                     <option key={i}>{opt}</option>
@@ -688,8 +853,20 @@ function PreviewFields({ fields }: { fields: EnhancedFormField[] }) {
                                 </select>
                               ) : (
                                 <input
-                                  type={col.type === 'number' ? 'number' : col.type === 'date' ? 'date' : 'text'}
-                                  style={{ width: '100%', padding: '4px', border: 'none' }}
+                                  type={
+                                    col.type === 'number'
+                                      ? 'number'
+                                      : col.type === 'date'
+                                      ? 'date'
+                                      : 'text'
+                                  }
+                                  style={{
+                                    width: '100%',
+                                    padding: '4px',
+                                    border: 'none',
+                                    background: theme.inputBgColor,
+                                    color: theme.inputFontColor || theme.fontColor,
+                                  }}
                                   disabled
                                 />
                               )}
@@ -709,15 +886,15 @@ function PreviewFields({ fields }: { fields: EnhancedFormField[] }) {
   );
 }
 
+
 // Componente principal
 interface EnhancedFormBuilderPageProps {
-    companyId?: string;
-    departmentId?: string;
-    existingForm?: Form | null;
-    onSaveSuccess?: () => void;
-    onCancel?: () => void;
+  companyId?: string;
+  departmentId?: string;
+  existingForm?: Form | null;
+  onSaveSuccess?: () => void;
+  onCancel?: () => void;
 }
-
 
 interface MenuAction {
   clear: string;
@@ -727,30 +904,6 @@ interface MenuAction {
   'reset-theme': string;
   dashboard: string;
 }
-
-function normalizeForm(data: any) {
-  const defaultTheme = {
-    bgColor: '#ffffff',
-    accentColor: '#3b82f6',
-    fontColor: '#1f2937',
-    borderRadius: 8,
-    spacing: 'normal'
-  };
-  const defaultSettings = {
-    allowSave: true,
-    showProgress: true,
-    confirmBeforeSubmit: false
-  };
-  return {
-    ...data,
-    theme: { ...defaultTheme, ...(data.theme || {}) },
-    settings: { ...defaultSettings, ...(data.settings || {}) },
-    collaborators: data.collaborators || [],
-    authorizedUsers: data.authorizedUsers || [],
-    fields: data.fields || [],
-  };
-}
-
 
 function EnhancedFormBuilderPage(props: EnhancedFormBuilderPageProps) {
    const router = useRouter();
@@ -850,6 +1003,9 @@ const loadCollaborators = useCallback(
     setDraft(normalized);
     setAssignedCollaborators(normalized.collaborators || []);
     setLoading(false);
+    // Logo preview para upload temporário
+
+
 }
 
     // Se não, tente carregar do localStorage ou do Firebase (cenário de refresh da página)
@@ -898,29 +1054,25 @@ if (savedDraft) {
 
   // Estado do formulário
   const [draft, setDraft] = useState<Form>({
-    id: '', // Obrigatório
+    id: '',
     title: 'Novo Formulário',
     description: '',
     fields: [],
-    companyId: '', // Obrigatório
-    departmentId: '', // Obrigatório
-    collaborators: [], // Obrigatório
-    authorizedUsers: [], // Obrigatório
-    createdAt: null, // Será preenchido pelo Firestore, mas precisa ser inicializado
-    theme: {
-        bgColor: '#ffffff',
-        accentColor: '#3b82f6',
-        fontColor: '#1f2937',
-        borderRadius: 8,
-        spacing: 'normal'
-    },
+    companyId: '',
+    departmentId: '',
+    collaborators: [],
+    authorizedUsers: [],
+    createdAt: null,
+    theme: { ...defaultTheme },
     settings: {
-        allowSave: true,
-        showProgress: true,
-        confirmBeforeSubmit: false
+      allowSave: true,
+      showProgress: true,
+      confirmBeforeSubmit: false,
     }
-});
+  });
 
+const [logoPreview, setLogoPreview] = useState<string | null>(draft.logo?.url || null);
+const [logoFileName, setLogoFileName] = useState<string>(draft.logo?.name || '');
 
   // Drag and drop
   const sensors = useSensors(
@@ -1314,15 +1466,42 @@ if (savedDraft) {
                   <div
                     className={styles.previewForm}
                     style={{
-                      backgroundColor: draft.theme.bgColor,
-                      color: draft.theme.fontColor,
-                      borderRadius: `${draft.theme.borderRadius}px`
+                     backgroundColor: draft.theme.bgColor,
+    color: draft.theme.fontColor,
+    borderRadius: `${draft.theme.borderRadius}px`,
+    border: `2px solid ${draft.theme.accentColor}`,
                     }}
                   >
+                    {draft.logo?.url && (
+  <div
+    style={{
+      width: '100%',
+      display: 'flex',
+      justifyContent:
+        draft.logo.align === 'left'
+          ? 'flex-start'
+          : draft.logo.align === 'right'
+          ? 'flex-end'
+          : 'center',
+      marginBottom: 10,
+    }}
+  >
+    <img
+      src={draft.logo.url}
+      alt={draft.logo.name || 'Logo'}
+      style={{
+        width: draft.logo.size ? `${draft.logo.size}%` : '40%',
+        maxWidth: 240,
+        objectFit: 'contain'
+      }}
+    />
+  </div>
+)}
+
                     <h2>{draft.title || 'Título do Formulário'}</h2>
                     {draft.description && <p>{draft.description}</p>}
 
-                    <PreviewFields fields={draft.fields} />
+<PreviewFields fields={draft.fields} theme={draft.theme} />
 
                   </div>
                 </div>
@@ -1414,6 +1593,7 @@ if (savedDraft) {
               />
             ) : (
               <>
+              
                 <div className={styles.formSettings}></div>
                   <div className={styles.propertyGroup}>
                     <label>Descrição do Formulário</label>
@@ -1424,24 +1604,210 @@ if (savedDraft) {
                       placeholder="Descrição opcional..."
                     />
                   </div>
+                  
                   <div className={styles.propertyGroup}>
-                    <label>Cor de Fundo</label>
-                    <input
-                      type="color"
-                      value={draft.theme.bgColor}
-                      onChange={e => updateTheme({ bgColor: e.target.value })}
-                      className={styles.colorInput}
-                    />
-                  </div>
+  <label>Logo do Formulário</label>
+  <input
+    type="file"
+    accept="image/*"
+    onChange={async (e) => {
+      const file = e.target.files?.[0];
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+          setLogoPreview(ev.target?.result as string);
+          setLogoFileName(file.name);
+          setDraft((prev) => ({
+            ...prev,
+            logo: {
+              ...prev.logo,
+              url: ev.target?.result as string,
+              size: prev.logo?.size ?? 40,
+              align: prev.logo?.align ?? 'center',
+              name: file.name
+            }
+          }));
+        };
+        reader.readAsDataURL(file);
+      }
+    }}
+  />
+  {logoPreview && (
+    <div style={{ margin: '10px 0', textAlign: draft.logo?.align || 'center' }}>
+      <img
+        src={logoPreview}
+        alt="Logo Preview"
+        style={{
+          width: draft.logo?.size ? `${draft.logo.size}%` : '40%',
+          maxWidth: 200,
+          display: 'block',
+          margin: draft.logo?.align === 'left'
+            ? '0 auto 0 0'
+            : draft.logo?.align === 'right'
+            ? '0 0 0 auto'
+            : '0 auto'
+        }}
+      />
+    </div>
+  )}
+  <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 6 }}>
+    <label style={{ fontSize: 13 }}>Tamanho:</label>
+    <input
+      type="range"
+      min={10}
+      max={100}
+      value={draft.logo?.size || 40}
+      onChange={e =>
+        setDraft(prev => ({
+          ...prev,
+          logo: {
+            ...prev.logo,
+            size: Number(e.target.value),
+            url: prev.logo?.url || '',
+            align: prev.logo?.align || 'center',
+            name: prev.logo?.name
+          }
+        }))
+      }
+    />
+    <span style={{ fontSize: 12 }}>{draft.logo?.size || 40}%</span>
+  </div>
+  <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginTop: 6 }}>
+    <label style={{ fontSize: 13 }}>Alinhamento:</label>
+    <select
+      value={draft.logo?.align || 'center'}
+      onChange={e =>
+        setDraft(prev => ({
+          ...prev,
+          logo: {
+            ...prev.logo,
+            align: e.target.value as 'left' | 'center' | 'right',
+            url: prev.logo?.url || '',
+            size: prev.logo?.size || 40,
+            name: prev.logo?.name
+          }
+        }))
+      }
+      style={{ fontSize: 13, padding: '2px 8px' }}
+    >
+      <option value="left">Esquerda</option>
+      <option value="center">Centro</option>
+      <option value="right">Direita</option>
+    </select>
+    {draft.logo?.url && (
+      <button
+        type="button"
+        className={styles.deleteBtn}
+        style={{ fontSize: 13, padding: '1px 8px', marginLeft: 6 }}
+        onClick={() => {
+          setLogoPreview(null);
+          setLogoFileName('');
+          setDraft(prev => ({
+            ...prev,
+            logo: undefined
+          }));
+        }}
+      >
+        Remover Logo
+      </button>
+    )}
+  </div>
+</div>
+                  
                   <div className={styles.propertyGroup}>
-                    <label>Cor de Destaque</label>
-                    <input
-                      type="color"
-                      value={draft.theme.accentColor}
-                      onChange={e => updateTheme({ accentColor: e.target.value })}
-                      className={styles.colorInput}
-                    />
-                  </div>
+  <label>Cor de Fundo do Painel</label>
+  <input
+    type="color"
+    value={draft.theme.bgColor}
+    onChange={e => updateTheme({ bgColor: e.target.value })}
+    className={styles.colorInput}
+  />
+</div>
+
+<div className={styles.propertyGroup}>
+  <label>Cor de Fundo</label>
+  <input
+    type="color"
+    value={draft.theme.accentColor}
+    onChange={e => updateTheme({ accentColor: e.target.value })}
+    className={styles.colorInput}
+  />
+</div>
+<div className={styles.propertyGroup}>
+  <label>Cor da Borda</label>
+  <input
+    type="color"
+    value={draft.theme.fontColor}
+    onChange={e => updateTheme({ fontColor: e.target.value })}
+    className={styles.colorInput}
+  />
+</div>
+<div className={styles.propertyGroup}>
+  <label>Cor do Cabeçalho</label>
+  <input
+    type="color"
+    value={draft.theme.inputBgColor || "#171e2c"}
+    onChange={e => updateTheme({ inputBgColor: e.target.value })}
+    className={styles.colorInput}
+  />
+</div>
+{/* --------- NOVOS CAMPOS DE CORES PARA TABELA --------- */}
+<div className={styles.propertyGroup}>
+  <label>Cor de Fundo do Cabeçalho da Tabela</label>
+  <input
+    type="color"
+    value={draft.theme.tableHeaderBg || "#1a2238"}
+    onChange={e => updateTheme({ tableHeaderBg: e.target.value })}
+    className={styles.colorInput}
+  />
+</div>
+<div className={styles.propertyGroup}>
+  <label>Cor do Texto do Cabeçalho da Tabela</label>
+  <input
+    type="color"
+    value={draft.theme.tableHeaderFont || "#49cfff"}
+    onChange={e => updateTheme({ tableHeaderFont: e.target.value })}
+    className={styles.colorInput}
+  />
+</div>
+<div className={styles.propertyGroup}>
+  <label>Cor da Borda da Tabela</label>
+  <input
+    type="color"
+    value={draft.theme.tableBorderColor || "#19263b"}
+    onChange={e => updateTheme({ tableBorderColor: e.target.value })}
+    className={styles.colorInput}
+  />
+</div>
+<div className={styles.propertyGroup}>
+  <label>Cor das Linhas Ímpares da Tabela</label>
+  <input
+    type="color"
+    value={draft.theme.tableOddRowBg || "#222c42"}
+    onChange={e => updateTheme({ tableOddRowBg: e.target.value })}
+    className={styles.colorInput}
+  />
+</div>
+<div className={styles.propertyGroup}>
+  <label>Cor das Linhas Pares da Tabela</label>
+  <input
+    type="color"
+    value={draft.theme.tableEvenRowBg || "#171e2c"}
+    onChange={e => updateTheme({ tableEvenRowBg: e.target.value })}
+    className={styles.colorInput}
+  />
+</div>
+<div className={styles.propertyGroup}>
+  <label>Cor do Texto das Células da Tabela</label>
+  <input
+    type="color"
+    value={draft.theme.tableCellFont || "#e0e6f7"}
+    onChange={e => updateTheme({ tableCellFont: e.target.value })}
+    className={styles.colorInput}
+  />
+</div>
+
+
                 {/* Automação */}
                 <div className={styles.automationSection}>
                   <h4 className={styles.subTitle}>Automação de Notificação</h4>

@@ -155,3 +155,491 @@ body {
 ::-webkit-scrollbar-thumb:hover {
   background: #465573;
 }
+
+
+/* ===== FORM BUILDER CSS GLOBAL - SELETORES NÃO PUROS ===== */
+
+/* Estilos globais para elementos HTML que não podem ser estilizados via CSS Modules */
+
+/* Checkboxes customizados */
+input[type="checkbox"] {
+  appearance: none;
+  width: 18px;
+  height: 18px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  margin-right: 0.5rem;
+}
+
+input[type="checkbox"]:checked {
+  background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+  border-color: #64ffda;
+}
+
+input[type="checkbox"]:checked::before {
+  content: '✓';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  color: white;
+  font-weight: bold;
+  font-size: 11px;
+}
+
+input[type="checkbox"]:hover {
+  border-color: #64ffda;
+  box-shadow: 0 0 10px rgba(100, 255, 218, 0.3);
+}
+
+/* Radio buttons customizados */
+input[type="radio"] {
+  appearance: none;
+  width: 18px;
+  height: 18px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  border-radius: 50%;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  margin-right: 0.5rem;
+}
+
+input[type="radio"]:checked {
+  background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+  border-color: #64ffda;
+}
+
+input[type="radio"]:checked::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 8px;
+  height: 8px;
+  background: white;
+  border-radius: 50%;
+}
+
+input[type="radio"]:hover {
+  border-color: #64ffda;
+  box-shadow: 0 0 10px rgba(100, 255, 218, 0.3);
+}
+
+/* Selects customizados */
+select {
+  padding: 0.75rem;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  color: #ffffff;
+  font-size: 0.9rem;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  backdrop-filter: blur(10px);
+  cursor: pointer;
+  width: 100%;
+}
+
+select:focus {
+  outline: none;
+  border-color: #64ffda;
+  background: rgba(255, 255, 255, 0.1);
+  box-shadow: 0 0 15px rgba(100, 255, 218, 0.3);
+}
+
+select option {
+  background: #1a1a2e;
+  color: #ffffff;
+  padding: 0.5rem;
+}
+
+/* Inputs de arquivo customizados */
+input[type="file"] {
+  position: relative;
+  text-align: center;
+  
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: inherit;
+  cursor: pointer;  
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: #ffffff;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 8px;
+  padding: 0.85rem 1.7rem;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  backdrop-filter: blur(10px);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+  width: 100%;
+  box-sizing: border-box;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+input[type="file"]:hover {
+  background: linear-gradient(135deg, #7c8ef0 0%, #8a5cb8 100%);
+  border-color: #64ffda;
+  box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+  transform: translateY(-1px);
+}
+
+input[type="file"]:focus {
+  outline: none;
+  border-color: #64ffda;
+  box-shadow: 0 0 0 3px rgba(100, 255, 218, 0.3), 0 6px 20px rgba(102, 126, 234, 0.4);
+}
+
+input[type="file"]:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+}
+
+/* Estilo alternativo para botão de arquivo mais moderno */
+input[type="file"]::file-selector-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: inherit;
+}
+
+input[type="file"]::before {
+  content: '📁 Escolher Arquivo';
+  display: inline-block;
+  background: transparent;
+  border: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  width: 100%;
+  text-align: center;
+}
+
+input[type="file"]:hover::before {
+  content: '📁 Selecionar Arquivo';
+}
+
+/* Para navegadores WebKit */
+input[type="file"]::-webkit-file-upload-button {
+  display: none;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Para Firefox */
+input[type="file"]::-moz-file-upload-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+
+/* Inputs de texto customizados */
+input[type="text"],
+input[type="email"],
+input[type="password"],
+input[type="number"],
+input[type="date"],
+input[type="time"],
+input[type="datetime-local"],
+input[type="url"],
+input[type="tel"] {
+  padding: 0.75rem;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  color: #ffffff;
+  font-size: 0.9rem;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  backdrop-filter: blur(10px);
+  width: 100%;
+  box-sizing: border-box;
+}
+
+input[type="text"]:focus,
+input[type="email"]:focus,
+input[type="password"]:focus,
+input[type="number"]:focus,
+input[type="date"]:focus,
+input[type="time"]:focus,
+input[type="datetime-local"]:focus,
+input[type="url"]:focus,
+input[type="tel"]:focus {
+  outline: none;
+  border-color: #64ffda;
+  background: rgba(255, 255, 255, 0.1);
+  box-shadow: 0 0 15px rgba(100, 255, 218, 0.3);
+  transform: translateY(-1px);
+}
+
+input[type="text"]::placeholder,
+input[type="email"]::placeholder,
+input[type="password"]::placeholder,
+input[type="number"]::placeholder,
+input[type="date"]::placeholder,
+input[type="time"]::placeholder,
+input[type="datetime-local"]::placeholder,
+input[type="url"]::placeholder,
+input[type="tel"]::placeholder {
+  color: #8892b0;
+}
+
+/* Textareas customizadas */
+textarea {
+  padding: 0.75rem;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  color: #ffffff;
+  font-size: 0.9rem;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  backdrop-filter: blur(10px);
+  resize: vertical;
+  min-height: 80px;
+  font-family: inherit;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+textarea:focus {
+  outline: none;
+  border-color: #64ffda;
+  background: rgba(255, 255, 255, 0.1);
+  box-shadow: 0 0 15px rgba(100, 255, 218, 0.3);
+}
+
+textarea::placeholder {
+  color: #8892b0;
+}
+
+/* Botões customizados */
+button {
+  font-family: inherit;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+
+
+/* Labels customizadas */
+label {
+  color: #b8c5d6;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+/* Fieldsets customizados */
+fieldset {
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  padding: 1rem;
+  margin-bottom: 1rem;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+legend {
+  color: #64ffda;
+  font-weight: 600;
+  padding: 0 0.5rem;
+}
+
+/* Tabelas customizadas */
+table {
+  width: 100%;
+  border-collapse: collapse;
+  background: rgba(255, 255, 255, 0.02);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+th,
+td {
+  padding: 0.75rem;
+  text-align: left;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  color: #ffffff;
+}
+
+th {
+  background: rgba(255, 255, 255, 0.05);
+  font-weight: 600;
+  color: #64ffda;
+}
+
+tr:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+/* Scrollbars globais */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(135deg, #64ffda 0%, #4facfe 100%);
+}
+
+/* Seleção de texto */
+::selection {
+  background: rgba(100, 255, 218, 0.3);
+  color: #ffffff;
+}
+
+::-moz-selection {
+  background: rgba(100, 255, 218, 0.3);
+  color: #ffffff;
+}
+
+/* Estados de foco melhorados */
+*:focus-visible {
+  outline: 2px solid #64ffda;
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* Tooltips globais */
+[title] {
+  position: relative;
+}
+
+[title]:hover::after {
+  content: attr(title);
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #1a1a2e;
+  color: #ffffff;
+  padding: 0.5rem 0.75rem;
+  border-radius: 8px;
+  font-size: 0.8rem;
+  white-space: nowrap;
+  z-index: 1000;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.25);
+  animation: tooltipFadeIn 0.2s ease-out;
+}
+
+@keyframes tooltipFadeIn {
+  from { opacity: 0; transform: translateX(-50%) translateY(5px); }
+  to { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
+
+/* Estados de erro e sucesso globais */
+.error,
+input.error,
+select.error,
+textarea.error {
+  border-color: #ff6b6b !important;
+  box-shadow: 0 0 0 3px rgba(255, 107, 107, 0.1) !important;
+}
+
+.success,
+input.success,
+select.success,
+textarea.success {
+  border-color: #43e97b !important;
+  box-shadow: 0 0 0 3px rgba(67, 233, 123, 0.1) !important;
+}
+
+/* Animações globais */
+@keyframes globalFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes globalSlideUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.fade-in {
+  animation: globalFadeIn 0.5s ease-out;
+}
+
+.slide-up {
+  animation: globalSlideUp 0.5s ease-out;
+}
+
+/* Acessibilidade */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Modo escuro forçado */
+@media (prefers-color-scheme: dark) {
+  /* Os estilos já estão otimizados para modo escuro */
+}
+
+/* Alto contraste */
+@media (prefers-contrast: high) {
+  input[type="checkbox"],
+  input[type="radio"],
+  select,
+  input[type="text"],
+  input[type="email"],
+  input[type="password"],
+  input[type="number"],
+  input[type="date"],
+  input[type="time"],
+  input[type="datetime-local"],
+  input[type="url"],
+  input[type="tel"],
+  textarea {
+    border-width: 2px;
+  }
+  
+  input[type="checkbox"]:checked,
+  input[type="radio"]:checked {
+    border-width: 3px;
+  }
+}
+
+/* Estilo específico para texto de status de arquivo */
+.file-status-text {
+  display: block;
+  margin-top: 0.75rem;
+  font-size: 0.85rem;
+  color: #8892b0;
+  text-align: center;
+  font-style: italic;
+  padding: 0.5rem;
+  background: rgba(255, 255, 255, 0.02);
+  border-radius: 6px;
+  border: 1px dashed rgba(255, 255, 255, 0.1);
+}
+

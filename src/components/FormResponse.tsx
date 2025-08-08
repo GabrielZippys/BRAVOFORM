@@ -7,7 +7,7 @@ import { type Form, type FormResponse as FormResponseType } from '@/types';
 import styles from '../../app/styles/FormResponse.module.css';
 import { X, Send, Eraser } from 'lucide-react';
 
-// Novo tipo: genérico para campos criados no builder
+// Campo aprimorado para tipos
 type EnhancedFormField = {
   id: string;
   type: string;
@@ -20,7 +20,7 @@ type EnhancedFormField = {
   allowOther?: boolean;
   columns?: { id: string; label: string; type: string; options?: string[] }[];
   rows?: { id: string; label: string }[];
-  [key: string]: any; // permite campos dinâmicos futuros
+  [key: string]: any;
 };
 
 interface FormResponseProps {
@@ -47,7 +47,29 @@ export default function FormResponse({
 }: FormResponseProps) {
   if (!form) return null;
 
-  // Estado das respostas
+  // ---- TEMA PEGO DO FORMULÁRIO ----
+  const theme = {
+    bgColor: form.theme?.bgColor || "#ffffff",
+    accentColor: form.theme?.accentColor || "#3b82f6",
+    fontColor: form.theme?.fontColor || "#1f2937",
+    inputBgColor: form.theme?.inputBgColor || "#171e2c",
+    inputFontColor: form.theme?.inputFontColor || "#e8f2ff",
+    sectionHeaderBg: form.theme?.sectionHeaderBg || "#19263b",
+    sectionHeaderFont: form.theme?.sectionHeaderFont || "#49cfff",
+    buttonBg: form.theme?.buttonBg || "#000",
+    buttonFont: form.theme?.buttonFont || "#fff",
+    footerBg: form.theme?.footerBg || "#182138",
+    footerFont: form.theme?.footerFont || "#fff",
+    borderRadius: form.theme?.borderRadius ?? 8,
+    tableHeaderBg: form.theme?.tableHeaderBg || "#1a2238",
+    tableHeaderFont: form.theme?.tableHeaderFont || "#49cfff",
+    tableBorderColor: form.theme?.tableBorderColor || "#19263b",
+    tableOddRowBg: form.theme?.tableOddRowBg || "#222c42",
+    tableEvenRowBg: form.theme?.tableEvenRowBg || "#171e2c",
+    tableCellFont: form.theme?.tableCellFont || "#e0e6f7"
+  };
+
+  // ---- Estados principais ----
   const [responses, setResponses] = useState<Record<string, any>>({});
   const [otherInputValues, setOtherInputValues] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -55,22 +77,18 @@ export default function FormResponse({
   const [triedSubmit, setTriedSubmit] = useState(false);
   const signaturePads = useRef<Record<string, HTMLCanvasElement | null>>({});
 
-  // Preenche para edição
+  // Preencher respostas caso edição
   useEffect(() => {
     if (existingResponse) {
       const initial: Record<string, any> = {};
       const initialOthers: Record<string, string> = {};
-
       Object.entries(existingResponse)
         .filter(([k]) => !['id', 'createdAt', 'updatedAt'].includes(k))
         .forEach(([k, v]) => {
-          // Busca por ID ou label (para compatibilidade)
           const field =
             (form.fields as EnhancedFormField[]).find(f => String(f.id) === k || f.label === k);
           if (!field) return;
           const fieldId = String(field.id);
-
-          // Múltipla escolha/checkbox com "outros"
           if (
             (field.type === 'Caixa de Seleção' || field.type === 'Múltipla Escolha') &&
             field.allowOther
@@ -96,7 +114,7 @@ export default function FormResponse({
     }
   }, [existingResponse, form.fields]);
 
-  // --- CANVAS DE ASSINATURA ---
+  // Assinatura canvas
   useEffect(() => {
     Object.entries(signaturePads.current).forEach(([fieldId, canvas]) => {
       if (!canvas) return;
@@ -104,7 +122,6 @@ export default function FormResponse({
       if (!ctx) return;
       let drawing = false;
       let lastX = 0, lastY = 0;
-
       const getPos = (e: MouseEvent | TouchEvent) => {
         const rect = canvas.getBoundingClientRect();
         if ('touches' in e && e.touches.length > 0) {
@@ -125,7 +142,6 @@ export default function FormResponse({
         }
         return null;
       };
-
       const startDraw = (e: MouseEvent | TouchEvent) => {
         e.preventDefault();
         const pos = getPos(e);
@@ -155,7 +171,6 @@ export default function FormResponse({
           handleInputChange(canvas.dataset.fieldId, canvas.toDataURL('image/png'));
         }
       };
-
       canvas.addEventListener('mousedown', startDraw);
       canvas.addEventListener('mousemove', draw);
       canvas.addEventListener('mouseup', stopDraw);
@@ -177,7 +192,6 @@ export default function FormResponse({
     });
   }, [form.fields]);
 
-  // Restaura imagem da assinatura se tiver
   useEffect(() => {
     Object.entries(signaturePads.current).forEach(([fieldId, canvas]) => {
       if (canvas && responses[fieldId]?.startsWith?.('data:image')) {
@@ -191,7 +205,7 @@ export default function FormResponse({
     });
   }, [responses]);
 
-  // Manipuladores dinâmicos
+  // Handlers
   const handleInputChange = (fieldId: string, value: any) =>
     setResponses(prev => ({ ...prev, [fieldId]: value }));
 
@@ -244,34 +258,29 @@ export default function FormResponse({
   // SUBMIT
   const handleSubmit = async () => {
     setTriedSubmit(true);
-
-const missingFields: string[] = [];
-(form.fields as EnhancedFormField[]).forEach(field => {
-  const fieldIdStr = String(field.id);
-
-  // Só valida campos obrigatórios que não são Cabeçalho, Anexo, Assinatura, ou Tabela
-  if (
-    field.required &&
-    !['Cabeçalho', 'Anexo', 'Assinatura', 'Tabela'].includes(field.type)
-  ) {
-    const val = responses[fieldIdStr];
-    if (
-      val === undefined ||
-      val === null ||
-      (typeof val === 'string' && val.trim() === '') ||
-      (Array.isArray(val) && val.length === 0)
-    ) {
-      missingFields.push(field.label);
+    const missingFields: string[] = [];
+    (form.fields as EnhancedFormField[]).forEach(field => {
+      const fieldIdStr = String(field.id);
+      if (
+        field.required &&
+        !['Cabeçalho', 'Anexo', 'Assinatura', 'Tabela'].includes(field.type)
+      ) {
+        const val = responses[fieldIdStr];
+        if (
+          val === undefined ||
+          val === null ||
+          (typeof val === 'string' && val.trim() === '') ||
+          (Array.isArray(val) && val.length === 0)
+        ) {
+          missingFields.push(field.label);
+        }
+      }
+    });
+    if (missingFields.length > 0) {
+      setError("Preencha todos os campos obrigatórios!");
+      setIsSubmitting(false);
+      return;
     }
-  }
-});
-
-if (missingFields.length > 0) {
-  setError("Preencha todos os campos obrigatórios!");
-  setIsSubmitting(false);
-  return;
-}
-
     setError('');
     try {
       const flattened: Record<string, any> = {
@@ -285,11 +294,9 @@ if (missingFields.length > 0) {
         submittedAt: serverTimestamp()
       };
 
-      // 1. FLATTEN POR LABEL (para BI, facilidade)
       (form.fields as EnhancedFormField[]).forEach(field => {
         const fieldIdStr = String(field.id);
         let answerVal = responses[fieldIdStr];
-
         if (
           (field.type === 'Caixa de Seleção' || field.type === 'Múltipla Escolha') &&
           field.allowOther
@@ -306,8 +313,7 @@ if (missingFields.length > 0) {
         }
         flattened[field.label] = answerVal ?? '';
       });
-
-      // 2. SALVAR answers por ID (histórico e compatibilidade)
+      // Answers por id
       const answers: Record<string, any> = {};
       (form.fields as EnhancedFormField[]).forEach(field => {
         const fieldIdStr = String(field.id);
@@ -328,7 +334,6 @@ if (missingFields.length > 0) {
         }
         answers[fieldIdStr] = answerVal ?? '';
       });
-
       flattened.answers = answers;
 
       // Firestore
@@ -348,7 +353,7 @@ if (missingFields.length > 0) {
     }
   };
 
-  // --------- Renderização dinâmica dos campos
+  // --- Render tabela fiel ao tema do form
   const renderTableCell = (
     field: EnhancedFormField,
     row: { id: string; label: string },
@@ -362,14 +367,19 @@ if (missingFields.length > 0) {
         ? responses[fieldId][rowId][colId]
         : '';
     const disabled = !canEdit && !!existingResponse;
-
-    // Mapeamento de tipos para inputs
     switch (col.type) {
       case 'text':
       case 'Texto':
         return (
           <input
-            className={styles.tableResponseInput}
+            style={{
+              width: '100%',
+              background: theme.inputBgColor,
+              color: theme.inputFontColor,
+              border: `1px solid ${theme.tableBorderColor}`,
+              borderRadius: theme.borderRadius,
+              padding: '5px 10px',
+            }}
             type="text"
             value={value}
             onChange={e =>
@@ -381,7 +391,14 @@ if (missingFields.length > 0) {
       case 'number':
         return (
           <input
-            className={styles.tableResponseInput}
+            style={{
+              width: '100%',
+              background: theme.inputBgColor,
+              color: theme.inputFontColor,
+              border: `1px solid ${theme.tableBorderColor}`,
+              borderRadius: theme.borderRadius,
+              padding: '5px 10px',
+            }}
             type="number"
             value={value}
             onChange={e =>
@@ -394,7 +411,14 @@ if (missingFields.length > 0) {
       case 'Data':
         return (
           <input
-            className={styles.tableResponseInput}
+            style={{
+              width: '100%',
+              background: theme.inputBgColor,
+              color: theme.inputFontColor,
+              border: `1px solid ${theme.tableBorderColor}`,
+              borderRadius: theme.borderRadius,
+              padding: '5px 10px',
+            }}
             type="date"
             value={value}
             onChange={e =>
@@ -404,18 +428,23 @@ if (missingFields.length > 0) {
           />
         );
       case 'select':
-      case 'Caixa de Seleção':
-      case 'Múltipla Escolha':
         return (
           <select
-            className={styles.tableResponseSelect}
+            style={{
+              width: '100%',
+              background: theme.inputBgColor,
+              color: theme.inputFontColor,
+              border: `1px solid ${theme.tableBorderColor}`,
+              borderRadius: theme.borderRadius,
+              padding: '5px 10px',
+            }}
             value={value}
             onChange={e =>
               handleTableInputChange(fieldId, rowId, colId, e.target.value)
             }
             disabled={disabled}
           >
-            <option value="">Selecione</option>
+            <option value="">Selecionar</option>
             {col.options?.map((opt: string) => (
               <option key={opt} value={opt}>
                 {opt}
@@ -426,7 +455,14 @@ if (missingFields.length > 0) {
       default:
         return (
           <input
-            className={styles.tableResponseInput}
+            style={{
+              width: '100%',
+              background: theme.inputBgColor,
+              color: theme.inputFontColor,
+              border: `1px solid ${theme.tableBorderColor}`,
+              borderRadius: theme.borderRadius,
+              padding: '5px 10px',
+            }}
             type="text"
             value={value}
             onChange={e =>
@@ -438,31 +474,105 @@ if (missingFields.length > 0) {
     }
   };
 
-  // Campo dinâmico
-  const renderField = (field: EnhancedFormField) => {
+  // Campo fiel ao preview
+  const renderField = (field: EnhancedFormField, index: number) => {
     const fieldId = String(field.id);
     const disabled = !canEdit && !!existingResponse;
     const otherVal = '___OTHER___';
-
     switch (field.type) {
+      case 'Cabeçalho':
+        return (
+          <div
+            style={{
+              background: theme.sectionHeaderBg,
+              color: theme.sectionHeaderFont,
+              fontWeight: 'bold',
+              fontSize: 20,
+              borderRadius: theme.borderRadius,
+              padding: '10px 16px',
+              marginBottom: 12,
+              marginTop: index > 0 ? 28 : 0,
+            }}
+          >
+            {field.label}
+          </div>
+        );
       case 'Tabela':
         return (
-          <div className={styles.tableResponseWrapper}>
-            <table className={styles.tableResponse}>
+          <div style={{ overflowX: 'auto', marginBottom: 16 }}>
+            <table
+              style={{
+                width: '100%',
+                borderCollapse: 'collapse',
+                border: `1.5px solid ${theme.tableBorderColor}`,
+                borderRadius: theme.borderRadius,
+                fontSize: 15,
+                background: theme.bgColor,
+                color: theme.tableCellFont,
+                overflow: 'hidden',
+              }}
+            >
               <thead>
                 <tr>
-                  <th></th>
+                  <th
+                    style={{
+                      background: theme.tableHeaderBg,
+                      color: theme.tableHeaderFont,
+                      border: `1.5px solid ${theme.tableBorderColor}`,
+                      borderTopLeftRadius: theme.borderRadius,
+                      padding: 8,
+                      fontWeight: 'bold',
+                      fontSize: 15,
+                    }}
+                  ></th>
                   {field.columns?.map((col: any) => (
-                    <th key={col.id}>{col.label}</th>
+                    <th
+                      key={col.id}
+                      style={{
+                        background: theme.tableHeaderBg,
+                        color: theme.tableHeaderFont,
+                        border: `1.5px solid ${theme.tableBorderColor}`,
+                        padding: 8,
+                        fontWeight: 600,
+                        fontSize: 15,
+                      }}
+                    >
+                      {col.label}
+                    </th>
                   ))}
                 </tr>
               </thead>
               <tbody>
-                {field.rows?.map((row: any) => (
-                  <tr key={row.id}>
-                    <td>{row.label}</td>
+                {field.rows?.map((row: any, ridx: number) => (
+                  <tr
+                    key={row.id}
+                    style={{
+                      background: ridx % 2 === 0 ? theme.tableOddRowBg : theme.tableEvenRowBg,
+                      color: theme.tableCellFont,
+                    }}
+                  >
+                    <td
+                      style={{
+                        fontWeight: 500,
+                        border: `1.5px solid ${theme.tableBorderColor}`,
+                        background: theme.tableHeaderBg,
+                        color: theme.tableHeaderFont,
+                        padding: 7,
+                        minWidth: 95,
+                      }}
+                    >
+                      {row.label}
+                    </td>
                     {field.columns?.map((col: any) => (
-                      <td key={col.id}>{renderTableCell(field, row, col)}</td>
+                      <td
+                        key={col.id}
+                        style={{
+                          border: `1.5px solid ${theme.tableBorderColor}`,
+                          padding: 4,
+                        }}
+                      >
+                        {renderTableCell(field, row, col)}
+                      </td>
                     ))}
                   </tr>
                 ))}
@@ -472,18 +582,36 @@ if (missingFields.length > 0) {
         );
       case 'Anexo':
         return (
-          <div>
+          <div style={{ marginBottom: 6 }}>
             <input
               type="file"
               onChange={e => handleFileChange(fieldId, e.target.files)}
               disabled={disabled}
               multiple
+              style={{
+                background: theme.inputBgColor,
+                color: theme.inputFontColor,
+                borderRadius: theme.borderRadius,
+                border: `1px solid ${theme.tableBorderColor}`,
+                padding: '8px 12px',
+                marginBottom: 4,
+              }}
             />
             {Array.isArray(responses[fieldId]) &&
               responses[fieldId].map((file: any, i: number) => (
-                <div key={i}>
-                  <span>{file.name}</span>{' '}
-                  <button onClick={() => removeFile(fieldId, i)} type="button">
+                <div key={i} style={{ fontSize: 14 }}>
+                  <span>{file.name}</span>
+                  <button
+                    style={{
+                      marginLeft: 6,
+                      color: theme.accentColor,
+                      background: 'none',
+                      border: 'none',
+                      cursor: 'pointer'
+                    }}
+                    onClick={() => removeFile(fieldId, i)}
+                    type="button"
+                  >
                     Remover
                   </button>
                 </div>
@@ -492,30 +620,44 @@ if (missingFields.length > 0) {
         );
       case 'Assinatura':
         return (
-          <div className={styles.signatureWrapper}>
+          <div style={{ marginBottom: 12 }}>
             <canvas
               ref={el => {
                 signaturePads.current[fieldId] = el;
               }}
               data-field-id={fieldId}
-              className={styles.signaturePad}
               width={600}
-              height={200}
+              height={180}
+              style={{
+                width: '100%',
+                border: `2px dashed ${theme.accentColor}`,
+                background: theme.inputBgColor,
+                borderRadius: theme.borderRadius,
+                marginBottom: 6
+              }}
             ></canvas>
             <button
               onClick={() => clearSignature(fieldId)}
               type="button"
-              className={styles.clearButton}
+              style={{
+                background: theme.buttonBg,
+                color: theme.buttonFont,
+                border: 'none',
+                borderRadius: theme.borderRadius,
+                padding: '4px 14px',
+                cursor: 'pointer',
+                fontSize: 14,
+              }}
             >
-              <Eraser size={16} /> Limpar
+              <Eraser size={15} /> Limpar
             </button>
           </div>
         );
       case 'Caixa de Seleção':
         return (
-          <div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginBottom: 4 }}>
             {field.options?.map((opt: string) => (
-              <label key={opt} className={styles.checkboxLabel}>
+              <label key={opt} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 15, color: theme.inputFontColor }}>
                 <input
                   type="checkbox"
                   checked={(responses[fieldId] || []).includes(opt)}
@@ -529,13 +671,16 @@ if (missingFields.length > 0) {
                     );
                   }}
                   disabled={disabled}
+                  style={{
+                    accentColor: theme.accentColor
+                  }}
                 />
                 <span>{opt}</span>
               </label>
             ))}
             {field.allowOther && (
               <>
-                <label className={styles.checkboxLabel}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 15, color: theme.inputFontColor }}>
                   <input
                     type="checkbox"
                     checked={(responses[fieldId] || []).includes(otherVal)}
@@ -549,16 +694,27 @@ if (missingFields.length > 0) {
                       );
                     }}
                     disabled={disabled}
+                    style={{
+                      accentColor: theme.accentColor
+                    }}
                   />
                   <span>Outros</span>
                 </label>
                 {(responses[fieldId] || []).includes(otherVal) && (
                   <input
-                    className={styles.otherInput}
                     value={otherInputValues[fieldId] || ''}
                     onChange={e => handleOtherInputChange(fieldId, e.target.value)}
                     placeholder="Por favor, especifique"
                     disabled={disabled}
+                    style={{
+                      background: theme.inputBgColor,
+                      color: theme.inputFontColor,
+                      border: `1px solid ${theme.accentColor}`,
+                      borderRadius: theme.borderRadius,
+                      padding: '8px 12px',
+                      fontSize: 15,
+                      marginTop: 3,
+                    }}
                   />
                 )}
               </>
@@ -566,157 +722,305 @@ if (missingFields.length > 0) {
           </div>
         );
       case 'Múltipla Escolha':
-  if (field.displayAs === 'dropdown') {
-    return (
-      <select
-        className={styles.input}
-        value={responses[fieldId] || ''}
-        onChange={e => handleInputChange(fieldId, e.target.value)}
-        disabled={disabled}
-      >
-        <option value="">Selecione</option>
-        {field.options?.map((opt: string) => (
-          <option key={opt} value={opt}>{opt}</option>
-        ))}
-        {field.allowOther && <option value="___OTHER___">Outros</option>}
-      </select>
-    );
-  }
-
-  // Versão radio (default)
-  return (
-    <div>
-      {field.options?.map((opt: string) => (
-        <label key={opt} className={styles.radioLabel}>
-          <input
-            type="radio"
-            name={`field_${field.id}`}
-            checked={responses[fieldId] === opt}
-            onChange={() => handleInputChange(fieldId, opt)}
-            disabled={disabled}
-          />
-          <span>{opt}</span>
-        </label>
-      ))}
-      {field.allowOther && (
-        <>
-          <label className={styles.radioLabel}>
-            <input
-              type="radio"
-              name={`field_${field.id}`}
-              checked={responses[fieldId] === '___OTHER___'}
-              onChange={() => handleInputChange(fieldId, '___OTHER___')}
+        if (field.displayAs === 'dropdown') {
+          return (
+            <select
+              value={responses[fieldId] || ''}
+              onChange={e => handleInputChange(fieldId, e.target.value)}
               disabled={disabled}
-            />
-            <span>Outros</span>
-          </label>
-          {responses[fieldId] === '___OTHER___' && (
-            <input
-              className={styles.otherInput}
-              value={otherInputValues[fieldId] || ''}
-              onChange={e => handleOtherInputChange(fieldId, e.target.value)}
-              placeholder="Por favor, especifique"
-              disabled={disabled}
-            />
-          )}
-        </>
-      )}
-    </div>
-  );
-
+              style={{
+                background: theme.inputBgColor,
+                color: theme.inputFontColor,
+                border: `1.5px solid ${theme.accentColor}`,
+                borderRadius: theme.borderRadius,
+                padding: '8px 12px',
+                fontSize: 15,
+                marginBottom: 2,
+              }}
+            >
+              <option value="">Selecione</option>
+              {field.options?.map((opt: string) => (
+                <option key={opt} value={opt}>{opt}</option>
+              ))}
+              {field.allowOther && <option value="___OTHER___">Outros</option>}
+            </select>
+          );
+        }
+        // Versão radio
+        return (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginBottom: 4 }}>
+            {field.options?.map((opt: string) => (
+              <label key={opt} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 15, color: theme.inputFontColor }}>
+                <input
+                  type="radio"
+                  name={`field_${field.id}`}
+                  checked={responses[fieldId] === opt}
+                  onChange={() => handleInputChange(fieldId, opt)}
+                  disabled={disabled}
+                  style={{
+                    accentColor: theme.accentColor
+                  }}
+                />
+                <span>{opt}</span>
+              </label>
+            ))}
+            {field.allowOther && (
+              <>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 15, color: theme.inputFontColor }}>
+                  <input
+                    type="radio"
+                    name={`field_${field.id}`}
+                    checked={responses[fieldId] === '___OTHER___'}
+                    onChange={() => handleInputChange(fieldId, '___OTHER___')}
+                    disabled={disabled}
+                    style={{
+                      accentColor: theme.accentColor
+                    }}
+                  />
+                  <span>Outros</span>
+                </label>
+                {responses[fieldId] === '___OTHER___' && (
+                  <input
+                    value={otherInputValues[fieldId] || ''}
+                    onChange={e => handleOtherInputChange(fieldId, e.target.value)}
+                    placeholder="Por favor, especifique"
+                    disabled={disabled}
+                    style={{
+                      background: theme.inputBgColor,
+                      color: theme.inputFontColor,
+                      border: `1.5px solid ${theme.accentColor}`,
+                      borderRadius: theme.borderRadius,
+                      padding: '8px 12px',
+                      fontSize: 15,
+                      marginTop: 3,
+                    }}
+                  />
+                )}
+              </>
+            )}
+          </div>
+        );
       case 'Texto':
         return (
           <textarea
-            className={styles.textarea}
             value={responses[fieldId] || ''}
             onChange={e => handleInputChange(fieldId, e.target.value)}
             disabled={disabled}
+            style={{
+              width: '100%',
+              background: theme.inputBgColor,
+              color: theme.inputFontColor,
+              border: `1.5px solid ${theme.accentColor}`,
+              borderRadius: theme.borderRadius,
+              padding: '10px 14px',
+              fontSize: 15,
+              minHeight: 46,
+              resize: 'vertical',
+              marginBottom: 2,
+            }}
           />
         );
       case 'Data':
         return (
           <input
-            type="datetime-local"
-            className={styles.input}
+            type="date"
             value={responses[fieldId] || ''}
             onChange={e => handleInputChange(fieldId, e.target.value)}
             disabled={disabled}
+            style={{
+              background: theme.inputBgColor,
+              color: theme.inputFontColor,
+              border: `1.5px solid ${theme.accentColor}`,
+              borderRadius: theme.borderRadius,
+              padding: '8px 12px',
+              fontSize: 15,
+              marginBottom: 2,
+            }}
           />
         );
-     case 'Cabeçalho':
-  return <div className={styles.formSectionHeader}>{field.label}</div>;
-
       default:
-        // Suporte a campos futuros: input genérico texto
         return (
           <input
-            className={styles.input}
             value={responses[fieldId] || ''}
             onChange={e => handleInputChange(fieldId, e.target.value)}
             placeholder={field.placeholder || ''}
             disabled={disabled}
+            style={{
+              background: theme.inputBgColor,
+              color: theme.inputFontColor,
+              border: `1.5px solid ${theme.accentColor}`,
+              borderRadius: theme.borderRadius,
+              padding: '8px 12px',
+              fontSize: 15,
+              marginBottom: 2,
+            }}
           />
         );
     }
   };
 
+  // --------------- RENDER ---------------
+
   return (
-    <div className={styles.overlay}>
-      <div className={styles.panel}>
-        <div className={styles.panelHeader}>
-          <h3 className={styles.panelTitle}>{form.title}</h3>
-          <button onClick={onClose} className={styles.closeButton}>
+    <div
+      style={{
+        background: theme.bgColor + 'E5',
+        color: theme.fontColor,
+        position: 'fixed',
+        zIndex: 222,
+        left: 0, top: 0, width: '100vw', height: '100vh',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+      }}
+    >
+      <div
+        style={{
+          background: theme.bgColor,
+          color: theme.fontColor,
+          borderRadius: theme.borderRadius,
+          boxShadow: `0 6px 24px #0004`,
+          border: `2.5px solid ${theme.accentColor}`,
+          width: '98vw',
+          maxWidth: 550,
+          minWidth: 330,
+          margin: '0 auto',
+          display: 'flex',
+          flexDirection: 'column',
+          maxHeight: '96vh',
+        }}
+      >
+        {/* HEADER */}
+        <div
+          style={{
+            background: theme.accentColor,
+            color: '#fff',
+            borderTopLeftRadius: theme.borderRadius,
+            borderTopRightRadius: theme.borderRadius,
+            padding: '18px 26px 12px 22px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+          }}
+        >
+          <h3 style={{ fontSize: 22, fontWeight: 700, margin: 0 }}>{form.title}</h3>
+          <button onClick={onClose} style={{
+            background: 'none',
+            border: 'none',
+            color: "#fff",
+            fontSize: 22,
+            cursor: 'pointer'
+          }}>
             <X />
           </button>
         </div>
-        <div className={styles.panelBody}>
-          {(form.fields as EnhancedFormField[]).map(field => (
-            <div key={field.id} className={styles.fieldWrapper}>
+
+        {/* LOGO */}
+        {form.logo?.url && (
+          <div
+            style={{
+              width: '100%',
+              display: 'flex',
+              justifyContent:
+                form.logo.align === 'left'
+                  ? 'flex-start'
+                  : form.logo.align === 'right'
+                    ? 'flex-end'
+                    : 'center',
+              margin: '16px 0 2px 0'
+            }}
+          >
+            <img
+              src={form.logo.url}
+              alt={form.logo.name || 'Logo'}
+              style={{
+                width: form.logo.size ? `${form.logo.size}%` : '38%',
+                maxWidth: 240,
+                objectFit: 'contain'
+              }}
+            />
+          </div>
+        )}
+
+        {/* DESCRIPTION */}
+        {form.description && (
+          <div style={{ color: theme.fontColor, margin: '0 0 18px 0', fontSize: 16, fontWeight: 400, padding: '0 24px', textAlign: 'center' }}>
+            {form.description}
+          </div>
+        )}
+
+        {/* FIELDS */}
+        <div style={{
+          padding: '0 24px 16px 24px',
+          overflowY: 'auto',
+          flex: 1,
+          marginBottom: 0
+        }}>
+          {(form.fields as EnhancedFormField[]).map((field, idx) => (
+            <div key={field.id} style={{ marginBottom: 18 }}>
               {field.type !== 'Cabeçalho' && (
                 <label
-  className={
-    styles.label +
-    (field.required &&
-      triedSubmit &&
-      (
-        responses[String(field.id)] === undefined ||
-        responses[String(field.id)] === null ||
-        responses[String(field.id)] === '' ||
-        (Array.isArray(responses[String(field.id)]) && responses[String(field.id)].length === 0)
-      )
-      ? ' ' + styles.requiredErrorLabel
-      : ''
-    )
-  }
->
-  {field.label}
-  {field.required && <span style={{ color: '#ef4444', marginLeft: 4 }}>*</span>}
-</label>
-
+                  style={{
+                    color: theme.fontColor,
+                    fontWeight: 500,
+                    fontSize: 15,
+                    display: 'block',
+                    marginBottom: 7,
+                  }}
+                >
+                  {field.label}
+                  {field.required && <span style={{ color: '#ef4444', marginLeft: 4 }}>*</span>}
+                </label>
               )}
-              {renderField(field)}
+              {/* Render dinâmico fiel ao preview */}
+              {renderField(field, idx)}
               {field.description && (
-                <div className={styles.fieldDescription}>{field.description}</div>
+                <div style={{ color: theme.sectionHeaderFont, fontSize: 13, marginTop: 3 }}>
+                  {field.description}
+                </div>
               )}
             </div>
           ))}
         </div>
-        
-        <div className={styles.panelFooter}>
-          {error && <p className={styles.errorText}>{error}</p>}
+
+        {/* FOOTER */}
+        <div
+          style={{
+            background: theme.footerBg,
+            color: theme.footerFont,
+            borderBottomLeftRadius: theme.borderRadius,
+            borderBottomRightRadius: theme.borderRadius,
+            padding: '14px 24px 14px 24px',
+            marginTop: 'auto'
+          }}
+        >
+          {error && <div style={{ color: "#ef4444", fontWeight: 600, fontSize: 15, marginBottom: 5 }}>{error}</div>}
           {canEdit || !existingResponse ? (
             <button
               onClick={handleSubmit}
-              className={styles.submitButton}
+              style={{
+                background: theme.accentColor,
+                color: "#fff",
+                borderRadius: theme.borderRadius,
+                boxShadow: `0 2px 8px ${theme.accentColor}33`,
+                border: 'none',
+                padding: '10px 25px',
+                fontSize: 17,
+                fontWeight: 700,
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
+              }}
               disabled={isSubmitting}
             >
-              <Send size={18} />
+              <Send size={19} />
               <span>
                 {isSubmitting
                   ? 'A Enviar...'
                   : existingResponse
-                  ? 'Atualizar Resposta'
-                  : 'Submeter Resposta'}
+                    ? 'Atualizar Resposta'
+                    : 'Submeter Resposta'}
               </span>
             </button>
           ) : null}
