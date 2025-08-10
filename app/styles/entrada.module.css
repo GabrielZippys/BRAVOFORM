@@ -1,0 +1,907 @@
+/* ===============================================================================
+   FORMBRAVO - Login Module CSS
+   Design escuro moderno com glassmorphism e animações de fundo sutis
+   =============================================================================== */
+
+/* ==================== KEYFRAMES E ANIMAÇÕES ==================== */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes floatAnimation {
+  0%, 100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+@keyframes subtleWave {
+  0%, 100% {
+    transform: translateX(0) translateY(0) rotate(0deg);
+  }
+  25% {
+    transform: translateX(5px) translateY(-5px) rotate(1deg);
+  }
+  50% {
+    transform: translateX(-3px) translateY(-8px) rotate(-0.5deg);
+  }
+  75% {
+    transform: translateX(-5px) translateY(-3px) rotate(0.5deg);
+  }
+}
+
+@keyframes particleFloat {
+  0%, 100% {
+    transform: translateY(0px) translateX(0px);
+    opacity: 0.3;
+  }
+  50% {
+    transform: translateY(-20px) translateX(10px);
+    opacity: 0.6;
+  }
+}
+
+@keyframes gradientShift {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.8;
+  }
+}
+
+@keyframes ripple {
+  0% {
+    transform: scale(0);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(4);
+    opacity: 0;
+  }
+}
+
+@keyframes glow {
+  0%, 100% {
+    box-shadow: 0 0 20px rgba(59, 130, 246, 0.2);
+  }
+  50% {
+    box-shadow: 0 0 30px rgba(59, 130, 246, 0.3);
+  }
+}
+
+@keyframes slideInFromLeft {
+  from {
+    opacity: 0;
+    transform: translateX(-50px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes bounceIn {
+  0% {
+    opacity: 0;
+    transform: scale(0.3);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.05);
+  }
+  70% {
+    transform: scale(0.9);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes shake {
+  0%, 100% {
+    transform: translateX(0);
+  }
+  10%, 30%, 50%, 70%, 90% {
+    transform: translateX(-5px);
+  }
+  20%, 40%, 60%, 80% {
+    transform: translateX(5px);
+  }
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes backgroundOrbs {
+  0%, 100% {
+    transform: translate(0, 0) scale(1);
+    opacity: 0.1;
+  }
+  33% {
+    transform: translate(30px, -30px) scale(1.1);
+    opacity: 0.2;
+  }
+  66% {
+    transform: translate(-20px, 20px) scale(0.9);
+    opacity: 0.15;
+  }
+}
+
+/* ==================== CONTAINER PRINCIPAL ==================== */
+.main {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 25%, #0f3460 50%, #1a1a2e 100%);
+  background-size: 400% 400%;
+  animation: gradientShift 20s ease infinite;
+  position: relative;
+  overflow: hidden;
+}
+
+/* Camada de animação sutil de fundo */
+.main::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: 
+    radial-gradient(circle at 20% 80%, rgba(59, 130, 246, 0.08) 0%, transparent 50%),
+    radial-gradient(circle at 80% 20%, rgba(139, 92, 246, 0.06) 0%, transparent 50%),
+    radial-gradient(circle at 40% 40%, rgba(16, 185, 129, 0.04) 0%, transparent 50%);
+  animation: subtleWave 25s ease-in-out infinite;
+  pointer-events: none;
+}
+
+/* Partículas sutis flutuantes */
+.main::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-image: 
+    radial-gradient(circle at 25% 25%, rgba(255, 255, 255, 0.02) 1px, transparent 1px),
+    radial-gradient(circle at 75% 75%, rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+    radial-gradient(circle at 50% 50%, rgba(59, 130, 246, 0.02) 1px, transparent 1px);
+  background-size: 80px 80px, 120px 120px, 60px 60px;
+  opacity: 0.4;
+  animation: particleFloat 30s ease-in-out infinite;
+  pointer-events: none;
+}
+
+/* ==================== SHAPES DE FUNDO ==================== */
+.backgroundShapes {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.backgroundShapes::before {
+  content: '';
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: 
+    radial-gradient(circle at 30% 20%, rgba(59, 130, 246, 0.05) 0%, transparent 50%),
+    radial-gradient(circle at 70% 80%, rgba(139, 92, 246, 0.04) 0%, transparent 50%);
+  animation: backgroundOrbs 40s ease-in-out infinite;
+}
+
+.backgroundShapes::after {
+  content: '';
+  position: absolute;
+  top: 20%;
+  right: 10%;
+  width: 300px;
+  height: 300px;
+  background: radial-gradient(circle, rgba(59, 130, 246, 0.03) 0%, transparent 70%);
+  border-radius: 50%;
+  animation: backgroundOrbs 35s ease-in-out infinite reverse;
+}
+
+/* ==================== CARD PRINCIPAL ==================== */
+.frame {
+  width: 100%;
+  max-width: 420px;
+  padding: 3rem 2.5rem;
+  background: rgba(30, 30, 46, 0.4);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-radius: 24px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 
+    0 25px 50px rgba(0, 0, 0, 0.5),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  position: relative;
+  animation: fadeInUp 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+.frame:hover {
+  transform: translateY(-5px);
+  box-shadow: 
+    0 35px 70px rgba(0, 0, 0, 0.6),
+    inset 0 1px 0 rgba(255, 255, 255, 0.15);
+  border-color: rgba(255, 255, 255, 0.15);
+}
+
+.frame::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0.02) 100%);
+  border-radius: 24px;
+  pointer-events: none;
+}
+
+/* ==================== LOGO ==================== */
+.logoContainer {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-bottom: 2rem;
+  animation: bounceIn 1s cubic-bezier(0.68, -0.55, 0.265, 1.55) 0.3s both;
+}
+
+.logo {
+  width: 100px;
+  height: auto;
+  filter: drop-shadow(0 10px 20px rgba(0, 0, 0, 0.5));
+  transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+.logo:hover {
+  transform: scale(1.05) rotate(5deg);
+  filter: drop-shadow(0 15px 30px rgba(0, 0, 0, 0.6));
+}
+
+/* ==================== FORMULÁRIO ==================== */
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+/* ==================== GRUPOS DE INPUT ==================== */
+.inputGroup {
+  position: relative;
+  animation: slideInFromLeft 0.6s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+.inputGroup:nth-child(2) {
+  animation-delay: 0.1s;
+}
+
+.inputGroup:nth-child(3) {
+  animation-delay: 0.2s;
+}
+
+/* ==================== ÍCONES DOS INPUTS ==================== */
+.inputIcon {
+  position: absolute;
+  left: 1rem; /* Voltando para posição mais próxima da borda */
+  top: 50%;
+  transform: translateY(-50%);
+  color: rgba(255, 255, 255, 0.5);
+  transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  z-index: 2;
+}
+
+/* ==================== INPUTS ==================== */
+.input {
+  width: 100%;
+  padding: 1rem 3rem 1rem 2.8rem; /* Reduzindo o padding-left para dar menos espaço */
+  background: rgba(255, 255, 255, 0.05);
+  border: 2px solid rgba(255, 255, 255, 0.1);
+  border-radius: 16px;
+  color: white;
+  font-size: 1rem;
+  font-weight: 500;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  position: relative;
+  box-sizing: border-box;
+}
+
+.input::placeholder {
+  color: rgba(255, 255, 255, 0.4);
+  font-weight: 400;
+}
+
+.input:hover {
+  border-color: rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.input:focus {
+  outline: none;
+  border-color: rgba(59, 130, 246, 0.6);
+  background: rgba(255, 255, 255, 0.1);
+  box-shadow: 
+    0 0 0 4px rgba(59, 130, 246, 0.15),
+    0 10px 25px rgba(0, 0, 0, 0.2);
+  transform: translateY(-2px);
+}
+
+.input:focus + .inputIcon {
+  color: rgba(59, 130, 246, 0.9);
+  transform: translateY(-50%) scale(1.1);
+}
+
+/* ==================== ESTADO DE AVISO (CAPS LOCK) ==================== */
+.inputWarn .input {
+  border-color: rgba(251, 191, 36, 0.6);
+  animation: shake 0.5s ease-in-out;
+}
+
+.inputWarn .inputIcon {
+  color: rgba(251, 191, 36, 0.9);
+}
+
+.hint {
+  color: rgba(251, 191, 36, 0.8);
+  font-size: 0.875rem;
+  margin-top: 0.5rem;
+  margin-left: 0.5rem;
+  font-weight: 500;
+  animation: fadeInUp 0.3s ease;
+}
+
+/* ==================== BOTÃO MOSTRAR/OCULTAR SENHA ==================== */
+.peek {
+  position: absolute;
+  right: 1rem; /* Voltando para posição original */
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  color: rgba(255, 255, 255, 0.5);
+  cursor: pointer;
+  padding: 0.5rem;
+  border-radius: 8px;
+  transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  z-index: 2;
+}
+
+.peek:hover {
+  color: white;
+  background: rgba(255, 255, 255, 0.08);
+  transform: translateY(-50%) scale(1.1);
+}
+
+/* ==================== CONTAINER DE ERRO ==================== */
+.errorContainer {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 1rem;
+  background: rgba(239, 68, 68, 0.08);
+  border: 1px solid rgba(239, 68, 68, 0.2);
+  border-radius: 12px;
+  color: rgba(254, 202, 202, 0.9);
+  animation: bounceIn 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+.error {
+  margin: 0;
+  font-weight: 500;
+  font-size: 0.9rem;
+}
+
+/* ==================== BOTÃO PRINCIPAL ==================== */
+.button {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  padding: 1.25rem 2rem;
+  background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+  background-size: 200% 200%;
+  border: none;
+  border-radius: 16px;
+  color: white;
+  font-size: 1rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  overflow: hidden;
+  box-shadow: 0 10px 25px rgba(59, 130, 246, 0.2);
+  animation: glow 3s ease-in-out infinite alternate;
+}
+
+.button::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+  transition: left 0.5s;
+}
+
+.button:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 15px 35px rgba(59, 130, 246, 0.3);
+  background-position: 100% 0;
+}
+
+.button:hover::before {
+  left: 100%;
+}
+
+.button:active {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 20px rgba(59, 130, 246, 0.25);
+}
+
+.button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+  animation: none;
+}
+
+.button:disabled:hover {
+  transform: none;
+  box-shadow: 0 10px 25px rgba(59, 130, 246, 0.2);
+}
+
+/* ==================== SPINNER ==================== */
+.spinner {
+  width: 20px;
+  height: 20px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top: 2px solid white;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+/* ==================== LINK ESQUECI SENHA ==================== */
+.forgotPasswordContainer {
+  text-align: center;
+  margin-top: 1.5rem;
+  animation: fadeInUp 0.6s cubic-bezier(0.25, 0.46, 0.45, 0.94) 0.4s both;
+}
+
+.forgotPasswordButton {
+  background: none;
+  border: none;
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 0.9rem;
+  cursor: pointer;
+  text-decoration: none;
+  transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  padding: 0.5rem 1rem;
+  border-radius: 8px;
+  position: relative;
+  overflow: hidden;
+}
+
+.forgotPasswordButton::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: rgba(255, 255, 255, 0.05);
+  transition: left 0.3s ease;
+}
+
+.forgotPasswordButton:hover {
+  color: rgba(255, 255, 255, 0.9);
+  transform: translateY(-2px);
+}
+
+.forgotPasswordButton:hover::before {
+  left: 0;
+}
+
+.forgotPasswordButton:focus-visible {
+  outline: 2px solid rgba(59, 130, 246, 0.4);
+  outline-offset: 2px;
+}
+
+/* ==================== MODAL ==================== */
+.modalOverlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.8);
+  backdrop-filter: blur(5px);
+  -webkit-backdrop-filter: blur(5px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  animation: fadeInUp 0.3s ease;
+  padding: 1rem;
+}
+
+.modalContent {
+  width: 100%;
+  max-width: 500px;
+  background: rgba(30, 30, 46, 0.6);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-radius: 24px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 2.5rem;
+  position: relative;
+  animation: bounceIn 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+  box-shadow: 0 25px 50px rgba(0, 0, 0, 0.5);
+}
+
+/* Estilos específicos para elementos dentro do modal */
+.modalContent .inputGroup {
+  position: relative;
+  margin-bottom: 1.5rem;
+}
+
+.modalContent .inputIcon {
+  position: absolute;
+  left: 1rem;
+  top: 50%;
+  transform: translateY(-50%);
+  color: rgba(255, 255, 255, 0.5);
+  transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  z-index: 2;
+}
+
+.modalContent .input {
+  width: 100%;
+  padding: 1rem 1rem 1rem 3rem;
+  background: rgba(255, 255, 255, 0.05);
+  border: 2px solid rgba(255, 255, 255, 0.1);
+  border-radius: 16px;
+  color: white;
+  font-size: 1rem;
+  font-weight: 500;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  box-sizing: border-box;
+}
+
+.modalContent .input::placeholder {
+  color: rgba(255, 255, 255, 0.4);
+  font-weight: 400;
+}
+
+.modalContent .input:hover {
+  border-color: rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.modalContent .input:focus {
+  outline: none;
+  border-color: rgba(59, 130, 246, 0.6);
+  background: rgba(255, 255, 255, 0.1);
+  box-shadow: 
+    0 0 0 4px rgba(59, 130, 246, 0.15),
+    0 10px 25px rgba(0, 0, 0, 0.2);
+  transform: translateY(-2px);
+}
+
+.modalContent .input:focus + .inputIcon {
+  color: rgba(59, 130, 246, 0.9);
+  transform: translateY(-50%) scale(1.1);
+}
+
+.modalContent .button {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  padding: 1.25rem 2rem;
+  background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+  background-size: 200% 200%;
+  border: none;
+  border-radius: 16px;
+  color: white;
+  font-size: 1rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  overflow: hidden;
+  box-shadow: 0 10px 25px rgba(59, 130, 246, 0.2);
+  width: 100%;
+  margin-top: 1rem;
+}
+
+.modalContent .button:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 15px 35px rgba(59, 130, 246, 0.3);
+  background-position: 100% 0;
+}
+
+.modalContent .button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.modalContent .label {
+  display: block;
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 0.9rem;
+  font-weight: 500;
+  margin-bottom: 0.5rem;
+  margin-left: 0.25rem;
+}
+
+.closeModalButton {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  background: rgba(255, 255, 255, 0.05);
+  border: none;
+  color: rgba(255, 255, 255, 0.6);
+  cursor: pointer;
+  padding: 0.75rem;
+  border-radius: 12px;
+  transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+.closeModalButton:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: white;
+  transform: rotate(90deg);
+}
+
+.modalTitle {
+  color: white;
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin: 0 0 1rem 0;
+  text-align: center;
+}
+
+.modalDescription {
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 1rem;
+  margin: 0 0 2rem 0;
+  text-align: center;
+  line-height: 1.5;
+}
+
+.successStep {
+  text-align: center;
+}
+
+.successIcon {
+  color: #10b981;
+  margin-bottom: 1rem;
+  animation: bounceIn 0.8s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+}
+
+/* ==================== CLASSES AUXILIARES ==================== */
+.floatUp {
+  animation: fadeInUp 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+.popIn {
+  animation: bounceIn 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+}
+
+.sweep {
+  position: relative;
+  overflow: hidden;
+}
+
+.cardTopGlow {
+  position: absolute;
+  top: -2px;
+  left: 20%;
+  right: 20%;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+  animation: shimmer 4s ease-in-out infinite;
+}
+
+/* ==================== RESPONSIVIDADE ==================== */
+@media (max-width: 480px) {
+  .main {
+    padding: 1rem;
+  }
+  
+  .frame {
+    padding: 2rem 1.5rem;
+    border-radius: 20px;
+  }
+  
+  .input {
+    padding: 0.875rem 0.875rem 0.875rem 2.75rem;
+    font-size: 0.9rem;
+  }
+  
+  .button {
+    padding: 1rem 1.5rem;
+    font-size: 0.9rem;
+  }
+  
+  .modalContent {
+    padding: 2rem 1.5rem;
+    margin: 1rem;
+  }
+}
+
+@media (max-width: 360px) {
+  .frame {
+    padding: 1.5rem 1rem;
+  }
+  
+  .input {
+    padding: 0.75rem 0.75rem 0.75rem 2.5rem;
+  }
+  
+  .inputIcon {
+    left: 0.75rem;
+  }
+  
+  .peek {
+    right: 0.75rem;
+  }
+}
+
+
+
+/* ==================== MODO ESCURO FORÇADO ==================== */
+@media (prefers-color-scheme: dark) {
+  .frame {
+    background: rgba(20, 20, 35, 0.5);
+    border-color: rgba(255, 255, 255, 0.08);
+  }
+  
+  .input {
+    background: rgba(255, 255, 255, 0.03);
+    border-color: rgba(255, 255, 255, 0.08);
+  }
+  
+  .input:hover {
+    background: rgba(255, 255, 255, 0.05);
+  }
+  
+  .input:focus {
+    background: rgba(255, 255, 255, 0.08);
+  }
+}
+
+/* ==================== ALTO CONTRASTE ==================== */
+@media (prefers-contrast: high) {
+  .frame {
+    border-width: 2px;
+  }
+  
+  .input {
+    border-width: 2px;
+  }
+  
+  .button {
+    border: 2px solid rgba(255, 255, 255, 0.2);
+  }
+}
+
+/* ===== Isolamento do Login: neutraliza regras globais que quebram o alinhamento ===== */
+
+/* Escopo do card de login (ajuste o seletor se seu container for outro) */
+.frame .input,
+.frame input[type="text"],
+.frame input[type="email"],
+.frame input[type="password"] {
+  padding: 1rem 3rem 1rem 2.8rem !important;   /* espaço para o ícone à esquerda e o "peek" à direita */
+  background: rgba(255,255,255,0.05) !important;
+  border: 2px solid rgba(255,255,255,0.1) !important;
+  border-radius: 16px !important;
+  color: #fff !important;
+  width: 100% !important;
+  box-sizing: border-box !important;
+}
+
+/* Garante posição correta dos ícones do input */
+.frame .inputGroup { position: relative; }
+.frame .inputIcon { 
+  position: absolute; 
+  left: 1rem; 
+  top: 50%; 
+  transform: translateY(-50%); 
+  z-index: 2;
+}
+.frame .peek { 
+  position: absolute; 
+  right: 1rem; 
+  top: 50%; 
+  transform: translateY(-50%); 
+  z-index: 2;
+}
+
+/* Se algum campo estiver dentro de <label>, não queremos o flex global aqui */
+.frame label {
+  display: block;           /* neutraliza o label global */
+  align-items: initial;
+  gap: 0;
+}
+
+/* Por segurança, evita que o “input global” (FormBuilder) vaze para o login */
+.frame select,
+.frame textarea,
+.frame input[type="number"],
+.frame input[type="date"],
+.frame input[type="time"],
+.frame input[type="datetime-local"],
+.frame input[type="url"],
+.frame input[type="tel"] {
+  background: rgba(255,255,255,0.05) !important;
+  border: 2px solid rgba(255,255,255,0.1) !important;
+  border-radius: 16px !important;
+  color: #fff !important;
+}
+
+/* Evita que o efeito de foco global mude o padding e “puxe” o conteúdo */
+.frame .input:focus,
+.frame input[type="text"]:focus,
+.frame input[type="email"]:focus,
+.frame input[type="password"]:focus {
+  padding: 1rem 3rem 1rem 2.8rem !important;
+}

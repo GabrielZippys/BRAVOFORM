@@ -1,15 +1,14 @@
-'use client'; 
+'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { signInWithEmailAndPassword } from 'firebase/auth';
-import { doc, getDoc, collection, query, where, getDocs, collectionGroup } from 'firebase/firestore';
+import { collection, query, where, getDocs } from 'firebase/firestore';
 import { auth, db } from '../firebase/config';
-import styles from '../app/styles/Login.module.css';
+import styles from '../app/styles/entrada.module.css';
 import Image from 'next/image';
-import { KeyRound, User, LogIn, AlertCircle, X, Mail, Shield } from 'lucide-react'; 
-
-import { type AppUser, type Collaborator } from '../src/types'; 
+import { KeyRound, User, LogIn, AlertCircle, X, Shield, Eye, EyeOff } from 'lucide-react';
+import { type AppUser } from '../src/types';
 
 // O componente de Modal permanece o mesmo
 const ForgotPasswordModal = ({ onClose }: { onClose: () => void }) => {
@@ -40,112 +39,136 @@ const ForgotPasswordModal = ({ onClose }: { onClose: () => void }) => {
 };
 
 
-// --- COMPONENTE DE LOGIN PRINCIPAL ---
 export default function LoginPage() {
-    const [credential, setCredential] = useState('');
-    const [password, setPassword] = useState('');
-    const [error, setError] = useState('');
-    const [isLoading, setIsLoading] = useState(false);
-    const [isRecovering, setIsRecovering] = useState(false);
-    const router = useRouter();
+  const [credential, setCredential] = useState('');
+  const [password, setPassword] = useState('');
+  const [showPass, setShowPass] = useState(false);
+  const [capsOn, setCapsOn] = useState(false);
+  const [error, setError] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [isRecovering, setIsRecovering] = useState(false);
+  const router = useRouter();
 
-    // --- FUNÇÃO handleLogin CORRIGIDA ---
-    const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
-        e.preventDefault();
-        if (isLoading) return;
-        
-        setError('');
-        setIsLoading(true);
+  // UX: guarda último usuário
+  useEffect(() => {
+    const last = localStorage.getItem('last_credential');
+    if (last) setCredential(last);
+  }, []);
 
-        const isEmail = credential.includes('@');
-        
-        if (isEmail) { // Lógica de Admin
-            try {
-                const userCredential = await signInWithEmailAndPassword(auth, credential, password);
-                const user = userCredential.user;
-                const usersQuery = query(collection(db, "users"), where("uid", "==", user.uid));
-                const querySnapshot = await getDocs(usersQuery);
+  const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (isLoading) return;
+    setError('');
+    setIsLoading(true);
 
-                if (!querySnapshot.empty) {
-                    const appUser = querySnapshot.docs[0].data() as AppUser;
-                    if (appUser.role === 'Admin') {
-                        router.push('/dashboard');
-                    } else {
-                        await auth.signOut();
-                        setError('Este utilizador não tem permissões de administrador.');
-                        setIsLoading(false);
-                    }
-                } else {
-                    await auth.signOut();
-                    setError('Utilizador autenticado, mas sem perfil na base de dados.');
-                    setIsLoading(false);
-                }
-            } catch (error) {
-                setError('Credenciais de administrador inválidas.');
-                setIsLoading(false);
-            }
-        } else { // Lógica de Colaborador agora usando a Cloud Function
-            try {
-                const response = await fetch('https://southamerica-east1-formbravo-8854e.cloudfunctions.net/collaboratorLogin', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ username: credential, password: password })
-                });
-
-                const sessionData = await response.json();
-
-                if (response.ok) {
-                    sessionStorage.setItem('collaborator_data', JSON.stringify(sessionData));
-                    if (sessionData.isTemporaryPassword) {
-                        router.push('/set-new-password');
-                    } else {
-                        router.push('/collaborator-view');
-                    }
-                } else {
-                    setError(sessionData.error || 'Falha no login.');
-                    setIsLoading(false);
-                }
-            } catch (apiError) {
-                console.error("Erro de comunicação no login do colaborador:", apiError);
-                setError('Não foi possível conectar ao servidor.');
-                setIsLoading(false);
-            }
+    const isEmail = credential.includes('@');
+    try {
+      if (isEmail) {
+        const userCredential = await signInWithEmailAndPassword(auth, credential, password);
+        const usersQuery = query(collection(db, "users"), where("uid", "==", userCredential.user.uid));
+        const snap = await getDocs(usersQuery);
+        if (!snap.empty && (snap.docs[0].data() as AppUser).role === 'Admin') {
+          localStorage.setItem('last_credential', credential);
+          router.push('/dashboard');
+        } else {
+          await auth.signOut();
+          throw new Error('Este utilizador não tem permissões de administrador.');
         }
-    };
+      } else {
+        const response = await fetch('https://southamerica-east1-formbravo-8854e.cloudfunctions.net/collaboratorLogin', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username: credential, password })
+        });
+        const sessionData = await response.json();
+        if (!response.ok) throw new Error(sessionData.error || 'Falha no login.');
+        sessionStorage.setItem('collaborator_data', JSON.stringify(sessionData));
+        localStorage.setItem('last_credential', credential);
+        router.push(sessionData.isTemporaryPassword ? '/set-new-password' : '/collaborator-view');
+      }
+    } catch (err: any) {
+      setError(err.message || 'Erro ao autenticar.');
+      setIsLoading(false);
+    }
+  };
 
-    return (
-        <main className={styles.main}>
-            <div className={styles.backgroundShapes}></div>
-            <div className={styles.frame}>
-                <div className={styles.logoContainer}>
-                    <Image src="/formbravo-logo.png" alt="Logo FORMBRAVO" width={120} height={120} priority className={styles.logo} />
-                </div>
-                
-                <form onSubmit={handleLogin} className={styles.form}>
-                     <div className={styles.inputGroup}>
-                        <User className={styles.inputIcon} size={20} />
-                        <input type="text" id="credential" value={credential} onChange={(e) => setCredential(e.target.value)} className={styles.input} placeholder="Email ou Nome de Usuário" required disabled={isLoading}/>
-                    </div>
-                    <div className={styles.inputGroup}>
-                        <KeyRound className={styles.inputIcon} size={20} />
-                        <input type="password" id="password" value={password} onChange={(e) => setPassword(e.target.value)} className={styles.input} placeholder="Senha" required disabled={isLoading}/>
-                    </div>
-                    
-                    {error && <div className={styles.errorContainer}><AlertCircle size={18} /><p className={styles.error}>{error}</p></div>}
+  return (
+    <main className={styles.main}>
+      <div className={styles.backgroundShapes} />
+      <div className={`${styles.frame} ${styles.floatUp}`}>
+        <div className={styles.cardTopGlow} />
+        <div className={styles.logoContainer}>
+          <Image
+            src="/formbravo-logo.png"
+            alt="Logo FORMBRAVO"
+            width={120}
+            height={120}
+            priority
+            className={styles.logo}
+          />
+        </div>
 
-                    <button type="submit" className={styles.button} disabled={isLoading}>
-                        {isLoading ? <div className={styles.spinner}></div> : <><LogIn size={20} /><span>Acessar</span></>}
-                    </button>
-                </form>
+        <form onSubmit={handleLogin} className={styles.form}>
+          <div className={styles.inputGroup}>
+            <User className={styles.inputIcon} size={20} />
+            <input
+              type="text"
+              id="credential"
+              value={credential}
+              onChange={(e) => setCredential(e.target.value)}
+              className={styles.input}
+              placeholder="Email ou Nome de Usuário"
+              required
+              disabled={isLoading}
+            />
+          </div>
 
-                <div className={styles.forgotPasswordContainer}>
-                    <button onClick={() => setIsRecovering(true)} className={styles.forgotPasswordButton}>
-                        Esqueci minha senha
-                    </button>
-                </div>
+          <div className={`${styles.inputGroup} ${capsOn ? styles.inputWarn : ''}`}>
+            <KeyRound className={styles.inputIcon} size={20} />
+            <input
+              type={showPass ? 'text' : 'password'}
+              id="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              onKeyUp={(e) => setCapsOn((e as any).getModifierState?.('CapsLock'))}
+              className={styles.input}
+              placeholder="Senha"
+              required
+              disabled={isLoading}
+            />
+            <button
+              type="button"
+              className={styles.peek}
+              onClick={() => setShowPass(s => !s)}
+              aria-label={showPass ? 'Ocultar senha' : 'Mostrar senha'}
+              tabIndex={-1}
+            >
+              {showPass ? <EyeOff size={18} /> : <Eye size={18} />}
+            </button>
+          </div>
+          {capsOn && <div className={styles.hint}>Caps Lock está ativado</div>}
+
+          {error && (
+            <div className={`${styles.errorContainer} ${styles.popIn}`}>
+              <AlertCircle size={18} />
+              <p className={styles.error}>{error}</p>
             </div>
-            
-            {isRecovering && <ForgotPasswordModal onClose={() => setIsRecovering(false)} />}
-        </main>
-    );
+          )}
+
+          <button type="submit" className={`${styles.button} ${styles.sweep}`} disabled={isLoading}>
+            {isLoading ? <div className={styles.spinner} /> : (<><LogIn size={18} /><span>Acessar</span></>)}
+          </button>
+        </form>
+
+        <div className={styles.forgotPasswordContainer}>
+          <button onClick={() => setIsRecovering(true)} className={styles.forgotPasswordButton}>
+            Esqueci minha senha
+          </button>
+        </div>
+      </div>
+
+      {isRecovering && <ForgotPasswordModal onClose={() => setIsRecovering(false)} />}
+    </main>
+  );
 }
+
