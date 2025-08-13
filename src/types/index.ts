@@ -49,6 +49,8 @@ export interface FormTheme {
   tableOddRowBg?: string;
   tableEvenRowBg?: string;
   tableCellFont?: string;
+  titleColor?: string;
+  descriptionColor?: string;
 }
 
 // --- CAMPOS DO FORMULÁRIO ---

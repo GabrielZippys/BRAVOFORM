@@ -61,6 +61,8 @@ interface EnhancedFormField {
 // --- TEMA DO FORMULÁRIO (FormTheme) ---
 export interface FormTheme {
   bgColor: string;
+  titleColor?: string;        
+  descriptionColor?: string; 
   bgImage?: string;
   accentColor: string;
   fontColor: string;
@@ -89,6 +91,8 @@ export interface FormTheme {
 const defaultTheme: FormTheme = {
   bgColor: '#ffffff',
   accentColor: '#3b82f6',
+  titleColor: '#ffffff',         
+  descriptionColor: '#b8c5d6',    
   fontColor: '#1f2937',
   inputBgColor: '#171e2c',
   inputFontColor: '#e8f2ff',
@@ -605,7 +609,7 @@ function FieldProperties({ field, updateField }: {
 
 
 // Componente de preview dos campos
-// Substitua TODO o PreviewFields por este novo:
+
 
 function PreviewFields({ fields, theme }: { fields: EnhancedFormField[], theme: FormTheme }) {
   return (
@@ -613,19 +617,19 @@ function PreviewFields({ fields, theme }: { fields: EnhancedFormField[], theme: 
       {fields.map((field) => (
         <div key={field.id} style={{ marginBottom: 16 }}>
           {field.type === 'Cabeçalho' ? (
-            <h3
-              style={{
-                margin: '0 0 8px 0',
-                fontSize: '1.25rem',
-                fontWeight: 'bold',
-                background: theme.sectionHeaderBg,
-                color: theme.sectionHeaderFont,
-                borderRadius: theme.borderRadius,
-                padding: 8,
-              }}
-            >
-              {field.label}
-            </h3>
+          <h2
+  style={{
+    marginBottom: '1rem',
+    background: theme.sectionHeaderBg ?? 'transparent',
+    color: theme.sectionHeaderFont ?? theme.fontColor,
+    fontSize: '1.5rem',
+    padding: 8,
+    borderRadius: theme.borderRadius,
+  }}
+>
+  {field.label || 'Cabeçalho do Formulário'}
+</h2>
+
           ) : (
             <>
               <label
@@ -643,12 +647,11 @@ function PreviewFields({ fields, theme }: { fields: EnhancedFormField[], theme: 
               </label>
               {field.description && (
                 <p
-                  style={{
-                    margin: '0 0 8px 0',
-                    fontSize: '0.875rem',
-                    color: '#6b7280',
-                  }}
-                >
+               style={{
+                  margin: '0 0 2rem 0',
+                  color: theme.descriptionColor || theme.fontColor,
+                 }}
+                    >
                   {field.description}
                 </p>
               )}
@@ -1498,8 +1501,18 @@ const [logoFileName, setLogoFileName] = useState<string>(draft.logo?.name || '')
   </div>
 )}
 
-                    <h2>{draft.title || 'Título do Formulário'}</h2>
-                    {draft.description && <p>{draft.description}</p>}
+                   
+<h2 style={{ color: draft.theme.titleColor ?? draft.theme.fontColor }}>
+  {draft.title || 'Título do Formulário'}
+</h2>
+
+{/* ✅ DESCRIÇÃO USA draft.theme.descriptionColor (cai para #b8c5d6) */}
+{draft.description && (
+  <p style={{ color: draft.theme.descriptionColor ?? '#b8c5d6' }}>
+    {draft.description}
+  </p>
+)}
+
 
 <PreviewFields fields={draft.fields} theme={draft.theme} />
 
@@ -1716,7 +1729,49 @@ const [logoFileName, setLogoFileName] = useState<string>(draft.logo?.name || '')
 
 
     <div className={styles.card}>
-  <div className={styles.cardTitle}>Aparência</div>              
+  <div className={styles.cardTitle}>Aparência</div>     
+
+  <div className={styles.propertyGroup}>
+  <label>Cor do Título</label>
+  <input
+    type="color"
+    value={draft.theme.titleColor || '#ffffff'}
+    onChange={(e) => updateTheme({ titleColor: e.target.value })}
+    className={styles.colorInput}
+  />
+</div>
+
+<div className={styles.propertyGroup}>
+  <label>Cor da Descrição</label>
+  <input
+    type="color"
+    value={draft.theme.descriptionColor || '#b8c5d6'}
+    onChange={(e) => updateTheme({ descriptionColor: e.target.value })}
+    className={styles.colorInput}
+  />
+</div>
+
+<div className={styles.propertyGroup}>
+  <label>Cor do Texto do Cabeçalho</label>
+  <input
+    type="color"
+    value={draft.theme.sectionHeaderFont || '#ffffff'}
+    onChange={(e) => updateTheme({ sectionHeaderFont: e.target.value })}
+    className={styles.colorInput}
+  />
+</div>
+
+
+<div className={styles.propertyGroup}>
+  <label>Cor Fundo do Cabeçalho</label>
+  <input
+    type="color"
+    value={draft.theme.sectionHeaderBg ||""}
+    onChange={e => updateTheme({ sectionHeaderBg: e.target.value })}
+    className={styles.colorInput}
+  />
+</div>
+
   <div className={styles.propertyGroup}>
   <label>Cor de Fundo do Painel</label>
   <input
@@ -1724,6 +1779,16 @@ const [logoFileName, setLogoFileName] = useState<string>(draft.logo?.name || '')
     value={draft.theme.bgColor}
     onChange={e => updateTheme({ bgColor: e.target.value })}
     className={styles.colorInput}
+  />
+</div>
+
+<div className={styles.propertyGroup}>
+  <label>Cor de Fundo dos Campos</label>
+  <input
+    type="color"
+    value={draft.theme.inputBgColor}
+    onChange={e => updateTheme({ inputBgColor: e.target.value })}
+    className={styles.inputBgColor}
   />
 </div>
 
@@ -1737,7 +1802,7 @@ const [logoFileName, setLogoFileName] = useState<string>(draft.logo?.name || '')
   />
 </div>
 <div className={styles.propertyGroup}>
-  <label>Cor da Borda</label>
+  <label>Cor do Texto</label>
   <input
     type="color"
     value={draft.theme.fontColor}
@@ -1745,15 +1810,7 @@ const [logoFileName, setLogoFileName] = useState<string>(draft.logo?.name || '')
     className={styles.colorInput}
   />
 </div>
-<div className={styles.propertyGroup}>
-  <label>Cor do Cabeçalho</label>
-  <input
-    type="color"
-    value={draft.theme.inputBgColor || "#171e2c"}
-    onChange={e => updateTheme({ inputBgColor: e.target.value })}
-    className={styles.colorInput}
-  />
-</div>
+
 {/* --------- NOVOS CAMPOS DE CORES PARA TABELA --------- */}
 <div className={styles.propertyGroup}>
   <label>Cor de Fundo do Cabeçalho da Tabela</label>
@@ -1765,7 +1822,7 @@ const [logoFileName, setLogoFileName] = useState<string>(draft.logo?.name || '')
   />
 </div>
 <div className={styles.propertyGroup}>
-  <label>Cor do Texto do Cabeçalho da Tabela</label>
+  <label>Cor do Texto da Coluna da Tabela</label>
   <input
     type="color"
     value={draft.theme.tableHeaderFont || "#49cfff"}
@@ -1774,7 +1831,16 @@ const [logoFileName, setLogoFileName] = useState<string>(draft.logo?.name || '')
   />
 </div>
 <div className={styles.propertyGroup}>
-  <label>Cor da Borda da Tabela</label>
+  <label>Cor do Texto das Linhas da Tabela</label>
+  <input
+    type="color"
+    value={draft.theme.tableCellFont || "#e0e6f7"}
+    onChange={e => updateTheme({ tableCellFont: e.target.value })}
+    className={styles.colorInput}
+  />
+</div>
+<div className={styles.propertyGroup}>
+  <label>Cor das Bordas</label>
   <input
     type="color"
     value={draft.theme.tableBorderColor || "#19263b"}
@@ -1800,15 +1866,7 @@ const [logoFileName, setLogoFileName] = useState<string>(draft.logo?.name || '')
     className={styles.colorInput}
   />
 </div>
-<div className={styles.propertyGroup}>
-  <label>Cor do Texto das Células da Tabela</label>
-  <input
-    type="color"
-    value={draft.theme.tableCellFont || "#e0e6f7"}
-    onChange={e => updateTheme({ tableCellFont: e.target.value })}
-    className={styles.colorInput}
-  />
-</div>
+
 </div>
 
 
