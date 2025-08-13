@@ -35,6 +35,8 @@ const menuBtnStyle: React.CSSProperties = {
 
 // ---- TIPOS
 type FieldType = 'Texto' | 'Caixa de Seleção' | 'Múltipla Escolha' | 'Data' | 'Assinatura' | 'Anexo' | 'Tabela' | 'Cabeçalho';
+type TableCellValues = Record<string, Record<string, string>>; // fieldId -> rowId -> colId -> value
+type PreviewValues = Record<string, string | string[] | TableCellValues | undefined>;
 
 interface TableColumn {
   id: string;
@@ -488,13 +490,16 @@ function FieldProperties({ field, updateField }: {
   placeholder="Cole opções, uma por linha"
   value={(col.options || []).join('\n')}
   onChange={e => {
-    const newColumns = [...(field.columns || [])];
-    newColumns[colIndex] = {
-      ...col,
-      options: e.target.value.split('\n').filter(s => s.trim() !== ''),
-    };
-    updateField({ columns: newColumns });
-  }}
+  const labels = e.target.value.split('\n').filter(l => l.trim() !== '');
+  const newColumns = labels.map((label, idx) => ({
+    id: field.columns?.[idx]?.id || generateTableId('col'),
+    label,
+    type: field.columns?.[idx]?.type || 'text',
+    options: field.columns?.[idx]?.options || [],
+  }));
+  updateField({ columns: newColumns });
+}}
+
   onKeyDown={e => {
     if (e.key === 'Enter') {
       const value = (e.target as HTMLTextAreaElement).value;
@@ -610,103 +615,264 @@ function FieldProperties({ field, updateField }: {
 
 // Componente de preview dos campos
 
+function SignaturePad({
+  value,
+  onChange,
+  theme,
+  height = 140,
+}: {
+  value?: string;
+  onChange: (dataUrl: string) => void;
+  theme: FormTheme;
+  height?: number;
+}) {
+  const canvasRef = React.useRef<HTMLCanvasElement | null>(null);
+  const wrapRef = React.useRef<HTMLDivElement | null>(null);
+  const drawingRef = React.useRef(false);
+  const lastPt = React.useRef<{ x: number; y: number } | null>(null);
 
-function PreviewFields({ fields, theme }: { fields: EnhancedFormField[], theme: FormTheme }) {
+  // Apenas redimensiona e preserva o conteúdo atual do canvas
+  const resize = React.useCallback(() => {
+    const canvas = canvasRef.current;
+    const wrap = wrapRef.current;
+    if (!canvas || !wrap) return;
+
+    const dpr = typeof window !== "undefined" ? window.devicePixelRatio || 1 : 1;
+    const cssWidth = wrap.clientWidth;
+    const cssHeight = height;
+
+    // salva conteúdo atual
+    const prev = canvas.toDataURL();
+
+    canvas.width = Math.max(1, Math.floor(cssWidth * dpr));
+    canvas.height = Math.max(1, Math.floor(cssHeight * dpr));
+    canvas.style.width = cssWidth + "px";
+    canvas.style.height = cssHeight + "px";
+
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    ctx.setTransform(1, 0, 0, 1, 0, 0);     // reseta transform antes de escalar
+    ctx.scale(dpr, dpr);
+
+    // restaura o conteúdo que já estava desenhado (se houver)
+    if (prev) {
+      const img = new Image();
+      img.onload = () => ctx.drawImage(img, 0, 0, cssWidth, cssHeight);
+      img.src = prev;
+    }
+  }, [height]);
+
+  React.useEffect(() => {
+    resize();
+    const obs = new ResizeObserver(resize);
+    if (wrapRef.current) obs.observe(wrapRef.current);
+    return () => obs.disconnect();
+  }, [resize]);
+
+  // Desenha a imagem quando "value" externo muda
+  React.useEffect(() => {
+    const canvas = canvasRef.current;
+    const wrap = wrapRef.current;
+    const ctx = canvas?.getContext("2d");
+    if (!canvas || !ctx || !wrap) return;
+
+    const dpr = window.devicePixelRatio || 1;
+    const cssWidth = wrap.clientWidth;
+    const cssHeight = height;
+
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    if (value) {
+      const img = new Image();
+      img.onload = () => {
+        // desenha em coordenadas CSS
+        ctx.save();
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        ctx.drawImage(img, 0, 0, cssWidth, cssHeight);
+        ctx.restore();
+      };
+      img.src = value;
+    }
+  }, [value, height]);
+
+  const pointerPos = (e: React.PointerEvent<HTMLCanvasElement>) => {
+    const rect = (e.target as HTMLCanvasElement).getBoundingClientRect();
+    return { x: e.clientX - rect.left, y: e.clientY - rect.top };
+  };
+
+  const start = (e: React.PointerEvent<HTMLCanvasElement>) => {
+    const canvas = canvasRef.current;
+    const ctx = canvas?.getContext("2d");
+    if (!canvas || !ctx) return;
+    (e.target as Element).setPointerCapture(e.pointerId);
+    drawingRef.current = true;
+    lastPt.current = pointerPos(e);
+  };
+
+  const move = (e: React.PointerEvent<HTMLCanvasElement>) => {
+    const canvas = canvasRef.current;
+    const ctx = canvas?.getContext("2d");
+    if (!canvas || !ctx || !drawingRef.current || !lastPt.current) return;
+    const now = pointerPos(e);
+
+    ctx.lineJoin = "round";
+    ctx.lineCap = "round";
+    ctx.strokeStyle = theme.fontColor || "#111827";
+    ctx.lineWidth = 2.4;
+
+    ctx.beginPath();
+    ctx.moveTo(lastPt.current.x, lastPt.current.y);
+    ctx.lineTo(now.x, now.y);
+    ctx.stroke();
+
+    lastPt.current = now;
+  };
+
+  const end = () => {
+    if (!drawingRef.current) return;
+    drawingRef.current = false;
+    lastPt.current = null;
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    onChange(canvas.toDataURL("image/png"));
+  };
+
+  const clear = () => {
+    const canvas = canvasRef.current;
+    const ctx = canvas?.getContext("2d");
+    if (!canvas || !ctx) return;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    onChange("");              // deixa o efeito [value] cuidar de não redesenhar
+  };
+
+  return (
+    <div ref={wrapRef} style={{ width: "100%" }}>
+      <div
+        style={{
+          width: "100%",
+          border: `2px dashed ${theme.tableBorderColor || "#26314a"}`,
+          borderRadius: 8,
+          background: theme.inputBgColor || "transparent",
+          position: "relative",
+        }}
+      >
+        <canvas
+          ref={canvasRef}
+          onPointerDown={start}
+          onPointerMove={move}
+          onPointerUp={end}
+          onPointerCancel={end}
+          onPointerLeave={end}
+          style={{ display: "block", touchAction: "none", borderRadius: 8 }}
+        />
+        {!value && (
+          <span
+            style={{
+              position: "absolute",
+              inset: 0,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              pointerEvents: "none",
+              color: "#9ca3af",
+              fontSize: 14,
+            }}
+          >
+            Assine aqui
+          </span>
+        )}
+      </div>
+
+      <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 8 }}>
+        <button
+          type="button"
+          onClick={clear}
+          style={{
+            padding: "6px 10px",
+            borderRadius: 8,
+            border: `1px solid ${theme.tableBorderColor || "#26314a"}`,
+            background: "transparent",
+            color: theme.fontColor,
+            fontSize: 13,
+            cursor: "pointer",
+          }}
+          title="Limpar assinatura"
+        >
+          Limpar assinatura
+        </button>
+      </div>
+    </div>
+  );
+}
+
+
+// Preview controlado: campos clicáveis e editáveis no preview
+function PreviewFields({
+  fields,
+  theme,
+  values,
+  onChange,
+  onToggle,
+  onTableChange,
+}: {
+  fields: EnhancedFormField[];
+  theme: FormTheme;
+  values: PreviewValues;
+  onChange: (fieldId: string, value: any) => void;
+  onToggle: (fieldId: string, option: string) => void; // checkboxes
+  onTableChange: (fieldId: string, rowId: string, colId: string, value: string) => void;
+}) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-      {fields.map((field) => (
-        <div key={field.id} style={{ marginBottom: 16 }}>
-          {field.type === 'Cabeçalho' ? (
-          <h2
-  style={{
-    marginBottom: '1rem',
-    background: theme.sectionHeaderBg ?? 'transparent',
-    color: theme.sectionHeaderFont ?? theme.fontColor,
-    fontSize: '1.5rem',
-    padding: 8,
-    borderRadius: theme.borderRadius,
-  }}
->
-  {field.label || 'Cabeçalho do Formulário'}
-</h2>
+      {fields.map((field) => {
+        const v = values[field.id];
 
-          ) : (
-            <>
-              <label
+        return (
+          <div key={field.id} style={{ marginBottom: 16 }}>
+            {field.type === 'Cabeçalho' ? (
+              <h2
                 style={{
-                  display: 'block',
-                  marginBottom: 8,
-                  fontWeight: 500,
-                  color: theme.fontColor,
+                  marginBottom: '1rem',
+                  background: theme.sectionHeaderBg ?? 'transparent',
+                  color: theme.sectionHeaderFont ?? theme.fontColor,
+                  fontSize: '1.5rem',
+                  padding: 8,
+                  borderRadius: theme.borderRadius,
                 }}
               >
-                {field.label}
-                {field.required && (
-                  <span style={{ color: '#ef4444', marginLeft: 4 }}>*</span>
+                {field.label || 'Cabeçalho do Formulário'}
+              </h2>
+            ) : (
+              <>
+                <label
+                  style={{
+                    display: 'block',
+                    marginBottom: 8,
+                    fontWeight: 500,
+                    color: theme.fontColor,
+                  }}
+                >
+                  {field.label}
+                  {field.required && <span style={{ color: '#ef4444', marginLeft: 4 }}>*</span>}
+                </label>
+
+                {field.description && (
+                  <p
+                    style={{
+                      margin: '0 0 2rem 0',
+                      color: theme.descriptionColor || theme.fontColor,
+                    }}
+                  >
+                    {field.description}
+                  </p>
                 )}
-              </label>
-              {field.description && (
-                <p
-               style={{
-                  margin: '0 0 2rem 0',
-                  color: theme.descriptionColor || theme.fontColor,
-                 }}
-                    >
-                  {field.description}
-                </p>
-              )}
-              {field.type === 'Texto' && (
-                <input
-                  type="text"
-                  placeholder={field.placeholder}
-                  style={{
-                    width: '100%',
-                    padding: '8px 12px',
-                    border: `1px solid ${theme.tableBorderColor}`,
-                    borderRadius: '6px',
-                    fontSize: '14px',
-                    background: theme.inputBgColor,
-                    color: theme.inputFontColor || theme.fontColor,
-                  }}
-                  disabled
-                />
-              )}
-              {field.type === 'Data' && (
-                <input
-                  type="date"
-                  style={{
-                    width: '100%',
-                    padding: '8px 12px',
-                    border: `1px solid ${theme.tableBorderColor}`,
-                    borderRadius: '6px',
-                    fontSize: '14px',
-                    background: theme.inputBgColor,
-                    color: theme.inputFontColor || theme.fontColor,
-                  }}
-                  disabled
-                />
-              )}
-              {field.type === 'Caixa de Seleção' && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                  {field.options?.map((option, i) => (
-                    <label
-                      key={i}
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 8,
-                        color: theme.fontColor,
-                      }}
-                    >
-                      <input type="checkbox" disabled />
-                      <span>{option}</span>
-                    </label>
-                  ))}
-                </div>
-              )}
-              {field.type === 'Múltipla Escolha' &&
-                (field.displayAs === 'dropdown' ? (
-                  <select
+
+                {/* TEXTO */}
+                {field.type === 'Texto' && (
+                  <input
+                    type="text"
+                    placeholder={field.placeholder}
+                    value={(v as string) ?? ''}
+                    onChange={(e) => onChange(field.id, e.target.value)}
                     style={{
                       width: '100%',
                       padding: '8px 12px',
@@ -716,178 +882,261 @@ function PreviewFields({ fields, theme }: { fields: EnhancedFormField[], theme: 
                       background: theme.inputBgColor,
                       color: theme.inputFontColor || theme.fontColor,
                     }}
-                    disabled
-                  >
-                    <option>Selecione uma opção</option>
-                    {field.options?.map((option, i) => (
-                      <option key={i}>{option}</option>
-                    ))}
-                  </select>
-                ) : (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                    {field.options?.map((option, i) => (
-                      <label
-                        key={i}
-                        style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: 8,
-                          color: theme.fontColor,
-                        }}
-                      >
-                        <input type="radio" name={field.id} disabled />
-                        <span>{option}</span>
-                      </label>
-                    ))}
-                  </div>
-                ))}
-              {field.type === 'Anexo' && (
-                <input
-                  type="file"
-                  style={{
-                    width: '100%',
-                    padding: '8px 12px',
-                    border: `1px solid ${theme.tableBorderColor}`,
-                    borderRadius: '6px',
-                    fontSize: '14px',
-                    background: theme.inputBgColor,
-                    color: theme.inputFontColor || theme.fontColor,
-                  }}
-                  disabled
-                />
-              )}
-              {field.type === 'Assinatura' && (
-                <div
-                  style={{
-                    width: '100%',
-                    height: '120px',
-                    border: `2px dashed ${theme.tableBorderColor}`,
-                    borderRadius: '6px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    color: '#6b7280',
-                    fontSize: '14px',
-                  }}
-                >
-                  Área de assinatura
-                </div>
-              )}
-              {field.type === 'Tabela' && (
-                <div style={{ overflowX: 'auto' }}>
-                  <table
+                  />
+                )}
+
+                {/* DATA */}
+                {field.type === 'Data' && (
+                  <input
+                    type="date"
+                    value={(v as string) ?? ''}
+                    onChange={(e) => onChange(field.id, e.target.value)}
                     style={{
                       width: '100%',
-                      borderCollapse: 'collapse',
+                      padding: '8px 12px',
                       border: `1px solid ${theme.tableBorderColor}`,
+                      borderRadius: '6px',
+                      fontSize: '14px',
+                      background: theme.inputBgColor,
+                      color: theme.inputFontColor || theme.fontColor,
                     }}
-                  >
-                    <thead>
-                      <tr>
-                        <th
+                  />
+                )}
+
+                {/* CHECKBOXES (Caixa de Seleção) */}
+                {field.type === 'Caixa de Seleção' && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                    {(field.options || []).map((option, i) => {
+                      const list = Array.isArray(v) ? (v as string[]) : [];
+                      const checked = list.includes(option);
+                      return (
+                        <label
+                          key={i}
                           style={{
-                            border: `1px solid ${theme.tableBorderColor}`,
-                            padding: '8px',
-                            background: theme.tableHeaderBg,
-                            color: theme.tableHeaderFont,
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 8,
+                            color: theme.fontColor,
                           }}
-                        ></th>
-                        {field.columns?.map((col) => (
+                        >
+                          <input
+                            type="checkbox"
+                            checked={checked}
+                            onChange={() => onToggle(field.id, option)}
+                          />
+                          <span>{option}</span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                )}
+
+                {/* MÚLTIPLA ESCOLHA */}
+                {field.type === 'Múltipla Escolha' &&
+                  (field.displayAs === 'dropdown' ? (
+                    <select
+                      value={(v as string) ?? ''}
+                      onChange={(e) => onChange(field.id, e.target.value)}
+                      style={{
+                        width: '100%',
+                        padding: '8px 12px',
+                        border: `1px solid ${theme.tableBorderColor}`,
+                        borderRadius: '6px',
+                        fontSize: '14px',
+                        background: theme.inputBgColor,
+                        color: theme.inputFontColor || theme.fontColor,
+                      }}
+                    >
+                      <option value="">Selecione uma opção</option>
+                      {field.options?.map((option, i) => (
+                        <option key={i} value={option}>
+                          {option}
+                        </option>
+                      ))}
+                    </select>
+                  ) : (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                      {field.options?.map((option, i) => (
+                        <label
+                          key={i}
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 8,
+                            color: theme.fontColor,
+                          }}
+                        >
+                          <input
+                            type="radio"
+                            name={field.id}
+                            value={option}
+                            checked={(v as string) === option}
+                            onChange={() => onChange(field.id, option)}
+                          />
+                          <span>{option}</span>
+                        </label>
+                      ))}
+                    </div>
+                  ))}
+
+                {/* ANEXO (simulado no preview) */}
+                {field.type === 'Anexo' && (
+                  <input
+                    type="file"
+                    onChange={(e) => onChange(field.id, e.target.files?.[0]?.name || '')}
+                    style={{
+                      width: '100%',
+                      padding: '8px 12px',
+                      border: `1px solid ${theme.tableBorderColor}`,
+                      borderRadius: '6px',
+                      fontSize: '14px',
+                      background: theme.inputBgColor,
+                      color: theme.inputFontColor || theme.fontColor,
+                    }}
+                  />
+                )}
+
+                {/* ASSINATURA (mock simples no preview) */}
+               {field.type === 'Assinatura' && (
+  <SignaturePad
+    value={(v as string) ?? ""}
+    onChange={(dataUrl) => onChange(field.id, dataUrl)}
+    theme={theme}
+  />
+)}
+
+
+                {/* TABELA */}
+                {field.type === 'Tabela' && (
+                  <div style={{ overflowX: 'auto' }}>
+                    <table
+                      style={{
+                        width: '100%',
+                        borderCollapse: 'collapse',
+                        border: `1px solid ${theme.tableBorderColor}`,
+                      }}
+                    >
+                      <thead>
+                        <tr>
                           <th
-                            key={col.id}
                             style={{
                               border: `1px solid ${theme.tableBorderColor}`,
                               padding: '8px',
                               background: theme.tableHeaderBg,
                               color: theme.tableHeaderFont,
                             }}
-                          >
-                            {col.label}
-                          </th>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {field.rows?.map((row, idx) => (
-                        <tr
-                          key={row.id}
-                          style={{
-                            background:
-                              idx % 2 === 0
-                                ? theme.tableOddRowBg
-                                : theme.tableEvenRowBg,
-                          }}
-                        >
-                          <td
-                            style={{
-                              border: `1px solid ${theme.tableBorderColor}`,
-                              padding: '8px',
-                              fontWeight: 500,
-                              color: theme.tableCellFont || theme.fontColor,
-                              background: theme.tableHeaderBg,
-                            }}
-                          >
-                            {row.label}
-                          </td>
+                          ></th>
                           {field.columns?.map((col) => (
-                            <td
+                            <th
                               key={col.id}
                               style={{
                                 border: `1px solid ${theme.tableBorderColor}`,
-                                padding: '4px',
-                                color: theme.tableCellFont || theme.fontColor,
+                                padding: '8px',
+                                background: theme.tableHeaderBg,
+                                color: theme.tableHeaderFont,
                               }}
                             >
-                              {col.type === 'select' ? (
-                                <select
-                                  style={{
-                                    width: '100%',
-                                    padding: '4px',
-                                    border: 'none',
-                                    background: theme.inputBgColor,
-                                    color: theme.inputFontColor || theme.fontColor,
-                                  }}
-                                  disabled
-                                >
-                                  <option>Selecionar</option>
-                                  {col.options?.map((opt, i) => (
-                                    <option key={i}>{opt}</option>
-                                  ))}
-                                </select>
-                              ) : (
-                                <input
-                                  type={
-                                    col.type === 'number'
-                                      ? 'number'
-                                      : col.type === 'date'
-                                      ? 'date'
-                                      : 'text'
-                                  }
-                                  style={{
-                                    width: '100%',
-                                    padding: '4px',
-                                    border: 'none',
-                                    background: theme.inputBgColor,
-                                    color: theme.inputFontColor || theme.fontColor,
-                                  }}
-                                  disabled
-                                />
-                              )}
-                            </td>
+                              {col.label}
+                            </th>
                           ))}
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </>
-          )}
-        </div>
-      ))}
+                      </thead>
+                      <tbody>
+                        {field.rows?.map((row, idx) => {
+                          const table = (values[field.id] as TableCellValues) || {};
+                          const rowVals = table[row.id] || {};
+                          return (
+                            <tr
+                              key={row.id}
+                              style={{
+                                background: idx % 2 === 0 ? theme.tableOddRowBg : theme.tableEvenRowBg,
+                              }}
+                            >
+                              <td
+                                style={{
+                                  border: `1px solid ${theme.tableBorderColor}`,
+                                  padding: '8px',
+                                  fontWeight: 500,
+                                  color: theme.tableCellFont || theme.fontColor,
+                                  background: theme.tableHeaderBg,
+                                }}
+                              >
+                                {row.label}
+                              </td>
+
+                              {field.columns?.map((col) => {
+                                const cellValue = rowVals[col.id] ?? '';
+                                return (
+                                  <td
+                                    key={col.id}
+                                    style={{
+                                      border: `1px solid ${theme.tableBorderColor}`,
+                                      padding: '4px',
+                                      color: theme.tableCellFont || theme.fontColor,
+                                    }}
+                                  >
+                                    {col.type === 'select' ? (
+                                      <select
+                                        value={cellValue}
+                                        onChange={(e) =>
+                                          onTableChange(field.id, row.id, col.id, e.target.value)
+                                        }
+                                        style={{
+                                          width: '100%',
+                                          padding: '4px',
+                                          border: 'none',
+                                          background: theme.inputBgColor,
+                                          color: theme.inputFontColor || theme.fontColor,
+                                        }}
+                                      >
+                                        <option value="">Selecionar</option>
+                                        {col.options?.map((opt, i) => (
+                                          <option key={i} value={opt}>
+                                            {opt}
+                                          </option>
+                                        ))}
+                                      </select>
+                                    ) : (
+                                      <input
+                                        type={
+                                          col.type === 'number'
+                                            ? 'number'
+                                            : col.type === 'date'
+                                            ? 'date'
+                                            : 'text'
+                                        }
+                                        value={cellValue}
+                                        onChange={(e) =>
+                                          onTableChange(field.id, row.id, col.id, e.target.value)
+                                        }
+                                        style={{
+                                          width: '100%',
+                                          padding: '4px',
+                                          border: 'none',
+                                          background: theme.inputBgColor,
+                                          color: theme.inputFontColor || theme.fontColor,
+                                        }}
+                                      />
+                                    )}
+                                  </td>
+                                );
+                              })}
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        );
+      })}
     </div>
   );
 }
+
 
 
 // Componente principal
@@ -913,6 +1162,9 @@ function EnhancedFormBuilderPage(props: EnhancedFormBuilderPageProps) {
   const params = useParams();
   const searchParams = useSearchParams(); // Hook para ler a URL
  const formId = props.existingForm?.id || (params?.id as string) || 'novo';
+const [previewValues, setPreviewValues] = useState<PreviewValues>({});
+const [autoFill, setAutoFill] = useState<boolean>(false);
+
   // Estados principais
   const [loading, setLoading] = useState<boolean>(true);
   const [saving, setSaving] = useState<boolean>(false);
@@ -1093,6 +1345,26 @@ const [logoFileName, setLogoFileName] = useState<string>(draft.logo?.name || '')
     }
   }, [draft, loading, companyId, departmentId, formId]);
 
+// NEW – cria chaves faltantes em previewValues quando campos mudam
+useEffect(() => {
+  setPreviewValues(prev => {
+    const next: PreviewValues = { ...prev };
+    draft.fields.forEach(f => {
+      if (next[f.id] === undefined) {
+        if (f.type === 'Caixa de Seleção') next[f.id] = [];           // checkboxes
+        else if (f.type === 'Tabela') next[f.id] = {};                 // table
+        else next[f.id] = '';                                          // texto/data/radio/dropdown
+      }
+    });
+    // remove chaves de campos deletados
+    Object.keys(next).forEach(k => {
+      if (!draft.fields.some(f => f.id === k)) delete next[k];
+    });
+    return next;
+  });
+}, [draft.fields]);
+
+
   // Fechar menu ao clicar fora
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -1230,6 +1502,116 @@ const [logoFileName, setLogoFileName] = useState<string>(draft.logo?.name || '')
       automation: { ...prev.automation!, target }
     }));
   };
+
+// NEW – mudar um valor simples (texto, data, radio, dropdown)
+const handlePreviewChange = useCallback((fieldId: string, value: any) => {
+  setPreviewValues(prev => ({ ...prev, [fieldId]: value }));
+}, []);
+
+// NEW – toggle para checkbox (Caixa de Seleção)
+const toggleCheckboxOption = useCallback((fieldId: string, option: string) => {
+  setPreviewValues(prev => {
+    const cur = Array.isArray(prev[fieldId]) ? (prev[fieldId] as string[]) : [];
+    const exists = cur.includes(option);
+    const next = exists ? cur.filter(o => o !== option) : [...cur, option];
+    return { ...prev, [fieldId]: next };
+  });
+}, []);
+
+// NEW – mudar célula da tabela
+const handleTableCellChange = useCallback((
+  fieldId: string, rowId: string, colId: string, value: string
+) => {
+  setPreviewValues(prev => {
+    const table = (prev[fieldId] as TableCellValues) || {};
+    const row = table[rowId] || {};
+    const next = { ...prev, [fieldId]: { ...table, [rowId]: { ...row, [colId]: value } } };
+    return next;
+  });
+}, []);
+
+// NEW – limpar respostas
+const clearPreview = useCallback(() => {
+  setPreviewValues({});
+  setAutoFill(false);
+}, []);
+
+// ------- AUTOFILL ALEATÓRIO -------
+
+function randInt(min: number, max: number) {
+  return Math.floor(Math.random() * (max - min + 1)) + min;
+}
+function pickOne<T>(arr: T[]) { return arr[randInt(0, Math.max(arr.length - 1, 0))]; }
+
+function randomWord() {
+  const words = ['alpha','bravo','charlie','delta','echo','fox','golf','hotel','india','juliet','kilo','lima','mike','november','oscar','papa','quebec','romeo','sierra','tango','uniform','victor','whiskey','xray','yankee','zulu'];
+  return pickOne(words);
+}
+function randomText() {
+  const n = randInt(2, 5);
+  return Array.from({length:n}).map(randomWord).join(' ');
+}
+function randomDateISO() {
+  const now = new Date();
+  const past = new Date(now);
+  past.setDate(now.getDate() - randInt(0, 365));
+  const y = past.getFullYear();
+  const m = String(past.getMonth()+1).padStart(2,'0');
+  const d = String(past.getDate()).padStart(2,'0');
+  return `${y}-${m}-${d}`;
+}
+
+const fillRandomValues = useCallback(() => {
+  const next: PreviewValues = {};
+  draft.fields.forEach(f => {
+    switch (f.type) {
+      case 'Texto':
+        next[f.id] = randomText();
+        break;
+      case 'Data':
+        next[f.id] = randomDateISO();
+        break;
+      case 'Múltipla Escolha': {
+        const opts = f.options || [];
+        next[f.id] = opts.length ? pickOne(opts) : '';
+        break;
+      }
+      case 'Caixa de Seleção': {
+        const opts = f.options || [];
+        const pickCount = randInt(0, Math.max(0, Math.min(opts.length, 3)));
+        const shuffled = [...opts].sort(() => Math.random() - 0.5);
+        next[f.id] = shuffled.slice(0, pickCount);
+        break;
+      }
+      case 'Tabela': {
+        const t: TableCellValues = {};
+        (f.rows || []).forEach(r => {
+          t[r.id] = {};
+          (f.columns || []).forEach(c => {
+            let v = '';
+            if (c.type === 'number') v = String(randInt(1, 999));
+            else if (c.type === 'date') v = randomDateISO();
+            else if (c.type === 'select') v = c.options && c.options.length ? pickOne(c.options) : '';
+            else v = randomText();
+            t[r.id][c.id] = v;
+          });
+        });
+        next[f.id] = t;
+        break;
+      }
+      default:
+        next[f.id] = '';
+    }
+  });
+  setPreviewValues(next);
+}, [draft.fields]);
+
+// NEW – ligar/desligar o autofill
+const toggleAutofill = useCallback((checked: boolean) => {
+  setAutoFill(checked);
+  if (checked) fillRandomValues();
+}, [fillRandomValues]);
+
 
   // Handler de colaboradores
   const handleCollaboratorToggle = (collaboratorId: string): void => {
@@ -1513,8 +1895,80 @@ const [logoFileName, setLogoFileName] = useState<string>(draft.logo?.name || '')
   </p>
 )}
 
+{/* Controles do preview */}
+<div
+  style={{
+    display: 'flex',
+    flexWrap: 'wrap',
+    gap: 8,
+    alignItems: 'center',
+    margin: '0 0 14px 0',
+  }}
+>
+  <label
+    style={{
+      display: 'inline-flex',
+      alignItems: 'center',
+      gap: 8,
+      padding: '6px 10px',
+      border: `1px solid ${draft.theme.tableBorderColor || '#26314a'}`,
+      borderRadius: 8,
+      cursor: 'pointer',
+      userSelect: 'none',
+    }}
+  >
+    <input
+      type="checkbox"
+      checked={autoFill}
+      onChange={(e) => toggleAutofill(e.target.checked)}
+    />
+    Autopreencher
+  </label>
 
-<PreviewFields fields={draft.fields} theme={draft.theme} />
+  <button
+    type="button"
+    onClick={fillRandomValues}
+    style={{
+      padding: '6px 12px',
+      borderRadius: 8,
+      border: '1px solid transparent',
+      background: draft.theme.accentColor,
+      color: '#fff',
+      fontSize: 13,
+      cursor: 'pointer',
+    }}
+    title="Gerar novos valores aleatórios para todos os campos"
+  >
+    Regerar
+  </button>
+
+  <button
+    type="button"
+    onClick={clearPreview}
+    style={{
+      padding: '6px 12px',
+      borderRadius: 8,
+      border: `1px solid ${draft.theme.tableBorderColor || '#26314a'}`,
+      background: 'transparent',
+      color: draft.theme.fontColor,
+      fontSize: 13,
+      cursor: 'pointer',
+    }}
+    title="Limpar todas as respostas do preview"
+  >
+    Limpar
+  </button>
+</div>
+
+
+<PreviewFields
+  fields={draft.fields}
+  theme={draft.theme}
+  values={previewValues}
+  onChange={handlePreviewChange}
+  onToggle={toggleCheckboxOption}
+  onTableChange={handleTableCellChange}
+/>
 
                   </div>
                 </div>
