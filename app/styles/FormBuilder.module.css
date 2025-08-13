@@ -147,21 +147,24 @@
   color: #64ffda;
 }
 
-.saveBtn {
-  padding: 0.75rem 1.5rem;
-  background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
-  border: none;
-  border-radius: 8px;
-  color: white;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  font-size: 0.9rem;
-  box-shadow: 0 4px 12px rgba(67, 233, 123, 0.3);
+.saveBtn{
+  position:relative;
+  padding:.85rem 1.6rem;
+  border:none;
+  border-radius:12px;
+  color:#0e1325;
+  font-weight:700;
+  letter-spacing:.2px;
+  display:flex; align-items:center; gap:.5rem;
+  cursor:pointer;
+  background:linear-gradient(135deg,#7CF9C8 0%, #54F0F0 100%);
+  box-shadow:0 12px 28px rgba(84,240,240,.22);
+  transition:transform .18s ease, filter .2s ease, box-shadow .2s ease;
 }
+.saveBtn:hover:not(:disabled){ transform:translateY(-2px); filter:brightness(1.05); }
+.saveBtn:active{ transform:translateY(0); }
+.saveBtn:disabled{ opacity:.6; cursor:not-allowed; filter:saturate(.6); }
+
 
 .saveBtn:hover:not(:disabled) {
   transform: translateY(-2px);
@@ -191,7 +194,7 @@
 /* Layout principal */
 .builderGrid {
   display: grid;
-  grid-template-columns: 350px 1fr 380px;
+  grid-template-columns: 350px 1fr 460px;
   gap: 2rem;
   padding: 2rem;
   max-width: 1600px;
@@ -518,6 +521,24 @@
   font-size: 0.8rem;
 }
 
+.card{
+  background:rgba(15,18,35,.55);
+  border:1px solid rgba(255,255,255,.06);
+  border-radius:14px;
+  padding:14px;
+  box-shadow:0 10px 24px rgba(0,0,0,.25);
+}
+.card + .card{ margin-top:14px; }
+
+.cardTitle{
+  font-weight:700;
+  color:#9be7ff;
+  font-size:.95rem;
+  margin:0 0 .6rem;
+  letter-spacing:.2px;
+}
+
+
 .actionBtn:hover {
   background: #64ffda;
   color: #0f0f23;
@@ -597,18 +618,22 @@
 }
 
 /* Sidebar direita */
+/* Sidebar direita */
 .sidebarRight {
   background: rgba(255, 255, 255, 0.1);
   backdrop-filter: blur(20px);
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 16px;
   padding: 1.5rem;
-  height: fit-content;
-  position: sticky;
-  top: 100px;
+  height: auto;
+   position: sticky;
+   top: 100px;
+   max-height: calc(100vh - 120px); /* 100px do top + 20px de folga */
+  overflow: auto;                  /* <- rolagem interna */
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
   animation: slideInRight 0.6s ease-out;
 }
+
 
 @keyframes slideInRight {
   from { opacity: 0; transform: translateX(50px); }
@@ -636,6 +661,20 @@
   align-items: center;
   gap: 0.5rem;
 }
+
+.propertyInput:focus, .propertyTextarea:focus, select.propertyInput:focus{
+  outline:none;
+  box-shadow:0 0 0 3px rgba(79,209,197,.25);
+  border-color:#64ffda;
+}
+
+.propertyGroup + .propertyGroup{
+  border-top:1px dashed rgba(255,255,255,.07);
+  padding-top:12px; margin-top:12px;
+}
+
+.tabSwitcher{ padding:6px; gap:6px; }
+.tab{ border-radius:10px; }
 
 
 .propertyInput {
@@ -705,15 +744,65 @@
 /* Responsividade */
 @media (max-width: 1400px) {
   .builderGrid {
-    grid-template-columns: 320px 1fr 350px;
+    grid-template-columns: 320px 1fr 420px;
     gap: 1.5rem;
     padding: 1.5rem;
   }
 }
 
+/* Container com “pílula” */
+.automationToggle{
+  display:flex;
+  gap:10px;
+  background:rgba(255,255,255,0.06);
+  border:1px solid rgba(255,255,255,0.08);
+  border-radius:999px;
+  padding:6px;
+  width:max-content;
+  box-shadow:0 6px 18px rgba(0,0,0,0.25) inset;
+}
+
+/* Botão base */
+.togglePill{
+  position:relative;
+  display:flex;
+  align-items:center;
+  gap:8px;
+  padding:10px 14px;
+  border:none;
+  border-radius:999px;
+  background:transparent;
+  color:#cbd5e1;
+  cursor:pointer;
+  transition:all .25s ease;
+  isolation:isolate; /* para o :before ficar sob o texto */
+}
+
+/* Highlight “pílula ligada” */
+.togglePill.on{
+  color:#0f1220;
+}
+.togglePill.on::before{
+  content:"";
+  position:absolute;
+  inset:0;
+  background:linear-gradient(135deg,#43e97b 0%, #38f9d7 100%);
+  border-radius:inherit;
+  z-index:-1;
+  box-shadow:0 6px 20px rgba(56,249,215,.35);
+}
+
+/* Hover/Focus */
+.togglePill:not(.on):hover{
+  color:#64ffda;
+  background:rgba(100,255,218,0.08);
+}
+.togglePill:focus{ outline:none; box-shadow:0 0 0 3px rgba(100,255,218,.25); }
+
+
 @media (max-width: 1200px) {
   .builderGrid {
-    grid-template-columns: 280px 1fr 320px;
+    grid-template-columns: 280px 1fr 380px;
     gap: 1.5rem;
     padding: 1.5rem;
   }

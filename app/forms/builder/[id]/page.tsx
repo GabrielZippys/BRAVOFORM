@@ -1713,8 +1713,11 @@ const [logoFileName, setLogoFileName] = useState<string>(draft.logo?.name || '')
     )}
   </div>
 </div>
-                  
-                  <div className={styles.propertyGroup}>
+
+
+    <div className={styles.card}>
+  <div className={styles.cardTitle}>Aparência</div>              
+  <div className={styles.propertyGroup}>
   <label>Cor de Fundo do Painel</label>
   <input
     type="color"
@@ -1806,25 +1809,30 @@ const [logoFileName, setLogoFileName] = useState<string>(draft.logo?.name || '')
     className={styles.colorInput}
   />
 </div>
+</div>
 
 
                 {/* Automação */}
                 <div className={styles.automationSection}>
                   <h4 className={styles.subTitle}>Automação de Notificação</h4>
                   <div className={styles.automationToggle}>
-                    <button
-                      className={`${styles.toggleButton} ${draft.automation?.type === 'email' ? styles.active : ''}`}
-                      onClick={() => setAutomationType('email')}
-                    >
-                      <Mail size={16} /> E-mail
-                    </button>
-                    <button
-                      className={`${styles.toggleButton} ${draft.automation?.type === 'whatsapp' ? styles.active : ''}`}
-                      onClick={() => setAutomationType('whatsapp')}
-                    >
-                      <MessageCircle size={16} /> WhatsApp
-                    </button>
-                  </div>
+  <button
+    className={`${styles.togglePill} ${draft.automation?.type === 'email' ? styles.on : ''}`}
+    onClick={() => setAutomationType('email')}
+    type="button"
+  >
+    <Mail size={16}/> E-mail
+  </button>
+
+  <button
+    className={`${styles.togglePill} ${draft.automation?.type === 'whatsapp' ? styles.on : ''}`}
+    onClick={() => setAutomationType('whatsapp')}
+    type="button"
+  >
+    <MessageCircle size={16}/> WhatsApp
+  </button>
+</div>
+
                   <input
                     type={draft.automation?.type === 'email' ? 'email' : 'tel'}
                     value={draft.automation?.target || ''}
