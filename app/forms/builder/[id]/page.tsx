@@ -141,6 +141,80 @@ const FORM_KEY = (companyId: string, deptId: string, formId: string) =>
 const generateFieldId = () => `field_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
 const generateTableId = (prefix: string) => `${prefix}_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
 
+// Retorna preto (#111827) para fundos claros e branco (#ffffff) para fundos escuros
+function pickTextColor(bg?: string, light = '#ffffff', dark = '#111827') {
+  if (!bg) return dark;                       // fallback
+  // aceita #rgb, #rrggbb ou rgb(a)
+  let r = 255, g = 255, b = 255;
+
+  if (bg.startsWith('#')) {
+    const hex = bg.replace('#', '');
+    const full = hex.length === 3
+      ? hex.split('').map(c => c + c).join('')
+      : hex;
+    r = parseInt(full.substring(0, 2), 16);
+    g = parseInt(full.substring(2, 4), 16);
+    b = parseInt(full.substring(4, 6), 16);
+  } else if (bg.startsWith('rgb')) {
+    const nums = bg.match(/\d+(\.\d+)?/g)?.map(Number) || [255, 255, 255];
+    [r, g, b] = nums as [number, number, number];
+  }
+
+  // luminância relativa (WCAG)
+  const srgb = [r, g, b].map(v => {
+    const c = v / 255;
+    return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
+  });
+  const L = 0.2126 * srgb[0] + 0.7152 * srgb[1] + 0.0722 * srgb[2];
+
+  return L > 0.179 ? dark : light;
+}
+
+function parseRGB(c?: string) {
+  if (!c) return { r: 0, g: 0, b: 0 };
+  if (c.startsWith('#')) {
+    const h = c.slice(1);
+    const full = h.length === 3 ? h.split('').map(x => x + x).join('') : h;
+    return {
+      r: parseInt(full.slice(0, 2), 16),
+      g: parseInt(full.slice(2, 4), 16),
+      b: parseInt(full.slice(4, 6), 16),
+    };
+  }
+  if (c.startsWith('rgb')) {
+    const [r, g, b] = (c.match(/\d+(\.\d+)?/g) || ['0','0','0']).map(Number);
+    return { r, g, b };
+  }
+  return { r: 0, g: 0, b: 0 };
+}
+
+function relLum({ r, g, b }: { r: number; g: number; b: number }) {
+  const toLin = (v: number) => {
+    const c = v / 255;
+    return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
+  };
+  const R = toLin(r), G = toLin(g), B = toLin(b);
+  return 0.2126 * R + 0.7152 * G + 0.0722 * B;
+}
+
+function contrastRatio(fg: string, bg: string) {
+  const L1 = relLum(parseRGB(fg));
+  const L2 = relLum(parseRGB(bg));
+  const [a, b] = L1 >= L2 ? [L1, L2] : [L2, L1];
+  return (a + 0.05) / (b + 0.05);
+}
+
+
+
+// Usa a cor do tema se tiver CONTRASTE; caso contrário, escolhe automaticamente
+function ensureReadableText(bg?: string, preferred?: string) {
+  const auto = pickTextColor(bg);
+  if (!preferred) return auto;
+  return contrastRatio(preferred, bg || '#ffffff') >= 4.5 ? preferred : auto;
+}
+
+
+
 // ---- NORMALIZE FORM
 function normalizeForm(data: any) {
   return {
@@ -821,11 +895,14 @@ function PreviewFields({
   onToggle: (fieldId: string, option: string) => void; // checkboxes
   onTableChange: (fieldId: string, rowId: string, colId: string, value: string) => void;
 }) {
+const baseInputBg = theme.inputBgColor || '#ffffff';
+const autoInputColor = ensureReadableText(baseInputBg, theme.inputFontColor);
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
       {fields.map((field) => {
         const v = values[field.id];
-
+        
         return (
           <div key={field.id} style={{ marginBottom: 16 }}>
             {field.type === 'Cabeçalho' ? (
@@ -880,7 +957,9 @@ function PreviewFields({
                       borderRadius: '6px',
                       fontSize: '14px',
                       background: theme.inputBgColor,
-                      color: theme.inputFontColor || theme.fontColor,
+                      color: autoInputColor,
+caretColor: autoInputColor,   // (opcional) garante o cursor visível
+
                     }}
                   />
                 )}
@@ -898,7 +977,9 @@ function PreviewFields({
                       borderRadius: '6px',
                       fontSize: '14px',
                       background: theme.inputBgColor,
-                      color: theme.inputFontColor || theme.fontColor,
+                      color: autoInputColor,
+caretColor: autoInputColor,   // (opcional) garante o cursor visível
+
                     }}
                   />
                 )}
@@ -944,7 +1025,9 @@ function PreviewFields({
                         borderRadius: '6px',
                         fontSize: '14px',
                         background: theme.inputBgColor,
-                        color: theme.inputFontColor || theme.fontColor,
+                        color: autoInputColor,
+caretColor: autoInputColor,   // (opcional) garante o cursor visível
+
                       }}
                     >
                       <option value="">Selecione uma opção</option>
@@ -991,7 +1074,9 @@ function PreviewFields({
                       borderRadius: '6px',
                       fontSize: '14px',
                       background: theme.inputBgColor,
-                      color: theme.inputFontColor || theme.fontColor,
+                      color: autoInputColor,
+caretColor: autoInputColor,   // (opcional) garante o cursor visível
+
                     }}
                   />
                 )}
@@ -1086,7 +1171,9 @@ function PreviewFields({
                                           padding: '4px',
                                           border: 'none',
                                           background: theme.inputBgColor,
-                                          color: theme.inputFontColor || theme.fontColor,
+                                          color: autoInputColor,
+caretColor: autoInputColor,   // (opcional) garante o cursor visível
+
                                         }}
                                       >
                                         <option value="">Selecionar</option>
@@ -1114,7 +1201,9 @@ function PreviewFields({
                                           padding: '4px',
                                           border: 'none',
                                           background: theme.inputBgColor,
-                                          color: theme.inputFontColor || theme.fontColor,
+                                          color: autoInputColor,
+caretColor: autoInputColor,   // (opcional) garante o cursor visível
+
                                         }}
                                       />
                                     )}
@@ -1959,6 +2048,7 @@ const toggleAutofill = useCallback((checked: boolean) => {
     Limpar
   </button>
 </div>
+
 
 
 <PreviewFields
