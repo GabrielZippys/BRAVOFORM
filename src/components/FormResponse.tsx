@@ -4,7 +4,6 @@ import React, { useState, useRef, useEffect } from 'react';
 import { db } from '../../firebase/config';
 import { doc, addDoc, updateDoc, collection, serverTimestamp } from 'firebase/firestore';
 import { type Form, type FormResponse as FormResponseType } from '@/types';
-import styles from '../../app/styles/FormResponse.module.css';
 import { X, Send, Eraser } from 'lucide-react';
 
 // Campo aprimorado para tipos
@@ -430,14 +429,7 @@ export default function FormResponse({
       case 'select':
         return (
           <select
-            style={{
-              width: '100%',
-              background: theme.inputBgColor,
-              color: theme.inputFontColor,
-              border: `1px solid ${theme.tableBorderColor}`,
-              borderRadius: theme.borderRadius,
-              padding: '5px 10px',
-            }}
+           style={controlBase}
             value={value}
             onChange={e =>
               handleTableInputChange(fieldId, rowId, colId, e.target.value)
@@ -480,106 +472,118 @@ export default function FormResponse({
     const disabled = !canEdit && !!existingResponse;
     const otherVal = '___OTHER___';
     switch (field.type) {
-      case 'Cabeçalho':
-        return (
-          <div
-            style={{
-              background: theme.sectionHeaderBg,
-              color: theme.sectionHeaderFont,
-              fontWeight: 'bold',
-              fontSize: 20,
-              borderRadius: theme.borderRadius,
-              padding: '10px 16px',
-              marginBottom: 12,
-              marginTop: index > 0 ? 28 : 0,
-            }}
-          >
-            {field.label}
-          </div>
-        );
+     case 'Cabeçalho':
+  return (
+    <div
+      style={{
+        background: theme.sectionHeaderBg,
+        color: theme.sectionHeaderFont,
+        fontWeight: 600,                  // antes: 'bold'
+        fontSize: 'clamp(13px, 1.2vw, 16px)', // antes: 20
+        lineHeight: 1.35,
+        borderRadius: theme.borderRadius,
+        padding: '10px 16px',
+        marginBottom: 12,
+        marginTop: index > 0 ? 28 : 0,
+      }}
+    >
+      {field.label}
+    </div>
+  );
+
       case 'Tabela':
-        return (
-          <div style={{ overflowX: 'auto', marginBottom: 16 }}>
-            <table
+  return (
+   <div style={{ overflowX: 'auto', marginBottom: 16, WebkitOverflowScrolling: 'touch' }}>
+  <table style={{
+          width: '100%',
+          borderCollapse: 'collapse',
+          border: `1.5px solid ${theme.tableBorderColor}`,
+          borderRadius: theme.borderRadius,
+          fontSize: 15,
+          background: theme.bgColor,
+          color: theme.tableCellFont,
+          overflow: 'hidden',
+        }}
+      >
+        {/* controla a largura das colunas */}
+       <colgroup>
+  <col style={{ width: 'clamp(180px, 62%, 520px)' }} />  {/* rótulo da linha */}
+  {(field.columns ?? []).map((_, i) => (
+<col key={i} style={{ width: `${Math.floor(38 / Math.max(1,(field.columns?.length ?? 1)))}%` }} />    
+  ))}
+</colgroup>
+
+
+        <thead>
+          <tr>
+            <th
               style={{
-                width: '100%',
-                borderCollapse: 'collapse',
+                background: theme.tableHeaderBg,
+                color: theme.tableHeaderFont,
                 border: `1.5px solid ${theme.tableBorderColor}`,
-                borderRadius: theme.borderRadius,
+                borderTopLeftRadius: theme.borderRadius,
+                padding: 8,
+                fontWeight: 'bold',
                 fontSize: 15,
-                background: theme.bgColor,
+              }}
+            />
+            {field.columns?.map((col: any) => (
+              <th
+                key={col.id}
+                style={{
+                  background: theme.tableHeaderBg,
+                  color: theme.tableHeaderFont,
+                  border: `1.5px solid ${theme.tableBorderColor}`,
+                  padding: 8,
+                  fontWeight: 600,
+                  fontSize: 15,
+                }}
+              >
+                {col.label}
+              </th>
+            ))}
+          </tr>
+        </thead>
+
+        <tbody>
+          {field.rows?.map((row: any, ridx: number) => (
+            <tr
+              key={row.id}
+              style={{
+                background: ridx % 2 === 0 ? theme.tableOddRowBg : theme.tableEvenRowBg,
                 color: theme.tableCellFont,
-                overflow: 'hidden',
               }}
             >
-              <thead>
-                <tr>
-                  <th
-                    style={{
-                      background: theme.tableHeaderBg,
-                      color: theme.tableHeaderFont,
-                      border: `1.5px solid ${theme.tableBorderColor}`,
-                      borderTopLeftRadius: theme.borderRadius,
-                      padding: 8,
-                      fontWeight: 'bold',
-                      fontSize: 15,
-                    }}
-                  ></th>
-                  {field.columns?.map((col: any) => (
-                    <th
-                      key={col.id}
-                      style={{
-                        background: theme.tableHeaderBg,
-                        color: theme.tableHeaderFont,
-                        border: `1.5px solid ${theme.tableBorderColor}`,
-                        padding: 8,
-                        fontWeight: 600,
-                        fontSize: 15,
-                      }}
-                    >
-                      {col.label}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {field.rows?.map((row: any, ridx: number) => (
-                  <tr
-                    key={row.id}
-                    style={{
-                      background: ridx % 2 === 0 ? theme.tableOddRowBg : theme.tableEvenRowBg,
-                      color: theme.tableCellFont,
-                    }}
-                  >
-                    <td
-                      style={{
-                        fontWeight: 500,
-                        border: `1.5px solid ${theme.tableBorderColor}`,
-                        background: theme.tableHeaderBg,
-                        color: theme.tableHeaderFont,
-                        padding: 7,
-                        minWidth: 95,
-                      }}
-                    >
-                      {row.label}
-                    </td>
-                    {field.columns?.map((col: any) => (
-                      <td
-                        key={col.id}
-                        style={{
-                          border: `1.5px solid ${theme.tableBorderColor}`,
-                          padding: 4,
-                        }}
-                      >
-                        {renderTableCell(field, row, col)}
-                      </td>
-                    ))}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        );
+              <td
+                style={{
+                  fontWeight: 500,
+                  border: `1.5px solid ${theme.tableBorderColor}`,
+                  background: theme.tableHeaderBg,
+                  color: theme.tableHeaderFont,
+                  padding: 7,
+                }}
+              >
+                {row.label}
+              </td>
+
+              {field.columns?.map((col: any) => (
+                <td
+                  key={col.id}
+                  style={{
+                    border: `1.5px solid ${theme.tableBorderColor}`,
+                    padding: 4,
+                  }}
+                >
+                  {renderTableCell(field, row, col)}
+                </td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+
       case 'Anexo':
         return (
           <div style={{ marginBottom: 6 }}>
@@ -595,6 +599,8 @@ export default function FormResponse({
                 border: `1px solid ${theme.tableBorderColor}`,
                 padding: '8px 12px',
                 marginBottom: 4,
+                 minHeight: 36,       // 👈 toque confortável
+                 fontSize: 16         // 👈 evita zoom no iOS
               }}
             />
             {Array.isArray(responses[fieldId]) &&
@@ -671,9 +677,7 @@ export default function FormResponse({
                     );
                   }}
                   disabled={disabled}
-                  style={{
-                    accentColor: theme.accentColor
-                  }}
+                  style={controlBase}
                 />
                 <span>{opt}</span>
               </label>
@@ -706,15 +710,7 @@ export default function FormResponse({
                     onChange={e => handleOtherInputChange(fieldId, e.target.value)}
                     placeholder="Por favor, especifique"
                     disabled={disabled}
-                    style={{
-                      background: theme.inputBgColor,
-                      color: theme.inputFontColor,
-                      border: `1px solid ${theme.accentColor}`,
-                      borderRadius: theme.borderRadius,
-                      padding: '8px 12px',
-                      fontSize: 15,
-                      marginTop: 3,
-                    }}
+                    style={controlBase}
                   />
                 )}
               </>
@@ -728,15 +724,7 @@ export default function FormResponse({
               value={responses[fieldId] || ''}
               onChange={e => handleInputChange(fieldId, e.target.value)}
               disabled={disabled}
-              style={{
-                background: theme.inputBgColor,
-                color: theme.inputFontColor,
-                border: `1.5px solid ${theme.accentColor}`,
-                borderRadius: theme.borderRadius,
-                padding: '8px 12px',
-                fontSize: 15,
-                marginBottom: 2,
-              }}
+              style={controlBase}
             >
               <option value="">Selecione</option>
               {field.options?.map((opt: string) => (
@@ -806,18 +794,7 @@ export default function FormResponse({
             value={responses[fieldId] || ''}
             onChange={e => handleInputChange(fieldId, e.target.value)}
             disabled={disabled}
-            style={{
-              width: '100%',
-              background: theme.inputBgColor,
-              color: theme.inputFontColor,
-              border: `1.5px solid ${theme.accentColor}`,
-              borderRadius: theme.borderRadius,
-              padding: '10px 14px',
-              fontSize: 15,
-              minHeight: 46,
-              resize: 'vertical',
-              marginBottom: 2,
-            }}
+            style={controlBase}
           />
         );
       case 'Data':
@@ -845,65 +822,86 @@ export default function FormResponse({
             onChange={e => handleInputChange(fieldId, e.target.value)}
             placeholder={field.placeholder || ''}
             disabled={disabled}
-            style={{
-              background: theme.inputBgColor,
-              color: theme.inputFontColor,
-              border: `1.5px solid ${theme.accentColor}`,
-              borderRadius: theme.borderRadius,
-              padding: '8px 12px',
-              fontSize: 15,
-              marginBottom: 2,
-            }}
+              style={controlBase}
+
           />
         );
     }
   };
 
+  const controlBase = {
+  background: theme.inputBgColor,
+  color: theme.inputFontColor,
+  border: `1.5px solid ${theme.accentColor}`,
+  borderRadius: theme.borderRadius,
+  padding: '10px 12px',
+  fontSize: 16,      // evita zoom no iOS
+  minHeight: 42,     // hit-area confortável
+} as const;
+
+
   // --------------- RENDER ---------------
 
   return (
     <div
-      style={{
-        background: theme.bgColor + 'E5',
-        color: theme.fontColor,
-        position: 'fixed',
-        zIndex: 222,
-        left: 0, top: 0, width: '100vw', height: '100vh',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-      }}
-    >
-      <div
-        style={{
-          background: theme.bgColor,
-          color: theme.fontColor,
-          borderRadius: theme.borderRadius,
-          boxShadow: `0 6px 24px #0004`,
-          border: `2.5px solid ${theme.accentColor}`,
-          width: '98vw',
-          maxWidth: 550,
-          minWidth: 330,
-          margin: '0 auto',
-          display: 'flex',
-          flexDirection: 'column',
-          maxHeight: '96vh',
-        }}
-      >
+  style={{
+    background: theme.bgColor + 'E5',
+    color: theme.fontColor,
+    position: 'fixed',
+    zIndex: 222,
+    inset: 0,
+    width: '100vw',
+    height: '100dvh',                   // <— usa a altura dinâmica do viewport (mobile)
+    paddingLeft: 'max(8px, env(safe-area-inset-left))',
+    paddingRight: 'max(8px, env(safe-area-inset-right))',
+    paddingTop: 'max(8px, env(safe-area-inset-top))',
+    paddingBottom: 'max(8px, env(safe-area-inset-bottom))',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+  }}
+>
+
+       <div
+  style={{
+    background: theme.bgColor,
+    color: theme.fontColor,
+    borderRadius: theme.borderRadius,
+    boxShadow: `0 10px 48px #000a`,
+    border: `2.5px solid ${theme.accentColor}`,
+
+    // largura fluida com gutters automáticos
+    width: 'min(100%, 1100px)',
+    maxWidth: '96vw',
+    minWidth: 'min(360px, 96vw)',
+
+    // controla altura total do cartão e delega o scroll ao corpo
+    maxHeight: '92dvh',
+    overflow: 'hidden',
+
+    margin: '0 auto',
+    display: 'flex',
+    flexDirection: 'column',
+  }}
+>
+
+
         {/* HEADER */}
-        <div
-          style={{
-            background: theme.accentColor,
-            color: '#fff',
-            borderTopLeftRadius: theme.borderRadius,
-            borderTopRightRadius: theme.borderRadius,
-            padding: '18px 26px 12px 22px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-          }}
-        >
-          <h3 style={{ fontSize: 22, fontWeight: 700, margin: 0 }}>{form.title}</h3>
+      <div
+  style={{
+    background: theme.accentColor,
+    color: '#fff',
+    borderTopLeftRadius: theme.borderRadius,
+    borderTopRightRadius: theme.borderRadius,
+    padding: 'clamp(12px, 2.6vw, 22px)',        // <— responsivo
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  }}
+>
+  <h3 style={{ fontSize: 'clamp(16px, 2.2vw, 24px)', fontWeight: 700, margin: 0 }}>
+    {form.title}
+  </h3>
           <button onClick={onClose} style={{
             background: 'none',
             border: 'none',
@@ -950,12 +948,18 @@ export default function FormResponse({
         )}
 
         {/* FIELDS */}
-        <div style={{
-          padding: '0 24px 16px 24px',
-          overflowY: 'auto',
-          flex: 1,
-          marginBottom: 0
-        }}>
+       <div
+  style={{
+    padding: '0 clamp(12px, 3vw, 28px) clamp(12px, 2vw, 18px)',
+    overflowY: 'auto',
+    flex: '1 1 auto',
+    marginBottom: 0,
+    WebkitOverflowScrolling: 'touch',
+    overscrollBehavior: 'contain',
+    scrollbarGutter: 'stable',
+  }}
+>
+
           {(form.fields as EnhancedFormField[]).map((field, idx) => (
             <div key={field.id} style={{ marginBottom: 18 }}>
               {field.type !== 'Cabeçalho' && (
@@ -984,16 +988,17 @@ export default function FormResponse({
         </div>
 
         {/* FOOTER */}
-        <div
-          style={{
-            background: theme.footerBg,
-            color: theme.footerFont,
-            borderBottomLeftRadius: theme.borderRadius,
-            borderBottomRightRadius: theme.borderRadius,
-            padding: '14px 24px 14px 24px',
-            marginTop: 'auto'
-          }}
-        >
+       <div
+  style={{
+    background: theme.footerBg,
+    color: theme.footerFont,
+    borderBottomLeftRadius: theme.borderRadius,
+    borderBottomRightRadius: theme.borderRadius,
+    padding: 'clamp(12px, 2.6vw, 24px)',
+    marginTop: 'auto'
+  }}
+>
+
           {error && <div style={{ color: "#ef4444", fontWeight: 600, fontSize: 15, marginBottom: 5 }}>{error}</div>}
           {canEdit || !existingResponse ? (
             <button
