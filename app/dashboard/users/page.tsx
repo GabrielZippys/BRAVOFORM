@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Plus, Building, Users, ChevronRight, Eye, EyeOff, UserPlus, Edit, Trash2, KeyRound, History } from 'lucide-react';
+import { Plus, Building, Users, ChevronRight, Eye, EyeOff, UserPlus, Edit, Trash2, KeyRound, History, Star } from 'lucide-react';
 import Modal from '@/components/Modal'; 
 import styles from '../../styles/Users.module.css';
 import modalStyles from '../../styles/Modal.module.css';
@@ -18,7 +18,8 @@ interface Collaborator {
     id: string; 
     username: string; 
     canViewHistory?: boolean;
-    canEditHistory?: boolean; // Nova permissão
+    canEditHistory?: boolean;
+    isLeader?: boolean;
 }
 type ModalType = 'company' | 'department' | 'collaborator' | 'adminUser';
 
@@ -155,7 +156,7 @@ const handleAddCollaborator = async (e: React.FormEvent) => {
             console.error("Erro ao atualizar permissão:", error);
         }
     };
-
+    
     const handleDeleteCollaborator = async (collaboratorId: string) => {
         if (!selectedDepartment) return;
         // Opcional: Adicionar uma confirmação antes de excluir
@@ -168,6 +169,17 @@ const handleAddCollaborator = async (e: React.FormEvent) => {
         }
     };
 
+const handleToggleLeader = async (collaborator: Collaborator) => {
+  if (!selectedDepartment) return;
+  const collaboratorRef = doc(db, `departments/${selectedDepartment.id}/collaborators`, collaborator.id);
+  try {
+    await updateDoc(collaboratorRef, { isLeader: !collaborator.isLeader });
+  } catch (error) {
+    console.error("Erro ao atualizar líder:", error);
+  }
+};
+
+
     const renderContent = () => {
         switch(view) {
             case 'collaborators':
@@ -175,25 +187,83 @@ const handleAddCollaborator = async (e: React.FormEvent) => {
                     <div className={styles.frame}>
                         <div className={styles.frameHeader}><h3 className={styles.frameTitle}>Acesso dos Colaboradores</h3><button onClick={() => openModal('collaborator')} className={styles.button}><KeyRound size={16}/><span>Criar Acesso</span></button></div>
                         <div className={styles.list}>
-                           {collaborators.length > 0 ? collaborators.map(c => (
-                                <div key={c.id} className={styles.itemCard} style={{flexDirection: 'column', alignItems: 'stretch'}}>
-                                    <h4 className={styles.itemName} style={{textAlign: 'center', marginBottom: '1rem'}}>{c.username}</h4>
-                                    {/* SEÇÃO DE OPÇÕES AVANÇADAS */}
-                                    <div className={styles.advancedOptions}>
-                                        <div className={styles.permissionsGrid}>
-                                            <div className={styles.permissionToggle}>
-                                                <label className={styles.toggleLabel} htmlFor={`history-toggle-${c.id}`}>Ver Histórico</label>
-                                                <label className={styles.toggleSwitch}><input id={`history-toggle-${c.id}`} type="checkbox" checked={!!c.canViewHistory} onChange={() => handleTogglePermission(c, 'canViewHistory')}/><span className={styles.slider}></span></label>
-                                            </div>
-                                            <div className={styles.permissionToggle}>
-                                                <label className={styles.toggleLabel} htmlFor={`edit-toggle-${c.id}`}>Editar Histórico</label>
-                                                <label className={styles.toggleSwitch}><input id={`edit-toggle-${c.id}`} type="checkbox" checked={!!c.canEditHistory} onChange={() => handleTogglePermission(c, 'canEditHistory')}/><span className={styles.slider}></span></label>
-                                            </div>
-                                            <button className={styles.deleteButton} onClick={() => handleDeleteCollaborator(c.id)}><Trash2 size={16}/> Excluir</button>
-                                        </div>
-                                    </div>
-                                </div>
-                            )) : <p className={styles.emptyState}>Nenhum acesso criado para este setor.</p>}
+                           {sortedCollaborators.length > 0 ? sortedCollaborators.map(c => (
+  <div key={c.id} className={styles.itemCard} style={{flexDirection: 'column', alignItems: 'stretch'}}>
+    <h4
+  className={styles.itemName}
+  style={{
+    textAlign: 'center',
+    marginBottom: '0.75rem',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8
+  }}
+>
+  {c.username}
+
+  {c.isLeader && (
+    <span className={styles.leaderBadge}>
+      <Star size={14} fill="currentColor" />
+      Líder
+    </span>
+  )}
+</h4>
+
+    <div className={styles.advancedOptions}>
+      <div className={styles.permissionsGrid}>
+        <div className={styles.permissionToggle}>
+          <label className={styles.toggleLabel} htmlFor={`history-toggle-${c.id}`}>Ver Histórico</label>
+          <label className={styles.toggleSwitch}>
+            <input
+              id={`history-toggle-${c.id}`}
+              type="checkbox"
+              checked={!!c.canViewHistory}
+              onChange={() => handleTogglePermission(c, 'canViewHistory')}
+            />
+            <span className={styles.slider}></span>
+          </label>
+        </div>
+
+        <div className={styles.permissionToggle}>
+          <label className={styles.toggleLabel} htmlFor={`edit-toggle-${c.id}`}>Editar Histórico</label>
+          <label className={styles.toggleSwitch}>
+            <input
+              id={`edit-toggle-${c.id}`}
+              type="checkbox"
+              checked={!!c.canEditHistory}
+              onChange={() => handleTogglePermission(c, 'canEditHistory')}
+            />
+            <span className={styles.slider}></span>
+          </label>
+        </div>
+
+        {/* botão de líder */}
+        {/* botão de líder (estilo de botão, não switch) */}
+<div className={styles.permissionToggle}>
+  <button
+    type="button"
+    className={`${styles.leaderToggle} ${c.isLeader ? styles.on : ''}`}
+    onClick={() => handleToggleLeader(c)}
+    aria-pressed={!!c.isLeader}
+    title={c.isLeader ? 'Remover como líder' : 'Definir como líder'}
+  >
+    <Star size={16} fill={c.isLeader ? 'currentColor' : 'none'} />
+    {c.isLeader ? 'Líder' : 'Tornar líder'}
+  </button>
+</div>
+
+
+        <button className={styles.deleteButton} onClick={() => handleDeleteCollaborator(c.id)}>
+          <Trash2 size={16}/> Excluir
+        </button>
+      </div>
+    </div>
+  </div>
+)) : (
+  <p className={styles.emptyState}>Nenhum acesso criado para este setor.</p>
+)}
+
                         </div>
                     </div>
                 );
@@ -202,6 +272,13 @@ const handleAddCollaborator = async (e: React.FormEvent) => {
             default: return ( <> <div className={styles.frame}><div className={styles.frameHeader}><h3 className={styles.frameTitle}>Administração</h3><button onClick={() => openModal('adminUser')} className={styles.button}><UserPlus size={16}/><span>Novo Admin</span></button></div>{loading ? <p className={styles.emptyState}>Carregando...</p> : adminUsers.length > 0 ? adminUsers.map(user => (<div key={user.id} className={styles.itemCard}><div><h4 className={styles.itemName}>{user.name}</h4><p className={styles.itemInfo}>{user.email}</p></div><span className={styles.permissionTag}>Admin</span></div>)) : <p className={styles.emptyState}>Nenhum administrador criado.</p>}</div><div className={styles.frame}><div className={styles.frameHeader}><h3 className={styles.frameTitle}>Empresas</h3><button onClick={() => openModal('company')} className={styles.button}><Plus size={16}/><span>Nova Empresa</span></button></div>{loading ? <p className={styles.emptyState}>Carregando...</p> : companies.length > 0 ? companies.map(c => (<div key={c.id} className={`${styles.itemCard} ${styles.itemCardClickable}`} onClick={() => handleSelectCompany(c)}><h4 className={styles.itemName}>{c.name}</h4><Building size={20} /></div>)) : <p className={styles.emptyState}>Nenhuma empresa criada.</p>}</div></> );
         }
     };
+const sortedCollaborators = [...collaborators].sort((a, b) => {
+  // líderes no topo; se empatar, ordena por nome
+  const la = !!a.isLeader ? 1 : 0;
+  const lb = !!b.isLeader ? 1 : 0;
+  if (lb !== la) return lb - la;
+  return (a.username || '').localeCompare(b.username || '');
+});
 
     return (
         <>
@@ -214,6 +291,7 @@ const handleAddCollaborator = async (e: React.FormEvent) => {
                         {selectedDepartment && <><ChevronRight size={16}/> <span className={styles.active}>{selectedDepartment.name}</span></>}
                     </div>
                 )}
+            
                 {renderContent()}
             </div>
             <Modal isOpen={isModalOpen} onClose={closeModal} title={ modalContent === 'company' ? 'Nova Empresa' : modalContent === 'department' ? 'Novo Setor' : modalContent === 'adminUser' ? 'Novo Administrador' : 'Criar Acesso de Colaborador' }>
