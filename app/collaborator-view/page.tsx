@@ -3,11 +3,21 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { db } from '../../firebase/config';
-import { doc, getDoc, collection, query, where, onSnapshot, collectionGroup, Timestamp, serverTimestamp } from 'firebase/firestore';
+import {
+  doc,
+  getDoc,
+  collection,
+  query,
+  where,
+  onSnapshot,
+  collectionGroup,
+  Timestamp,
+} from 'firebase/firestore';
 import styles from '../styles/CollaboratorView.module.css';
 import { FileText, LogOut, History, User2, Edit, Eye } from 'lucide-react';
 import CollaboratorHistoryModal from '@/components/CollaboratorView'; // Modal de histórico
 import FormResponse from '@/components/FormResponse'; // Modal para responder formulário
+import DepartmentLeaderDash from './DepartmentLeaderDash'; // ← novo componente (mesma pasta)
 
 // TIPOS principais
 interface Collaborator {
@@ -18,7 +28,9 @@ interface Collaborator {
   departmentId: string;
   canViewHistory?: boolean;
   canEditHistory?: boolean;
+  isLeader?: boolean; // precisa existir aqui
 }
+
 interface Form {
   id: string;
   title: string;
@@ -37,8 +49,8 @@ interface FormResponseType {
   formId: string;
   formTitle: string;
   answers?: any;
-  createdAt?: Timestamp; // Correto! Timestamp
-  submittedAt?: Timestamp; // para garantir compatibilidade
+  createdAt?: Timestamp;   // sempre Timestamp
+  submittedAt?: Timestamp; // compatibilidade
 }
 
 export default function CollaboratorView() {
@@ -47,7 +59,7 @@ export default function CollaboratorView() {
   const [departmentName, setDepartmentName] = useState('');
   const [formsToFill, setFormsToFill] = useState<Form[]>([]);
   const [submittedResponses, setSubmittedResponses] = useState<FormResponseType[]>([]);
-  const [view, setView] = useState<'forms' | 'history'>('forms');
+  const [view, setView] = useState<'forms' | 'history' | 'leaderDash'>('forms'); // ← nova guia
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [modalOpen, setModalOpen] = useState(false);
@@ -69,7 +81,8 @@ export default function CollaboratorView() {
         const parsed = JSON.parse(storedData) as Collaborator;
         const collRef = doc(db, `departments/${parsed.departmentId}/collaborators`, parsed.id);
         const snap = await getDoc(collRef);
-        if (snap.exists()) setCollaborator({ ...parsed, ...snap.data() });
+        // se existir no Firestore, pega inclusive isLeader/capacidades
+        if (snap.exists()) setCollaborator({ ...parsed, ...(snap.data() as any) });
         else setCollaborator(parsed);
       } catch {
         router.push('/');
@@ -81,65 +94,74 @@ export default function CollaboratorView() {
   // Nomes empresa/depto
   useEffect(() => {
     if (collaborator?.companyId) {
-      getDoc(doc(db, 'companies', collaborator.companyId)).then(snap => {
-        setCompanyName(snap.exists() ? snap.data().name : '');
+      getDoc(doc(db, 'companies', collaborator.companyId)).then((snap) => {
+        setCompanyName(snap.exists() ? (snap.data() as any).name : '');
       });
     }
     if (collaborator?.companyId && collaborator?.departmentId) {
-      getDoc(doc(db, `companies/${collaborator.companyId}/departments`, collaborator.departmentId)).then(snap => {
-        setDepartmentName(snap.exists() ? snap.data().name : '');
-      });
+      getDoc(doc(db, `companies/${collaborator.companyId}/departments`, collaborator.departmentId)).then(
+        (snap) => {
+          setDepartmentName(snap.exists() ? (snap.data() as any).name : '');
+        }
+      );
     }
   }, [collaborator?.companyId, collaborator?.departmentId]);
 
-  // Formulários
+  // Formulários liberados para o colaborador
   useEffect(() => {
     if (!collaborator?.id) return;
     setLoading(true);
-    const q = query(
-      collection(db, "forms"),
-      where("authorizedUsers", "array-contains", collaborator.id)
-    );
-    const unsub = onSnapshot(q, (snapshot) => {
-      setFormsToFill(
-        snapshot.docs.map(doc => {
-          const data = doc.data();
-          return {
-            id: doc.id,
-            ...data,
-            fields: Array.isArray(data.fields) ? data.fields : [],
-            createdAt: data.createdAt instanceof Timestamp ? data.createdAt : undefined,
-            companyId: data.companyId ?? "",
-            departmentId: data.departmentId ?? "",
-          } as Form;
-        })
-      );
-      setLoading(false);
-    }, () => setLoading(false));
-    return () => unsub();
-  }, [collaborator?.id]);
-
-  // Histórico
-  useEffect(() => {
-    if (view === 'history' && collaborator?.id) {
-      setLoading(true);
-      const q = query(collectionGroup(db, "responses"), where("collaboratorId", "==", collaborator.id));
-      const unsub = onSnapshot(q, (snapshot) => {
-        setSubmittedResponses(
-          snapshot.docs.map(doc => {
-            const d = doc.data();
+    const q = query(collection(db, 'forms'), where('authorizedUsers', 'array-contains', collaborator.id));
+    const unsub = onSnapshot(
+      q,
+      (snapshot) => {
+        setFormsToFill(
+          snapshot.docs.map((docSnap) => {
+            const data = docSnap.data() as any;
             return {
-              id: doc.id,
-              ...d,
-              // usa o campo submittedAt ou createdAt, sempre como Timestamp!
-              createdAt: (d.submittedAt instanceof Timestamp) ? d.submittedAt
-                : (d.createdAt instanceof Timestamp) ? d.createdAt
-                : undefined,
-            } as FormResponseType;
+              id: docSnap.id,
+              ...data,
+              fields: Array.isArray(data.fields) ? data.fields : [],
+              createdAt: data.createdAt instanceof Timestamp ? data.createdAt : undefined,
+              companyId: data.companyId ?? '',
+              departmentId: data.departmentId ?? '',
+            } as Form;
           })
         );
         setLoading(false);
-      }, () => setLoading(false));
+      },
+      () => setLoading(false)
+    );
+    return () => unsub();
+  }, [collaborator?.id]);
+
+  // Histórico das respostas do colaborador
+  useEffect(() => {
+    if (view === 'history' && collaborator?.id) {
+      setLoading(true);
+      const q = query(collectionGroup(db, 'responses'), where('collaboratorId', '==', collaborator.id));
+      const unsub = onSnapshot(
+        q,
+        (snapshot) => {
+          setSubmittedResponses(
+            snapshot.docs.map((docSnap) => {
+              const d = docSnap.data() as any;
+              return {
+                id: docSnap.id,
+                ...d,
+                createdAt:
+                  d.submittedAt instanceof Timestamp
+                    ? d.submittedAt
+                    : d.createdAt instanceof Timestamp
+                    ? d.createdAt
+                    : undefined,
+              } as FormResponseType;
+            })
+          );
+          setLoading(false);
+        },
+        () => setLoading(false)
+      );
       return () => unsub();
     }
   }, [view, collaborator?.id]);
@@ -153,13 +175,15 @@ export default function CollaboratorView() {
   const handleHistoryOpen = async (response: FormResponseType) => {
     const formSnap = await getDoc(doc(db, 'forms', response.formId));
     const form = formSnap.exists()
-      ? {
-        id: formSnap.id,
-        ...(formSnap.data() as any),
-        fields: Array.isArray((formSnap.data() as any).fields) ? (formSnap.data() as any).fields : [],
-        companyId: (formSnap.data() as any).companyId ?? "",
-        departmentId: (formSnap.data() as any).departmentId ?? "",
-      }
+      ? ({
+          id: formSnap.id,
+          ...(formSnap.data() as any),
+          fields: Array.isArray((formSnap.data() as any).fields)
+            ? (formSnap.data() as any).fields
+            : [],
+          companyId: (formSnap.data() as any).companyId ?? '',
+          departmentId: (formSnap.data() as any).departmentId ?? '',
+        } as Form)
       : null;
     setFormSelecionado(form);
     setRespostaSelecionada(response);
@@ -175,8 +199,8 @@ export default function CollaboratorView() {
         ...firestoreForm,
         id: form.id,
         fields: Array.isArray(firestoreForm.fields) ? firestoreForm.fields : [],
-        companyId: firestoreForm.companyId ?? "",
-        departmentId: firestoreForm.departmentId ?? "",
+        companyId: firestoreForm.companyId ?? '',
+        departmentId: firestoreForm.departmentId ?? '',
       });
     }
   };
@@ -188,7 +212,9 @@ export default function CollaboratorView() {
       <header className={styles.header}>
         <div className={styles.headerContent}>
           <div className={styles.userInfoBox}>
-            <span className={styles.userAvatar}><User2 size={28} /></span>
+            <span className={styles.userAvatar}>
+              <User2 size={28} />
+            </span>
             <div>
               <div className={styles.userNameRow}>{collaborator?.username || <span>...</span>}</div>
               <div className={styles.userInfoLine}>
@@ -211,35 +237,61 @@ export default function CollaboratorView() {
       {/* CONTEÚDO */}
       <div className={styles.content}>
         <div className={styles.viewToggle}>
-          <button className={`${styles.toggleButton} ${view === 'forms' ? styles.active : ''}`} onClick={() => setView('forms')}>
+          <button
+            className={`${styles.toggleButton} ${view === 'forms' ? styles.active : ''}`}
+            onClick={() => setView('forms')}
+          >
             Formulários
           </button>
+
           {collaborator?.canViewHistory && (
-            <button className={`${styles.toggleButton} ${view === 'history' ? styles.active : ''}`} onClick={() => setView('history')}>
+            <button
+              className={`${styles.toggleButton} ${view === 'history' ? styles.active : ''}`}
+              onClick={() => setView('history')}
+            >
               Histórico
             </button>
           )}
+
+          {/* guia aparece somente para líderes */}
+          {collaborator?.isLeader && (
+            <button
+              className={`${styles.toggleButton} ${view === 'leaderDash' ? styles.active : ''}`}
+              onClick={() => setView('leaderDash')}
+            >
+              Dash do Líder
+            </button>
+          )}
         </div>
+
         {loading && <p className={styles.loadingText}>Carregando dados...</p>}
         {error && <p className={styles.errorText}>{error}</p>}
 
         {/* FORMULÁRIOS */}
         {!loading && view === 'forms' && (
-          formsToFill.length === 0 ?
-            <div className={styles.emptyState}><FileText size={48} /><p>Nenhuma diretiva encontrada para você.</p></div>
-            :
+          formsToFill.length === 0 ? (
+            <div className={styles.emptyState}>
+              <FileText size={48} />
+              <p>Nenhuma diretiva encontrada para você.</p>
+            </div>
+          ) : (
             <div className={styles.grid}>
-              {formsToFill.map(form => (
+              {formsToFill.map((form) => (
                 <div key={form.id} className={styles.card}>
-                  <div className={styles.cardIcon}><FileText size={32} /></div>
+                  <div className={styles.cardIcon}>
+                    <FileText size={32} />
+                  </div>
                   <div className={styles.cardBody}>
                     <h2 className={styles.cardTitle}>{form.title}</h2>
                     {form.description && <p className={styles.cardSubtitle}>{form.description}</p>}
-                    {form.createdAt &&
+                    {form.createdAt && (
                       <p className={styles.cardSubtitle}>
-                        Criado em {form.createdAt.seconds ? new Date(form.createdAt.seconds * 1000).toLocaleDateString() : ''}
+                        Criado em{' '}
+                        {form.createdAt.seconds
+                          ? new Date(form.createdAt.seconds * 1000).toLocaleDateString()
+                          : ''}
                       </p>
-                    }
+                    )}
                   </div>
                   <button className={styles.cardButton} onClick={() => handleResponder(form)}>
                     Responder
@@ -247,36 +299,65 @@ export default function CollaboratorView() {
                 </div>
               ))}
             </div>
+          )
         )}
 
         {/* HISTÓRICO */}
         {!loading && view === 'history' && (
-          submittedResponses.length === 0 ?
-            <div className={styles.emptyState}><History size={48} /><p>Nenhum histórico encontrado.</p></div>
-            :
+          submittedResponses.length === 0 ? (
+            <div className={styles.emptyState}>
+              <History size={48} />
+              <p>Nenhum histórico encontrado.</p>
+            </div>
+          ) : (
             <div className={styles.grid}>
-              {submittedResponses.map(response => (
+              {submittedResponses.map((response) => (
                 <div key={response.id} className={styles.card}>
-                  <div className={styles.cardIcon}><History size={32} /></div>
+                  <div className={styles.cardIcon}>
+                    <History size={32} />
+                  </div>
                   <div className={styles.cardBody}>
                     <h2 className={styles.cardTitle}>{response.formTitle}</h2>
-                    {response.createdAt &&
+                    {response.createdAt && (
                       <p className={styles.cardSubtitle}>
-                        Respondido em {response.createdAt.seconds ? new Date(response.createdAt.seconds * 1000).toLocaleDateString('pt-BR') : 'Sem data'}
+                        Respondido em{' '}
+                        {response.createdAt.seconds
+                          ? new Date(response.createdAt.seconds * 1000).toLocaleDateString('pt-BR')
+                          : 'Sem data'}
                       </p>
-                    }
+                    )}
                   </div>
                   <button className={styles.cardButton} onClick={() => handleHistoryOpen(response)}>
-                    {collaborator?.canEditHistory
-                      ? <><Edit size={16} style={{ marginRight: 5, verticalAlign: 'middle' }} /> Editar</>
-                      : <><Eye size={16} style={{ marginRight: 5, verticalAlign: 'middle' }} /> Visualizar</>
-                    }
+                    {collaborator?.canEditHistory ? (
+                      <>
+                        <Edit size={16} style={{ marginRight: 5, verticalAlign: 'middle' }} /> Editar
+                      </>
+                    ) : (
+                      <>
+                        <Eye size={16} style={{ marginRight: 5, verticalAlign: 'middle' }} /> Visualizar
+                      </>
+                    )}
                   </button>
                 </div>
               ))}
             </div>
+          )
         )}
+
+       {/* DASH DO LÍDER */}
+{!loading
+  && view === 'leaderDash'
+  && collaborator?.isLeader
+  && collaborator?.companyId
+  && collaborator?.departmentId && (
+    <DepartmentLeaderDash
+      companyId={collaborator.companyId}
+      departmentId={collaborator.departmentId}
+    />
+)}
+
       </div>
+
 
       {/* MODAL DE HISTÓRICO */}
       {modalOpen && formSelecionado && respostaSelecionada && (

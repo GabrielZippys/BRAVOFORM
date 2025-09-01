@@ -23,6 +23,86 @@
   transition: all 0.2s ease;
 }
 
+/* guia / tabs do líder */
+.tabBar {
+  display: flex;
+  gap: .5rem;
+  margin: .25rem 0 1rem 0;
+}
+.tabBtn {
+  border: 1px solid var(--border-color);
+  background: var(--primary-bg);
+  color: var(--text-secondary);
+  padding: .4rem .8rem;
+  border-radius: 999px;
+  font-size: .85rem;
+  cursor: pointer;
+  transition: all .15s ease;
+}
+.tabBtn:hover { color: var(--text-primary); border-color: var(--primary-accent); }
+.activeTab { background: var(--primary-accent); color: var(--text-on-accent); border-color: var(--primary-accent); }
+
+/* grid do dash */
+.leaderDashGrid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1rem;
+}
+@media (min-width: 960px) {
+  .leaderDashGrid { grid-template-columns: 1fr 1fr; }
+}
+
+.card {
+  background: var(--primary-bg);
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius);
+  padding: 1rem;
+  box-shadow: var(--box-shadow);
+}
+.cardHeader {
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+  margin-bottom: .75rem;
+}
+.cardTitle {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+/* (se ainda não tiver) estilos do crachá de líder e botão */
+.leaderBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: .2rem .5rem;
+  border-radius: 999px;
+  background: rgba(255, 193, 7, .15);
+  color: #ffc107;
+  font-size: .8rem;
+  border: 1px solid rgba(255, 193, 7, .35);
+}
+
+.leaderToggle {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid var(--border-color);
+  background: var(--primary-bg);
+  color: var(--text-secondary);
+  padding: .4rem .6rem;
+  border-radius: var(--border-radius);
+  cursor: pointer;
+}
+.leaderToggle:hover { border-color: var(--primary-accent); color: var(--text-primary); }
+.leaderToggle.on {
+  background: rgba(255, 193, 7, .15);
+  color: #ffc107;
+  border-color: rgba(255, 193, 7, .35);
+}
+
+
 .leaderToggle:hover {
   border-color: var(--primary-accent);
   color: var(--primary-accent);
