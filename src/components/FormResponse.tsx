@@ -4,7 +4,9 @@ import React, { useState, useRef, useEffect } from 'react';
 import { db } from '../../firebase/config';
 import { doc, addDoc, updateDoc, collection, serverTimestamp } from 'firebase/firestore';
 import { type Form, type FormResponse as FormResponseType } from '@/types';
-import { X, Send, Eraser } from 'lucide-react';
+import { X, Send, Eraser, CheckCircle2, AlertTriangle } from 'lucide-react';
+
+
 
 // Campo aprimorado para tipos
 type EnhancedFormField = {
@@ -75,6 +77,25 @@ export default function FormResponse({
   const [error, setError] = useState('');
   const [triedSubmit, setTriedSubmit] = useState(false);
   const signaturePads = useRef<Record<string, HTMLCanvasElement | null>>({});
+
+// TOAST (sucesso/erro)
+type ToastState = { visible: boolean; type: 'success' | 'error'; message: string; duration: number };
+const [toast, setToast] = useState<ToastState>({ visible: false, type: 'success', message: '', duration: 2600 });
+const toastTimer = useRef<number | null>(null);
+
+function triggerToast(type: 'success' | 'error', message: string, duration = 2600, after?: () => void) {
+  // limpa timer anterior
+  if (toastTimer.current) {
+    window.clearTimeout(toastTimer.current);
+    toastTimer.current = null;
+  }
+  setToast({ visible: true, type, message, duration });
+  toastTimer.current = window.setTimeout(() => {
+    setToast(t => ({ ...t, visible: false }));
+    if (after) after();
+  }, duration);
+}
+
 
   // Preencher respostas caso edição
   useEffect(() => {
@@ -256,7 +277,8 @@ export default function FormResponse({
 
   // SUBMIT
   const handleSubmit = async () => {
-    setTriedSubmit(true);
+  setIsSubmitting(true);      
+  setTriedSubmit(true);
     const missingFields: string[] = [];
     (form.fields as EnhancedFormField[]).forEach(field => {
       const fieldIdStr = String(field.id);
@@ -276,10 +298,10 @@ export default function FormResponse({
       }
     });
     if (missingFields.length > 0) {
-      setError("Preencha todos os campos obrigatórios!");
-      setIsSubmitting(false);
-      return;
-    }
+    setIsSubmitting(false);
+    triggerToast('error', 'Preencha todos os campos obrigatórios!', 2800);
+    return;
+  }
     setError('');
     try {
       const flattened: Record<string, any> = {
@@ -292,6 +314,8 @@ export default function FormResponse({
         status: 'pending',
         submittedAt: serverTimestamp()
       };
+
+      
 
       (form.fields as EnhancedFormField[]).forEach(field => {
         const fieldIdStr = String(field.id);
@@ -344,13 +368,13 @@ export default function FormResponse({
       } else {
         await addDoc(collection(db, 'forms', form.id, 'responses'), flattened);
       }
-      onClose();
-    } catch (err) {
-      setError('Não foi possível enviar a resposta.');
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
+    triggerToast('success', 'Resposta enviada com sucesso!', 1800, onClose);
+  } catch (err) {
+    triggerToast('error', 'Não foi possível enviar a resposta.', 3000);
+  } finally {
+    setIsSubmitting(false);
+  }
+};
 
   // --- Render tabela fiel ao tema do form
   const renderTableCell = (
@@ -507,11 +531,12 @@ export default function FormResponse({
       >
         {/* controla a largura das colunas */}
        <colgroup>
-  <col style={{ width: 'clamp(180px, 62%, 520px)' }} />  {/* rótulo da linha */}
-  {(field.columns ?? []).map((_, i) => (
-<col key={i} style={{ width: `${Math.floor(38 / Math.max(1,(field.columns?.length ?? 1)))}%` }} />    
-  ))}
-</colgroup>
+    <col style={{ width: '68%' }} />
+    {(field.columns || []).map((_, i) => (
+      <col key={i} style={{ width: `${Math.floor(32 / (field.columns?.length || 1))}%` }} />
+    ))}
+  </colgroup>
+
 
 
         <thead>
@@ -843,6 +868,9 @@ export default function FormResponse({
   // --------------- RENDER ---------------
 
   return (
+
+
+    
     <div
   style={{
     background: theme.bgColor + 'E5',
@@ -1031,6 +1059,125 @@ export default function FormResponse({
           ) : null}
         </div>
       </div>
+        {/* TOAST (CENTRO DA TELA) */}
+{/* TOAST (CENTRO + ANIMAÇÕES) */}
+{toast.visible && (
+  <>
+    <style>{`
+      @keyframes toast-pop-in {
+        0%   { transform: translate(-50%, -50%) scale(.92); opacity: 0; filter: blur(2px); }
+        60%  { transform: translate(-50%, -50%) scale(1.02); opacity: 1; filter: blur(0); }
+        100% { transform: translate(-50%, -50%) scale(1);    opacity: 1; }
+      }
+      @keyframes toast-progress {
+        from { width: 100%; }
+        to   { width: 0%; }
+      }
+      @keyframes toast-glow {
+        0%,100% { box-shadow: 0 18px 50px #0007, 0 0 0px rgba(255,255,255,0); }
+        50%     { box-shadow: 0 18px 50px #0007, 0 0 16px rgba(255,255,255,.25); }
+      }
+      @keyframes toast-backdrop-in {
+        from { opacity: 0; }
+        to   { opacity: .15; }
+      }
+      @keyframes toast-shake {
+        0%,100%{ transform: translate(-50%, -50%) }
+        20%{    transform: translate(calc(-50% - 5px), -50%) }
+        40%{    transform: translate(calc(-50% + 5px), -50%) }
+        60%{    transform: translate(calc(-50% - 4px), -50%) }
+        80%{    transform: translate(calc(-50% + 4px), -50%) }
+      }
+    `}</style>
+
+    {/* backdrop */}
+    <div
+      style={{
+        position: 'fixed',
+        inset: 0,
+        background: '#000',
+        opacity: 0.15,
+        animation: 'toast-backdrop-in 160ms ease-out',
+        pointerEvents: 'none',
+        zIndex: 9998,
+      }}
+    />
+
+    {/* wrapper do toast */}
+    <div role="status" aria-live="polite" style={{ position: 'fixed', inset: 0, zIndex: 9999, pointerEvents: 'none' }}>
+      <div
+        style={{
+          position: 'absolute',
+          left: '50%',
+          top: '50%',
+          transform: 'translate(-50%, -50%)',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 10,
+          background: toast.type === 'success' ? '#16a34a' : '#b91c1c',
+          color: '#fff',
+          border: `2px solid ${toast.type === 'success' ? '#22c55e' : '#ef4444'}`,
+          borderRadius: 14,
+          padding: '12px 16px',
+          minWidth: 280,
+          maxWidth: 'min(92vw, 560px)',
+          pointerEvents: 'auto',
+          animation: `
+            ${toast.type === 'error' ? 'toast-shake 440ms ease-in-out' : 'toast-pop-in 220ms ease-out'}
+          `,
+          // brilho pulsante contínuo
+          boxShadow: '0 18px 50px #0007',
+          animationDelay: '0s, 0s',
+          // pulso separado para não interferir no pop/shake
+          // (aplicado via style below porque precisa compor animações)
+        }}
+      >
+        {/* ícone */}
+        {toast.type === 'success'
+          ? <CheckCircle2 size={22} />
+          : <AlertTriangle size={22} />}
+
+        {/* mensagem */}
+        <div style={{ fontWeight: 600, lineHeight: 1.25, flex: 1 }}>{toast.message}</div>
+
+        {/* fechar */}
+        <button
+          onClick={() => setToast(t => ({ ...t, visible: false }))}
+          aria-label="Fechar"
+          style={{ background: 'transparent', border: 'none', color: '#fff', cursor: 'pointer', opacity: 0.9 }}
+        >
+          <X size={18} />
+        </button>
+      </div>
+
+      {/* barra de progresso */}
+      <div
+        style={{
+          position: 'absolute',
+          left: '50%',
+          top: 'calc(50% + 38px)',
+          transform: 'translateX(-50%)',
+          width: 'min(92vw, 560px)',
+          height: 3,
+          background: '#ffffff66',
+          borderRadius: 999,
+          overflow: 'hidden',
+          pointerEvents: 'none',
+        }}
+      >
+        <div
+          style={{
+            height: '100%',
+            background: '#fff',
+            animation: `toast-progress ${toast.duration}ms linear forwards, toast-glow 1600ms ease-in-out infinite`,
+          }}
+        />
+      </div>
+    </div>
+  </>
+)}
+
+
     </div>
   );
 }
