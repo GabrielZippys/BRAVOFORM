@@ -499,15 +499,18 @@ function triggerToast(type: 'success' | 'error', message: string, duration = 260
       : '';
   const disabled = !canEdit && !!existingResponse;
 
-  const base = {
-    width: '100%',
-    background: theme.inputBgColor,
-    color: theme.inputFontColor,
-    border: `1px solid ${theme.tableBorderColor}`,
-    borderRadius: theme.borderRadius,
-    padding: '5px 10px',
-    ...invalidize(fieldId),
-  } as React.CSSProperties;
+  // dentro de renderTableCell()
+const base = {
+  width: '100%',
+  background: theme.inputBgColor,
+  color: theme.inputFontColor,
+  border: `1px solid ${theme.tableBorderColor}`,
+  borderRadius: theme.borderRadius,
+  padding: '5px 10px',
+  fontSize: 16,               // 👈 evita zoom no iOS
+  ...invalidize(fieldId),
+} as React.CSSProperties;
+
 
   switch (col.type) {
     case 'text':
@@ -521,16 +524,41 @@ function triggerToast(type: 'success' | 'error', message: string, duration = 260
           disabled={disabled}
         />
       );
-    case 'number':
-      return (
-        <input
-          style={base}
-          type="number"
-          value={value}
-          onChange={e => handleTableInputChange(fieldId, rowId, colId, e.target.value)}
-          disabled={disabled}
-        />
-      );
+
+
+  case 'number': {
+  const onNumChange = (v: string) =>
+    handleTableInputChange(fieldId, rowId, colId, v.replace(/\D+/g, ''));
+  return (
+    <input
+      style={base}
+      type="text"
+      inputMode="numeric"
+      pattern="[0-9]*"
+      value={value}
+      onChange={e => onNumChange(e.target.value)}
+      disabled={disabled}
+    />
+  );
+}
+
+case 'Número':
+case 'number': {
+  const v = String(responses[fieldId] ?? '');
+  return (
+    <input
+      value={v}
+      onChange={e => handleInputChange(fieldId, e.target.value.replace(/\D+/g, ''))}
+      placeholder={field.placeholder || ''}
+      disabled={disabled}
+      type="text"
+      inputMode="numeric"
+      pattern="[0-9]*"
+      style={controlBase}
+    />
+  );
+}
+
     case 'date':
     case 'Data':
       return (
@@ -603,7 +631,7 @@ function triggerToast(type: 'success' | 'error', message: string, duration = 260
           borderCollapse: 'collapse',
           border: `1.5px solid ${theme.tableBorderColor}`,
           borderRadius: theme.borderRadius,
-          fontSize: 15,
+          fontSize: 16,
           background: theme.bgColor,
           color: theme.tableCellFont,
           overflow: 'hidden',
@@ -629,7 +657,7 @@ function triggerToast(type: 'success' | 'error', message: string, duration = 260
                 borderTopLeftRadius: theme.borderRadius,
                 padding: 8,
                 fontWeight: 'bold',
-                fontSize: 15,
+                fontSize: 16,
               }}
             />
             {field.columns?.map((col: any) => (
@@ -641,7 +669,7 @@ function triggerToast(type: 'success' | 'error', message: string, duration = 260
                   border: `1.5px solid ${theme.tableBorderColor}`,
                   padding: 8,
                   fontWeight: 600,
-                  fontSize: 15,
+                  fontSize: 16,
                 }}
               >
                 {col.label}
@@ -768,7 +796,7 @@ function triggerToast(type: 'success' | 'error', message: string, duration = 260
         return (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginBottom: 4 }}>
             {field.options?.map((opt: string) => (
-              <label key={opt} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 15, color: theme.inputFontColor }}>
+              <label key={opt} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 16, color: theme.inputFontColor }}>
                 <input
                   type="checkbox"
                   checked={(responses[fieldId] || []).includes(opt)}
@@ -789,7 +817,7 @@ function triggerToast(type: 'success' | 'error', message: string, duration = 260
             ))}
             {field.allowOther && (
               <>
-                <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 15, color: theme.inputFontColor }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 16, color: theme.inputFontColor }}>
                   <input
                     type="checkbox"
                     checked={(responses[fieldId] || []).includes(otherVal)}
@@ -843,7 +871,7 @@ function triggerToast(type: 'success' | 'error', message: string, duration = 260
         return (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginBottom: 4 }}>
             {field.options?.map((opt: string) => (
-              <label key={opt} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 15, color: theme.inputFontColor }}>
+              <label key={opt} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 16, color: theme.inputFontColor }}>
                 <input
                   type="radio"
                   name={`field_${field.id}`}
@@ -859,7 +887,7 @@ function triggerToast(type: 'success' | 'error', message: string, duration = 260
             ))}
             {field.allowOther && (
               <>
-                <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 15, color: theme.inputFontColor }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 16, color: theme.inputFontColor }}>
                   <input
                     type="radio"
                     name={`field_${field.id}`}
@@ -884,7 +912,7 @@ function triggerToast(type: 'success' | 'error', message: string, duration = 260
                       border: `1.5px solid ${theme.accentColor}`,
                       borderRadius: theme.borderRadius,
                       padding: '8px 12px',
-                      fontSize: 15,
+                      fontSize: 16,
                       marginTop: 3,
                     }}
                   />
@@ -915,7 +943,7 @@ function triggerToast(type: 'success' | 'error', message: string, duration = 260
               border: `1.5px solid ${theme.accentColor}`,
               borderRadius: theme.borderRadius,
               padding: '8px 12px',
-              fontSize: 15,
+              fontSize: 16,
               marginBottom: 2,
             }}
           />
@@ -1081,7 +1109,7 @@ const controlBase = {
                   style={{
                     color: theme.fontColor,
                     fontWeight: 500,
-                    fontSize: 15,
+                    fontSize: 16,
                     display: 'block',
                     marginBottom: 7,
                   }}
@@ -1118,7 +1146,7 @@ const controlBase = {
   }}
 >
 
-          {error && <div style={{ color: "#ef4444", fontWeight: 600, fontSize: 15, marginBottom: 5 }}>{error}</div>}
+          {error && <div style={{ color: "#ef4444", fontWeight: 600, fontSize: 16, marginBottom: 5 }}>{error}</div>}
           {canEdit || !existingResponse ? (
             <button
               onClick={handleSubmit}
