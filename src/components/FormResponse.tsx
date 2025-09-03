@@ -49,42 +49,113 @@ export default function FormResponse({
   if (!form) return null;
 
   // ---- TEMA PEGO DO FORMULÁRIO ----
-  const theme = {
-    bgColor: form.theme?.bgColor || "#ffffff",
-    accentColor: form.theme?.accentColor || "#3b82f6",
-    fontColor: form.theme?.fontColor || "#1f2937",
-    inputBgColor: form.theme?.inputBgColor || "#171e2c",
-    inputFontColor: form.theme?.inputFontColor || "#e8f2ff",
-    sectionHeaderBg: form.theme?.sectionHeaderBg || "#19263b",
-    sectionHeaderFont: form.theme?.sectionHeaderFont || "#49cfff",
-    buttonBg: form.theme?.buttonBg || "#000",
-    buttonFont: form.theme?.buttonFont || "#fff",
-    footerBg: form.theme?.footerBg || "#182138",
-    footerFont: form.theme?.footerFont || "#fff",
-    borderRadius: form.theme?.borderRadius ?? 8,
-    tableHeaderBg: form.theme?.tableHeaderBg || "#1a2238",
-    tableHeaderFont: form.theme?.tableHeaderFont || "#49cfff",
-    tableBorderColor: form.theme?.tableBorderColor || "#19263b",
-    tableOddRowBg: form.theme?.tableOddRowBg || "#222c42",
-    tableEvenRowBg: form.theme?.tableEvenRowBg || "#171e2c",
-    tableCellFont: form.theme?.tableCellFont || "#e0e6f7"
-  };
+const theme = {
+  bgColor: form.theme?.bgColor || "#ffffff",
+  accentColor: form.theme?.accentColor || "#3b82f6",
+  fontColor: form.theme?.fontColor || "#1f2937",
+  inputBgColor: form.theme?.inputBgColor || "#171e2c",
+  inputFontColor: form.theme?.inputFontColor || "#e8f2ff",
+  sectionHeaderBg: form.theme?.sectionHeaderBg || "#19263b",
+  sectionHeaderFont: form.theme?.sectionHeaderFont || "#49cfff",
+  buttonBg: form.theme?.buttonBg || "#000",
+  buttonFont: form.theme?.buttonFont || "#fff",
+  footerBg: form.theme?.footerBg || "#182138",
+  footerFont: form.theme?.footerFont || "#fff",
+  borderRadius: form.theme?.borderRadius ?? 8,
+  tableHeaderBg: form.theme?.tableHeaderBg || "#1a2238",
+  tableHeaderFont: form.theme?.tableHeaderFont || "#49cfff",
+  tableBorderColor: form.theme?.tableBorderColor || "#19263b",
+  tableOddRowBg: form.theme?.tableOddRowBg || "#222c42",
+  tableEvenRowBg: form.theme?.tableEvenRowBg || "#171e2c",
+  tableCellFont: form.theme?.tableCellFont || "#e0e6f7"
+};
 
-  // ---- Estados principais ----
-  const [responses, setResponses] = useState<Record<string, any>>({});
-  const [otherInputValues, setOtherInputValues] = useState<Record<string, string>>({});
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [error, setError] = useState('');
-  const [triedSubmit, setTriedSubmit] = useState(false);
-  const signaturePads = useRef<Record<string, HTMLCanvasElement | null>>({});
+// ---- Estados principais ----
+const [responses, setResponses] = useState<Record<string, any>>({});
+const [otherInputValues, setOtherInputValues] = useState<Record<string, string>>({});
+const [isSubmitting, setIsSubmitting] = useState(false);
+const [error, setError] = useState('');
+const [triedSubmit, setTriedSubmit] = useState(false);
+const signaturePads = useRef<Record<string, HTMLCanvasElement | null>>({});
 
-// TOAST (sucesso/erro)
+// ===== Validação obrigatórios =====
+const [invalid, setInvalid] = useState<Record<string, string>>({});
+const fieldRefs = useRef<Record<string, HTMLDivElement | null>>({});
+const isBlank = (v: any) => (typeof v === 'string' ? v.trim() === '' : v == null);
+
+function validateRequiredField(field: EnhancedFormField): string | '' {
+  const fieldId = String(field.id);
+  const val = responses[fieldId];
+
+  if (field.type === 'Cabeçalho') return '';
+  if (!field.required) return '';
+
+  switch (field.type) {
+    case 'Texto':
+    case 'Data':
+      return isBlank(val) ? 'Campo obrigatório' : '';
+
+    case 'Múltipla Escolha': {
+      if (isBlank(val)) return 'Selecione uma opção';
+      if (val === '___OTHER___') {
+        const other = (otherInputValues[fieldId] || '').trim();
+        return other ? '' : 'Descreva em "Outros"';
+      }
+      return '';
+    }
+
+    case 'Caixa de Seleção': {
+      const arr: string[] = Array.isArray(val) ? val : [];
+      if (arr.length === 0) return 'Selecione ao menos uma opção';
+      if (arr.includes('___OTHER___')) {
+        const other = (otherInputValues[fieldId] || '').trim();
+        if (!other) return 'Descreva em "Outros"';
+      }
+      return '';
+    }
+
+    case 'Anexo': {
+      const arr = Array.isArray(val) ? val : [];
+      return arr.length === 0 ? 'Envie ao menos um arquivo' : '';
+    }
+
+    case 'Assinatura': {
+      return typeof val === 'string' && val.startsWith('data:image')
+        ? ''
+        : 'Assinatura obrigatória';
+    }
+
+    case 'Tabela': {
+      const rows = field.rows || [];
+      const cols = field.columns || [];
+      for (const r of rows) {
+        for (const c of cols) {
+          const cell = val?.[String(r.id)]?.[String(c.id)];
+          if (isBlank(cell)) return 'Preencha todos os campos da tabela';
+        }
+      }
+      return '';
+    }
+
+    default:
+      return isBlank(val) ? 'Campo obrigatório' : '';
+  }
+}
+
+// estilo que pinta a borda se inválido
+const invalidize = (fieldId: string): React.CSSProperties =>
+  invalid[fieldId]
+    ? { borderColor: '#ef4444', boxShadow: '0 0 0 2px rgba(239,68,68,.25)' }
+    : {};
+
+// ===== TOAST (sucesso/erro) =====
 type ToastState = { visible: boolean; type: 'success' | 'error'; message: string; duration: number };
-const [toast, setToast] = useState<ToastState>({ visible: false, type: 'success', message: '', duration: 2600 });
+const [toast, setToast] = useState<ToastState>({
+  visible: false, type: 'success', message: '', duration: 2600
+});
 const toastTimer = useRef<number | null>(null);
 
 function triggerToast(type: 'success' | 'error', message: string, duration = 2600, after?: () => void) {
-  // limpa timer anterior
   if (toastTimer.current) {
     window.clearTimeout(toastTimer.current);
     toastTimer.current = null;
@@ -95,6 +166,7 @@ function triggerToast(type: 'success' | 'error', message: string, duration = 260
     if (after) after();
   }, duration);
 }
+
 
 
   // Preencher respostas caso edição
@@ -226,29 +298,64 @@ function triggerToast(type: 'success' | 'error', message: string, duration = 260
   }, [responses]);
 
   // Handlers
-  const handleInputChange = (fieldId: string, value: any) =>
-    setResponses(prev => ({ ...prev, [fieldId]: value }));
+  const handleInputChange = (fieldId: string, value: any) => {
+  setResponses(prev => {
+    const next = { ...prev, [fieldId]: value };
+    return next;
+  });
+  // revalida só este campo
+  const field = (form.fields as EnhancedFormField[]).find(f => String(f.id) === fieldId);
+  if (field?.required) {
+    const err = validateRequiredField(field);
+    setInvalid(prev => {
+      const copy = { ...prev };
+      if (err) copy[fieldId] = err; else delete copy[fieldId];
+      return copy;
+    });
+  }
+};
 
-  const handleOtherInputChange = (fieldId: string, text: string) =>
-    setOtherInputValues(prev => ({ ...prev, [fieldId]: text }));
+  const handleOtherInputChange = (fieldId: string, text: string) => {
+  setOtherInputValues(prev => ({ ...prev, [fieldId]: text }));
+  // revalida se for “Outros”
+  const field = (form.fields as EnhancedFormField[]).find(f => String(f.id) === fieldId);
+  if (field?.required) {
+    const err = validateRequiredField(field);
+    setInvalid(prev => {
+      const copy = { ...prev };
+      if (err) copy[fieldId] = err; else delete copy[fieldId];
+      return copy;
+    });
+  }
+};
 
   const handleTableInputChange = (
-    fieldId: string,
-    rowId: string,
-    colId: string,
-    value: any
-  ) => {
-    setResponses(prev => ({
-      ...prev,
-      [fieldId]: {
-        ...(prev[fieldId] || {}),
-        [rowId]: {
-          ...(prev[fieldId]?.[rowId] || {}),
-          [colId]: value,
-        },
+  fieldId: string,
+  rowId: string,
+  colId: string,
+  value: any
+) => {
+  setResponses(prev => ({
+    ...prev,
+    [fieldId]: {
+      ...(prev[fieldId] || {}),
+      [rowId]: {
+        ...(prev[fieldId]?.[rowId] || {}),
+        [colId]: value,
       },
-    }));
-  };
+    },
+  }));
+  // revalida tabela
+  const field = (form.fields as EnhancedFormField[]).find(f => String(f.id) === fieldId);
+  if (field?.required) {
+    const err = validateRequiredField(field);
+    setInvalid(prev => {
+      const copy = { ...prev };
+      if (err) copy[fieldId] = err; else delete copy[fieldId];
+      return copy;
+    });
+  }
+};
 
   const handleFileChange = (fieldId: string, files: FileList | null) => {
     if (files && files.length > 0) {
@@ -277,97 +384,97 @@ function triggerToast(type: 'success' | 'error', message: string, duration = 260
 
   // SUBMIT
   const handleSubmit = async () => {
-  setIsSubmitting(true);      
+  setIsSubmitting(true);
   setTriedSubmit(true);
-    const missingFields: string[] = [];
-    (form.fields as EnhancedFormField[]).forEach(field => {
-      const fieldIdStr = String(field.id);
-      if (
-        field.required &&
-        !['Cabeçalho', 'Anexo', 'Assinatura', 'Tabela'].includes(field.type)
-      ) {
-        const val = responses[fieldIdStr];
-        if (
-          val === undefined ||
-          val === null ||
-          (typeof val === 'string' && val.trim() === '') ||
-          (Array.isArray(val) && val.length === 0)
-        ) {
-          missingFields.push(field.label);
-        }
-      }
-    });
-    if (missingFields.length > 0) {
+
+  // valida obrigatórios de todos os campos
+  const newInvalid: Record<string, string> = {};
+  (form.fields as EnhancedFormField[]).forEach(field => {
+    const err = validateRequiredField(field);
+    if (err) newInvalid[String(field.id)] = err;
+  });
+
+  if (Object.keys(newInvalid).length > 0) {
+    setInvalid(newInvalid);
+    // scroll no primeiro inválido
+    const firstId = Object.keys(newInvalid)[0];
+    const node = fieldRefs.current[firstId];
+    if (node?.scrollIntoView) {
+      node.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    }
+    triggerToast('error', 'Preencha os campos obrigatórios.', 2800);
     setIsSubmitting(false);
-    triggerToast('error', 'Preencha todos os campos obrigatórios!', 2800);
     return;
   }
-    setError('');
-    try {
-      const flattened: Record<string, any> = {
-        collaboratorId: collaborator.id,
-        collaboratorUsername: collaborator.username,
-        formId: form.id,
-        formTitle: form.title,
-        companyId: form.companyId,
-        departmentId: form.departmentId,
-        status: 'pending',
-        submittedAt: serverTimestamp()
-      };
 
-      
+  setInvalid({});
+  setError('');
 
-      (form.fields as EnhancedFormField[]).forEach(field => {
-        const fieldIdStr = String(field.id);
-        let answerVal = responses[fieldIdStr];
-        if (
-          (field.type === 'Caixa de Seleção' || field.type === 'Múltipla Escolha') &&
-          field.allowOther
-        ) {
-          const otherVal = otherInputValues[fieldIdStr] || '';
-          if (Array.isArray(answerVal)) {
-            answerVal = answerVal
-              .map((v: string) => (v === '___OTHER___' ? (otherVal || '') : v))
-              .filter(v => v !== '');
-            if (answerVal.length === 1 && answerVal[0] === '') answerVal = '';
-          } else if (answerVal === '___OTHER___') {
-            answerVal = otherVal;
-          }
+  try {
+    const flattened: Record<string, any> = {
+      collaboratorId: collaborator.id,
+      collaboratorUsername: collaborator.username,
+      formId: form.id,
+      formTitle: form.title,
+      companyId: form.companyId,
+      departmentId: form.departmentId,
+      status: 'pending',
+      submittedAt: serverTimestamp()
+    };
+
+    // por label
+    (form.fields as EnhancedFormField[]).forEach(field => {
+      const fieldIdStr = String(field.id);
+      let answerVal = responses[fieldIdStr];
+      if (
+        (field.type === 'Caixa de Seleção' || field.type === 'Múltipla Escolha') &&
+        field.allowOther
+      ) {
+        const otherVal = otherInputValues[fieldIdStr] || '';
+        if (Array.isArray(answerVal)) {
+          answerVal = answerVal
+            .map((v: string) => (v === '___OTHER___' ? (otherVal || '') : v))
+            .filter(v => v !== '');
+          if (answerVal.length === 1 && answerVal[0] === '') answerVal = '';
+        } else if (answerVal === '___OTHER___') {
+          answerVal = otherVal;
         }
-        flattened[field.label] = answerVal ?? '';
-      });
-      // Answers por id
-      const answers: Record<string, any> = {};
-      (form.fields as EnhancedFormField[]).forEach(field => {
-        const fieldIdStr = String(field.id);
-        let answerVal = responses[fieldIdStr];
-        if (
-          (field.type === 'Caixa de Seleção' || field.type === 'Múltipla Escolha') &&
-          field.allowOther
-        ) {
-          const otherVal = otherInputValues[fieldIdStr] || '';
-          if (Array.isArray(answerVal)) {
-            answerVal = answerVal
-              .map((v: string) => (v === '___OTHER___' ? (otherVal || '') : v))
-              .filter(v => v !== '');
-            if (answerVal.length === 1 && answerVal[0] === '') answerVal = '';
-          } else if (answerVal === '___OTHER___') {
-            answerVal = otherVal;
-          }
-        }
-        answers[fieldIdStr] = answerVal ?? '';
-      });
-      flattened.answers = answers;
-
-      // Firestore
-      if (existingResponse?.id) {
-        await updateDoc(
-          doc(db, 'forms', form.id, 'responses', existingResponse.id),
-          { ...flattened, updatedAt: serverTimestamp() }
-        );
-      } else {
-        await addDoc(collection(db, 'forms', form.id, 'responses'), flattened);
       }
+      flattened[field.label] = answerVal ?? '';
+    });
+
+    // por id
+    const answers: Record<string, any> = {};
+    (form.fields as EnhancedFormField[]).forEach(field => {
+      const fieldIdStr = String(field.id);
+      let answerVal = responses[fieldIdStr];
+      if (
+        (field.type === 'Caixa de Seleção' || field.type === 'Múltipla Escolha') &&
+        field.allowOther
+      ) {
+        const otherVal = otherInputValues[fieldIdStr] || '';
+        if (Array.isArray(answerVal)) {
+          answerVal = answerVal
+            .map((v: string) => (v === '___OTHER___' ? (otherVal || '') : v))
+            .filter(v => v !== '');
+          if (answerVal.length === 1 && answerVal[0] === '') answerVal = '';
+        } else if (answerVal === '___OTHER___') {
+          answerVal = otherVal;
+        }
+      }
+      answers[fieldIdStr] = answerVal ?? '';
+    });
+    flattened.answers = answers;
+
+    if (existingResponse?.id) {
+      await updateDoc(
+        doc(db, 'forms', form.id, 'responses', existingResponse.id),
+        { ...flattened, updatedAt: serverTimestamp() }
+      );
+    } else {
+      await addDoc(collection(db, 'forms', form.id, 'responses'), flattened);
+    }
+
     triggerToast('success', 'Resposta enviada com sucesso!', 1800, onClose);
   } catch (err) {
     triggerToast('error', 'Não foi possível enviar a resposta.', 3000);
@@ -376,119 +483,92 @@ function triggerToast(type: 'success' | 'error', message: string, duration = 260
   }
 };
 
+
   // --- Render tabela fiel ao tema do form
   const renderTableCell = (
-    field: EnhancedFormField,
-    row: { id: string; label: string },
-    col: { id: string; label: string; type: string; options?: string[] }
-  ) => {
-    const fieldId = String(field.id);
-    const rowId = String(row.id);
-    const colId = String(col.id);
-    const value =
-      responses[fieldId]?.[rowId]?.[colId] !== undefined
-        ? responses[fieldId][rowId][colId]
-        : '';
-    const disabled = !canEdit && !!existingResponse;
-    switch (col.type) {
-      case 'text':
-      case 'Texto':
-        return (
-          <input
-            style={{
-              width: '100%',
-              background: theme.inputBgColor,
-              color: theme.inputFontColor,
-              border: `1px solid ${theme.tableBorderColor}`,
-              borderRadius: theme.borderRadius,
-              padding: '5px 10px',
-            }}
-            type="text"
-            value={value}
-            onChange={e =>
-              handleTableInputChange(fieldId, rowId, colId, e.target.value)
-            }
-            disabled={disabled}
-          />
-        );
-      case 'number':
-        return (
-          <input
-            style={{
-              width: '100%',
-              background: theme.inputBgColor,
-              color: theme.inputFontColor,
-              border: `1px solid ${theme.tableBorderColor}`,
-              borderRadius: theme.borderRadius,
-              padding: '5px 10px',
-            }}
-            type="number"
-            value={value}
-            onChange={e =>
-              handleTableInputChange(fieldId, rowId, colId, e.target.value)
-            }
-            disabled={disabled}
-          />
-        );
-      case 'date':
-      case 'Data':
-        return (
-          <input
-            style={{
-              width: '100%',
-              background: theme.inputBgColor,
-              color: theme.inputFontColor,
-              border: `1px solid ${theme.tableBorderColor}`,
-              borderRadius: theme.borderRadius,
-              padding: '5px 10px',
-            }}
-            type="date"
-            value={value}
-            onChange={e =>
-              handleTableInputChange(fieldId, rowId, colId, e.target.value)
-            }
-            disabled={disabled}
-          />
-        );
-      case 'select':
-        return (
-          <select
-           style={controlBase}
-            value={value}
-            onChange={e =>
-              handleTableInputChange(fieldId, rowId, colId, e.target.value)
-            }
-            disabled={disabled}
-          >
-            <option value="">Selecionar</option>
-            {col.options?.map((opt: string) => (
-              <option key={opt} value={opt}>
-                {opt}
-              </option>
-            ))}
-          </select>
-        );
-      default:
-        return (
-          <input
-            style={{
-              width: '100%',
-              background: theme.inputBgColor,
-              color: theme.inputFontColor,
-              border: `1px solid ${theme.tableBorderColor}`,
-              borderRadius: theme.borderRadius,
-              padding: '5px 10px',
-            }}
-            type="text"
-            value={value}
-            onChange={e =>
-              handleTableInputChange(fieldId, rowId, colId, e.target.value)
-            }
-            disabled={disabled}
-          />
-        );
-    }
-  };
+  field: EnhancedFormField,
+  row: { id: string; label: string },
+  col: { id: string; label: string; type: string; options?: string[] }
+) => {
+  const fieldId = String(field.id);
+  const rowId = String(row.id);
+  const colId = String(col.id);
+  const value =
+    responses[fieldId]?.[rowId]?.[colId] !== undefined
+      ? responses[fieldId][rowId][colId]
+      : '';
+  const disabled = !canEdit && !!existingResponse;
+
+  const base = {
+    width: '100%',
+    background: theme.inputBgColor,
+    color: theme.inputFontColor,
+    border: `1px solid ${theme.tableBorderColor}`,
+    borderRadius: theme.borderRadius,
+    padding: '5px 10px',
+    ...invalidize(fieldId),
+  } as React.CSSProperties;
+
+  switch (col.type) {
+    case 'text':
+    case 'Texto':
+      return (
+        <input
+          style={base}
+          type="text"
+          value={value}
+          onChange={e => handleTableInputChange(fieldId, rowId, colId, e.target.value)}
+          disabled={disabled}
+        />
+      );
+    case 'number':
+      return (
+        <input
+          style={base}
+          type="number"
+          value={value}
+          onChange={e => handleTableInputChange(fieldId, rowId, colId, e.target.value)}
+          disabled={disabled}
+        />
+      );
+    case 'date':
+    case 'Data':
+      return (
+        <input
+          style={base}
+          type="date"
+          value={value}
+          onChange={e => handleTableInputChange(fieldId, rowId, colId, e.target.value)}
+          disabled={disabled}
+        />
+      );
+    case 'select':
+      return (
+        <select
+          style={{ ...base }}
+          value={value}
+          onChange={e => handleTableInputChange(fieldId, rowId, colId, e.target.value)}
+          disabled={disabled}
+        >
+          <option value="">Selecionar</option>
+          {col.options?.map((opt: string) => (
+            <option key={opt} value={opt}>{opt}</option>
+          ))}
+        </select>
+      );
+    default:
+      return (
+        <input
+          style={base}
+          type="text"
+          value={value}
+          onChange={e => handleTableInputChange(fieldId, rowId, colId, e.target.value)}
+          disabled={disabled}
+        />
+      );
+  }
+};
+
 
   // Campo fiel ao preview
   const renderField = (field: EnhancedFormField, index: number) => {
@@ -854,15 +934,16 @@ function triggerToast(type: 'success' | 'error', message: string, duration = 260
     }
   };
 
-  const controlBase = {
+const controlBase = {
   background: theme.inputBgColor,
   color: theme.inputFontColor,
   border: `1.5px solid ${theme.accentColor}`,
   borderRadius: theme.borderRadius,
   padding: '10px 12px',
-  fontSize: 16,      // evita zoom no iOS
-  minHeight: 42,     // hit-area confortável
+  fontSize: 16,
+  minHeight: 42,
 } as const;
+
 
 
   // --------------- RENDER ---------------
@@ -987,9 +1068,14 @@ function triggerToast(type: 'success' | 'error', message: string, duration = 260
     scrollbarGutter: 'stable',
   }}
 >
-
-          {(form.fields as EnhancedFormField[]).map((field, idx) => (
-            <div key={field.id} style={{ marginBottom: 18 }}>
+{(form.fields as EnhancedFormField[]).map((field, idx) => (
+  <div
+    key={field.id}
+    ref={(el) => {                      
+      fieldRefs.current[String(field.id)] = el;
+    }}
+    style={{ marginBottom: 18 }}
+  >
               {field.type !== 'Cabeçalho' && (
                 <label
                   style={{
@@ -1006,6 +1092,11 @@ function triggerToast(type: 'success' | 'error', message: string, duration = 260
               )}
               {/* Render dinâmico fiel ao preview */}
               {renderField(field, idx)}
+              {invalid[String(field.id)] && (
+  <div style={{ color: '#ef4444', fontSize: 12, marginTop: 6 }}>
+    {invalid[String(field.id)]}
+  </div>
+)}
               {field.description && (
                 <div style={{ color: theme.sectionHeaderFont, fontSize: 13, marginTop: 3 }}>
                   {field.description}
