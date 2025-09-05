@@ -1038,15 +1038,7 @@ case 'number': {
             value={responses[fieldId] || ''}
             onChange={e => handleInputChange(fieldId, e.target.value)}
             disabled={disabled}
-            style={{
-              background: theme.inputBgColor,
-              color: theme.inputFontColor,
-              border: `1.5px solid ${theme.accentColor}`,
-              borderRadius: theme.borderRadius,
-              padding: '8px 12px',
-              fontSize: 16,
-              marginBottom: 2,
-            }}
+            style={{...controlBase}}
           />
         );
       default:
