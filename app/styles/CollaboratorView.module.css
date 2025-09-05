@@ -242,3 +242,74 @@
   .userNameRow { font-size: 1rem; }
   .userAvatar { width: 35px; height: 35px; font-size: 1.2rem; }
 }
+
+
+/* Resumo topo da aba "Formulários" */
+.todaySummary {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  margin: 6px 2px 14px 2px;
+  flex-wrap: wrap;
+}
+
+.badgeDone,
+.badgePending {
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 10px;
+  border-radius: 9999px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.badgeDone {
+  background: rgba(22, 163, 74, 0.15);
+  color: #22c55e;
+  border: 1px solid rgba(34, 197, 94, 0.4);
+}
+
+.badgePending {
+  background: rgba(148, 163, 184, 0.12);
+  color: #cbd5e1;
+  border: 1px solid rgba(148, 163, 184, 0.35);
+}
+
+/* O card precisa ser relativo pro badge ficar no canto */
+.card {
+  position: relative;
+}
+
+/* Badge de status no canto do card */
+.statusBadge {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 8px;
+  gap: 4px;
+  border-radius: 9999px;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1;
+  user-select: none;
+}
+
+.statusDone {
+  background: rgba(34, 197, 94, 0.18);
+  color: #22c55e;
+  border: 1px solid rgba(34, 197, 94, 0.45);
+}
+
+.statusPending {
+  background: rgba(148, 163, 184, 0.12);
+  color: #cbd5e1;
+  border: 1px solid rgba(148, 163, 184, 0.35);
+}
+
+/* (opcional) aparência do botão quando já respondeu */
+.cardButton:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
