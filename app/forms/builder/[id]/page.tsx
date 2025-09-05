@@ -1936,55 +1936,7 @@ const toggleAutofill = useCallback((checked: boolean) => {
                   <h4>Preview do Formulário</h4>
                   <p>Como o colaborador verá</p>
                 </div>
-                <div className={styles.formPreview}>
-                  <div
-                    className={styles.previewForm}
-                    style={{
-                     backgroundColor: draft.theme.bgColor,
-    color: draft.theme.fontColor,
-    borderRadius: `${draft.theme.borderRadius}px`,
-    border: `2px solid ${draft.theme.accentColor}`,
-                    }}
-                  >
-                    {draft.logo?.url && (
-  <div
-    style={{
-      width: '100%',
-      display: 'flex',
-      justifyContent:
-        draft.logo.align === 'left'
-          ? 'flex-start'
-          : draft.logo.align === 'right'
-          ? 'flex-end'
-          : 'center',
-      marginBottom: 10,
-    }}
-  >
-    <img
-      src={draft.logo.url}
-      alt={draft.logo.name || 'Logo'}
-      style={{
-        width: draft.logo.size ? `${draft.logo.size}%` : '40%',
-        maxWidth: 240,
-        objectFit: 'contain'
-      }}
-    />
-  </div>
-)}
-
-                   
-<h2 style={{ color: draft.theme.titleColor ?? draft.theme.fontColor }}>
-  {draft.title || 'Título do Formulário'}
-</h2>
-
-{/* ✅ DESCRIÇÃO USA draft.theme.descriptionColor (cai para #b8c5d6) */}
-{draft.description && (
-  <p style={{ color: draft.theme.descriptionColor ?? '#b8c5d6' }}>
-    {draft.description}
-  </p>
-)}
-
-{/* Controles do preview */}
+                {/* Controles do preview */}
 <div
   style={{
     display: 'flex',
@@ -2048,8 +2000,52 @@ const toggleAutofill = useCallback((checked: boolean) => {
     Limpar
   </button>
 </div>
+                <div className={styles.formPreview}>
+                  <div
+                    className={styles.previewForm}
+                    style={{
+                     backgroundColor: draft.theme.bgColor,
+    color: draft.theme.fontColor,
+    borderRadius: `${draft.theme.borderRadius}px`,
+    border: `2px solid ${draft.theme.accentColor}`,
+                    }}
+                  >
+                    {draft.logo?.url && (
+  <div
+    style={{
+      width: '100%',
+      display: 'flex',
+      justifyContent:
+        draft.logo.align === 'left'
+          ? 'flex-start'
+          : draft.logo.align === 'right'
+          ? 'flex-end'
+          : 'center',
+      marginBottom: 10,
+    }}
+  >
+    <img
+      src={draft.logo.url}
+      alt={draft.logo.name || 'Logo'}
+      style={{
+        width: draft.logo.size ? `${draft.logo.size}%` : '40%',
+        maxWidth: 240,
+        objectFit: 'contain'
+      }}
+    />
+  </div>
+)}
+                   
+<h2 style={{ color: draft.theme.titleColor ?? draft.theme.fontColor }}>
+  {draft.title || 'Título do Formulário'}
+</h2>
 
-
+{/* ✅ DESCRIÇÃO USA draft.theme.descriptionColor (cai para #b8c5d6) */}
+{draft.description && (
+  <p style={{ color: draft.theme.descriptionColor ?? '#b8c5d6' }}>
+    {draft.description}
+  </p>
+)}
 
 <PreviewFields
   fields={draft.fields}
