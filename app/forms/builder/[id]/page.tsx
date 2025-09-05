@@ -1247,10 +1247,38 @@ interface MenuAction {
 }
 
 function EnhancedFormBuilderPage(props: EnhancedFormBuilderPageProps) {
-   const router = useRouter();
-  const params = useParams();
-  const searchParams = useSearchParams(); // Hook para ler a URL
- const formId = props.existingForm?.id || (params?.id as string) || 'novo';
+const router = useRouter();
+const params = useParams();
+const closeEditor = React.useCallback((savedId?: string) => {
+  // 1) Se veio embutido, deixe o pai fechar
+  if (props.onSaveSuccess) {
+    props.onSaveSuccess();
+    return;
+  }
+
+  // 2) Se foi aberto por window.open, feche a janela e avise o opener
+  if (typeof window !== 'undefined') {
+    try {
+      window.opener?.postMessage({ type: 'FORM_SAVED', id: savedId }, '*');
+    } catch {}
+    if (window.opener && !window.opener.closed) {
+      window.close();
+      return;
+    }
+
+    // 3) Se tem histórico, volte
+    if (window.history.length > 1) {
+      router.back();
+      return;
+    }
+  }
+
+  // 4) Fallback: vai para o dashboard
+  router.replace('/dashboard');
+}, [router, props.onSaveSuccess]);
+
+const searchParams = useSearchParams(); // Hook para ler a URL
+const formId = props.existingForm?.id || (params?.id as string) || 'novo';
 const [previewValues, setPreviewValues] = useState<PreviewValues>({});
 const [autoFill, setAutoFill] = useState<boolean>(false);
 
@@ -1785,7 +1813,7 @@ const toggleAutofill = useCallback((checked: boolean) => {
         await setDoc(doc(db, 'forms', formId), formData);
       }
       localStorage.removeItem(FORM_KEY(companyId, departmentId, formId));
-      router.replace('/dashboard');
+      closeEditor(resultId);
     } catch (error) {
       alert('Erro ao salvar formulário. Tente novamente.');
     } finally {
