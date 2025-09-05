@@ -70,6 +70,105 @@ const theme = {
   tableCellFont: form.theme?.tableCellFont || "#e0e6f7"
 };
 
+// resolve o fundo real do input (se vier com alpha, mistura no bg geral do card)
+const resolvedInputBgRGB = blendOver(theme.inputBgColor, theme.bgColor);
+const resolvedInputBg = rgbToHex(resolvedInputBgRGB);
+
+// escolhe texto legível automaticamente
+const autoInputText = pickReadableTextColor(resolvedInputBg, theme.inputFontColor);
+
+// placeholder/caret coerentes
+const autoPlaceholder = withAlpha(autoInputText, 0.6);
+
+
+// --- utils de cor/contraste ---
+// aceita: #rgb, #rgba, #rrggbb, #rrggbbaa, rgb(), rgba()
+function parseColor(c: string): {r:number,g:number,b:number,a:number} {
+  c = c.trim();
+  if (c.startsWith('#')) {
+    const hex = c.slice(1);
+    if (hex.length === 3) {
+      const r = parseInt(hex[0]+hex[0],16);
+      const g = parseInt(hex[1]+hex[1],16);
+      const b = parseInt(hex[2]+hex[2],16);
+      return { r, g, b, a: 1 };
+    }
+    if (hex.length === 4) { // #rgba
+      const r = parseInt(hex[0]+hex[0],16);
+      const g = parseInt(hex[1]+hex[1],16);
+      const b = parseInt(hex[2]+hex[2],16);
+      const a = parseInt(hex[3]+hex[3],16)/255;
+      return { r, g, b, a };
+    }
+    if (hex.length === 6) {
+      const r = parseInt(hex.slice(0,2),16);
+      const g = parseInt(hex.slice(2,4),16);
+      const b = parseInt(hex.slice(4,6),16);
+      return { r, g, b, a: 1 };
+    }
+    if (hex.length === 8) {
+      const r = parseInt(hex.slice(0,2),16);
+      const g = parseInt(hex.slice(2,4),16);
+      const b = parseInt(hex.slice(4,6),16);
+      const a = parseInt(hex.slice(6,8),16)/255;
+      return { r, g, b, a };
+    }
+  }
+  if (c.startsWith('rgb')) {
+    const nums = c.match(/[\d.]+/g)?.map(Number) ?? [0,0,0];
+    const [r,g,b,a=1] = nums;
+    return { r, g, b, a };
+  }
+  // fallback
+  return { r: 0, g: 0, b: 0, a: 1 };
+}
+
+function srgbToLin(v:number){ v/=255; return v<=0.04045? v/12.92 : Math.pow((v+0.055)/1.055,2.4); }
+function relLuminance({r,g,b}:{r:number,g:number,b:number}) {
+  const R = srgbToLin(r), G = srgbToLin(g), B = srgbToLin(b);
+  return 0.2126*R + 0.7152*G + 0.0722*B;
+}
+function contrastRatio(fg:{r:number,g:number,b:number}, bg:{r:number,g:number,b:number}) {
+  const L1 = relLuminance(fg);
+  const L2 = relLuminance(bg);
+  const [light, dark] = L1 > L2 ? [L1, L2] : [L2, L1];
+  return (light + 0.05) / (dark + 0.05);
+}
+
+function blendOver(top:string, bottom:string){
+  const T = parseColor(top);
+  const B = parseColor(bottom);
+  const a = T.a + B.a*(1-T.a);
+  const r = Math.round((T.r*T.a + B.r*B.a*(1-T.a))/a);
+  const g = Math.round((T.g*T.a + B.g*B.a*(1-T.a))/a);
+  const b = Math.round((T.b*T.a + B.b*B.a*(1-T.a))/a);
+  return {r,g,b,a};
+}
+
+function rgbToHex({r,g,b}:{r:number,g:number,b:number}){
+  const h = (n:number)=> n.toString(16).padStart(2,'0');
+  return `#${h(r)}${h(g)}${h(b)}`;
+}
+
+// escolhe automaticamente a melhor cor de texto (preferida se tiver contraste; senão preto/branco)
+function pickReadableTextColor(bgCss:string, preferredCss:string, min=4.5){
+  const bg = parseColor(bgCss);
+  const preferred = parseColor(preferredCss);
+  const black = {r:0,g:0,b:0}, white = {r:255,g:255,b:255};
+  const bgNoAlpha = {r:bg.r,g:bg.g,b:bg.b};
+  const cPref = contrastRatio({r:preferred.r,g:preferred.g,b:preferred.b}, bgNoAlpha);
+  if (cPref >= min) return rgbToHex({r:preferred.r,g:preferred.g,b:preferred.b});
+  const cBlack = contrastRatio(black, bgNoAlpha);
+  const cWhite = contrastRatio(white, bgNoAlpha);
+  return cBlack >= cWhite ? '#111111' : '#ffffff';
+}
+
+function withAlpha(hex:string, alpha=0.6){
+  const {r,g,b} = parseColor(hex);
+  return `rgba(${r},${g},${b},${alpha})`;
+}
+
+
 // ---- Estados principais ----
 const [responses, setResponses] = useState<Record<string, any>>({});
 const [otherInputValues, setOtherInputValues] = useState<Record<string, string>>({});
@@ -503,13 +602,15 @@ function triggerToast(type: 'success' | 'error', message: string, duration = 260
 const base = {
   width: '100%',
   background: theme.inputBgColor,
-  color: theme.inputFontColor,
+  color: autoInputText,            // << aqui
+  caretColor: autoInputText,       // << aqui
   border: `1px solid ${theme.tableBorderColor}`,
   borderRadius: theme.borderRadius,
   padding: '5px 10px',
-  fontSize: 16,               // 👈 evita zoom no iOS
+  fontSize: 16,
   ...invalidize(fieldId),
 } as React.CSSProperties;
+
 
 
   switch (col.type) {
@@ -964,13 +1065,15 @@ case 'number': {
 
 const controlBase = {
   background: theme.inputBgColor,
-  color: theme.inputFontColor,
+  color: autoInputText,            // << aqui
+  caretColor: autoInputText,       // << facilita enxergar o cursor
   border: `1.5px solid ${theme.accentColor}`,
   borderRadius: theme.borderRadius,
   padding: '10px 12px',
   fontSize: 16,
   minHeight: 42,
 } as const;
+
 
 
 
