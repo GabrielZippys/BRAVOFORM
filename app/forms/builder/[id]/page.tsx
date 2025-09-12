@@ -138,9 +138,6 @@ const FIELD_TYPES: Array<{
 const FORM_KEY = (companyId: string, deptId: string, formId: string) =>
   `enhanced_formbuilder_draft_${companyId}_${deptId}_${formId || 'novo'}`;
 
-const generateFieldId = () => `field_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
-const generateTableId = (prefix: string) => `${prefix}_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
-
 // Retorna preto (#111827) para fundos claros e branco (#ffffff) para fundos escuros
 function pickTextColor(bg?: string, light = '#ffffff', dark = '#111827') {
   if (!bg) return dark;                       // fallback
@@ -213,22 +210,57 @@ function ensureReadableText(bg?: string, preferred?: string) {
   return contrastRatio(preferred, bg || '#ffffff') >= 4.5 ? preferred : auto;
 }
 
-
+const generateFieldId = () =>
+  `field_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
+const generateTableId = (prefix: string) =>
+  `${prefix}_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
 
 // ---- NORMALIZE FORM
 function normalizeForm(data: any) {
+  const withIds = (arr: any[] | undefined, maker: (i: number) => string) =>
+    (arr ?? []).map((item, i) => ({
+      ...item,
+      id:
+        item?.id && String(item.id).trim() !== ''
+          ? String(item.id)
+          : maker(i),
+    }));
+
+  const fields = (data?.fields ?? []).map((f: any, i: number) => {
+    const id =
+      f?.id && String(f.id).trim() !== '' ? String(f.id) : generateFieldId();
+
+    const columns = withIds(f?.columns, () => generateTableId('col')).map(
+      (c: any) => ({
+        ...c,
+        // defaults seguros
+        type: c?.type ?? 'text',
+        options: Array.isArray(c?.options) ? c.options : [],
+      })
+    );
+    const rows = withIds(f?.rows, () => generateTableId('row'));
+
+    return {
+      ...f,
+      id,
+      columns,
+      rows,
+      options: Array.isArray(f?.options) ? f.options : [],
+    };
+  });
+
   return {
     ...data,
-    theme: { ...defaultTheme, ...(data.theme || {}) },
+    fields,
+    theme: { ...defaultTheme, ...(data?.theme || {}) },
     settings: {
       allowSave: true,
       showProgress: true,
       confirmBeforeSubmit: false,
-      ...(data.settings || {}),
+      ...(data?.settings || {}),
     },
-    collaborators: data.collaborators || [],
-    authorizedUsers: data.authorizedUsers || [],
-    fields: data.fields || [],
+    collaborators: data?.collaborators || [],
+    authorizedUsers: data?.authorizedUsers || [],
   };
 }
 
@@ -1939,8 +1971,7 @@ const toggleAutofill = useCallback((checked: boolean) => {
                     <p>Arraste campos da barra lateral ou clique nos botões para adicionar</p>
                   </div>
                 ) : (
-                  <SortableContext
-                    items={draft.fields.map(f => f.id)}
+                  <SortableContext items={draft.fields.map((f, i) => f.id || `field-fallback-${i}`)}
                     strategy={verticalListSortingStrategy}
                   >
                     <div className={styles.fieldsList}>
