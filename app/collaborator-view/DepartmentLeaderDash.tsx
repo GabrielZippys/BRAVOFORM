@@ -97,8 +97,9 @@ export default function DepartmentLeaderDash({
   const [error, setError] = useState<string>('');
 
   // ---- Carrega formulários do setor (tempo real) + contagem agregada por form
-  useEffect(() => {
-  if (!companyId || !departmentId) {  // ⬅️ evita where(undefined)
+  // ---- Carrega formulários do setor (tempo real) + contagem agregada por form
+useEffect(() => {
+  if (!companyId || !departmentId) {
     setForms([]);
     setCounts({});
     setLoading(false);
@@ -106,37 +107,68 @@ export default function DepartmentLeaderDash({
   }
 
   setLoading(true);
+
   const qForms = query(
     collection(db, 'forms'),
     where('companyId', '==', companyId),
     where('departmentId', '==', departmentId)
   );
-  const unsub = onSnapshot(
 
-      qForms,
-      async (snap) => {
-        const list = snap.docs.map((d) => ({ id: d.id, ...(d.data() as any) })) as FormDoc[];
+  const unsub = onSnapshot(
+    qForms,
+    async (snap) => {
+      try {
+        // 1) Mapeia a lista garantindo um ID válido (evita forms//responses)
+        const list: FormDoc[] = snap.docs.map((d) => {
+          const data = d.data() as any;
+          const safeId =
+            typeof data?.id === 'string' && data.id.trim()
+              ? data.id.trim()
+              : d.id;
+
+          return {
+            id: safeId,
+            title: data.title ?? '',
+            departmentId: data.departmentId ?? '',
+            companyId: data.companyId ?? '',
+            createdAt: data.createdAt instanceof Timestamp ? data.createdAt : undefined,
+          };
+        });
+
         setForms(list);
 
-        // Aggregate count para cada form
+        // 2) Conta respostas por formulário (defensivo com ID)
         const results: Record<string, number> = {};
         await Promise.all(
           list.map(async (f) => {
-            const c = await getCountFromServer(collection(db, `forms/${f.id}/responses`));
-            results[f.id] = c.data().count;
+            if (!f.id || !f.id.trim()) {
+              results[f.id || '(sem-id)'] = 0;
+              return;
+            }
+            const respCol = collection(db, 'forms', f.id, 'responses'); // evita `forms//responses`
+            const countSnap = await getCountFromServer(respCol);
+            results[f.id] = countSnap.data().count;
           })
         );
+
         setCounts(results);
-        setLoading(false);
-      },
-      (err) => {
+      } catch (err) {
         console.error(err);
         setError('Erro ao carregar formulários.');
+      } finally {
         setLoading(false);
       }
-    );
-    return () => unsub();
-  }, [companyId, departmentId]);
+    },
+    (err) => {
+      console.error(err);
+      setError('Erro ao carregar formulários.');
+      setLoading(false);
+    }
+  );
+
+  return () => unsub();
+}, [companyId, departmentId]);
+
 
   // ---- Últimas respostas do setor (lista curta)
 // ---- Últimas respostas do setor (lista curta)

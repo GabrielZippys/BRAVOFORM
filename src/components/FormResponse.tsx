@@ -588,7 +588,7 @@ function triggerToast(type: 'success' | 'error', message: string, duration = 260
   field: EnhancedFormField,
   row: { id: string; label: string },
   col: { id: string; label: string; type: string; options?: string[] }
-) => {
+ ) => {
   const fieldId = String(field.id);
   const rowId = String(row.id);
   const colId = String(col.id);
@@ -598,20 +598,17 @@ function triggerToast(type: 'success' | 'error', message: string, duration = 260
       : '';
   const disabled = !canEdit && !!existingResponse;
 
-  // dentro de renderTableCell()
-const base = {
-  width: '100%',
-  background: theme.inputBgColor,
-  color: autoInputText,            // << aqui
-  caretColor: autoInputText,       // << aqui
-  border: `1px solid ${theme.tableBorderColor}`,
-  borderRadius: theme.borderRadius,
-  padding: '5px 10px',
-  fontSize: 16,
-  ...invalidize(fieldId),
-} as React.CSSProperties;
-
-
+  const base = {
+    width: '100%',
+    background: theme.inputBgColor,
+    color: autoInputText,
+    caretColor: autoInputText,
+    border: `1px solid ${theme.tableBorderColor}`,
+    borderRadius: theme.borderRadius,
+    padding: '5px 10px',
+    fontSize: 16,
+    ...invalidize(fieldId),
+  } as React.CSSProperties;
 
   switch (col.type) {
     case 'text':
@@ -626,39 +623,21 @@ const base = {
         />
       );
 
-
-  case 'number': {
-  const onNumChange = (v: string) =>
-    handleTableInputChange(fieldId, rowId, colId, v.replace(/\D+/g, ''));
-  return (
-    <input
-      style={base}
-      type="text"
-      inputMode="numeric"
-      pattern="[0-9]*"
-      value={value}
-      onChange={e => onNumChange(e.target.value)}
-      disabled={disabled}
-    />
-  );
-}
-
-case 'Número':
-case 'number': {
-  const v = String(responses[fieldId] ?? '');
-  return (
-    <input
-      value={v}
-      onChange={e => handleInputChange(fieldId, e.target.value.replace(/\D+/g, ''))}
-      placeholder={field.placeholder || ''}
-      disabled={disabled}
-      type="text"
-      inputMode="numeric"
-      pattern="[0-9]*"
-      style={controlBase}
-    />
-  );
-}
+    case 'number': {
+      const onNumChange = (v: string) =>
+        handleTableInputChange(fieldId, rowId, colId, v.replace(/\D+/g, ''));
+      return (
+        <input
+          style={base}
+          type="text"
+          inputMode="numeric"
+          pattern="[0-9]*"
+          value={value}
+          onChange={e => onNumChange(e.target.value)}
+          disabled={disabled}
+        />
+      );
+    }
 
     case 'date':
     case 'Data':
@@ -671,20 +650,22 @@ case 'number': {
           disabled={disabled}
         />
       );
+
     case 'select':
       return (
         <select
-          style={{ ...base }}
+          style={base}
           value={value}
           onChange={e => handleTableInputChange(fieldId, rowId, colId, e.target.value)}
           disabled={disabled}
         >
           <option value="">Selecionar</option>
-          {col.options?.map((opt: string) => (
+          {col.options?.map(opt => (
             <option key={opt} value={opt}>{opt}</option>
           ))}
         </select>
       );
+
     default:
       return (
         <input
@@ -697,7 +678,6 @@ case 'number': {
       );
   }
 };
-
 
   // Campo fiel ao preview
   const renderField = (field: EnhancedFormField, index: number) => {

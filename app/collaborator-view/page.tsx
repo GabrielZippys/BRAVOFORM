@@ -69,7 +69,7 @@ export default function CollaboratorView() {
   const [formToAnswer, setFormToAnswer] = useState<Form | null>(null);
 
   // ——— NOVOS ESTADOS (respostas de hoje)
-  const [todayResponsesByForm, setTodayResponsesByForm] = useState<Record<string, Timestamp>>({});
+  
   const [hasRespondedToday, setHasRespondedToday] = useState<Set<string>>(new Set());
 
   const router = useRouter();
@@ -84,7 +84,7 @@ export default function CollaboratorView() {
           return;
         }
         const parsed = JSON.parse(storedData) as Collaborator;
-        const collRef = doc(db, `departments/${parsed.departmentId}/collaborators`, parsed.id);
+        const collRef = doc(db, 'departments', parsed.departmentId, 'collaborators', parsed.id);
         const snap = await getDoc(collRef);
         if (snap.exists()) setCollaborator({ ...parsed, ...(snap.data() as any) });
         else setCollaborator(parsed);
@@ -95,78 +95,99 @@ export default function CollaboratorView() {
     loadCollaborator();
   }, [router]);
 
-  // Nomes empresa/depto
-  useEffect(() => {
-    if (collaborator?.companyId) {
-      getDoc(doc(db, 'companies', collaborator.companyId)).then((snap) => {
-        setCompanyName(snap.exists() ? (snap.data() as any).name : '');
-      });
-    }
-    if (collaborator?.companyId && collaborator?.departmentId) {
-      getDoc(doc(db, `companies/${collaborator.companyId}/departments`, collaborator.departmentId)).then(
-        (snap) => setDepartmentName(snap.exists() ? (snap.data() as any).name : '')
-      );
-    }
-  }, [collaborator?.companyId, collaborator?.departmentId]);
-
   // Formulários autorizados
-  useEffect(() => {
-    if (!collaborator?.id) return;
-    setLoading(true);
-    const qForms = query(collection(db, 'forms'), where('authorizedUsers', 'array-contains', collaborator.id));
-    const unsub = onSnapshot(
-      qForms,
-      (snapshot) => {
-        setFormsToFill(
-          snapshot.docs.map((docSnap) => {
-            const data = docSnap.data() as any;
-            return {
-              id: docSnap.id,
-              ...data,
-              fields: Array.isArray(data.fields) ? data.fields : [],
-              createdAt: data.createdAt instanceof Timestamp ? data.createdAt : undefined,
-              companyId: data.companyId ?? '',
-              departmentId: data.departmentId ?? '',
-            } as Form;
-          })
-        );
-        setLoading(false);
-      },
-      () => setLoading(false)
-    );
-    return () => unsub();
-  }, [collaborator?.id]);
+useEffect(() => {
+  if (!collaborator?.id) return;
+  setLoading(true);
 
-  // Histórico (somente quando estiver na aba)
-  useEffect(() => {
-    if (view === 'history' && collaborator?.id) {
-      setLoading(true);
-      const q = query(collectionGroup(db, 'responses'), where('collaboratorId', '==', collaborator.id));
-      const unsub = onSnapshot(
-        q,
-        (snapshot) => {
-          setSubmittedResponses(
-            snapshot.docs.map((docSnap) => {
-              const d = docSnap.data() as any;
-              return {
-                id: docSnap.id,
-                ...d,
-                createdAt:
-                  d.submittedAt instanceof Timestamp
-                    ? d.submittedAt
-                    : d.createdAt instanceof Timestamp
-                    ? d.createdAt
-                    : undefined,
-              } as FormResponseType;
-            })
-          );
-          setLoading(false);
-        },
-        () => setLoading(false)
+  const qForms = query(
+    collection(db, 'forms'),
+    where('authorizedUsers', 'array-contains', collaborator.id)
+  );
+
+  const unsub = onSnapshot(
+    qForms,
+    (snapshot) => {
+      const mapped = snapshot.docs.map((docSnap) => {
+        const data = docSnap.data() as any;
+
+        // id seguro: prioriza docSnap.id se o campo data.id for vazio/falsy
+        const safeId =
+          typeof data?.id === 'string' && data.id.trim()
+            ? data.id.trim()
+            : docSnap.id;
+
+        return {
+          ...data,                     // << pode ficar antes
+          id: safeId,                  // << mas *garante* um id não-vazio
+          fields: Array.isArray(data.fields) ? data.fields : [],
+          createdAt: data.createdAt instanceof Timestamp ? data.createdAt : undefined,
+          companyId: data.companyId ?? '',
+          departmentId: data.departmentId ?? '',
+        } as Form;
+      });
+
+      // opcional: filtra qualquer doc sem id (defensivo)
+      setFormsToFill(mapped.filter(f => typeof f.id === 'string' && f.id.trim().length > 0));
+      setLoading(false);
+    },
+    () => setLoading(false)
+  );
+
+  return () => unsub();
+}, [collaborator?.id]);
+
+// Histórico (preenche submittedResponses quando a aba está ativa)
+useEffect(() => {
+  if (view !== 'history' || !collaborator?.id) return;
+
+  setLoading(true);
+
+  const q = query(
+    collectionGroup(db, 'responses'),
+    where('collaboratorId', '==', collaborator.id)
+  );
+
+  const unsub = onSnapshot(
+    q,
+    (snapshot) => {
+      const items: FormResponseType[] = snapshot.docs.map((docSnap) => {
+        const d = docSnap.data() as any;
+        const createdAt =
+          d?.submittedAt instanceof Timestamp
+            ? d.submittedAt
+            : d?.createdAt instanceof Timestamp
+            ? d.createdAt
+            : undefined;
+
+        return {
+          id: docSnap.id,
+          formId: d.formId ?? '',
+          formTitle: d.formTitle ?? '',
+          answers: d.answers,
+          createdAt,
+          submittedAt: d.submittedAt,
+        };
+      });
+
+      // ordena por data desc (opcional)
+      items.sort(
+        (a, b) => (b.createdAt?.toMillis() ?? 0) - (a.createdAt?.toMillis() ?? 0)
       );
-      return () => unsub();
+
+      setSubmittedResponses(items);
+      setLoading(false);
+    },
+    (err) => {
+      console.error('history onSnapshot error:', err);
+      setError('Falha ao carregar o histórico.');
+      setLoading(false);
     }
-  }, [view, collaborator?.id]);
+  );
+
+  return () => unsub();
+}, [view, collaborator?.id]);
+
 
   // ——— OUVE TODAS AS RESPOSTAS E MARCA AS DE HOJE
   useEffect(() => {
@@ -193,7 +214,7 @@ export default function CollaboratorView() {
           }
         });
 
-        setTodayResponsesByForm(byForm);
+        
         setHasRespondedToday(new Set(Object.keys(byForm)));
       }
     );
@@ -208,37 +229,66 @@ export default function CollaboratorView() {
 
   // MODAL HISTÓRICO
   const handleHistoryOpen = async (response: FormResponseType) => {
-    const formSnap = await getDoc(doc(db, 'forms', response.formId));
-    const form = formSnap.exists()
-      ? ({
-          id: formSnap.id,
-          ...(formSnap.data() as any),
-          fields: Array.isArray((formSnap.data() as any).fields)
-            ? (formSnap.data() as any).fields
-            : [],
-          companyId: (formSnap.data() as any).companyId ?? '',
-          departmentId: (formSnap.data() as any).departmentId ?? '',
-        } as Form)
-      : null;
-    setFormSelecionado(form);
+  try {
+    if (!response?.formId || response.formId.trim() === '') {
+      setError('Item de histórico sem referência de formulário.');
+      return;
+    }
+    const ref = doc(db, 'forms', response.formId);
+    const formSnap = await getDoc(ref);
+    if (!formSnap.exists()) {
+      setError('Formulário do histórico não encontrado.');
+      return;
+    }
+    const data = formSnap.data() as any;
+    setFormSelecionado({
+      id: formSnap.id,
+      ...data,
+      fields: Array.isArray(data.fields) ? data.fields : [],
+      companyId: data.companyId ?? '',
+      departmentId: data.departmentId ?? '',
+    });
     setRespostaSelecionada(response);
     setModalOpen(true);
-  };
+  } catch (e) {
+    console.error(e);
+    setError('Falha ao carregar o histórico.');
+  }
+};
+
 
   // MODAL DE RESPOSTA
-  const handleResponder = async (form: Form) => {
-    const snap = await getDoc(doc(db, 'forms', form.id));
-    if (snap.exists()) {
-      const firestoreForm = snap.data() as any;
-      setFormToAnswer({
-        ...firestoreForm,
-        id: form.id,
-        fields: Array.isArray(firestoreForm.fields) ? firestoreForm.fields : [],
-        companyId: firestoreForm.companyId ?? '',
-        departmentId: firestoreForm.departmentId ?? '',
-      });
+// MODAL DE RESPOSTA
+const handleResponder = async (formId: string) => {
+  try {
+    if (!formId || typeof formId !== 'string' || !formId.trim()) {
+      console.error('handleResponder: formId inválido', formId);
+      setError('Formulário inválido (sem ID).');
+      return;
     }
-  };
+
+    const ref = doc(db, 'forms', formId);
+    const snap = await getDoc(ref);
+    if (!snap.exists()) {
+      setError('Formulário não encontrado.');
+      return;
+    }
+
+    const firestoreForm = snap.data() as any;
+    setFormToAnswer({
+      ...firestoreForm,
+      id: snap.id,
+      fields: Array.isArray(firestoreForm.fields) ? firestoreForm.fields : [],
+      companyId: firestoreForm.companyId ?? '',
+      departmentId: firestoreForm.departmentId ?? '',
+    });
+  } catch (e) {
+    console.error(e);
+    setError('Não foi possível abrir o formulário para resposta.');
+  }
+};
+
+
   const closeFormResponse = () => setFormToAnswer(null);
 
   // ——— RESUMO (topo da grade)
@@ -355,13 +405,14 @@ export default function CollaboratorView() {
                         )}
                       </div>
                       <button
-                        className={styles.cardButton}
-                        onClick={() => handleResponder(form)}
-                        disabled={answered} // remova se não quiser bloquear
-                        title={answered ? 'Você já respondeu hoje' : 'Responder'}
-                      >
-                        {answered ? 'Respondido' : 'Responder'}
-                      </button>
+  className={styles.cardButton}
+  onClick={() => handleResponder(form.id)}   // << só o ID
+  disabled={answered}
+  title={answered ? 'Você já respondeu hoje' : 'Responder'}
+>
+  {answered ? 'Respondido' : 'Responder'}
+</button>
+
                     </div>
                   );
                 })}
