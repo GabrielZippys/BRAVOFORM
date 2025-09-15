@@ -33,11 +33,13 @@ interface FormResponseProps {
     departmentId: string;
     canViewHistory?: boolean;
     canEditHistory?: boolean;
+    isLeader?: boolean;   // << ADICIONE ISTO
   };
   onClose: () => void;
   existingResponse?: FormResponseType | null;
   canEdit?: boolean;
 }
+
 
 export default function FormResponse({
   form,
@@ -481,6 +483,110 @@ function triggerToast(type: 'success' | 'error', message: string, duration = 260
     }
   };
 
+  // Preenche respostas automaticamente (somente para líderes)
+const handleAutoFillLeader = () => {
+  if (!collaborator?.isLeader) return;
+
+  const nextResponses: Record<string, any> = { ...responses };
+  const nextOthers: Record<string, string> = { ...otherInputValues };
+
+  const today = new Date();
+  const yyyy = today.getFullYear();
+  const mm = String(today.getMonth() + 1).padStart(2, '0');
+  const dd = String(today.getDate()).padStart(2, '0');
+  const todayISO = `${yyyy}-${mm}-${dd}`;
+
+  (form.fields as EnhancedFormField[]).forEach((field) => {
+    const id = String(field.id);
+
+    switch (field.type) {
+      case 'Cabeçalho':
+        // nada a preencher
+        break;
+
+      case 'Texto':
+        nextResponses[id] = nextResponses[id] ?? 'OK';
+        break;
+
+      case 'Data':
+        nextResponses[id] = nextResponses[id] ?? todayISO;
+        break;
+
+      case 'Múltipla Escolha': {
+        const first = field.options?.[0] ?? '';
+        if (first) nextResponses[id] = first;
+        else if (field.allowOther) {
+          nextResponses[id] = '___OTHER___';
+          nextOthers[id] = nextOthers[id] ?? 'Autopreenchido';
+        }
+        break;
+      }
+
+      case 'Caixa de Seleção': {
+        const first = field.options?.[0] ?? '';
+        if (first) {
+          const current: string[] = Array.isArray(nextResponses[id]) ? nextResponses[id] : [];
+          if (!current.includes(first)) nextResponses[id] = [...current, first];
+        } else if (field.allowOther) {
+          const current: string[] = Array.isArray(nextResponses[id]) ? nextResponses[id] : [];
+          if (!current.includes('___OTHER___')) {
+            nextResponses[id] = [...current, '___OTHER___'];
+          }
+          nextOthers[id] = nextOthers[id] ?? 'Autopreenchido';
+        }
+        break;
+      }
+
+      case 'Tabela': {
+        const rows = field.rows ?? [];
+        const cols = field.columns ?? [];
+        const table = { ...(nextResponses[id] || {}) };
+        rows.forEach((r: any) => {
+          table[String(r.id)] = { ...(table[String(r.id)] || {}) };
+          cols.forEach((c: any) => {
+            const colId = String(c.id);
+            if (table[String(r.id)][colId] !== undefined) return;
+            if ((c.type || '').toLowerCase() === 'number') table[String(r.id)][colId] = '0';
+            else if ((c.type || '').toLowerCase() === 'date') table[String(r.id)][colId] = todayISO;
+            else if ((c.type || '').toLowerCase() === 'select') {
+              const opt = (c.options?.[0] as string) ?? '';
+              table[String(r.id)][colId] = opt;
+            } else {
+              table[String(r.id)][colId] = 'OK';
+            }
+          });
+        });
+        nextResponses[id] = table;
+        break;
+      }
+
+      case 'Assinatura':
+      case 'Anexo':
+        // não autopreenche (assinar/anexar exige ação manual)
+        break;
+
+      default:
+        // inputs genéricos
+        nextResponses[id] = nextResponses[id] ?? 'OK';
+        break;
+    }
+  });
+
+  setResponses(nextResponses);
+  setOtherInputValues(nextOthers);
+
+  // limpa mensagens de inválido dos campos que agora passaram
+  const clearedInvalid: Record<string, string> = {};
+  (form.fields as EnhancedFormField[]).forEach((f) => {
+    const err = validateRequiredField(f);
+    if (err) clearedInvalid[String(f.id)] = err;
+  });
+  setInvalid(clearedInvalid);
+
+  triggerToast('success', 'Campos preenchidos automaticamente (modo líder).', 1800);
+};
+
+
   // SUBMIT
   const handleSubmit = async () => {
   setIsSubmitting(true);
@@ -599,16 +705,19 @@ function triggerToast(type: 'success' | 'error', message: string, duration = 260
   const disabled = !canEdit && !!existingResponse;
 
   const base = {
-    width: '100%',
-    background: theme.inputBgColor,
-    color: autoInputText,
-    caretColor: autoInputText,
-    border: `1px solid ${theme.tableBorderColor}`,
-    borderRadius: theme.borderRadius,
-    padding: '5px 10px',
-    fontSize: 16,
-    ...invalidize(fieldId),
-  } as React.CSSProperties;
+  width: '100%',
+  background: theme.inputBgColor,
+  color: autoInputText,
+  caretColor: autoInputText,
+  borderWidth: 1.5,
+  borderStyle: 'solid',
+  borderColor: theme.tableBorderColor, // terá override do invalidize()
+  borderRadius: theme.borderRadius,
+  padding: '5px 10px',
+  fontSize: 16,
+  ...invalidize(fieldId),
+} as React.CSSProperties;
+
 
   switch (col.type) {
     case 'text':
@@ -810,11 +919,13 @@ function triggerToast(type: 'success' | 'error', message: string, duration = 260
                 background: theme.inputBgColor,
                 color: theme.inputFontColor,
                 borderRadius: theme.borderRadius,
-                border: `1px solid ${theme.tableBorderColor}`,
+                borderWidth: 1,
+                borderStyle: 'solid',
+                borderColor: theme.tableBorderColor,
                 padding: '8px 12px',
                 marginBottom: 4,
-                 minHeight: 36,       // 👈 toque confortável
-                 fontSize: 16         // 👈 evita zoom no iOS
+                 minHeight: 36,      
+                 fontSize: 16         
               }}
             />
             {Array.isArray(responses[fieldId]) &&
@@ -1037,14 +1148,17 @@ function triggerToast(type: 'success' | 'error', message: string, duration = 260
 
 const controlBase = {
   background: theme.inputBgColor,
-  color: autoInputText,            // << aqui
-  caretColor: autoInputText,       // << facilita enxergar o cursor
-  border: `1.5px solid ${theme.accentColor}`,
+  color: autoInputText,
+  caretColor: autoInputText,
+  borderWidth: 1.5,
+  borderStyle: 'solid',
+  borderColor: theme.accentColor,
   borderRadius: theme.borderRadius,
   padding: '10px 12px',
   fontSize: 16,
   minHeight: 42,
 } as const;
+
 
 
 
@@ -1209,51 +1323,76 @@ const controlBase = {
           ))}
         </div>
 
-        {/* FOOTER */}
-       <div
+       {/* FOOTER */}
+<div
   style={{
     background: theme.footerBg,
     color: theme.footerFont,
     borderBottomLeftRadius: theme.borderRadius,
     borderBottomRightRadius: theme.borderRadius,
     padding: 'clamp(12px, 2.6vw, 24px)',
-    marginTop: 'auto'
+    marginTop: 'auto',
+    display: 'flex',
+    gap: 10,
+    flexWrap: 'wrap',
   }}
 >
+  {error && (
+    <div style={{ color: "#ef4444", fontWeight: 600, fontSize: 16, marginBottom: 5, width: '100%' }}>
+      {error}
+    </div>
+  )}
 
-          {error && <div style={{ color: "#ef4444", fontWeight: 600, fontSize: 16, marginBottom: 5 }}>{error}</div>}
-          {canEdit || !existingResponse ? (
-            <button
-              onClick={handleSubmit}
-              style={{
-                background: theme.accentColor,
-                color: "#fff",
-                borderRadius: theme.borderRadius,
-                boxShadow: `0 2px 8px ${theme.accentColor}33`,
-                border: 'none',
-                padding: '10px 25px',
-                fontSize: 17,
-                fontWeight: 700,
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                gap: 8,
-              }}
-              disabled={isSubmitting}
-            >
-              <Send size={19} />
-              <span>
-                {isSubmitting
-                  ? 'A Enviar...'
-                  : existingResponse
-                    ? 'Atualizar Resposta'
-                    : 'Submeter Resposta'}
-              </span>
-            </button>
-          ) : null}
-        </div>
-      </div>
-        {/* TOAST (CENTRO DA TELA) */}
+  {collaborator?.isLeader && (
+    <button
+      type="button"
+      onClick={handleAutoFillLeader}
+      style={{
+        background: '#0ea5e9',
+        color: '#fff',
+        borderRadius: theme.borderRadius,
+        border: 'none',
+        padding: '10px 18px',
+        fontSize: 16,
+        fontWeight: 700,
+        cursor: 'pointer',
+        display: 'flex',
+        alignItems: 'center',
+        gap: 8,
+      }}
+      disabled={isSubmitting}
+      title="Autopreencher campos (somente líderes)"
+    >
+      <CheckCircle2 size={18} />
+      Autopreencher
+    </button>
+  )}
+
+  {(canEdit || !existingResponse) && (
+    <button
+      onClick={handleSubmit}
+      style={{
+        background: theme.accentColor,
+        color: "#fff",
+        borderRadius: theme.borderRadius,
+        boxShadow: `0 2px 8px ${theme.accentColor}33`,
+        border: 'none',
+        padding: '10px 25px',
+        fontSize: 17,
+        fontWeight: 700,
+        cursor: 'pointer',
+        display: 'flex',
+        alignItems: 'center',
+        gap: 8,
+      }}
+      disabled={isSubmitting}
+    >
+      <Send size={19} />
+      <span>{isSubmitting ? 'A Enviar...' : existingResponse ? 'Atualizar Resposta' : 'Submeter Resposta'}</span>
+    </button>
+  )}
+</div>
+
 {/* TOAST (CENTRO + ANIMAÇÕES) */}
 {toast.visible && (
   <>
@@ -1370,8 +1509,7 @@ const controlBase = {
     </div>
   </>
 )}
-
-
+      </div>
     </div>
   );
 }
