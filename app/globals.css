@@ -643,3 +643,10 @@ textarea.success {
   border: 1px dashed rgba(255, 255, 255, 0.1);
 }
 
+:root {
+  --stores-bg: rgba(229,231,235,0.06);
+  --stores-bd: rgba(229,231,235,0.18);
+  --stores-subtle: #c7cbd2;
+  --stores-ink: #e8ecf3;
+  --stores-accent: #C5A05C; /* dourado da sua paleta */
+}
