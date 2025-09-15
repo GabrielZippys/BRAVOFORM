@@ -17,7 +17,9 @@ import {
   QueryConstraint,
 } from 'firebase/firestore';
 
-import styles from '../../app/styles/Users.module.css';
+import styles from '../../app/styles/Users.module.css';          // já existia
+import stores from '../../app/styles/Dashboard-lider.module.css';
+
 import {
   FileText,
   BarChart2,
@@ -43,6 +45,7 @@ import {
   Cell,
 } from 'recharts';
 
+
 type FireTs = Timestamp | undefined;
 
 interface FormDoc {
@@ -51,6 +54,7 @@ interface FormDoc {
   departmentId: string;
   companyId: string;
   createdAt?: FireTs;
+  authorizedUsers?: string[];   // 👈 ADD
 }
 
 interface RespDoc {
@@ -64,6 +68,14 @@ interface RespDoc {
   createdAt?: FireTs;
   submittedAt?: FireTs;
 }
+
+
+interface CollaboratorDoc {
+  id: string;
+  username: string; 
+  isLeader?: boolean;
+}
+
 
 function toDate(val?: any): Date | null {
   if (!val) return null;
@@ -81,96 +93,145 @@ type TimeWindow = '7d' | '30d' | '90d';
 type FilterMode = 'presets' | 'range' | 'day';
 
 
-export default function DepartmentLeaderDash({
-  companyId,
-  departmentId,
-}: {
-  companyId: string;
-  departmentId: string;
-}) {
+export default function DepartmentLeaderDash({ companyId, departmentId }: { companyId: string; departmentId: string; }) {
   const [forms, setForms] = useState<FormDoc[]>([]);
   const [counts, setCounts] = useState<Record<string, number>>({});
   const [recent, setRecent] = useState<RespDoc[]>([]);
   const [allDeptResponses, setAllDeptResponses] = useState<RespDoc[]>([]);
+  const [collaborators, setCollaborators] = useState<CollaboratorDoc[]>([]);
   const [loading, setLoading] = useState(true);
   const [timeWindow, setTimeWindow] = useState<TimeWindow>('30d');
   const [error, setError] = useState<string>('');
 
-  // ---- Carrega formulários do setor (tempo real) + contagem agregada por form
-  // ---- Carrega formulários do setor (tempo real) + contagem agregada por form
+// limites de hoje
+const todayStart = useMemo(() => {
+  const d = new Date(); d.setHours(0,0,0,0); return d;
+}, []);
+const todayEnd = useMemo(() => {
+  const d = new Date(); d.setHours(23,59,59,999); return d;
+}, []);
+
+
+const responsesToday = useMemo(() => {
+  return allDeptResponses.filter(r => {
+    const dt =
+      (r.submittedAt instanceof Timestamp ? r.submittedAt.toDate() : null) ||
+      (r.createdAt   instanceof Timestamp ? r.createdAt.toDate()   : null);
+    return !!dt && dt >= todayStart && dt <= todayEnd;
+  });
+}, [allDeptResponses, todayStart, todayEnd]);
+
 useEffect(() => {
-  if (!companyId || !departmentId) {
-    setForms([]);
-    setCounts({});
-    setLoading(false);
-    return;
-  }
-
-  setLoading(true);
-
-  const qForms = query(
-    collection(db, 'forms'),
-    where('companyId', '==', companyId),
-    where('departmentId', '==', departmentId)
-  );
+  if (!departmentId) { setCollaborators([]); return; }
 
   const unsub = onSnapshot(
-    qForms,
-    async (snap) => {
-      try {
-        // 1) Mapeia a lista garantindo um ID válido (evita forms//responses)
-        const list: FormDoc[] = snap.docs.map((d) => {
-          const data = d.data() as any;
-          const safeId =
-            typeof data?.id === 'string' && data.id.trim()
-              ? data.id.trim()
-              : d.id;
+    collection(db, 'departments', departmentId, 'collaborators'),
+    (snap) => {
+      const list = snap.docs.map((d) => {
+        const data = d.data() as any;
+        return {
+          id: d.id,
+          username: data.username ?? data.name ?? '(sem nome)',
+          isLeader: !!data.isLeader,
+        } as CollaboratorDoc;
+      });
 
-          return {
-            id: safeId,
-            title: data.title ?? '',
-            departmentId: data.departmentId ?? '',
-            companyId: data.companyId ?? '',
-            createdAt: data.createdAt instanceof Timestamp ? data.createdAt : undefined,
-          };
-        });
-
-        setForms(list);
-
-        // 2) Conta respostas por formulário (defensivo com ID)
-        const results: Record<string, number> = {};
-        await Promise.all(
-          list.map(async (f) => {
-            if (!f.id || !f.id.trim()) {
-              results[f.id || '(sem-id)'] = 0;
-              return;
-            }
-            const respCol = collection(db, 'forms', f.id, 'responses'); // evita `forms//responses`
-            const countSnap = await getCountFromServer(respCol);
-            results[f.id] = countSnap.data().count;
-          })
-        );
-
-        setCounts(results);
-      } catch (err) {
-        console.error(err);
-        setError('Erro ao carregar formulários.');
-      } finally {
-        setLoading(false);
-      }
-    },
-    (err) => {
-      console.error(err);
-      setError('Erro ao carregar formulários.');
-      setLoading(false);
+      setCollaborators(list.filter((c) => !c.isLeader)); // só não-líderes
     }
   );
 
   return () => unsub();
-}, [companyId, departmentId]);
+}, [departmentId]);
+  
+ // 🔧 Carrega formulários do setor
+  useEffect(() => {
+    if (!companyId || !departmentId) {
+      setForms([]);
+      setCounts({});
+      setLoading(false);
+      return;
+    }
+
+    setLoading(true);
+    const qForms = query(
+      collection(db, 'forms'),
+      where('companyId', '==', companyId),
+      where('departmentId', '==', departmentId)
+    );
+
+  const unsub = onSnapshot(
+      qForms,
+      async (snap) => {
+        try {
+          // ✅ mapeia AQUI (onde 'snap' existe)
+          const list: FormDoc[] = snap.docs.map((d) => {
+            const data = d.data() as any;
+            const safeId =
+              typeof data?.id === 'string' && data.id.trim() ? data.id.trim() : d.id;
+
+            return {
+              id: safeId,
+              title: data.title ?? '',
+              departmentId: data.departmentId ?? '',
+              companyId: data.companyId ?? '',
+              createdAt: data.createdAt instanceof Timestamp ? data.createdAt : undefined,
+              authorizedUsers: Array.isArray(data.authorizedUsers) ? data.authorizedUsers : [], // 👈 necessário para storeStats
+            };
+          });
+
+          setForms(list);
+
+       // contagem de respostas por form
+          const results: Record<string, number> = {};
+          await Promise.all(
+            list.map(async (f) => {
+              if (!f.id?.trim()) {
+                results[f.id || '(sem-id)'] = 0;
+                return;
+              }
+              const respCol = collection(db, 'forms', f.id, 'responses');
+              const countSnap = await getCountFromServer(respCol);
+              results[f.id] = countSnap.data().count;
+            })
+          );
+ setCounts(results);
+        } catch (err) {
+          console.error(err);
+          setError('Erro ao carregar formulários.');
+        } finally {
+          setLoading(false);
+        }
+      },
+      (err) => {
+        console.error(err);
+        setError('Erro ao carregar formulários.');
+        setLoading(false);
+      }
+    );
+
+   return () => unsub();
+  }, [companyId, departmentId]);
+
+const storeStats = useMemo(() => {
+  const respByCollab = new Map<string, number>();
+  responsesToday.forEach((r) => {
+    const id = r.collaboratorId || '';
+    if (!id) return;
+    respByCollab.set(id, (respByCollab.get(id) || 0) + 1);
+  });
+
+  return collaborators
+    .map((c) => {
+      const assigned  = forms.filter((f) => f.authorizedUsers?.includes(c.id)).length;
+      const responded = respByCollab.get(c.id) || 0; // só HOJE
+      const pending   = Math.max(assigned - responded, 0);
+      const pct       = assigned > 0 ? Math.min((responded / assigned) * 100, 100) : 0;
+      return { ...c, assigned, responded, pending, pct };
+    })
+    .sort((a, b) => (b.pending - a.pending) || a.username.localeCompare(b.username));
+}, [collaborators, forms, responsesToday]);
 
 
-  // ---- Últimas respostas do setor (lista curta)
 // ---- Últimas respostas do setor (lista curta)
 useEffect(() => {
   (async () => {
@@ -199,7 +260,7 @@ useEffect(() => {
 }, [departmentId]);
 
 
-  // ---- Respostas do setor para o período (para gráficos)
+
 // ---- Respostas do setor para o período (para gráficos)
 useEffect(() => {
   (async () => {
@@ -470,83 +531,55 @@ const [singleDateStr, setSingleDateStr] = useState<string>(''); // AAAA-MM-DD
       </div>
 
       {/* LISTAS: Formulários + Últimas respostas */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
-        {/* Formulários do setor */}
-        <div className={styles.frame}>
-          <div className={styles.frameHeader}>
-            <BarChart2 size={18} />
-            <h4 className={styles.frameTitle} style={{ marginLeft: 8 }}>
-              Formulários do Setor
-            </h4>
+      <div
+  style={{
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(380px, 1fr))',
+    gap: 16,
+    width: '100%',
+  }}
+>
+{/* Lojas do setor — Atribuídos x Respondidos (FULL WIDTH + GRID) */}
+<div className={stores.panel}>
+ <div className={stores.panel}>
+  <div className={stores.header}>
+    <MessageSquare size={18} />
+    <h4 className={stores.title}>
+      Lojas do Setor — Atribuídos x Respondidos
+      <span className={stores.metaPeriod}>(hoje)</span>
+    </h4>
+  </div>
+  {/* ...cards... */}
+</div>
+
+
+  {storeStats.length === 0 ? (
+    <p className={stores.empty}>Nenhuma loja encontrada.</p>
+  ) : (
+    <div className={stores.grid}>
+      {storeStats.map((s) => (
+        <div key={s.id} className={stores.card}>
+          <div className={stores.cardTop}>
+            <h5 className={stores.storeName}>{s.username}</h5>
+            <span className={stores.badge}>{Math.round(s.pct)}%</span>
           </div>
 
-          {loading ? (
-            <p className={styles.emptyState}>Carregando…</p>
-          ) : forms.length === 0 ? (
-            <p className={styles.emptyState}>Nenhum formulário neste setor.</p>
-          ) : (
-            <div className={styles.list}>
-              {forms.map((f) => (
-                <div key={f.id} className={styles.itemCard}>
-                  <div>
-                    <h5 className={styles.itemName}>{f.title}</h5>
-                    <p className={styles.itemInfo}>
-                      {counts[f.id] ?? 0} resposta(s)
-                      {f.createdAt?.seconds && (
-                        <>
-                          {' '}
-                          • criado em{' '}
-                          {new Date(f.createdAt.seconds * 1000).toLocaleDateString('pt-BR')}
-                        </>
-                      )}
-                    </p>
-                  </div>
-                  <span className={styles.permissionTag}>ID: {f.id.slice(0, 6)}…</span>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* Últimas respostas */}
-        <div className={styles.frame}>
-          <div className={styles.frameHeader}>
-            <MessageSquare size={18} />
-            <h4 className={styles.frameTitle} style={{ marginLeft: 8 }}>
-              Últimas Respostas
-            </h4>
+          <div className={stores.cardMeta}>
+            <strong>{s.responded}</strong> de <strong>{s.assigned}</strong> respondidos
+            {s.pending > 0 && <> • <strong>{s.pending}</strong> pendente(s)</>}
           </div>
 
-          {recent.length === 0 ? (
-            <p className={styles.emptyState}>Nada por aqui ainda.</p>
-          ) : (
-            <div className={styles.list}>
-              {recent.map((r) => {
-                const when =
-                  r.submittedAt?.seconds ?? r.createdAt?.seconds
-                    ? new Date(
-                        (r.submittedAt?.seconds ?? r.createdAt!.seconds) * 1000
-                      ).toLocaleString('pt-BR')
-                    : 'Sem data';
-                return (
-                  <div key={r.id} className={styles.itemCard}>
-                    <div style={{ marginRight: 10 }}>
-                      <FileText size={20} />
-                    </div>
-                    <div style={{ flex: 1 }}>
-                      <h5 className={styles.itemName}>{r.formTitle || r.formId}</h5>
-                      <p className={styles.itemInfo}>
-                        {r.collaboratorUsername ? `${r.collaboratorUsername} • ` : ''}
-                        Respondido em {when}
-                      </p>
-                    </div>
-                    <span className={styles.permissionTag}>resp: {r.id.slice(0, 6)}…</span>
-                  </div>
-                );
-              })}
-            </div>
-          )}
+          <div className={stores.bar} aria-label={`Progresso de ${s.username}`}>
+            <div className={stores.fill} style={{ width: `${s.pct}%` }} />
+          </div>
         </div>
+      ))}
+    </div>
+  )}
+</div>
+
+
+
       </div>
 
       {error && (
