@@ -95,6 +95,41 @@ export default function CollaboratorView() {
     loadCollaborator();
   }, [router]);
 
+  // Nomes de empresa/departamento
+useEffect(() => {
+  if (!collaborator) return;
+  const { companyId, departmentId } = collaborator;
+
+  (async () => {
+    try {
+      // Empresa
+      let cName = '';
+      if (companyId) {
+        const csnap = await getDoc(doc(db, 'companies', companyId));
+        if (csnap.exists()) cName = (csnap.data() as any).name ?? '';
+      }
+
+      // Departamento: tenta subcoleção dentro da empresa e, se não existir, top-level
+      let dName = '';
+      if (companyId && departmentId) {
+        let dsnap = await getDoc(doc(db, 'companies', companyId, 'departments', departmentId));
+        if (!dsnap.exists()) {
+          dsnap = await getDoc(doc(db, 'departments', departmentId));
+        }
+        if (dsnap.exists()) dName = (dsnap.data() as any).name ?? '';
+      }
+
+      setCompanyName(cName);
+      setDepartmentName(dName);
+    } catch (e) {
+      console.error('Erro ao buscar nomes:', e);
+      setCompanyName('');
+      setDepartmentName('');
+    }
+  })();
+}, [collaborator?.companyId, collaborator?.departmentId]);
+
+
   // Formulários autorizados
 useEffect(() => {
   if (!collaborator?.id) return;
