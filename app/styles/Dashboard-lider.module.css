@@ -1,10 +1,15 @@
-:root {
+/* Torna o :root global dentro de um CSS Module */
+:global(:root) {
   --stores-bg: rgba(229,231,235,0.06);
   --stores-bd: rgba(229,231,235,0.18);
-  --stores-subtle: #c7cbd2;
-  --stores-ink: #e8ecf3;
-  --stores-accent: #C5A05C; /* dourado da sua paleta */
+  --stores-bd-strong: rgba(229,231,235,0.28);
+  --stores-title: #e9edf3;
+  --stores-text: #cdd3db;
+  --stores-accent: #C5A05C;
+  --stores-accent-soft: #C5A05C22;
+  --stores-accent-bd: #C5A05C55;
 }
+
 
 .panel {
   /* ocupa a linha inteira do grid-pai */
