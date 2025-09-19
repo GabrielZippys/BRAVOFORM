@@ -391,144 +391,6 @@ const [singleDateStr, setSingleDateStr] = useState<string>(''); // AAAA-MM-DD
 
   return (
     <div>
-      {/* FILTROS / MÉTRICAS */}
-      <div className={styles.frame}>
-        <div className={styles.frameHeader}>
-          <h3 className={styles.frameTitle}>Dash do Líder — {metrics.totalForms} formulários</h3>
-          <div style={{ display: 'flex', gap: 8 }}>
-            {(['7d', '30d', '90d'] as TimeWindow[]).map((tw) => (
-              <button
-                key={tw}
-                onClick={() => setTimeWindow(tw)}
-                className={styles.button}
-                style={{
-                  opacity: timeWindow === tw ? 1 : 0.6,
-                }}
-              >
-                {tw === '7d' ? '7 dias' : tw === '30d' ? '30 dias' : '90 dias'}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* cards rápidos */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 12 }}>
-          <div className={styles.itemCard}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <Activity size={20} />
-              <div>
-                <div className={styles.itemName}>Respostas (período)</div>
-                <div className={styles.itemInfo}>{metrics.totalResponses}</div>
-              </div>
-            </div>
-          </div>
-
-          <div className={styles.itemCard}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <Users size={20} />
-              <div>
-                <div className={styles.itemName}>Colaboradores ativos</div>
-                <div className={styles.itemInfo}>{metrics.uniqueUsers}</div>
-              </div>
-            </div>
-          </div>
-
-          <div className={styles.itemCard}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <Target size={20} />
-              <div>
-                <div className={styles.itemName}>Taxa média</div>
-                <div className={styles.itemInfo}>{metrics.completion}</div>
-              </div>
-            </div>
-          </div>
-
-          <div className={styles.itemCard}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <Clock size={20} />
-              <div>
-                <div className={styles.itemName}>Tempo médio</div>
-                <div className={styles.itemInfo}>{metrics.avgTime} min</div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* GRÁFICOS */}
-      <div className={styles.frame}>
-        <div className={styles.frameHeader}>
-          <h3 className={styles.frameTitle}>Tendência — Respostas por dia</h3>
-        </div>
-        {byDay.length === 0 ? (
-          <p className={styles.emptyState}>Sem dados no período.</p>
-        ) : (
-          <div style={{ width: '100%', height: 260 }}>
-            <ResponsiveContainer>
-              <LineChart data={byDay}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="date" />
-                <YAxis allowDecimals={false} />
-                <Tooltip />
-                <Line type="monotone" dataKey="count" stroke="#B18F42" strokeWidth={3} dot />
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
-        )}
-      </div>
-
-      <div className={styles.frame} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
-        <div>
-          <div className={styles.frameHeader}>
-            <h3 className={styles.frameTitle}>Top Formulários (por respostas)</h3>
-          </div>
-          {byForm.length === 0 ? (
-            <p className={styles.emptyState}>Sem dados no período.</p>
-          ) : (
-            <div style={{ width: '100%', height: 260 }}>
-              <ResponsiveContainer>
-                <BarChart data={byForm}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="name" />
-                  <YAxis allowDecimals={false} />
-                  <Tooltip />
-                  <Bar dataKey="value" fill="#C5A05C" radius={[6, 6, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          )}
-        </div>
-
-        <div>
-          <div className={styles.frameHeader}>
-            <h3 className={styles.frameTitle}>Distribuição por Colaborador</h3>
-          </div>
-          {byUser.length === 0 ? (
-            <p className={styles.emptyState}>Sem dados no período.</p>
-          ) : (
-            <div style={{ width: '100%', height: 260 }}>
-              <ResponsiveContainer>
-                <PieChart>
-                  <Pie
-                    data={byUser}
-                    dataKey="value"
-                    nameKey="name"
-                    cx="50%"
-                    cy="50%"
-                    outerRadius={80}
-                    label={({ name, percent = 0 }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                  >
-                    {byUser.map((_, i) => (
-                      <Cell key={i} fill={pieColors[i % pieColors.length]} />
-                    ))}
-                  </Pie>
-                  <Tooltip />
-                </PieChart>
-              </ResponsiveContainer>
-            </div>
-          )}
-        </div>
-      </div>
 
       {/* LISTAS: Formulários + Últimas respostas */}
       <div
@@ -587,6 +449,62 @@ const [singleDateStr, setSingleDateStr] = useState<string>(''); // AAAA-MM-DD
           <p className={styles.itemInfo}>{error}</p>
         </div>
       )}
+
+      <div className={styles.frame} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+        
+        <div>
+          <div className={styles.frameHeader}>
+            <h3 className={styles.frameTitle}>Top Formulários (por respostas)</h3>
+          </div>
+          {byForm.length === 0 ? (
+            <p className={styles.emptyState}>Sem dados no período.</p>
+          ) : (
+            <div style={{ width: '100%', height: 260 }}>
+              <ResponsiveContainer>
+                <BarChart data={byForm}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="name" />
+                  <YAxis allowDecimals={false} />
+                  <Tooltip />
+                  <Bar dataKey="value" fill="#C5A05C" radius={[6, 6, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          )}
+        </div>
+
+        <div>
+          <div className={styles.frameHeader}>
+            <h3 className={styles.frameTitle}>Distribuição por Colaborador</h3>
+          </div>
+          {byUser.length === 0 ? (
+            <p className={styles.emptyState}>Sem dados no período.</p>
+          ) : (
+            <div style={{ width: '100%', height: 260 }}>
+              <ResponsiveContainer>
+                <PieChart>
+                  <Pie
+                    data={byUser}
+                    dataKey="value"
+                    nameKey="name"
+                    cx="50%"
+                    cy="50%"
+                    outerRadius={80}
+                    label={({ name, percent = 0 }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                  >
+                    {byUser.map((_, i) => (
+                      <Cell key={i} fill={pieColors[i % pieColors.length]} />
+                    ))}
+                  </Pie>
+                  <Tooltip />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+          )}
+        </div>
+      </div>
+
+      
     </div>
   );
 }

@@ -1,149 +1,339 @@
+// components/CollaboratorHistoryModal.tsx
 'use client';
 
-import React from "react";
-import Modal from "@/components/Modal";
-import styles from "../../app/styles/Modal.module.css";
+import { useMemo } from 'react';
+import { X } from 'lucide-react';
 
-// ----------------------------------
-// TIPOS
-// ----------------------------------
+type FireTs = { toDate?: () => Date; seconds?: number } | undefined;
 
-export interface Field {
+type EnhancedFormField = {
   id: string | number;
+  type: string;         // 'Texto' | 'Data' | 'Múltipla Escolha' | 'Caixa de Seleção' | 'Tabela' | 'Assinatura' | 'Anexo' | 'Cabeçalho' | ...
   label: string;
-  type?: string;
-  columns?: { id: number; label: string; type: string; options?: string[] }[];
-  rows?: { id: number; label: string }[];
+  required?: boolean;
+  description?: string;
   options?: string[];
-}
+  columns?: { id: string | number; label: string; type?: string; options?: string[] }[];
+  rows?: { id: string | number; label: string }[];
+  [k: string]: any;
+};
 
-export interface FormType {
+type Form = {
+  id: string;
   title: string;
-  fields: Field[];
-}
+  description?: string;
+  logo?: { url?: string; name?: string; align?: 'left' | 'center' | 'right'; size?: number };
+  theme?: any;
+  fields: EnhancedFormField[];
+  companyId?: string;
+  departmentId?: string;
+};
 
-export interface ResponseType {
-  answers?: Record<string, any>;
-  createdAt?: { seconds: number };
-  // Dinamicamente aceita qualquer campo extra (flattened)
-  [key: string]: any;
-}
+export type HistoryResp = {
+  id: string;
+  formId: string;
+  formTitle?: string;
+  collaboratorId?: string;
+  collaboratorUsername?: string;
+  answers?: Record<string, any>; // **SEMPRE priorizar isto**
+  // legados/compat:
+  [k: string]: any;
+  createdAt?: FireTs;
+  submittedAt?: FireTs;
+};
 
-interface Props {
+type Props = {
   isOpen: boolean;
   onClose: () => void;
-  form: FormType;
-  response: ResponseType;
-  canEdit?: boolean;
+  form: Form;                 // o formulário completo (com fields)
+  response: HistoryResp;      // o documento de resposta carregado
+  canEdit?: boolean;          // aqui você só visualiza (edição é outro fluxo)
+};
+
+function toJSDate(ts?: FireTs): Date | undefined {
+  if (!ts) return undefined;
+  // Firestore Timestamp
+  if (typeof ts.toDate === 'function') return ts.toDate();
+  if (typeof ts?.seconds === 'number') return new Date(ts.seconds * 1000);
+  return undefined;
 }
 
-// ----------------------------------
-// RENDERIZAÇÃO DA RESPOSTA
-// ----------------------------------
-
-function renderAnswer(field: Field, value: any) {
-  if (value == null || value === "") return <span style={{ opacity: 0.6 }}>Sem resposta</span>;
-
-  // Renderização especial para tabelas
-  if (field.type === "Tabela" && typeof value === "object" && value !== null) {
-    const columns = field.columns || [];
-    const rows = field.rows || [];
-    return (
-      <div style={{ overflowX: "auto", margin: "6px 0" }}>
-        <table style={{
-          width: "100%", background: "#191c24", borderRadius: 7, borderCollapse: "collapse", marginTop: 4
-        }}>
-          <thead>
-            <tr>
-              <th style={{ background: "#16181e", color: "#7ddfff", padding: "6px 12px", minWidth: 70, fontWeight: 600, fontSize: 14, border: "1px solid #20232d" }}></th>
-              {columns.map((col) => (
-                <th key={col.id} style={{ background: "#16181e", color: "#7ddfff", padding: "6px 12px", fontWeight: 600, fontSize: 14, border: "1px solid #20232d" }}>
-                  {col.label}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((row) => (
-              <tr key={row.id}>
-                <td style={{ color: "#fff", fontWeight: 600, padding: "5px 12px", border: "1px solid #20232d", background: "#23263b" }}>{row.label}</td>
-                {columns.map((col) => {
-                  const cellValue =
-                    value?.[String(row.id)]?.[String(col.id)] ??
-                    value?.[row.id]?.[col.id] ??
-                    "";
-                  return (
-                    <td key={col.id} style={{ color: "#fff", padding: "5px 12px", border: "1px solid #20232d" }}>
-                      {cellValue !== "" && cellValue !== undefined
-                        ? String(cellValue)
-                        : <span style={{ opacity: 0.45 }}>–</span>}
-                    </td>
-                  );
-                })}
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    );
-  }
-
-  // Outras respostas (igual já estava)
-  if (typeof value === "string" && value.startsWith("data:image")) {
-    return <img src={value} alt="Assinatura" style={{ maxWidth: 170, borderRadius: 6, background: "#181b22", margin: 4, boxShadow: "0 2px 8px #111" }} />;
-  }
-  if (Array.isArray(value)) return value.join(", ");
-  if (typeof value === "object" && value?.name && value?.url) {
-    return (
-      <a href={value.url} target="_blank" rel="noopener noreferrer" style={{ color: "#61b0ff" }}>
-        {value.name}
-      </a>
-    );
-  }
-  if (typeof value === "object") {
-    return <span style={{ opacity: 0.7, wordBreak: "break-all" }}>{JSON.stringify(value, null, 2)}</span>;
-  }
-  return String(value);
+function fmt(d?: Date) {
+  if (!d) return '';
+  try { return d.toLocaleString('pt-BR'); } catch { return d.toISOString(); }
 }
 
+function safeStr(v: any): string {
+  if (v == null) return '';
+  if (typeof v === 'string') return v;
+  if (Array.isArray(v)) return v.join(', ');
+  if (typeof v === 'object') return JSON.stringify(v);
+  return String(v);
+}
 
-// ----------------------------------
-// COMPONENTE MODAL
-// ----------------------------------
+// Converte a resposta de TABELA salva como {rowId: {colId: value}} para uma matriz
+function extractTableMatrix(
+  tableAnswer: any,
+  rows: { id: string | number; label: string }[] = [],
+  cols: { id: string | number; label: string; type?: string; options?: string[] }[] = []
+) {
+  const rowIds = rows?.length ? rows.map(r => String(r.id)) : Object.keys(tableAnswer || {});
+  const colIds = cols?.length ? cols.map(c => String(c.id)) :
+    (rowIds.length ? Object.keys(tableAnswer?.[rowIds[0]] || {}) : []);
 
-export default function CollaboratorHistoryModal({ isOpen, onClose, form, response, canEdit }: Props) {
+  return { rowIds, colIds };
+}
+
+// Prioriza `answers[field.id]`; se faltar, tenta legacy pelo label
+function readAnswerForField(field: EnhancedFormField, resp: HistoryResp): any {
+  const fid = String(field.id);
+  if (resp?.answers && Object.prototype.hasOwnProperty.call(resp.answers, fid)) {
+    return resp.answers[fid];
+  }
+  // LEGADO: podia estar no documento flatten por label
+  if (Object.prototype.hasOwnProperty.call(resp, field.label)) {
+    return (resp as any)[field.label];
+  }
+  return undefined;
+}
+
+export default function CollaboratorHistoryModal({
+  isOpen, onClose, form, response, canEdit = false
+}: Props) {
+  if (!isOpen) return null;
+
+  // estilo mínimo (usa tema do form se quiser)
+  const theme = {
+    bg: '#0b1220',
+    card: '#121a2b',
+    border: '#1f2b45',
+    text: '#e6eefc',
+    accent: '#49cfff',
+    soft: '#9fb6d1',
+  };
+
+  const created = toJSDate(response.createdAt) || toJSDate(response.submittedAt);
+
+  const fieldsToRender = useMemo(
+    () => (form?.fields || []).filter(f => f && f.type !== 'Cabeçalho'),
+    [form?.fields]
+  );
+
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title={form.title}>
-      <div className={styles.modalContent}>
-        <div style={{ color: "#47ecb1", fontWeight: 700, marginBottom: 10, fontSize: 15 }}>
-          Respondido em:{" "}
-          {response.createdAt
-            ? new Date(response.createdAt.seconds * 1000).toLocaleString("pt-BR")
-            : "Sem data"}
-        </div>
-        {canEdit && (
-          <div style={{ color: "#45e2f2", fontWeight: 500, fontSize: 14, marginBottom: 10 }}>
-            ✏️ Você tem permissão para editar esta resposta
+    <div
+      role="dialog"
+      aria-modal="true"
+      style={{
+        position: 'fixed', inset: 0, zIndex: 9999,
+        background: '#0009', display: 'flex', alignItems: 'center', justifyContent: 'center',
+        padding: 12,
+      }}
+      onClick={(e) => {
+        // fecha ao clicar fora do cartão
+        if (e.target === e.currentTarget) onClose();
+      }}
+    >
+      <div
+        style={{
+          width: 'min(1100px, 96vw)',
+          maxHeight: '92vh',
+          background: theme.card,
+          color: theme.text,
+          border: `2px solid ${theme.border}`,
+          borderRadius: 14,
+          boxShadow: '0 18px 60px #000a',
+          display: 'flex',
+          flexDirection: 'column',
+          overflow: 'hidden',
+        }}
+      >
+        {/* HEADER */}
+        <div
+          style={{
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+            padding: '12px 16px', background: theme.accent, color: '#06131f',
+          }}
+        >
+          <div style={{ display: 'flex', flexDirection: 'column' }}>
+            <strong style={{ fontSize: 18 }}>{form.title || response.formTitle || 'Formulário'}</strong>
+            <small style={{ opacity: 0.9 }}>
+              {created ? `Enviado em ${fmt(created)}` : ''}
+              {response.collaboratorUsername ? ` — por ${response.collaboratorUsername}` : ''}
+            </small>
           </div>
-        )}
-        <table className={styles.responseTable}>
-          <tbody>
-            {form.fields.map((field) => {
-              // Busca tanto por id, String(id) quanto por label (flattened)
-              const answer =
-                (response.answers?.[field.id] ??
-                  response.answers?.[String(field.id)] ??
-                  response[field.label]) ?? "";
+          <button
+            onClick={onClose}
+            aria-label="Fechar"
+            style={{
+              background: 'transparent', border: 'none', color: '#06131f', cursor: 'pointer',
+              padding: 6, borderRadius: 8,
+            }}
+          >
+            <X size={20} />
+          </button>
+        </div>
+
+        {/* BODY */}
+        <div style={{ padding: 16, overflowY: 'auto' }}>
+          {fieldsToRender.length === 0 && (
+            <div style={{ opacity: 0.8 }}>Sem campos para exibir.</div>
+          )}
+
+          {fieldsToRender.map((field, fieldIndex) => {
+            const value = readAnswerForField(field, response);
+            const keyField = `field_${String(field.id) || fieldIndex}`;
+
+            // Render específico por tipo
+            if (field.type === 'Tabela') {
+              const rows = field.rows || [];
+              const cols = field.columns || [];
+              const { rowIds, colIds } = extractTableMatrix(value, rows, cols);
+
               return (
-                <tr key={String(field.id)}>
-                  <th>{field.label}</th>
-                  <td>{renderAnswer(field, answer)}</td>
-                </tr>
+                <div key={keyField} style={{
+                  border: `1px solid ${theme.border}`,
+                  borderRadius: 10, marginBottom: 14, overflow: 'hidden'
+                }}>
+                  <div style={{ background: '#17233a', padding: '10px 12px', fontWeight: 600 }}>
+                    {field.label}
+                  </div>
+
+                  <div style={{ overflowX: 'auto' }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 520 }}>
+                      <thead>
+                        <tr>
+                          <th
+                            style={{
+                              textAlign: 'left', padding: 8, borderBottom: `1px solid ${theme.border}`,
+                              background: '#141e33', position: 'sticky', left: 0, zIndex: 1
+                            }}
+                          >
+                            {/* Cabeçalho da linha (vazio/“Linha”) */}
+                          </th>
+                          {colIds.map((cid, cidx) => {
+                            const col = cols.find(c => String(c.id) === cid);
+                            return (
+                              <th
+                                key={`col_${String(field.id)}_${cid}_${cidx}`}
+                                style={{ textAlign: 'left', padding: 8, borderBottom: `1px solid ${theme.border}`, background: '#141e33' }}
+                              >
+                                {col?.label ?? cid}
+                              </th>
+                            );
+                          })}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {rowIds.map((rid, ridx) => {
+                          const row = rows.find(r => String(r.id) === rid);
+                          return (
+                            <tr key={`row_${String(field.id)}_${rid}_${ridx}`}>
+                              <td
+                                style={{
+                                  padding: 8, borderBottom: `1px solid ${theme.border}`,
+                                  background: '#141e33', fontWeight: 600, position: 'sticky', left: 0
+                                }}
+                              >
+                                {row?.label ?? rid}
+                              </td>
+                              {colIds.map((cid, cidx) => {
+                                const cell = value?.[rid]?.[cid];
+                                return (
+                                  <td
+                                    key={`cell_${String(field.id)}_${rid}_${cid}_${cidx}`}
+                                    style={{ padding: 8, borderBottom: `1px solid ${theme.border}` }}
+                                  >
+                                    {safeStr(cell)}
+                                  </td>
+                                );
+                              })}
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
               );
-            })}
-          </tbody>
-        </table>
+            }
+
+            if (field.type === 'Anexo') {
+              const files = Array.isArray(value) ? value : [];
+              return (
+                <div key={keyField} style={{
+                  border: `1px solid ${theme.border}`, borderRadius: 10, padding: 12, marginBottom: 14
+                }}>
+                  <div style={{ fontWeight: 600, marginBottom: 6 }}>{field.label}</div>
+                  {files.length === 0 ? (
+                    <div style={{ opacity: 0.8 }}>Sem anexos.</div>
+                  ) : (
+                    <ul style={{ margin: 0, paddingLeft: 16 }}>
+                      {files.map((f: any, i: number) => (
+                        <li key={`file_${String(field.id)}_${i}`}>
+                          {f?.name ?? safeStr(f)}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              );
+            }
+
+            if (field.type === 'Assinatura') {
+              const isDataURL = typeof value === 'string' && value.startsWith('data:image');
+              return (
+                <div key={keyField} style={{
+                  border: `1px solid ${theme.border}`, borderRadius: 10, padding: 12, marginBottom: 14
+                }}>
+                  <div style={{ fontWeight: 600, marginBottom: 6 }}>{field.label}</div>
+                  {isDataURL ? (
+                    <img
+                      src={value}
+                      alt="Assinatura"
+                      style={{ maxWidth: '100%', border: `1px dashed ${theme.border}`, borderRadius: 8 }}
+                    />
+                  ) : (
+                    <div style={{ opacity: 0.8 }}>Sem assinatura.</div>
+                  )}
+                </div>
+              );
+            }
+
+            // Genéricos: Texto, Data, Múltipla Escolha, Caixa de Seleção, etc.
+            return (
+              <div key={keyField} style={{
+                border: `1px solid ${theme.border}`, borderRadius: 10, padding: 12, marginBottom: 14
+              }}>
+                <div style={{ fontWeight: 600, marginBottom: 6 }}>{field.label}</div>
+                <div style={{ whiteSpace: 'pre-wrap' }}>
+                  {safeStr(value)}
+                </div>
+                {field.description && (
+                  <div style={{ opacity: 0.8, fontSize: 12, marginTop: 6 }}>
+                    {field.description}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+
+        {/* FOOTER */}
+        <div style={{
+          padding: 12, display: 'flex', justifyContent: 'flex-end',
+          gap: 8, borderTop: `1px solid ${theme.border}`
+        }}>
+          <button
+            onClick={onClose}
+            style={{
+              background: '#243351', color: '#e6eefc', border: `1px solid ${theme.border}`,
+              padding: '8px 14px', borderRadius: 10, cursor: 'pointer', fontWeight: 600
+            }}
+          >
+            Fechar
+          </button>
+        </div>
       </div>
-    </Modal>
+    </div>
   );
 }

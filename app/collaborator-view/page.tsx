@@ -14,10 +14,11 @@ import {
   Timestamp,
 } from 'firebase/firestore';
 import styles from '../styles/CollaboratorView.module.css';
-import { FileText, LogOut, History, User2, Edit, Eye, CheckCircle2, Clock } from 'lucide-react';
+import { FileText, LogOut, User2, CheckCircle2, Clock } from 'lucide-react';
 import CollaboratorHistoryModal from '@/components/CollaboratorView'; // Modal de histórico
 import FormResponse from '@/components/FormResponse';                // Modal para responder formulário
 import DepartmentLeaderDash from './DepartmentLeaderDash';           // Dash do líder
+import HistoryPanel, { type HistoryResp } from '@/components/HistoryPanel';
 
 // TIPOS
 interface Collaborator {
@@ -59,7 +60,6 @@ export default function CollaboratorView() {
   const [companyName, setCompanyName] = useState('');
   const [departmentName, setDepartmentName] = useState('');
   const [formsToFill, setFormsToFill] = useState<Form[]>([]);
-  const [submittedResponses, setSubmittedResponses] = useState<FormResponseType[]>([]);
   const [view, setView] = useState<'forms' | 'history' | 'leaderDash'>('forms');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -172,58 +172,6 @@ useEffect(() => {
   return () => unsub();
 }, [collaborator?.id]);
 
-// Histórico (preenche submittedResponses quando a aba está ativa)
-useEffect(() => {
-  if (view !== 'history' || !collaborator?.id) return;
-
-  setLoading(true);
-
-  const q = query(
-    collectionGroup(db, 'responses'),
-    where('collaboratorId', '==', collaborator.id)
-  );
-
-  const unsub = onSnapshot(
-    q,
-    (snapshot) => {
-      const items: FormResponseType[] = snapshot.docs.map((docSnap) => {
-        const d = docSnap.data() as any;
-        const createdAt =
-          d?.submittedAt instanceof Timestamp
-            ? d.submittedAt
-            : d?.createdAt instanceof Timestamp
-            ? d.createdAt
-            : undefined;
-
-        return {
-          id: docSnap.id,
-          formId: d.formId ?? '',
-          formTitle: d.formTitle ?? '',
-          answers: d.answers,
-          createdAt,
-          submittedAt: d.submittedAt,
-        };
-      });
-
-      // ordena por data desc (opcional)
-      items.sort(
-        (a, b) => (b.createdAt?.toMillis() ?? 0) - (a.createdAt?.toMillis() ?? 0)
-      );
-
-      setSubmittedResponses(items);
-      setLoading(false);
-    },
-    (err) => {
-      console.error('history onSnapshot error:', err);
-      setError('Falha ao carregar o histórico.');
-      setLoading(false);
-    }
-  );
-
-  return () => unsub();
-}, [view, collaborator?.id]);
-
-
   // ——— OUVE TODAS AS RESPOSTAS E MARCA AS DE HOJE
   useEffect(() => {
     if (!collaborator?.id) return;
@@ -263,19 +211,20 @@ useEffect(() => {
   };
 
   // MODAL HISTÓRICO
-  const handleHistoryOpen = async (response: FormResponseType) => {
+  const handleHistoryOpen = async (resp: HistoryResp) => {
   try {
-    if (!response?.formId || response.formId.trim() === '') {
+    if (!resp?.formId || !resp.formId.trim()) {
       setError('Item de histórico sem referência de formulário.');
       return;
     }
-    const ref = doc(db, 'forms', response.formId);
+    const ref = doc(db, 'forms', resp.formId);
     const formSnap = await getDoc(ref);
     if (!formSnap.exists()) {
       setError('Formulário do histórico não encontrado.');
       return;
     }
     const data = formSnap.data() as any;
+
     setFormSelecionado({
       id: formSnap.id,
       ...data,
@@ -283,14 +232,22 @@ useEffect(() => {
       companyId: data.companyId ?? '',
       departmentId: data.departmentId ?? '',
     });
-    setRespostaSelecionada(response);
+
+    setRespostaSelecionada({
+      id: resp.id,
+      formId: resp.formId,
+      formTitle: resp.formTitle ?? data?.title ?? '',
+      answers: resp.answers,                 // pode vir undefined, e tudo bem
+      createdAt: resp.createdAt,
+      submittedAt: resp.submittedAt,
+    });
+
     setModalOpen(true);
   } catch (e) {
     console.error(e);
     setError('Falha ao carregar o histórico.');
   }
 };
-
 
   // MODAL DE RESPOSTA
 // MODAL DE RESPOSTA
@@ -456,50 +413,15 @@ const handleResponder = async (formId: string) => {
           )
         )}
         
-
-        {/* HISTÓRICO */}
-        {!loading && view === 'history' && (
-          submittedResponses.length === 0 ? (
-            <div className={styles.emptyState}>
-              <History size={48} />
-              <p>Nenhum histórico encontrado.</p>
-            </div>
-          ) : (
-  <div className={styles.grid}>
-              {submittedResponses.map((response) => (
-                <div key={response.id} className={styles.card}>
-                  <div className={styles.cardIcon}>
-                    <History size={32} />
-                  </div>
-                  <div className={styles.cardBody}>
-                    <h2 className={styles.cardTitle}>{response.formTitle}</h2>
-                    {response.createdAt && (
-                      <p className={styles.cardSubtitle}>
-                        Respondido em{' '}
-                        {response.createdAt.seconds
-                          ? new Date(response.createdAt.seconds * 1000).toLocaleDateString('pt-BR')
-                          : 'Sem data'}
-                      </p>
-                    )}
-                  </div>
-                  <button className={styles.cardButton} onClick={() => handleHistoryOpen(response)}>
-                    {collaborator?.canEditHistory ? (
-                      <>
-                        <Edit size={16} style={{ marginRight: 5, verticalAlign: 'middle' }} /> Editar
-                      </>
-                    ) : (
-                      <>
-                        <Eye size={16} style={{ marginRight: 5, verticalAlign: 'middle' }} /> Visualizar
-                      </>
-                    )}
-                  </button>
-                </div>
-              ))}
-            </div>
-          )
-        )}
-      
-
+{view === 'history' && collaborator?.canViewHistory && (
+  <HistoryPanel
+    collaboratorId={collaborator.id}
+    canEdit={!!collaborator?.canEditHistory}
+    onOpen={handleHistoryOpen} // abre o modal que você já tem
+  />
+)}
+        
+        
         {/* DASH DO LÍDER */}
         {!loading && view === 'leaderDash' && collaborator?.isLeader && collaborator?.companyId && collaborator?.departmentId && (
           <DepartmentLeaderDash
