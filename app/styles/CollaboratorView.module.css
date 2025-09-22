@@ -7,6 +7,93 @@
   to { width: 100%; }
 }
 
+/* ====== RESPONSIVO: CollaboratorView ====== */
+
+/* Quebra do header/topo */
+@media (max-width: 900px) {
+  .headerContent {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+  .userInfoBox {
+    width: 100%;
+    justify-content: space-between;
+  }
+  .title {
+    font-size: clamp(18px, 4vw, 28px);
+  }
+}
+
+/* Tabs empilham e aumentam área clicável */
+@media (max-width: 680px) {
+  .viewToggle {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+  .toggleButton {
+    width: 100%;
+    padding: 10px 12px;
+  }
+}
+
+/* Grid de cards (Formulários e Histórico) */
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 14px;
+}
+
+@media (max-width: 420px) {
+  .grid {
+    grid-template-columns: 1fr;
+  }
+  .cardTitle {
+    font-size: 1rem;
+  }
+  .cardButton {
+    width: 100%;
+  }
+}
+
+/* Resumo do dia (badges) */
+@media (max-width: 680px) {
+  .todaySummary {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+}
+
+/* Barra de filtros do Histórico (inputs ocupam linha inteira no mobile) */
+.filtersBar {
+  display: grid;
+  grid-template-columns: 1fr 1fr 2fr auto;
+  gap: 12px;
+}
+
+@media (max-width: 1024px) {
+  .filtersBar {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+@media (max-width: 640px) {
+  .filtersBar {
+    grid-template-columns: 1fr;
+  }
+  .filtersBar .cardButton {
+    width: 100%;
+  }
+}
+
+/* Input base nas telas menores */
+.input {
+  width: 100%;
+  min-height: 40px;
+}
+
+
 .main {
   min-height: 100vh;
   padding-bottom: 3vw;

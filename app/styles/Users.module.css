@@ -7,6 +7,42 @@
 ================================================================================
 */
 
+/* ====== RESPONSIVO: Frames e Gráficos ====== */
+
+/* Cards KPIs em grid fluido */
+.frame {
+  width: 100%;
+}
+
+/* Títulos flexíveis */
+.frameTitle {
+  font-size: clamp(16px, 2.4vw, 18px);
+}
+
+/* Em seções 1x2 do dash, quebrar para 1x1 no mobile */
+@media (max-width: 960px) {
+  .twoCols,
+  .split,
+  .frameGridTwoCols {
+    display: grid !important;
+    grid-template-columns: 1fr !important;
+    gap: 14px !important;
+  }
+}
+
+/* Tipografia dos “itemInfo” */
+.itemInfo {
+  font-size: clamp(13px, 2vw, 15px);
+}
+
+/* Altura dos contêineres Recharts em telas pequenas */
+@media (max-width: 680px) {
+  .chartContainer {
+    height: 220px !important;
+  }
+}
+
+
 /* Botão "Tornar líder" no mesmo padrão dos botões (chip) */
 .leaderToggle {
   background: transparent;

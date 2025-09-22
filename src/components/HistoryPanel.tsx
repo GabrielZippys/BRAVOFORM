@@ -5,14 +5,20 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { db } from '../../firebase/config';
 import {
   collectionGroup,
-  doc,
+  doc as fsDoc,
   getDoc,
   onSnapshot,
   query,
   where,
   Timestamp
 } from 'firebase/firestore';
+
 import styles from '../../app/styles/CollaboratorView.module.css';
+
+// --- BRANDING (troque quando quiser) ---
+const BRAVOFORM_LOGO = '/formbravo-logo.png'; // ou dataURL
+const BRAND_PRIMARY = '#C5A05C';
+const BRAND_DARK = '#0B1220';
 
 type FireTs = Timestamp | undefined;
 
@@ -124,6 +130,55 @@ function flattenAnswersWithLabels(
   return out;
 }
 
+// Converte answers em linhas [{campo, valor}] para o PDF
+function rowsFromAnswers(ans: any): Array<{ campo: string; valor: string }> {
+  const rows: Array<{ campo: string; valor: string }> = [];
+
+  const pushKV = (k: string, v: any) => {
+    let val: string = '';
+    if (v == null || v === '') val = '-';
+    else if (typeof v === 'string') val = v;
+    else if (Array.isArray(v)) val = v.map(x => (typeof x === 'object' ? JSON.stringify(x) : String(x))).join(', ');
+    else if (typeof v === 'object') val = JSON.stringify(v);
+    else val = String(v);
+    rows.push({ campo: k, valor: val });
+  };
+
+  try {
+    if (ans == null) return rows;
+
+    // Tabela “oficial”: object com chaves => valores
+    if (typeof ans === 'object' && !Array.isArray(ans)) {
+      Object.entries(ans).forEach(([k, v]) => pushKV(k, v));
+      return rows;
+    }
+
+    // Lista genérica
+    if (Array.isArray(ans)) {
+      ans.forEach((item, idx) => {
+        if (item && typeof item === 'object') {
+          const label =
+            item.label ?? item.question ?? item.name ?? item.title ?? `item_${idx}`;
+          const value =
+            item.value ?? item.answer ?? item.response ?? item[label] ?? item;
+          pushKV(String(label), value);
+        } else {
+          pushKV(`item_${idx}`, item);
+        }
+      });
+      return rows;
+    }
+
+    // Qualquer outra coisa
+    pushKV('Resposta', ans);
+    return rows;
+  } catch {
+    pushKV('Resposta', ans);
+    return rows;
+  }
+}
+
+
 function normalizeValue(v: any): string {
   if (v == null) return '';
   if (typeof v === 'string') return v;
@@ -215,7 +270,7 @@ export default function HistoryPanel({ collaboratorId, canEdit = false, onOpen =
       if (!fid || schemas[fid] || fetchingForms.current.has(fid)) return;
       fetchingForms.current.add(fid);
       try {
-        const snap = await getDoc(doc(db, 'forms', fid));
+        const snap = await getDoc(fsDoc(db, 'forms', fid));
         if (snap.exists()) {
           const data = snap.data() as any;
           setSchemas(prev => ({
@@ -280,146 +335,192 @@ export default function HistoryPanel({ collaboratorId, canEdit = false, onOpen =
   };
 
   // ====== EXPORTAR PDF ======
-  const handleExportPdf = async () => {
-    const dataset = filtered.filter((r) => selected.size === 0 || selected.has(r.id));
-    if (dataset.length === 0) {
-      alert('Nenhum item selecionado ou filtrado para exportar.');
-      return;
+  // ====== EXPORTAR PDF (logo menor + TABELA em colunas) ======
+const handleExportPdf = async () => {
+  const dataset = filtered.filter(r => selected.size === 0 || selected.has(r.id));
+  if (dataset.length === 0) {
+    alert('Nenhum item selecionado ou filtrado para exportar.');
+    return;
+  }
+
+  // libs
+  const JsPDF = (await import('jspdf')).default;
+  const autoTable = (await import('jspdf-autotable')).default as any;
+
+  // doc base
+  const pdf = new JsPDF({ unit: 'pt', format: 'a4', compress: true });
+  const pageW = (pdf as any).internal.pageSize.getWidth();
+  const pageH = (pdf as any).internal.pageSize.getHeight();
+  const headerH = 56;
+
+  // — logo (ajustado para ficar pequeno)
+  let logo: HTMLImageElement | null = null;
+  try { logo = await loadImage(BRAVOFORM_LOGO); } catch {}
+  const LOGO_MAX_H = Math.floor(headerH * 0.6); // ~34px
+  const LOGO_MAX_W = 110;
+
+  // header / footer
+  const header = (left?: string, right?: string) => {
+    pdf.setFillColor(BRAND_DARK);
+    pdf.rect(0, 0, pageW, headerH, 'F');
+
+    let xAfterLogo = 24;
+    if (logo) {
+      const r = logo.height ? LOGO_MAX_H / logo.height : 1;
+      const w = Math.min(LOGO_MAX_W, (logo.width || LOGO_MAX_W) * r);
+      const h = Math.min(LOGO_MAX_H, (logo.height || LOGO_MAX_H) * r);
+      const y = (headerH - h) / 2;
+      try { (pdf as any).addImage(logo, 'PNG', 24, y, w, h); } catch {}
+      xAfterLogo = 24 + w + 12;
     }
 
-    // importa libs só quando precisa
-    const [{ default: jsPDF }, autoTableMod] = await Promise.all([
-      import('jspdf'),
-      import('jspdf-autotable'),
-    ]);
-    const autoTable = (autoTableMod as any).default || (autoTableMod as any);
+    pdf.setFont('helvetica', 'bold');
+    pdf.setFontSize(13);
+    pdf.setTextColor('#fff');
+    pdf.text(left ?? 'Relatório de Respostas', xAfterLogo, headerH / 2 + 4);
 
-    const doc = new jsPDF({ unit: 'pt', format: 'a4', compress: true }); // pt=1/72"
-    const brand = {
-      primary: '#10b3ff',     // cor do botão do seu print
-      dark: '#0f172a',        // fundo escuro
-      text: '#0b1220',        // título no header claro
-      muted: '#64748b'
-    };
-
-    // helpers
-    const mm = (v: number) => v * 2.83465; // pt -> mm if you ever need
-    const pageW = doc.internal.pageSize.getWidth();
-    const pageH = doc.internal.pageSize.getHeight();
-
-    const drawHeader = (title: string, sub: string) => {
-      // faixa superior
-      doc.setFillColor(16, 179, 255); // #10b3ff
-      doc.rect(0, 0, pageW, 64, 'F');
-
-      // BRAVOFORM “badge”
-      doc.setFont('helvetica', 'bold');
-      doc.setTextColor(255, 255, 255);
-      doc.setFontSize(18);
-      doc.text('BRAVOFORM', 28, 38);
-
-      // título do relatório
-      doc.setFontSize(13);
-      doc.setTextColor(255, 255, 255);
-      doc.setFont('helvetica', 'normal');
-      doc.text(title, 28, 58);
-
-      if (sub) {
-        doc.setFontSize(10);
-        doc.setTextColor(255, 255, 255);
-        doc.text(sub, pageW - 28, 58, { align: 'right' });
-      }
-    };
-
-    const drawFooter = (pageNo: number, total: number) => {
-      const text = `Gerado a partir do BRAVOFORM · ${new Date().toLocaleString('pt-BR')} · pág. ${pageNo}/${total}`;
-      doc.setFont('helvetica', 'normal');
-      doc.setFontSize(9);
-      doc.setTextColor(120, 144, 156);
-      doc.text(text, pageW / 2, pageH - 16, { align: 'center' });
-    };
-
-    // primeira página – cabeçalho geral
-    drawHeader(
-      'Relatório de Respostas',
-      `${dataset.length} resposta(s) · ${collaboratorId ? `colaborador: ${dataset[0]?.collaboratorUsername || collaboratorId}` : ''}`
-    );
-
-    let first = true;
-    let pageIndex = 1;
-
-    for (let i = 0; i < dataset.length; i++) {
-      const r = dataset[i];
-      const schema = schemas[r.formId];
-      const flat = flattenAnswersWithLabels(r.answers, schema);
-
-      if (!first) {
-        doc.addPage();
-        pageIndex++;
-        drawHeader('Relatório de Respostas', `${dataset.length} resposta(s)`);
-      }
-      first = false;
-
-      // bloco: metadados do formulário
-      const topY = 84;
-      doc.setFont('helvetica', 'bold');
-      doc.setFontSize(14);
-      doc.setTextColor(20, 23, 35);
-      doc.text(r.formTitle || schema?.title || r.formId, 28, topY);
-
-      doc.setFont('helvetica', 'normal');
-      doc.setFontSize(11);
-      doc.setTextColor(80, 94, 108);
-
-      const metaLeft = 28;
-      const metaGap = 16;
-      const meta = [
-        `Data/Hora: ${formatDateTime(toJSDate(r.createdAt))}`,
-        `Formulário (ID): ${r.formId}`,
-        `Colaborador: ${r.collaboratorUsername || '-'}`,
-        `RespostaID: ${r.id}`
-      ];
-      meta.forEach((line, idx) => doc.text(line, metaLeft, topY + 18 + idx * metaGap));
-
-      // tabela Campo/Valor
-      const bodyRows = Object.entries(flat)
-        .sort(([a], [b]) => a.localeCompare(b))
-        .map(([k, v]) => [k, v]);
-
-      autoTable(doc, {
-        startY: topY + 18 + meta.length * metaGap + 10,
-        head: [['Campo', 'Valor']],
-        body: bodyRows.length ? bodyRows : [['(sem dados)', '']],
-        styles: {
-          font: 'helvetica',
-          fontSize: 10,
-          cellPadding: 6,
-          textColor: [22, 28, 45]
-        },
-        headStyles: {
-          fillColor: [16, 179, 255],
-          textColor: [255, 255, 255],
-          fontStyle: 'bold'
-        },
-        alternateRowStyles: { fillColor: [245, 249, 255] },
-        columnStyles: {
-          0: { cellWidth: 220 }, // Campo
-          1: { cellWidth: 'auto' } // Valor
-        },
-        margin: { left: 28, right: 28, top: 0, bottom: 48 },
-        didDrawPage: (data: any) => {
-          // rodapé por página
-          const total = doc.internal.getNumberOfPages();
-          const thisNo = doc.internal.getCurrentPageInfo().pageNumber;
-          drawFooter(thisNo, total);
-        }
-      });
+    if (right) {
+      const tw = (pdf as any).getTextWidth(right);
+      pdf.text(right, pageW - 24 - tw, headerH / 2 + 4);
     }
 
-    // salva
-    const fname = `relatorio_BRAVOFORM_${new Date().toISOString().slice(0,19).replace(/[:T]/g,'-')}.pdf`;
-    doc.save(fname);
+    pdf.setDrawColor(BRAND_PRIMARY);
+    pdf.setLineWidth(1.2);
+    pdf.line(0, headerH, pageW, headerH);
   };
+
+  const pageNo   = () => (pdf as any).internal.getCurrentPageInfo().pageNumber;
+  const pageCount= () => (pdf as any).internal.getNumberOfPages();
+
+  const footer = () => {
+    const left = `Gerado a partir do BRAVOFORM · ${new Date().toLocaleString('pt-BR')}`;
+    const right = `pág. ${pageNo()}/${pageCount()}`;
+
+    pdf.setFont('helvetica','normal'); pdf.setFontSize(9); pdf.setTextColor('#666');
+    pdf.setDrawColor('#e0e0e0'); pdf.setLineWidth(0.7);
+    pdf.line(40, pageH - 48, pageW - 40, pageH - 48);
+    pdf.text(left, 40, pageH - 30);
+    const tw = (pdf as any).getTextWidth(right);
+    pdf.text(right, pageW - 40 - tw, pageH - 30);
+  };
+
+  const ensureSpace = (need = 120, left?: string, right?: string) => {
+    if (y + need > pageH - 72) {
+      pdf.addPage();
+      header(left, right);
+      footer();
+      y = 80;
+    }
+  };
+
+  // primeira página
+  header('BRAVOFORM · Relatório de Respostas', `${dataset.length} resposta(s)`);
+  footer();
+  let y = 80;
+
+  for (let i = 0; i < dataset.length; i++) {
+    const r = dataset[i];
+    const d = toJSDate(r.createdAt);
+    const when = formatDateTime(d);
+    const sectionTitle = r.formTitle || r.formId || 'Formulário';
+    const sectionMeta  = `Colaborador: ${r.collaboratorUsername || '-'} · ID resposta: ${r.id}`;
+    const schema = schemas[r.formId];
+    const answers = r.answers || {};
+
+    // Cabeçalho da seção
+    ensureSpace(160, sectionTitle, when);
+    pdf.setFont('helvetica','bold'); pdf.setFontSize(13.5); pdf.setTextColor('#111');
+    pdf.text(sectionTitle, 40, y);
+    pdf.setFont('helvetica','normal'); pdf.setFontSize(10.5); pdf.setTextColor('#555');
+    pdf.text(`${when}  •  ${sectionMeta}`, 40, y + 16);
+    pdf.setDrawColor(BRAND_PRIMARY); pdf.setLineWidth(1);
+    pdf.line(40, y + 24, pageW - 40, y + 24);
+    y += 36;
+
+    // 1) Campos simples (não-tabela) — juntamos e imprimimos em uma KV table
+    const simpleRows: [string, string][] = [];
+    for (const f of (schema?.fields ?? [])) {
+      if (f.type === 'Tabela') continue;
+      const v = answers[String(f.id)];
+      simpleRows.push([f.label ?? String(f.id), normalizeValue(v) || '-']);
+    }
+    if (simpleRows.length) {
+      ensureSpace(140, sectionTitle, when);
+      autoTable(pdf, {
+        startY: y,
+        head: [['Campo','Valor']],
+        body: simpleRows,
+        theme: 'grid',
+        styles: { font: 'helvetica', fontSize: 10, cellPadding: 6, lineColor: [220,220,220], textColor: [20,20,20] },
+        headStyles: { fillColor: hexToRgb(BRAND_PRIMARY), textColor: [20,25,36], fontStyle: 'bold', halign: 'left' },
+        alternateRowStyles: { fillColor: [248,248,248] },
+        margin: { left: 40, right: 40 },
+        didDrawPage: () => { header(sectionTitle, when); footer(); }
+      });
+      y = (pdf as any).lastAutoTable.finalY + 20;
+    }
+
+    // 2) Para cada campo Tabela, imprimir como grade: [Linha/Item | ...colunas]
+    for (const f of (schema?.fields ?? [])) {
+      if (f.type !== 'Tabela') continue;
+
+      const tableVal = answers[String(f.id)] || {}; // {rowId: {colId: value}}
+      const cols = (f.columns ?? []).map(c => ({ id: String(c.id), label: c.label || String(c.id) }));
+      const rows = (f.rows ?? []).map(rw => ({ id: String(rw.id), label: rw.label || String(rw.id) }));
+
+      // título da tabela
+      ensureSpace(100, sectionTitle, when);
+      pdf.setFont('helvetica','bold'); pdf.setFontSize(12); pdf.setTextColor('#111');
+      pdf.text(f.label || 'Tabela', 40, y);
+      y += 8;
+
+      // head: [ [ <label da tabela>, ...labels das colunas ] ]
+      const head = [[ (f.label || 'Item'), ...cols.map(c => c.label) ]];
+
+      // body: uma linha por "row", espalhando valores nas colunas
+      const body = rows.map(rw => {
+        const obj = tableVal?.[rw.id] || {};
+        return [ rw.label, ...cols.map(c => normalizeValue(obj?.[c.id]) || '-') ];
+      });
+
+      autoTable(pdf, {
+        startY: y + 8,
+        head,
+        body,
+        theme: 'grid',
+        styles: { font: 'helvetica', fontSize: 10, cellPadding: 6, lineColor: [220,220,220], textColor: [20,20,20] },
+        headStyles: { fillColor: hexToRgb(BRAND_PRIMARY), textColor: [20,25,36], fontStyle: 'bold', halign: 'left' },
+        alternateRowStyles: { fillColor: [248,248,248] },
+        margin: { left: 40, right: 40 },
+        columnStyles: { 0: { cellWidth: 240 } }, // primeira coluna (nomes dos itens) mais larga
+        didDrawPage: () => { header(sectionTitle, when); footer(); }
+      });
+
+      y = (pdf as any).lastAutoTable.finalY + 20;
+    }
+
+    // espaço entre respostas
+    if (i < dataset.length - 1 && y > pageH - 140) {
+      pdf.addPage(); header(); footer(); y = 80;
+    }
+  }
+
+  const filename = `relatorio_BRAVOFORM_${new Date().toISOString().slice(0,19).replace(/[:T]/g,'-')}.pdf`;
+  pdf.save(filename);
+
+  // helpers locais
+  function hexToRgb(hex: string): [number,number,number] {
+    const h = hex.replace('#','');
+    const n = parseInt(h.length===3 ? h.split('').map(c=>c+c).join('') : h, 16);
+    return [(n>>16)&255, (n>>8)&255, n&255];
+  }
+  function loadImage(src: string): Promise<HTMLImageElement> {
+    return new Promise((resolve, reject) => {
+      const img = new Image(); img.crossOrigin = 'anonymous';
+      img.onload = () => resolve(img); img.onerror = reject; img.src = src;
+    });
+  }
+};
 
   if (loading) return <p className={styles.emptyState}>Carregando…</p>;
   if (error)   return <p className={styles.errorText}>{error}</p>;

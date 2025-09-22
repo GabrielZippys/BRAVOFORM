@@ -11,6 +11,7 @@ interface AdminHistoryModalProps {
   forms: any[];
 }
 
+
 function toDateCompat(val: any): string {
   if (!val) return '-';
   if (typeof val.toDate === 'function') return val.toDate().toLocaleString('pt-BR');

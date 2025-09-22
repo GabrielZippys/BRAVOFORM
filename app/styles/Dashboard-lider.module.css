@@ -1,4 +1,56 @@
 
+/* ====== RESPONSIVO: Dashboard do Líder ====== */
+
+/* Título e header do painel */
+.header {
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.title {
+  font-size: clamp(16px, 2.8vw, 20px);
+}
+.metaPeriod {
+  font-size: 0.85em;
+  opacity: .85;
+}
+
+/* Grid de “lojas” (cards) */
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 12px;
+}
+
+@media (max-width: 420px) {
+  .grid {
+    grid-template-columns: 1fr;
+  }
+  .card {
+    padding: 12px;
+  }
+  .storeName {
+    font-size: 1rem;
+  }
+}
+
+/* Barra de progresso mais “gorda” no touch */
+@media (max-width: 680px) {
+  .bar {
+    height: 12px;
+  }
+  .fill {
+    border-radius: 999px;
+  }
+}
+
+/* Painel com padding menor em telas estreitas */
+@media (max-width: 680px) {
+  .panel {
+    padding: 12px;
+  }
+}
+
+
 .panel {
   /* ocupa a linha inteira do grid-pai */
   grid-column: 1 / -1;

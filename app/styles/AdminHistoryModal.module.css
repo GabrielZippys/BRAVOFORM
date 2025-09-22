@@ -1,3 +1,66 @@
+
+/* ====== RESPONSIVO: AdminHistoryModal ====== */
+
+.modalPanel {
+  width: min(96vw, 1200px);
+  max-height: 94vh;
+}
+
+@media (max-width: 680px) {
+  .modalPanel {
+    width: 96vw;
+    min-width: auto;
+    padding: 10px;
+  }
+  .modalHeader h2 {
+    font-size: clamp(16px, 4.5vw, 20px);
+  }
+}
+
+/* Filtros empilham no mobile */
+.modalFilters {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr auto;
+  gap: 10px;
+}
+@media (max-width: 960px) {
+  .modalFilters {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+@media (max-width: 560px) {
+  .modalFilters {
+    grid-template-columns: 1fr;
+  }
+  .searchBox {
+    width: 100%;
+  }
+}
+
+/* Lista de respostas vira 1 col. no mobile */
+.responsesList {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 12px;
+}
+@media (max-width: 420px) {
+  .responsesList {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Tabelas com scroll-x */
+.respostaGridWrapper {
+  overflow-x: auto;
+}
+.respostaGrid,
+.innerTable {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 520px; /* evita espremimento */
+}
+
+
 .modalOverlay {
   position: fixed;
   top: 0; left: 0; right: 0; bottom: 0;
