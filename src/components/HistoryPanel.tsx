@@ -447,16 +447,16 @@ const handleExportPdf = async () => {
     if (simpleRows.length) {
       ensureSpace(140, sectionTitle, when);
       autoTable(pdf, {
-        startY: y,
-        head: [['Campo','Valor']],
-        body: simpleRows,
-        theme: 'grid',
-        styles: { font: 'helvetica', fontSize: 10, cellPadding: 6, lineColor: [220,220,220], textColor: [20,20,20] },
-        headStyles: { fillColor: hexToRgb(BRAND_PRIMARY), textColor: [20,25,36], fontStyle: 'bold', halign: 'left' },
-        alternateRowStyles: { fillColor: [248,248,248] },
-        margin: { left: 40, right: 40 },
-        didDrawPage: () => { header(sectionTitle, when); footer(); }
-      });
+  startY: y + 36,                 // só afeta a 1ª página dessa seção
+  head: [['Produto', 'Estoque', 'Pedidos']], // (ou como você montou)
+  showHead: 'everyPage',          // cabeçalho em todas as páginas
+  margin: { top: 80, left: 40, right: 40, bottom: 48 }, // <-- espaço p/ o header (56px + respiro)
+  theme: 'grid',
+  styles: { font: 'helvetica', fontSize: 10, cellPadding: 6, lineColor: [220,220,220] },
+  headStyles: { fillColor: hexToRgb(BRAND_PRIMARY), textColor: [20,25,36], fontStyle: 'bold', halign: 'left' },
+  alternateRowStyles: { fillColor: [248,248,248] },
+  didDrawPage: () => { header(sectionTitle, when); footer(); } // mantém sua faixa/rodapé
+});
       y = (pdf as any).lastAutoTable.finalY + 20;
     }
 
