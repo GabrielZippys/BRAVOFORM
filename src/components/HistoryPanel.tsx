@@ -179,11 +179,20 @@ function rowsFromAnswers(ans: any): Array<{ campo: string; valor: string }> {
 }
 
 
-function normalizeValue(v: any): string {
-  if (v == null) return '';
-  if (typeof v === 'string') return v;
+function normalizeValue(v:any): string {
+  if (v == null || v === '') return '-';
+  if (typeof v === 'string') {
+    if (/^data:image\//i.test(v)) return '(imagem)';
+    if (/^data:/i.test(v))       return '(arquivo)';
+    if (/^https?:\/\//i.test(v) && /\.(png|jpe?g|webp|gif|svg)(\?|$)/i.test(v)) return '(imagem: link)';
+    return v;
+  }
   if (Array.isArray(v)) return v.map(normalizeValue).join(', ');
-  if (typeof v === 'object') return JSON.stringify(v);
+  if (typeof v === 'object') {
+    if (v.url && /\.(png|jpe?g|webp|gif|svg)(\?|$)/i.test(v.url)) return '(imagem)';
+    if (v.url || v.href) return v.name || v.filename || '(arquivo)';
+    try { return JSON.stringify(v); } catch { return String(v); }
+  }
   return String(v);
 }
 
@@ -336,30 +345,102 @@ export default function HistoryPanel({ collaboratorId, canEdit = false, onOpen =
 
   // ====== EXPORTAR PDF ======
   // ====== EXPORTAR PDF (logo menor + TABELA em colunas) ======
-const handleExportPdf = async () => {
-  const dataset = filtered.filter(r => selected.size === 0 || selected.has(r.id));
-  if (dataset.length === 0) {
-    alert('Nenhum item selecionado ou filtrado para exportar.');
-    return;
+// helper: tipos só-visuais (não viram resposta no PDF)
+const isDisplayOnly = (f: FormField) => {
+  const t = (f.type || '').toLowerCase();
+  return ['cabeçalho','cabecalho','header','título','titulo','seção','secao','section','descrição','descricao','description','separator','separador','label'].includes(t);
+};
+
+// Tipos de imagem / arquivos
+// Tipos de imagem / arquivos (mais robusto)
+const IMAGE_TYPES = [
+  'assinatura','signature',
+  'imagem','image','foto','photo','camera',
+  'registro fotográfico','registro fotografico'
+];
+const FILE_TYPES  = ['anexo','arquivo','file','upload','documento'];
+
+const isImageField = (f: FormField) => IMAGE_TYPES.includes((f.type||'').toLowerCase());
+const isFileField  = (f: FormField) => FILE_TYPES.includes((f.type||'').toLowerCase());
+
+// Urls que realmente parecem arquivo/link
+const isLikelyFileUrl = (s?: string) =>
+  !!s && (
+    /^https?:\/\//i.test(s) ||
+    /^data:/i.test(s) ||
+    /^blob:/i.test(s) ||
+    /^gs:\/\//i.test(s) ||
+    /^ipfs:\/\//i.test(s)
+  );
+
+const isImageUrl = (s?: string) =>
+  !!s && (
+    /^data:image\//i.test(s) ||
+    (/^https?:\/\//i.test(s) && /\.(png|jpe?g|webp|gif|svg)(\?|$)/i.test(s))
+  );
+
+// Extrai fontes de imagem de vários formatos (string/url/obj/array)
+function extractImageSources(v: any): string[] {
+  if (!v) return [];
+  const acc: string[] = [];
+  const push = (s?: string) => { if (isImageUrl(s)) acc.push(s!); };
+
+  if (Array.isArray(v)) {
+    v.forEach(item => {
+      if (typeof item === 'string') push(item);
+      else if (typeof item === 'object') { push(item?.url); push(item?.dataURL); }
+    });
+  } else if (typeof v === 'object') {
+    push(v?.url); push(v?.dataURL);
+  } else if (typeof v === 'string') {
+    push(v);
+  }
+  return acc;
+}
+
+// Extrai metadados de arquivo (nome/url) — AGORA só entra se tiver URL válido
+function extractFileLinks(v: any): Array<{ name: string; url?: string }> {
+  const out: Array<{ name: string; url?: string }> = [];
+  const add = (name?: string, url?: string) => {
+    if (!isLikelyFileUrl(url)) return;            // <- filtro decisivo
+    out.push({ name: name?.trim() || url!, url });
+  };
+
+  if (!v) return out;
+
+  if (Array.isArray(v)) {
+    v.forEach(it => {
+      if (typeof it === 'object') add(it.name || it.filename, it.url || it.href);
+      else if (typeof it === 'string') add(undefined, it);
+    });
+  } else if (typeof v === 'object') {
+    add(v.name || v.filename, v.url || v.href);
+  } else if (typeof v === 'string') {
+    add(undefined, v);
   }
 
-  // libs
+  return out;
+}
+
+
+const handleExportPdf = async () => {
+  const dataset = filtered.filter(r => selected.size === 0 || selected.has(r.id));
+  if (!dataset.length) { alert('Nenhum item selecionado ou filtrado para exportar.'); return; }
+
   const JsPDF = (await import('jspdf')).default;
   const autoTable = (await import('jspdf-autotable')).default as any;
 
-  // doc base
   const pdf = new JsPDF({ unit: 'pt', format: 'a4', compress: true });
   const pageW = (pdf as any).internal.pageSize.getWidth();
   const pageH = (pdf as any).internal.pageSize.getHeight();
   const headerH = 56;
 
-  // — logo (ajustado para ficar pequeno)
+  // logo pequeno
   let logo: HTMLImageElement | null = null;
   try { logo = await loadImage(BRAVOFORM_LOGO); } catch {}
   const LOGO_MAX_H = Math.floor(headerH * 0.6); // ~34px
   const LOGO_MAX_W = 110;
 
-  // header / footer
   const header = (left?: string, right?: string) => {
     pdf.setFillColor(BRAND_DARK);
     pdf.rect(0, 0, pageW, headerH, 'F');
@@ -374,9 +455,7 @@ const handleExportPdf = async () => {
       xAfterLogo = 24 + w + 12;
     }
 
-    pdf.setFont('helvetica', 'bold');
-    pdf.setFontSize(13);
-    pdf.setTextColor('#fff');
+    pdf.setFont('helvetica', 'bold'); pdf.setFontSize(13); pdf.setTextColor('#fff');
     pdf.text(left ?? 'Relatório de Respostas', xAfterLogo, headerH / 2 + 4);
 
     if (right) {
@@ -384,18 +463,14 @@ const handleExportPdf = async () => {
       pdf.text(right, pageW - 24 - tw, headerH / 2 + 4);
     }
 
-    pdf.setDrawColor(BRAND_PRIMARY);
-    pdf.setLineWidth(1.2);
+    pdf.setDrawColor(BRAND_PRIMARY); pdf.setLineWidth(1.2);
     pdf.line(0, headerH, pageW, headerH);
   };
-
-  const pageNo   = () => (pdf as any).internal.getCurrentPageInfo().pageNumber;
-  const pageCount= () => (pdf as any).internal.getNumberOfPages();
-
+  const pageNo = () => (pdf as any).internal.getCurrentPageInfo().pageNumber;
+  const pageCount = () => (pdf as any).internal.getNumberOfPages();
   const footer = () => {
     const left = `Gerado a partir do BRAVOFORM · ${new Date().toLocaleString('pt-BR')}`;
     const right = `pág. ${pageNo()}/${pageCount()}`;
-
     pdf.setFont('helvetica','normal'); pdf.setFontSize(9); pdf.setTextColor('#666');
     pdf.setDrawColor('#e0e0e0'); pdf.setLineWidth(0.7);
     pdf.line(40, pageH - 48, pageW - 40, pageH - 48);
@@ -403,124 +478,202 @@ const handleExportPdf = async () => {
     const tw = (pdf as any).getTextWidth(right);
     pdf.text(right, pageW - 40 - tw, pageH - 30);
   };
-
   const ensureSpace = (need = 120, left?: string, right?: string) => {
-    if (y + need > pageH - 72) {
-      pdf.addPage();
-      header(left, right);
-      footer();
-      y = 80;
-    }
+    if (y + need > pageH - 72) { pdf.addPage(); header(left, right); footer(); y = 80; }
   };
 
-  // primeira página
-  header('BRAVOFORM · Relatório de Respostas', `${dataset.length} resposta(s)`);
-  footer();
+  header('BRAVOFORM · Relatório de Respostas', `${dataset.length} resposta(s)`); footer();
   let y = 80;
 
-  for (let i = 0; i < dataset.length; i++) {
-    const r = dataset[i];
+  for (const r of dataset) {
     const d = toJSDate(r.createdAt);
     const when = formatDateTime(d);
-    const sectionTitle = r.formTitle || r.formId || 'Formulário';
-    const sectionMeta  = `Colaborador: ${r.collaboratorUsername || '-'} · ID resposta: ${r.id}`;
-    const schema = schemas[r.formId];
-    const answers = r.answers || {};
+const schema = schemas[r.formId];
+const answers = r.answers || {};
+const sectionTitle = r.formTitle || schema?.title || r.formId || 'Formulário';
+const sectionMeta  = `Colaborador: ${r.collaboratorUsername || '-'} · ID resposta: ${r.id}`;
 
-    // Cabeçalho da seção
-    ensureSpace(160, sectionTitle, when);
-    pdf.setFont('helvetica','bold'); pdf.setFontSize(13.5); pdf.setTextColor('#111');
-    pdf.text(sectionTitle, 40, y);
-    pdf.setFont('helvetica','normal'); pdf.setFontSize(10.5); pdf.setTextColor('#555');
-    pdf.text(`${when}  •  ${sectionMeta}`, 40, y + 16);
-    pdf.setDrawColor(BRAND_PRIMARY); pdf.setLineWidth(1);
-    pdf.line(40, y + 24, pageW - 40, y + 24);
-    y += 36;
+// título da seção
+ensureSpace(160, sectionTitle, when);
+pdf.setFont('helvetica','bold'); pdf.setFontSize(13.5); pdf.setTextColor('#111');
+pdf.text(sectionTitle, 40, y);
+pdf.setFont('helvetica','normal'); pdf.setFontSize(10.5); pdf.setTextColor('#555');
+pdf.text(`${when}  •  ${sectionMeta}`, 40, y + 16);
+pdf.setDrawColor(BRAND_PRIMARY); pdf.setLineWidth(1);
+pdf.line(40, y + 24, pageW - 40, y + 24);
+y += 36;
 
-    // 1) Campos simples (não-tabela) — juntamos e imprimimos em uma KV table
-    const simpleRows: [string, string][] = [];
-    for (const f of (schema?.fields ?? [])) {
-      if (f.type === 'Tabela') continue;
-      const v = answers[String(f.id)];
-      simpleRows.push([f.label ?? String(f.id), normalizeValue(v) || '-']);
-    }
-    if (simpleRows.length) {
-      ensureSpace(140, sectionTitle, when);
-      autoTable(pdf, {
-  startY: y + 36,                 // só afeta a 1ª página dessa seção
-  head: [['Produto', 'Estoque', 'Pedidos']], // (ou como você montou)
-  showHead: 'everyPage',          // cabeçalho em todas as páginas
-  margin: { top: 80, left: 40, right: 40, bottom: 48 }, // <-- espaço p/ o header (56px + respiro)
-  theme: 'grid',
-  styles: { font: 'helvetica', fontSize: 10, cellPadding: 6, lineColor: [220,220,220] },
-  headStyles: { fillColor: hexToRgb(BRAND_PRIMARY), textColor: [20,25,36], fontStyle: 'bold', halign: 'left' },
-  alternateRowStyles: { fillColor: [248,248,248] },
-  didDrawPage: () => { header(sectionTitle, when); footer(); } // mantém sua faixa/rodapé
-});
-      y = (pdf as any).lastAutoTable.finalY + 20;
-    }
+// === 1) CAMPOS SIMPLES (exceto imagem/anexo/tabela/visuais) ===
+const simpleRows: [string, string][] = [];
+const imageItems: Array<{label:string; src:string}> = [];
+const fileItems: Array<{label:string; name:string; url?:string}> = [];
 
-    // 2) Para cada campo Tabela, imprimir como grade: [Linha/Item | ...colunas]
-    for (const f of (schema?.fields ?? [])) {
-      if (f.type !== 'Tabela') continue;
+for (const f of (schema?.fields ?? [])) {
+  if (isDisplayOnly(f)) continue;
 
-      const tableVal = answers[String(f.id)] || {}; // {rowId: {colId: value}}
-      const cols = (f.columns ?? []).map(c => ({ id: String(c.id), label: c.label || String(c.id) }));
-      const rows = (f.rows ?? []).map(rw => ({ id: String(rw.id), label: rw.label || String(rw.id) }));
+  const v = answers[String(f.id)];
+  const label = f.label ?? String(f.id);
 
-      // título da tabela
-      ensureSpace(100, sectionTitle, when);
-      pdf.setFont('helvetica','bold'); pdf.setFontSize(12); pdf.setTextColor('#111');
-      pdf.text(f.label || 'Tabela', 40, y);
-      y += 8;
-
-      // head: [ [ <label da tabela>, ...labels das colunas ] ]
-      const head = [[ (f.label || 'Item'), ...cols.map(c => c.label) ]];
-
-      // body: uma linha por "row", espalhando valores nas colunas
-      const body = rows.map(rw => {
-        const obj = tableVal?.[rw.id] || {};
-        return [ rw.label, ...cols.map(c => normalizeValue(obj?.[c.id]) || '-') ];
-      });
-
-      autoTable(pdf, {
-        startY: y + 8,
-        head,
-        body,
-        theme: 'grid',
-        styles: { font: 'helvetica', fontSize: 10, cellPadding: 6, lineColor: [220,220,220], textColor: [20,20,20] },
-        headStyles: { fillColor: hexToRgb(BRAND_PRIMARY), textColor: [20,25,36], fontStyle: 'bold', halign: 'left' },
-        alternateRowStyles: { fillColor: [248,248,248] },
-        margin: { left: 40, right: 40 },
-        columnStyles: { 0: { cellWidth: 240 } }, // primeira coluna (nomes dos itens) mais larga
-        didDrawPage: () => { header(sectionTitle, when); footer(); }
-      });
-
-      y = (pdf as any).lastAutoTable.finalY + 20;
-    }
-
-    // espaço entre respostas
-    if (i < dataset.length - 1 && y > pageH - 140) {
-      pdf.addPage(); header(); footer(); y = 80;
-    }
+  // 1a) Campo marcado como imagem
+  if (isImageField(f)) {
+    const imgs = extractImageSources(v);
+    if (imgs.length) imgs.forEach(src => imageItems.push({ label, src }));
+    else simpleRows.push([label, normalizeValue(v)]); // sem imagem, mostra texto
+    continue;
   }
 
-  const filename = `relatorio_BRAVOFORM_${new Date().toISOString().slice(0,19).replace(/[:T]/g,'-')}.pdf`;
-  pdf.save(filename);
+  // 1b) Campo marcado como arquivo
+  if (isFileField(f)) {
+    const links = extractFileLinks(v);
+    if (links.length) {
+      for (const l of links) {
+        if (isImageUrl(l.url)) imageItems.push({ label, src: l.url! });
+        else fileItems.push({ label, name: l.name, url: l.url });
+      }
+    } else {
+      simpleRows.push([label, normalizeValue(v)]);
+    }
+    continue;
+  }
 
-  // helpers locais
+  // 1c) Campo comum — mas tenta detectar imagens/arquivos pelo VALOR
+  const maybeImgs = extractImageSources(v);
+  if (maybeImgs.length) {
+    maybeImgs.forEach(src => imageItems.push({ label, src }));
+    continue;
+  }
+  const maybeFiles = extractFileLinks(v);
+  if (maybeFiles.length) {
+    for (const l of maybeFiles) {
+      if (isImageUrl(l.url)) imageItems.push({ label, src: l.url! });
+      else fileItems.push({ label, name: l.name, url: l.url });
+    }
+    continue;
+  }
+
+  // 1d) Se for tabela, pula (será renderizada na seção de tabelas)
+  if ((f.type || '').toLowerCase() === 'tabela') continue;
+
+  // 1e) Caso padrão: chave/valor
+  simpleRows.push([label, normalizeValue(v)]);
+}
+
+
+if (simpleRows.length) {
+  ensureSpace(140, sectionTitle, when);
+  autoTable(pdf, {
+    startY: y,
+    head: [['Campo','Valor']],
+    body: simpleRows,
+    theme: 'grid',
+    showHead: 'everyPage',
+    margin: { left: 40, right: 40, bottom: 48 },
+    styles: { font: 'helvetica', fontSize: 10, cellPadding: 6, lineColor: [220,220,220], textColor: [20,20,20] },
+    headStyles: { fillColor: hexToRgb(BRAND_PRIMARY), textColor: [20,25,36], fontStyle: 'bold', halign: 'left' },
+    columnStyles: { 0: { cellWidth: 220 }, 1: { cellWidth: 'auto' } },
+    didDrawPage: () => { header(sectionTitle, when); footer(); },
+  });
+  y = (pdf as any).lastAutoTable.finalY + 20;
+}
+
+// === 2) TABELAS (linhas x colunas) — cabeçalho em todas as páginas ===
+for (const f of (schema?.fields ?? [])) {
+  if (f.type !== 'Tabela') continue;
+  const tableVal = answers[String(f.id)] || {};
+  const cols = (f.columns ?? []).map(c => ({ id: String(c.id), label: c.label || String(c.id) }));
+  const rows = (f.rows ?? []).map(rw => ({ id: String(rw.id), label: rw.label || String(rw.id) }));
+
+  ensureSpace(100, sectionTitle, when);
+  pdf.setFont('helvetica','bold'); pdf.setFontSize(12); pdf.setTextColor('#111');
+  pdf.text(f.label || 'Tabela', 40, y); y += 8;
+
+  const head = [[ (f.label || 'Item'), ...cols.map(c => c.label) ]];
+  const body = rows.map(rw => {
+    const obj = tableVal?.[rw.id] || {};
+    return [ rw.label, ...cols.map(c => normalizeValue(obj?.[c.id])) ];
+  });
+
+  autoTable(pdf, {
+    startY: y + 8,
+    head, body,
+    theme: 'grid',
+    showHead: 'everyPage',
+    margin: { left: 40, right: 40, bottom: 48 },
+    styles: { font: 'helvetica', fontSize: 10, cellPadding: 6, lineColor: [220,220,220], textColor: [20,20,20] },
+    headStyles: { fillColor: hexToRgb(BRAND_PRIMARY), textColor: [20,25,36], fontStyle: 'bold', halign: 'left' },
+    alternateRowStyles: { fillColor: [248,248,248] },
+    columnStyles: { 0: { cellWidth: 240 } },
+    didDrawPage: () => { header(sectionTitle, when); footer(); },
+  });
+
+  y = (pdf as any).lastAutoTable.finalY + 20;
+}
+
+// === 3) IMAGENS / ASSINATURAS ===
+if (imageItems.length) {
+  ensureSpace(28, sectionTitle, when);
+  pdf.setFont('helvetica','bold'); pdf.setFontSize(12); pdf.setTextColor('#111');
+  pdf.text('Imagens / Assinaturas', 40, y); y += 12;
+
+  const maxW = pageW - 80;   // respeita margens
+  const maxH = 220;
+
+  for (const it of imageItems) {
+    try {
+      const img = await loadImage(it.src); // funciona com dataURL e URL (CORS ok)
+      const r = Math.min(maxW / img.width, maxH / img.height, 1);
+      const w = Math.max(120, img.width * r);
+      const h = img.height * r;
+
+      ensureSpace(h + 34, sectionTitle, when);
+      (pdf as any).addImage(img, 'PNG', 40, y, w, h);
+      y += h + 14;
+
+      pdf.setFont('helvetica','normal'); pdf.setFontSize(10); pdf.setTextColor('#444');
+      pdf.text(it.label, 40, y);
+      y += 20;
+    } catch { /* ignora imagem com erro */ }
+  }
+}
+
+// === 4) ANEXOS ===
+if (fileItems.length) {
+  ensureSpace(28, sectionTitle, when);
+  pdf.setFont('helvetica','bold'); pdf.setFontSize(12); pdf.setTextColor('#111');
+  pdf.text('Anexos', 40, y); y += 12;
+
+  pdf.setFont('helvetica','normal'); pdf.setFontSize(10); pdf.setTextColor('#222');
+  for (const f of fileItems) {
+    ensureSpace(20, sectionTitle, when);
+    const line = `• ${f.label}: ${f.name}`;
+    if (f.url) (pdf as any).textWithLink(line, 40, y, { url: f.url });
+    else       pdf.text(line, 40, y);
+    y += 16;
+  }
+}
+}
+
+
+  pdf.save(`relatorio_BRAVOFORM_${new Date().toISOString().slice(0,19).replace(/[:T]/g,'-')}.pdf`);
+
+  // helpers
   function hexToRgb(hex: string): [number,number,number] {
-    const h = hex.replace('#','');
-    const n = parseInt(h.length===3 ? h.split('').map(c=>c+c).join('') : h, 16);
-    return [(n>>16)&255, (n>>8)&255, n&255];
-  }
-  function loadImage(src: string): Promise<HTMLImageElement> {
-    return new Promise((resolve, reject) => {
-      const img = new Image(); img.crossOrigin = 'anonymous';
-      img.onload = () => resolve(img); img.onerror = reject; img.src = src;
-    });
-  }
+  const h = hex.replace('#','');
+  const n = parseInt(h.length===3 ? h.split('').map(c=>c+c).join('') : h, 16);
+  return [(n>>16)&255, (n>>8)&255, n&255];
+}
+  // Carregador de imagem com CORS liberado
+function loadImage(src: string): Promise<HTMLImageElement> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => resolve(img);
+    img.onerror = reject;
+    img.src = src;
+  });
+}
 };
+
 
   if (loading) return <p className={styles.emptyState}>Carregando…</p>;
   if (error)   return <p className={styles.errorText}>{error}</p>;
