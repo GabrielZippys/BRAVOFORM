@@ -125,6 +125,59 @@ function parseColor(c: string): {r:number,g:number,b:number,a:number} {
   return { r: 0, g: 0, b: 0, a: 1 };
 }
 
+// --- DECIMAIS: aceitam , e . ---
+const DEC_SEP: ',' | '.' = ','; // como exibir
+
+const sanitizeDecimal = (raw: string, maxDecimals = 2) => {
+  let s = (raw ?? '').replace(/[^\d.,-]/g, ''); // mantém dígitos, vírgula, ponto, sinal
+  if (!s) return '';
+
+  // normaliza sinal: só 1 "-" no início
+  const neg = s.trim().startsWith('-') ? '-' : '';
+  s = s.replace(/-/g, '');
+
+  // normaliza ponto -> vírgula
+  s = s.replace(/\./g, ',');
+
+  // permite começar pela vírgula (vira "0,")
+  if (s.startsWith(',')) s = '0' + s;
+
+  // quebra apenas a primeira vírgula
+  const parts = s.split(',');
+  let intPart = (parts[0] || '0').replace(/^0+(?=\d)/, ''); // tira zeros à esquerda
+  let fracRaw = parts.slice(1).join('').replace(/,/g, '');  // remove vírgulas extras
+
+  // limita casas
+  if (maxDecimals >= 0) fracRaw = fracRaw.slice(0, maxDecimals);
+
+  const hadComma = s.includes(',');
+
+  // mantém vírgula "pendurada" durante a digitação (ex.: "12,")
+  if (hadComma && fracRaw.length === 0) return `${neg}${intPart}${DEC_SEP}`;
+
+  // comum
+  return fracRaw.length ? `${neg}${intPart}${DEC_SEP}${fracRaw}` : `${neg}${intPart}`;
+};
+
+const padDecimals = (raw: string, maxDecimals = 2) => {
+  let s = sanitizeDecimal(raw, maxDecimals);
+  if (!s) return s;
+
+  const neg = s.startsWith('-') ? '-' : '';
+  let body = neg ? s.slice(1) : s;
+
+  // garante separador
+  if (!body.includes(DEC_SEP)) body += DEC_SEP;
+
+  const [i, f = ''] = body.split(DEC_SEP);
+  const ff = (f + '0'.repeat(maxDecimals)).slice(0, maxDecimals);
+  return `${neg}${i}${DEC_SEP}${ff}`;
+};
+
+// Para converter "7,90" -> número JS: parseFloat(str.replace(/\./g,'').replace(',', '.'))
+
+
+
 function srgbToLin(v:number){ v/=255; return v<=0.04045? v/12.92 : Math.pow((v+0.055)/1.055,2.4); }
 function relLuminance({r,g,b}:{r:number,g:number,b:number}) {
   const R = srgbToLin(r), G = srgbToLin(g), B = srgbToLin(b);
@@ -733,20 +786,26 @@ const handleAutoFillLeader = () => {
       );
 
     case 'number': {
-      const onNumChange = (v: string) =>
-        handleTableInputChange(fieldId, rowId, colId, v.replace(/\D+/g, ''));
-      return (
-        <input
-          style={base}
-          type="text"
-          inputMode="numeric"
-          pattern="[0-9]*"
-          value={value}
-          onChange={e => onNumChange(e.target.value)}
-          disabled={disabled}
-        />
-      );
-    }
+  const decimals = Number((col as any).decimals ?? 2); // pode ler de col.decimals se existir
+  return (
+    <input
+      style={base}
+      type="text"
+      inputMode="decimal"
+      // aceita 12, 12,3, 12.34, etc:
+      pattern="^\d+(?:[.,]\d{0,})?$"
+      value={value}
+      onChange={e =>
+        handleTableInputChange(fieldId, rowId, colId, sanitizeDecimal(e.target.value, decimals))
+      }
+      onBlur={e =>
+        handleTableInputChange(fieldId, rowId, colId, padDecimals(e.target.value, decimals))
+      }
+      disabled={disabled}
+    />
+  );
+}
+
 
     case 'date':
     case 'Data':
