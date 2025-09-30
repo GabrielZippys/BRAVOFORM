@@ -15,7 +15,7 @@ import {
 } from 'firebase/firestore';
 import styles from '../styles/CollaboratorView.module.css';
 import { FileText, LogOut, User2, CheckCircle2, Clock } from 'lucide-react';
-import CollaboratorHistoryModal from '@/components/CollaboratorView'; // Modal de histórico
+import CollaboratorHistoryModal from '@/components/CollaboratorHistoryModal'; // Modal de histórico
 import FormResponse from '@/components/FormResponse';                // Modal para responder formulário
 import DepartmentLeaderDash from './DepartmentLeaderDash';           // Dash do líder
 import HistoryPanel, { type HistoryResp } from '@/components/HistoryPanel';

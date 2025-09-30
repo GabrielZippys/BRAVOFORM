@@ -1,10 +1,13 @@
+// components/FormResponse.tsx
+
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
-import { db } from '../../firebase/config';
+import { db, storage } from '../../firebase/config';
 import { doc, addDoc, updateDoc, collection, serverTimestamp } from 'firebase/firestore';
 import { type Form, type FormResponse as FormResponseType } from '@/types';
 import { X, Send, Eraser, CheckCircle2, AlertTriangle } from 'lucide-react';
+import { ref as sRef, uploadBytes, getDownloadURL } from 'firebase/storage';
 
 
 
@@ -511,16 +514,47 @@ function triggerToast(type: 'success' | 'error', message: string, duration = 260
   }
 };
 
-  const handleFileChange = (fieldId: string, files: FileList | null) => {
-    if (files && files.length > 0) {
-      const newFiles = Array.from(files).map(f => ({
-        name: f.name,
-        size: f.size,
-        type: f.type,
-      }));
-      handleInputChange(fieldId, [...(responses[fieldId] || []), ...newFiles]);
-    }
-  };
+  const handleFileChange = async (fieldId: string, files: FileList | null) => {
+  if (!files || files.length === 0) return;
+
+  const items = await Promise.all(
+    Array.from(files).map(
+      (file) =>
+        new Promise<any>((resolve) => {
+          if (file.type?.startsWith('image/')) {
+            const reader = new FileReader();
+            reader.onload = () =>
+              resolve({ name: file.name, size: file.size, type: file.type, file, preview: reader.result as string });
+            reader.onerror = () => resolve({ name: file.name, size: file.size, type: file.type, file });
+            reader.readAsDataURL(file);
+          } else {
+            resolve({ name: file.name, size: file.size, type: file.type, file });
+          }
+        })
+    )
+  );
+
+  handleInputChange(fieldId, [ ...(responses[fieldId] || []), ...items ]);
+};
+
+const looksUrl = (s?: string) =>
+  !!s && (/^https?:\/\//i.test(s) || /^data:/i.test(s) || /^blob:/i.test(s));
+
+async function ensureUploaded(item: any, pathPrefix: string) {
+  if (item?.url && (/^https?:\/\//i.test(item.url) || /^data:/i.test(item.url))) return item;
+
+  const file: File | undefined = item?.file;
+  if (!(file instanceof File)) return item;
+
+  const path = `${pathPrefix}/${Date.now()}_${encodeURIComponent(file.name)}`;
+  const r = sRef(storage, path);
+  const metadata = { contentType: file.type || 'application/octet-stream' };
+
+  await uploadBytes(r, file, metadata);
+  const url = await getDownloadURL(r);
+  return { name: item?.name || file.name, size: item?.size ?? file.size, type: file.type, url };
+}
+
 
   const removeFile = (fieldId: string, index: number) => {
     const files = responses[fieldId] || [];
@@ -645,21 +679,16 @@ const handleAutoFillLeader = () => {
   setIsSubmitting(true);
   setTriedSubmit(true);
 
-  // valida obrigatórios de todos os campos
+  // valida obrigatórios
   const newInvalid: Record<string, string> = {};
   (form.fields as EnhancedFormField[]).forEach(field => {
     const err = validateRequiredField(field);
     if (err) newInvalid[String(field.id)] = err;
   });
-
   if (Object.keys(newInvalid).length > 0) {
     setInvalid(newInvalid);
-    // scroll no primeiro inválido
     const firstId = Object.keys(newInvalid)[0];
-    const node = fieldRefs.current[firstId];
-    if (node?.scrollIntoView) {
-      node.scrollIntoView({ block: 'center', behavior: 'smooth' });
-    }
+    fieldRefs.current[firstId]?.scrollIntoView?.({ block: 'center', behavior: 'smooth' });
     triggerToast('error', 'Preencha os campos obrigatórios.', 2800);
     setIsSubmitting(false);
     return;
@@ -669,7 +698,36 @@ const handleAutoFillLeader = () => {
   setError('');
 
   try {
-    const flattened: Record<string, any> = {
+    // 1) Normaliza + sobe anexos
+    const normalized: Record<string, any> = { ...responses };
+
+    for (const field of form.fields as EnhancedFormField[]) {
+      const fid = String(field.id);
+
+      // “Outros”
+      if ((field.type === 'Caixa de Seleção' || field.type === 'Múltipla Escolha') && field.allowOther) {
+        let v = normalized[fid];
+        const otherVal = (otherInputValues[fid] || '').trim();
+        if (Array.isArray(v)) {
+          v = v.map((opt: string) => (opt === '___OTHER___' ? otherVal : opt)).filter((x: string) => x !== '');
+        } else if (v === '___OTHER___') {
+          v = otherVal;
+        }
+        normalized[fid] = v;
+      }
+
+      // Anexos
+      if (field.type === 'Anexo') {
+        const arr: any[] = Array.isArray(normalized[fid]) ? normalized[fid] : [];
+        const uploaded = await Promise.all(
+          arr.map(it => ensureUploaded(it, `forms/${form.id}/responses/${collaborator.id}/field_${fid}`))
+        );
+        normalized[fid] = uploaded;
+      }
+    }
+
+    // 2) Monta payload
+    const payload: Record<string, any> = {
       collaboratorId: collaborator.id,
       collaboratorUsername: collaborator.username,
       formId: form.id,
@@ -677,70 +735,39 @@ const handleAutoFillLeader = () => {
       companyId: form.companyId,
       departmentId: form.departmentId,
       status: 'pending',
-      submittedAt: serverTimestamp()
+      submittedAt: serverTimestamp(),
     };
 
     // por label
-    (form.fields as EnhancedFormField[]).forEach(field => {
-      const fieldIdStr = String(field.id);
-      let answerVal = responses[fieldIdStr];
-      if (
-        (field.type === 'Caixa de Seleção' || field.type === 'Múltipla Escolha') &&
-        field.allowOther
-      ) {
-        const otherVal = otherInputValues[fieldIdStr] || '';
-        if (Array.isArray(answerVal)) {
-          answerVal = answerVal
-            .map((v: string) => (v === '___OTHER___' ? (otherVal || '') : v))
-            .filter(v => v !== '');
-          if (answerVal.length === 1 && answerVal[0] === '') answerVal = '';
-        } else if (answerVal === '___OTHER___') {
-          answerVal = otherVal;
-        }
-      }
-      flattened[field.label] = answerVal ?? '';
+    (form.fields as EnhancedFormField[]).forEach((field) => {
+      payload[field.label] = normalized[String(field.id)] ?? '';
     });
 
-    // por id
+    // answers por id
     const answers: Record<string, any> = {};
-    (form.fields as EnhancedFormField[]).forEach(field => {
-      const fieldIdStr = String(field.id);
-      let answerVal = responses[fieldIdStr];
-      if (
-        (field.type === 'Caixa de Seleção' || field.type === 'Múltipla Escolha') &&
-        field.allowOther
-      ) {
-        const otherVal = otherInputValues[fieldIdStr] || '';
-        if (Array.isArray(answerVal)) {
-          answerVal = answerVal
-            .map((v: string) => (v === '___OTHER___' ? (otherVal || '') : v))
-            .filter(v => v !== '');
-          if (answerVal.length === 1 && answerVal[0] === '') answerVal = '';
-        } else if (answerVal === '___OTHER___') {
-          answerVal = otherVal;
-        }
-      }
-      answers[fieldIdStr] = answerVal ?? '';
+    (form.fields as EnhancedFormField[]).forEach((field) => {
+      answers[String(field.id)] = normalized[String(field.id)] ?? '';
     });
-    flattened.answers = answers;
+    payload.answers = answers;
 
+    // 3) Grava 1x
     if (existingResponse?.id) {
-      await updateDoc(
-        doc(db, 'forms', form.id, 'responses', existingResponse.id),
-        { ...flattened, updatedAt: serverTimestamp() }
-      );
+      await updateDoc(doc(db, 'forms', form.id, 'responses', existingResponse.id), {
+        ...payload,
+        updatedAt: serverTimestamp(),
+      });
     } else {
-      await addDoc(collection(db, 'forms', form.id, 'responses'), flattened);
+      await addDoc(collection(db, 'forms', form.id, 'responses'), payload);
     }
 
     triggerToast('success', 'Resposta enviada com sucesso!', 1800, onClose);
   } catch (err) {
+    console.error(err);
     triggerToast('error', 'Não foi possível enviar a resposta.', 3000);
   } finally {
     setIsSubmitting(false);
   }
 };
-
 
   // --- Render tabela fiel ao tema do form
   const renderTableCell = (

@@ -258,26 +258,57 @@ export default function CollaboratorHistoryModal({
             }
 
             if (field.type === 'Anexo') {
-              const files = Array.isArray(value) ? value : [];
-              return (
-                <div key={keyField} style={{
-                  border: `1px solid ${theme.border}`, borderRadius: 10, padding: 12, marginBottom: 14
-                }}>
-                  <div style={{ fontWeight: 600, marginBottom: 6 }}>{field.label}</div>
-                  {files.length === 0 ? (
-                    <div style={{ opacity: 0.8 }}>Sem anexos.</div>
-                  ) : (
-                    <ul style={{ margin: 0, paddingLeft: 16 }}>
-                      {files.map((f: any, i: number) => (
-                        <li key={`file_${String(field.id)}_${i}`}>
-                          {f?.name ?? safeStr(f)}
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                </div>
-              );
-            }
+  const files = Array.isArray(value) ? value : [];
+  const isImg = (u?: string, t?: string, n?: string) =>
+    (t && t.startsWith?.('image/')) ||
+    (typeof u === 'string' && /^data:image\//i.test(u)) ||
+    (typeof u === 'string' && /\.(png|jpe?g|webp|gif|svg)(\?|$)/i.test(u)) ||
+    (typeof n === 'string' && /\.(png|jpe?g|webp|gif|svg)$/i.test(n));
+
+  return (
+    <div key={keyField} style={{
+      border: `1px solid ${theme.border}`, borderRadius: 10, padding: 12, marginBottom: 14
+    }}>
+      <div style={{ fontWeight: 600, marginBottom: 6 }}>{field.label}</div>
+
+      {files.length === 0 ? (
+        <div style={{ opacity: 0.8 }}>Sem anexos.</div>
+      ) : (
+        <>
+          {/* galeria de imagens */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 10 }}>
+            {files.filter((f: any) => isImg(f?.url, f?.type, f?.name)).map((f: any, i: number) => (
+              <div key={`img_${String(field.id)}_${i}`} style={{ background: '#0e172a', border: `1px solid ${theme.border}`, borderRadius: 8, padding: 6 }}>
+                <img
+                  src={f.url}
+                  alt={f.name || 'imagem'}
+                  style={{ width: '100%', height: 140, objectFit: 'cover', borderRadius: 6 }}
+                />
+                <div style={{ fontSize: 12, marginTop: 6, opacity: 0.9 }}>{f.name}</div>
+              </div>
+            ))}
+          </div>
+
+          {/* lista de arquivos não-imagem */}
+          <ul style={{ margin: '12px 0 0', paddingLeft: 18 }}>
+            {files.filter((f: any) => !isImg(f?.url, f?.type, f?.name)).map((f: any, i: number) => (
+              <li key={`file_${String(field.id)}_${i}`}>
+                {f?.url ? (
+                  <a href={f.url} target="_blank" rel="noopener noreferrer" style={{ color: theme.accent }}>
+                    {f?.name || f.url}
+                  </a>
+                ) : (
+                  <span>{f?.name || 'arquivo'}</span>
+                )}
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
+    </div>
+  );
+}
+
 
             if (field.type === 'Assinatura') {
               const isDataURL = typeof value === 'string' && value.startsWith('data:image');
