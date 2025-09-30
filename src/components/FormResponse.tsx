@@ -82,6 +82,15 @@ const resolvedInputBg = rgbToHex(resolvedInputBgRGB);
 // escolhe texto legível automaticamente
 const autoInputText = pickReadableTextColor(resolvedInputBg, theme.inputFontColor);
 
+// abaixo do controlBase
+const tickBase: React.CSSProperties = {
+  accentColor: theme.accentColor,  // <- faz o quadrado/círculo ficar da cor do tema quando marcado
+  width: 18,
+  height: 18,
+  margin: 0,
+  cursor: 'pointer',
+};
+
 // placeholder/caret coerentes
 const autoPlaceholder = withAlpha(autoInputText, 0.6);
 
@@ -471,6 +480,17 @@ function triggerToast(type: 'success' | 'error', message: string, duration = 260
     });
   }
 };
+
+// Qual cor de texto usar sobre um bg (que pode ter alpha) em cima do card?
+const textOn = (
+  topBgCss: string,                               // ex.: withAlpha(theme.accentColor, .12)
+  baseCss: string = theme.bgColor,                // fundo do cartão
+  preferredCss: string = theme.inputFontColor,    // cor "preferida"
+) => {
+  const eff = rgbToHex(blendOver(topBgCss, baseCss));       // mistura alpha com o fundo real
+  return pickReadableTextColor(eff, preferredCss);          // preto/branco/preferida com contraste
+};
+
 
   const handleOtherInputChange = (fieldId: string, text: string) => {
   setOtherInputValues(prev => ({ ...prev, [fieldId]: text }));
@@ -1070,64 +1090,94 @@ const handleAutoFillLeader = () => {
             </button>
           </div>
         );
+
       case 'Caixa de Seleção':
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginBottom: 4 }}>
+      {field.options?.map((opt: string) => {
+
+        const autoBodyText = pickReadableTextColor(theme.bgColor, theme.fontColor);
+        const checked = (responses[fieldId] || []).includes(opt);
+        const checkedBg = withAlpha(theme.accentColor, 0.12);
+        const labelBg  = checked ? checkedBg : 'transparent';
+        const baseFg   = autoBodyText;                 // texto ideal sobre o card
+       const labelFg  = checked ? textOn(checkedBg, theme.bgColor, baseFg) : baseFg;
+
+
         return (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginBottom: 4 }}>
-            {field.options?.map((opt: string) => (
-              <label key={opt} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 16, color: theme.inputFontColor }}>
+          <label
+            key={opt}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 8, fontSize: 16,
+              background: labelBg,
+              color: labelFg,                     // <<< texto auto (preto/branco)
+              borderRadius: 8, padding: '6px 8px', transition: 'background .15s ease',
+            }}
+          >
+            <input
+              type="checkbox"
+              checked={checked}
+              onChange={e => {
+                const current = responses[fieldId] || [];
+                handleInputChange(
+                  fieldId,
+                  e.target.checked ? [...current, opt] : current.filter((v: string) => v !== opt)
+                );
+              }}
+              disabled={disabled}
+              style={tickBase}
+            />
+            <span>{opt}</span>
+          </label>
+        );
+      })}
+
+      {field.allowOther && (
+        <>
+          {(() => {
+            const checked = (responses[fieldId] || []).includes(otherVal);
+            const checkedBg = withAlpha(theme.accentColor, 0.12);
+            const labelBg  = checked ? checkedBg : 'transparent';
+            const labelFg  = checked ? textOn(checkedBg) : theme.inputFontColor;
+
+            return (
+              <label style={{
+                display: 'flex', alignItems: 'center', gap: 8, fontSize: 16,
+                background: labelBg, color: labelFg, borderRadius: 8, padding: '6px 8px'
+              }}>
                 <input
                   type="checkbox"
-                  checked={(responses[fieldId] || []).includes(opt)}
+                  checked={checked}
                   onChange={e => {
                     const current = responses[fieldId] || [];
                     handleInputChange(
                       fieldId,
-                      e.target.checked
-                        ? [...current, opt]
-                        : current.filter((v: string) => v !== opt)
+                      e.target.checked ? [...current, otherVal] : current.filter((v: string) => v !== otherVal)
                     );
                   }}
                   disabled={disabled}
-                  style={controlBase}
+                  style={tickBase}
                 />
-                <span>{opt}</span>
+                <span>Outros</span>
               </label>
-            ))}
-            {field.allowOther && (
-              <>
-                <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 16, color: theme.inputFontColor }}>
-                  <input
-                    type="checkbox"
-                    checked={(responses[fieldId] || []).includes(otherVal)}
-                    onChange={e => {
-                      const current = responses[fieldId] || [];
-                      handleInputChange(
-                        fieldId,
-                        e.target.checked
-                          ? [...current, otherVal]
-                          : current.filter((v: string) => v !== otherVal)
-                      );
-                    }}
-                    disabled={disabled}
-                    style={{
-                      accentColor: theme.accentColor
-                    }}
-                  />
-                  <span>Outros</span>
-                </label>
-                {(responses[fieldId] || []).includes(otherVal) && (
-                  <input
-                    value={otherInputValues[fieldId] || ''}
-                    onChange={e => handleOtherInputChange(fieldId, e.target.value)}
-                    placeholder="Por favor, especifique"
-                    disabled={disabled}
-                    style={controlBase}
-                  />
-                )}
-              </>
-            )}
-          </div>
-        );
+            );
+          })()}
+
+          {(responses[fieldId] || []).includes(otherVal) && (
+            <input
+              value={otherInputValues[fieldId] || ''}
+              onChange={e => handleOtherInputChange(fieldId, e.target.value)}
+              placeholder="Por favor, especifique"
+              disabled={disabled}
+              style={controlBase}
+            />
+          )}
+        </>
+      )}
+    </div>
+  );
+
+
       case 'Múltipla Escolha':
         if (field.displayAs === 'dropdown') {
           return (
