@@ -50,6 +50,32 @@ type Props = {
   canEdit?: boolean;          // aqui você só visualiza (edição é outro fluxo)
 };
 
+function fmtDate(d?: Date) {
+  if (!d) return '';
+  try { return d.toLocaleDateString('pt-BR'); } catch { return ''; }
+}
+function fmtTime(d?: Date) {
+  if (!d) return '';
+  try { return d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }); } catch { return ''; }
+}
+
+// ISO: 2025-10-01T08:26 (ou com espaço no lugar do T)
+const ISO_DT = /^\d{4}-\d{2}-\d{2}[T\s]\d{2}:\d{2}(:\d{2})?$/;
+
+function prettyDateAnswer(field: EnhancedFormField, value: any): string {
+  // formata se o tipo do campo for 'Data' OU se a string "parecer" um datetime ISO
+  if (field.type === 'Data' || (typeof value === 'string' && ISO_DT.test(value))) {
+    const raw = typeof value === 'string' ? value.replace(' ', 'T') : value;
+    const d = new Date(raw);
+    if (!isNaN(d.getTime())) {
+      return `${fmtDate(d)} • ${fmtTime(d)}`.trim();
+    }
+  }
+  // fallback padrão
+  return safeStr(value);
+}
+
+
 function toJSDate(ts?: FireTs): Date | undefined {
   if (!ts) return undefined;
   // Firestore Timestamp
@@ -157,9 +183,9 @@ export default function CollaboratorHistoryModal({
           <div style={{ display: 'flex', flexDirection: 'column' }}>
             <strong style={{ fontSize: 18 }}>{form.title || response.formTitle || 'Formulário'}</strong>
             <small style={{ opacity: 0.9 }}>
-              {created ? `Enviado em ${fmt(created)}` : ''}
-              {response.collaboratorUsername ? ` — por ${response.collaboratorUsername}` : ''}
-            </small>
+          {created ? `Enviado em ${fmtDate(created)} • ${fmtTime(created)}` : ''}
+          {response.collaboratorUsername ? ` — por ${response.collaboratorUsername}` : ''}
+         </small>
           </div>
           <button
             onClick={onClose}
@@ -337,8 +363,8 @@ export default function CollaboratorHistoryModal({
               }}>
                 <div style={{ fontWeight: 600, marginBottom: 6 }}>{field.label}</div>
                 <div style={{ whiteSpace: 'pre-wrap' }}>
-                  {safeStr(value)}
-                </div>
+                {prettyDateAnswer(field, value)}</div>
+
                 {field.description && (
                   <div style={{ opacity: 0.8, fontSize: 12, marginTop: 6 }}>
                     {field.description}

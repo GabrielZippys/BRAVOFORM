@@ -73,6 +73,17 @@ function formatDateTime(d?: Date): string {
   }
 }
 
+function formatPTDate(d?: Date): string {
+  if (!d) return '-';
+  try { return d.toLocaleDateString('pt-BR'); } catch { return '-'; }
+}
+function formatPTTime(d?: Date): string {
+  if (!d) return '';
+  try { return d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }); } catch { return ''; }
+}
+
+
+
 // ----- Mapeia answers com base no schema (para PDF e busca) -----
 // { 'Campo': 'valor', 'Campo[Row][Col]': 'valor', ... }
 function flattenAnswersWithLabels(
@@ -768,7 +779,7 @@ function loadImage(src: string): Promise<HTMLImageElement> {
                     </label>
                   </div>
 
-                  <p className={styles.cardSubtitle}>{formatDateTime(d)}</p>
+                  <p className={styles.cardSubtitle}>{formatPTDate(d)} • {formatPTTime(d)}</p>
                 </div>
 
                 <button className={styles.cardButton} onClick={() => onOpen(r)}>

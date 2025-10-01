@@ -94,6 +94,24 @@ const tickBase: React.CSSProperties = {
 // placeholder/caret coerentes
 const autoPlaceholder = withAlpha(autoInputText, 0.6);
 
+// --- datetime-local helpers ---
+const pad2 = (n: number) => String(n).padStart(2, '0');
+
+// Retorna no formato aceito por <input type="datetime-local">: YYYY-MM-DDTHH:MM
+function toDateTimeLocal(d: Date = new Date()) {
+  d.setSeconds(0, 0); // sem segundos/milisegundos
+  return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}T${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
+}
+
+// Converte vários formatos para datetime-local (ex.: '2025-01-31' -> '2025-01-31T00:00')
+function coerceDateTimeLocal(v: string) {
+  if (!v) return '';
+  if (/^\d{4}-\d{2}-\d{2}$/.test(v)) return `${v}T00:00`;
+  if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(v)) return v.slice(0, 16);
+  const d = new Date(v);
+  return isNaN(d.getTime()) ? '' : toDateTimeLocal(d);
+}
+
 
 // --- utils de cor/contraste ---
 // aceita: #rgb, #rgba, #rrggbb, #rrggbbaa, rgb(), rgba()
@@ -601,7 +619,7 @@ const handleAutoFillLeader = () => {
   const yyyy = today.getFullYear();
   const mm = String(today.getMonth() + 1).padStart(2, '0');
   const dd = String(today.getDate()).padStart(2, '0');
-  const todayISO = `${yyyy}-${mm}-${dd}`;
+  const nowDT = toDateTimeLocal(new Date());
 
   (form.fields as EnhancedFormField[]).forEach((field) => {
     const id = String(field.id);
@@ -616,8 +634,8 @@ const handleAutoFillLeader = () => {
         break;
 
       case 'Data':
-        nextResponses[id] = nextResponses[id] ?? todayISO;
-        break;
+  nextResponses[id] = nextResponses[id] ?? nowDT;
+  break;
 
       case 'Múltipla Escolha': {
         const first = field.options?.[0] ?? '';
@@ -654,7 +672,9 @@ const handleAutoFillLeader = () => {
             const colId = String(c.id);
             if (table[String(r.id)][colId] !== undefined) return;
             if ((c.type || '').toLowerCase() === 'number') table[String(r.id)][colId] = '0';
-            else if ((c.type || '').toLowerCase() === 'date') table[String(r.id)][colId] = todayISO;
+else if ((c.type || '').toLowerCase() === 'date') {
+  table[String(r.id)][colId] = nowDT;
+}
             else if ((c.type || '').toLowerCase() === 'select') {
               const opt = (c.options?.[0] as string) ?? '';
               table[String(r.id)][colId] = opt;
@@ -855,16 +875,17 @@ const handleAutoFillLeader = () => {
 
 
     case 'date':
-    case 'Data':
-      return (
-        <input
-          style={base}
-          type="date"
-          value={value}
-          onChange={e => handleTableInputChange(fieldId, rowId, colId, e.target.value)}
-          disabled={disabled}
-        />
-      );
+case 'Data':
+  return (
+    <input
+      style={base}
+      type="datetime-local"
+      value={coerceDateTimeLocal(value)}
+      onChange={e => handleTableInputChange(fieldId, rowId, colId, e.target.value)}
+      disabled={disabled}
+    />
+  );
+
 
     case 'select':
       return (
@@ -1110,7 +1131,7 @@ const handleAutoFillLeader = () => {
             style={{
               display: 'flex', alignItems: 'center', gap: 8, fontSize: 16,
               background: labelBg,
-              color: labelFg,                     // <<< texto auto (preto/branco)
+              color: labelFg,                  
               borderRadius: 8, padding: '6px 8px', transition: 'background .15s ease',
             }}
           >
@@ -1259,15 +1280,16 @@ const handleAutoFillLeader = () => {
           />
         );
       case 'Data':
-        return (
-          <input
-            type="date"
-            value={responses[fieldId] || ''}
-            onChange={e => handleInputChange(fieldId, e.target.value)}
-            disabled={disabled}
-            style={{...controlBase}}
-          />
-        );
+  return (
+    <input
+      type="datetime-local"
+      value={coerceDateTimeLocal(responses[fieldId] || '')}
+      onChange={e => handleInputChange(fieldId, e.target.value)}
+      disabled={disabled}
+      style={{ ...controlBase }}
+    />
+  );
+
       default:
         return (
           <input
