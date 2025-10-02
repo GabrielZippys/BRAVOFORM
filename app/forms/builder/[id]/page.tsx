@@ -37,6 +37,13 @@ const menuBtnStyle: React.CSSProperties = {
 type FieldType = 'Texto' | 'Caixa de Seleção' | 'Múltipla Escolha' | 'Data' | 'Assinatura' | 'Anexo' | 'Tabela' | 'Cabeçalho';
 type TableCellValues = Record<string, Record<string, string>>; // fieldId -> rowId -> colId -> value
 type PreviewValues = Record<string, string | string[] | TableCellValues | undefined>;
+// ---- Tipos locais para suportar o limite diário ----
+type FormSettings = NonNullable<Form['settings']> & {
+  dailyLimitEnabled?: boolean;   // liga/desliga
+  dailyLimitCount?: number;      // quantidade por dia
+};
+
+type BuilderForm = Omit<Form, 'settings'> & { settings: FormSettings };
 
 interface TableColumn {
   id: string;
@@ -254,11 +261,15 @@ function normalizeForm(data: any) {
     fields,
     theme: { ...defaultTheme, ...(data?.theme || {}) },
     settings: {
-      allowSave: true,
-      showProgress: true,
-      confirmBeforeSubmit: false,
-      ...(data?.settings || {}),
-    },
+  allowSave: true,
+  showProgress: true,
+  confirmBeforeSubmit: false,
+  ...(data?.settings || {}),
+
+  // defaults do limite diário
+  dailyLimitEnabled: !!data?.settings?.dailyLimitEnabled,
+  dailyLimitCount: Number(data?.settings?.dailyLimitCount ?? 0),
+},
     collaborators: data?.collaborators || [],
     authorizedUsers: data?.authorizedUsers || [],
   };
@@ -1432,6 +1443,7 @@ if (savedDraft) {
     }
     setLoading(false);
 });
+
         } else {
              setLoading(false); // Caso de formulário novo sem rascunho
         }
@@ -1457,7 +1469,7 @@ if (savedDraft) {
   }, [departmentId]);
 
   // Estado do formulário
-  const [draft, setDraft] = useState<Form>({
+  const [draft, setDraft] = useState<BuilderForm>({
     id: '',
     title: 'Novo Formulário',
     description: '',
@@ -1469,10 +1481,12 @@ if (savedDraft) {
     createdAt: null,
     theme: { ...defaultTheme },
     settings: {
-      allowSave: true,
-      showProgress: true,
-      confirmBeforeSubmit: false,
-    }
+  allowSave: true,
+  showProgress: true,
+  confirmBeforeSubmit: false,
+  dailyLimitEnabled: false, // desligado por padrão
+  dailyLimitCount: 0,       // 0 = sem limite
+}
   });
 
 const [logoPreview, setLogoPreview] = useState<string | null>(draft.logo?.url || null);
@@ -1644,6 +1658,29 @@ useEffect(() => {
       automation: { ...prev.automation, type, target: prev.automation?.target || '' }
     }));
   };
+
+  // ---- Limite diário de respostas (UI do builder) ----
+const toggleDailyLimitEnabled = () => {
+  setDraft(prev => ({
+    ...prev,
+    settings: {
+      ...(prev.settings || {}),
+      dailyLimitEnabled: !prev.settings?.dailyLimitEnabled,
+    },
+  }));
+};
+
+const setDailyLimitCount = (n: number) => {
+  const val = Math.max(1, Math.floor(Number(n) || 1));
+  setDraft(prev => ({
+    ...prev,
+    settings: {
+      ...(prev.settings || {}),
+      dailyLimitCount: val,
+    },
+  }));
+};
+
 
   const setAutomationTarget = (target: string): void => {
     setDraft(prev => ({
@@ -2467,6 +2504,42 @@ const toggleAutofill = useCallback((checked: boolean) => {
 </div>
 
 </div>
+
+{/* Limite diário de respostas */}
+<div className={styles.card} style={{ marginBottom: 14 }}>
+  <h4 className={styles.subTitle}>Limite diário de respostas</h4>
+
+  <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+    <button
+      type="button"
+      className={`${styles.togglePill} ${draft.settings?.dailyLimitEnabled ? styles.on : ''}`}
+      onClick={toggleDailyLimitEnabled}
+    >
+      Limitar respostas diárias?
+    </button>
+
+    {draft.settings?.dailyLimitEnabled && (
+      <div className={styles.propertyGroup} style={{ margin: 0 }}>
+        <label>Quantidade por dia</label>
+        <input
+          type="number"
+          min={1}
+          value={draft.settings?.dailyLimitCount ?? 1}
+          onChange={(e) => setDailyLimitCount(e.target.value as unknown as number)}
+          className={styles.propertyInput}
+          style={{ width: 140 }}
+        />
+      </div>
+    )}
+  </div>
+
+  {draft.settings?.dailyLimitEnabled && (
+    <small style={{ color: '#9fb6d1', display: 'block', marginTop: 6 }}>
+      O limite é por formulário e reinicia diariamente.
+    </small>
+  )}
+</div>
+
 
 
                 {/* Automação */}

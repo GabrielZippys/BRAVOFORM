@@ -1,3 +1,5 @@
+// BRAVOFORM\app\collaborator-view\page.tsx
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -44,7 +46,12 @@ interface Form {
   ownerId?: string;
   collaborators?: string[];
   authorizedUsers?: string[];
+  settings?: {
+    dailyLimitEnabled?: boolean;
+    dailyLimitCount?: number; // quantidade por dia
+  };
 }
+
 
 interface FormResponseType {
   id: string;
@@ -68,9 +75,8 @@ export default function CollaboratorView() {
   const [respostaSelecionada, setRespostaSelecionada] = useState<FormResponseType | null>(null);
   const [formToAnswer, setFormToAnswer] = useState<Form | null>(null);
 
-  // ——— NOVOS ESTADOS (respostas de hoje)
-  
-  const [hasRespondedToday, setHasRespondedToday] = useState<Set<string>>(new Set());
+
+const [todayCountByForm, setTodayCountByForm] = useState<Record<string, number>>({});
 
   const router = useRouter();
 
@@ -144,66 +150,71 @@ useEffect(() => {
     qForms,
     (snapshot) => {
       const mapped = snapshot.docs.map((docSnap) => {
-        const data = docSnap.data() as any;
+  const data = docSnap.data() as any;
+  const safeId =
+    typeof data?.id === 'string' && data.id.trim()
+      ? data.id.trim()
+      : docSnap.id;
 
-        // id seguro: prioriza docSnap.id se o campo data.id for vazio/falsy
-        const safeId =
-          typeof data?.id === 'string' && data.id.trim()
-            ? data.id.trim()
-            : docSnap.id;
-
-        return {
-          ...data,                     // << pode ficar antes
-          id: safeId,                  // << mas *garante* um id não-vazio
-          fields: Array.isArray(data.fields) ? data.fields : [],
-          createdAt: data.createdAt instanceof Timestamp ? data.createdAt : undefined,
-          companyId: data.companyId ?? '',
-          departmentId: data.departmentId ?? '',
-        } as Form;
-      });
+  return {
+    ...data,
+    id: safeId,
+    fields: Array.isArray(data.fields) ? data.fields : [],
+    createdAt: data.createdAt instanceof Timestamp ? data.createdAt : undefined,
+    companyId: data.companyId ?? '',
+    departmentId: data.departmentId ?? '',
+    settings: data.settings || {},               // 👈 ADICIONE ESTA LINHA
+  } as Form;
+});
 
       // opcional: filtra qualquer doc sem id (defensivo)
       setFormsToFill(mapped.filter(f => typeof f.id === 'string' && f.id.trim().length > 0));
       setLoading(false);
+      
+      
     },
     () => setLoading(false)
   );
+
+  
 
   return () => unsub();
 }, [collaborator?.id]);
 
   // ——— OUVE TODAS AS RESPOSTAS E MARCA AS DE HOJE
   useEffect(() => {
-    if (!collaborator?.id) return;
+  if (!collaborator?.id) return;
 
-    const unsub = onSnapshot(
-      query(collectionGroup(db, 'responses'), where('collaboratorId', '==', collaborator.id)),
-      (snap) => {
-        const start = new Date(); start.setHours(0, 0, 0, 0);
-        const end   = new Date(); end.setHours(23, 59, 59, 999);
+  const unsub = onSnapshot(
+    query(collectionGroup(db, 'responses'), where('collaboratorId', '==', collaborator.id)),
+    (snap) => {
+      const start = new Date(); start.setHours(0, 0, 0, 0);
+      const end   = new Date(); end.setHours(23, 59, 59, 999);
 
-        const byForm: Record<string, Timestamp> = {};
-        snap.forEach((docSnap) => {
-          const d = docSnap.data() as any;
-          const ts: Timestamp | undefined =
-            d?.submittedAt instanceof Timestamp ? d.submittedAt :
-            d?.createdAt   instanceof Timestamp ? d.createdAt   : undefined;
-          if (!ts) return;
-          const dt = ts.toDate();
-          if (dt >= start && dt <= end) {
-            const fid = d.formId as string;
-            const prev = byForm[fid];
-            if (!prev || prev.toMillis() < ts.toMillis()) byForm[fid] = ts;
-          }
-        });
+      const counts: Record<string, number> = {};
 
-        
-        setHasRespondedToday(new Set(Object.keys(byForm)));
-      }
-    );
+      snap.forEach((docSnap) => {
+        const d = docSnap.data() as any;
+        const ts: Timestamp | undefined =
+          d?.submittedAt instanceof Timestamp ? d.submittedAt :
+          d?.createdAt   instanceof Timestamp ? d.createdAt   : undefined;
+        if (!ts) return;
 
-    return () => unsub();
-  }, [collaborator?.id]);
+        const dt = ts.toDate();
+        if (dt >= start && dt <= end) {
+          const fid = String(d.formId || '');
+          if (!fid) return;
+          counts[fid] = (counts[fid] || 0) + 1;
+        }
+      });
+
+      setTodayCountByForm(counts);
+    }
+  );
+
+  return () => unsub();
+}, [collaborator?.id]);
+
 
   const handleLogout = () => {
     sessionStorage.removeItem('collaborator_data');
@@ -260,6 +271,18 @@ const handleResponder = async (formId: string) => {
     }
 
     const ref = doc(db, 'forms', formId);
+    // impede abrir se já estourou o limite
+// impede abrir se já estourou o limite (somente quando o limite está ligado)
+const meta = formsToFill.find(f => f.id === formId);
+if (meta?.settings?.dailyLimitEnabled) {
+  const used = todayCountByForm[formId] ?? 0;
+  const limit = Math.max(1, Number(meta.settings.dailyLimitCount || 1));
+  if (used >= limit) {
+    setError('Você já atingiu o limite diário de respostas para este formulário.');
+    return;
+  }
+}
+
     const snap = await getDoc(ref);
     if (!snap.exists()) {
       setError('Formulário não encontrado.');
@@ -283,10 +306,16 @@ const handleResponder = async (formId: string) => {
 
   const closeFormResponse = () => setFormToAnswer(null);
 
-  // ——— RESUMO (topo da grade)
   const totalForms = formsToFill.length;
-  const doneToday  = formsToFill.filter(f => hasRespondedToday.has(f.id)).length;
-  const pendingToday = totalForms - doneToday;
+const pendingToday = formsToFill.filter((f) => {
+  const on = !!f.settings?.dailyLimitEnabled;
+  const limit = Math.max(1, Number(f.settings?.dailyLimitCount ?? 1));
+  const used = todayCountByForm[f.id] ?? 0;
+  // se não tem limite → pendente quando ainda não respondeu hoje
+  return on ? used < limit : used === 0;
+}).length;
+const doneToday = totalForms - pendingToday;
+
 
   return (
     <main className={styles.main}>
@@ -369,18 +398,32 @@ const handleResponder = async (formId: string) => {
 
               <div className={styles.grid}>
                 {formsToFill.map((form) => {
-                  const answered = hasRespondedToday.has(form.id);
+                  const used = todayCountByForm[form.id] ?? 0;
+const limitOn = !!form.settings?.dailyLimitEnabled;
+const limit = Math.max(1, Number(form.settings?.dailyLimitCount ?? 1));
+
+// Agora: só "reached" quando LIMITE está ligado e já bateu o limite
+const reached = limitOn ? used >= limit : false;
+// Para o selo "Hoje"
+const respondedToday = used > 0;
+                  
                   return (
                     <div key={form.id} className={styles.card}>
                       {/* badge no canto */}
-                      <div
-                        className={`${styles.statusBadge} ${answered ? styles.statusDone : styles.statusPending}`}
-                        title={answered ? 'Respondido hoje' : 'Pendente hoje'}
-                      >
-                        {answered ? <CheckCircle2 size={14} /> : <Clock size={14} />}
-                        <span style={{ marginLeft: 6 }}>{answered ? 'Hoje' : 'Pendente'}</span>
-                      </div>
-
+                      <div className={`${styles.statusBadge} ${respondedToday ? styles.statusDone : styles.statusPending}`}
+  title={
+    limitOn
+      ? (reached
+          ? `Limite diário atingido (${used}/${limit})`
+          : `Respostas hoje: ${used}/${limit}`)
+      : (respondedToday ? 'Respondido hoje' : 'Pendente hoje')
+  }
+>
+  {respondedToday ? <CheckCircle2 size={14} /> : <Clock size={14} />}
+  <span style={{ marginLeft: 6 }}>
+    {limitOn ? `${used}/${limit}` : (respondedToday ? 'Hoje' : 'Pendente')}
+  </span>
+</div>
                       <div className={styles.cardIcon}>
                         <FileText size={32} />
                       </div>
@@ -398,13 +441,16 @@ const handleResponder = async (formId: string) => {
                       </div>
                       <button
   className={styles.cardButton}
-  onClick={() => handleResponder(form.id)}   // << só o ID
-  disabled={answered}
-  title={answered ? 'Você já respondeu hoje' : 'Responder'}
+  onClick={() => handleResponder(form.id)}
+  disabled={reached}  // só desabilita quando limite ligado e atingido
+  title={
+    reached
+      ? 'Limite diário atingido'
+      : 'Responder'
+  }
 >
-  {answered ? 'Respondido' : 'Responder'}
+  {reached ? 'Limite atingido' : 'Responder'}
 </button>
-
                     </div>
                   );
                 })}

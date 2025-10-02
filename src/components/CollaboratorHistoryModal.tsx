@@ -335,7 +335,6 @@ export default function CollaboratorHistoryModal({
   );
 }
 
-
             if (field.type === 'Assinatura') {
               const isDataURL = typeof value === 'string' && value.startsWith('data:image');
               return (
