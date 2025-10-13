@@ -82,6 +82,7 @@ interface Form {
 
 interface FormResponseType {
   id: string;
+  path?: string; // Caminho completo do documento no Firestore
   formId: string;
   formTitle: string;
   answers?: any;
@@ -305,6 +306,7 @@ useEffect(() => {
 
     setRespostaSelecionada({
       id: resp.id,
+      path: resp.path, // Passa o caminho completo do documento
       formId: resp.formId,
       formTitle: resp.formTitle ?? data?.title ?? '',
       answers: resp.answers,                 // pode vir undefined, e tudo bem

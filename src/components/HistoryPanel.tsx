@@ -24,6 +24,7 @@ type FireTs = Timestamp | undefined;
 
 export interface HistoryResp {
   id: string;
+  path?: string; // Caminho completo do documento no Firestore
   formId: string;
   formTitle?: string;
   collaboratorId?: string;
@@ -258,6 +259,7 @@ export default function HistoryPanel({ collaboratorId, canEdit = false, onOpen =
 
           return {
             id: d.id,
+            path: d.ref.path, // Adiciona o caminho completo do documento
             formId: x?.formId ?? '',
             formTitle: x?.formTitle ?? '',
             collaboratorId: x?.collaboratorId ?? '',
