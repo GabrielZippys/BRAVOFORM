@@ -38,18 +38,45 @@ interface Form {
   id: string;
   title: string;
   description?: string;
-  createdAt?: Timestamp;
+  createdAt: Timestamp | null;
   fields: any[];
   companyId: string;
   departmentId: string;
   automation?: any;
   ownerId?: string;
-  collaborators?: string[];
-  authorizedUsers?: string[];
-  settings?: {
+  theme: {
+    bgColor: string;
+    bgImage?: string;
+    accentColor: string;
+    fontColor: string;
+    inputBgColor?: string;
+    inputFontColor?: string;
+    sectionHeaderBg?: string;
+    sectionHeaderFont?: string;
+    buttonBg?: string;
+    buttonFont?: string;
+    footerBg?: string;
+    footerFont?: string;
+    borderRadius: number;
+    spacing: 'compact' | 'normal' | 'spacious';
+    tableHeaderBg?: string;
+    tableHeaderFont?: string;
+    tableBorderColor?: string;
+    tableOddRowBg?: string;
+    tableEvenRowBg?: string;
+    tableCellFont?: string;
+    titleColor?: string;
+    descriptionColor?: string;
+  };
+  settings: {
     dailyLimitEnabled?: boolean;
     dailyLimitCount?: number; // quantidade por dia
+    allowSave: boolean;
+    showProgress: boolean;
+    confirmBeforeSubmit: boolean;
   };
+  collaborators: string[];
+  authorizedUsers: string[];
 }
 
 
@@ -160,10 +187,25 @@ useEffect(() => {
     ...data,
     id: safeId,
     fields: Array.isArray(data.fields) ? data.fields : [],
-    createdAt: data.createdAt instanceof Timestamp ? data.createdAt : undefined,
+    createdAt: data.createdAt instanceof Timestamp ? data.createdAt : null,
     companyId: data.companyId ?? '',
     departmentId: data.departmentId ?? '',
-    settings: data.settings || {},               // 👈 ADICIONE ESTA LINHA
+    collaborators: Array.isArray(data.collaborators) ? data.collaborators : [],
+    authorizedUsers: Array.isArray(data.authorizedUsers) ? data.authorizedUsers : [],
+    theme: data.theme || {
+      bgColor: '#ffffff',
+      accentColor: '#3b82f6',
+      fontColor: '#000000',
+      borderRadius: 8,
+      spacing: 'normal' as const,
+    },
+    settings: {
+      allowSave: data.settings?.allowSave ?? false,
+      showProgress: data.settings?.showProgress ?? false,
+      confirmBeforeSubmit: data.settings?.confirmBeforeSubmit ?? false,
+      dailyLimitEnabled: data.settings?.dailyLimitEnabled,
+      dailyLimitCount: data.settings?.dailyLimitCount,
+    },
   } as Form;
 });
 
@@ -240,8 +282,25 @@ useEffect(() => {
       id: formSnap.id,
       ...data,
       fields: Array.isArray(data.fields) ? data.fields : [],
+      createdAt: data.createdAt instanceof Timestamp ? data.createdAt : null,
       companyId: data.companyId ?? '',
       departmentId: data.departmentId ?? '',
+      collaborators: Array.isArray(data.collaborators) ? data.collaborators : [],
+      authorizedUsers: Array.isArray(data.authorizedUsers) ? data.authorizedUsers : [],
+      theme: data.theme || {
+        bgColor: '#ffffff',
+        accentColor: '#3b82f6',
+        fontColor: '#000000',
+        borderRadius: 8,
+        spacing: 'normal' as const,
+      },
+      settings: {
+        allowSave: data.settings?.allowSave ?? false,
+        showProgress: data.settings?.showProgress ?? false,
+        confirmBeforeSubmit: data.settings?.confirmBeforeSubmit ?? false,
+        dailyLimitEnabled: data.settings?.dailyLimitEnabled,
+        dailyLimitCount: data.settings?.dailyLimitCount,
+      },
     });
 
     setRespostaSelecionada({
@@ -294,8 +353,25 @@ if (meta?.settings?.dailyLimitEnabled) {
       ...firestoreForm,
       id: snap.id,
       fields: Array.isArray(firestoreForm.fields) ? firestoreForm.fields : [],
+      createdAt: firestoreForm.createdAt instanceof Timestamp ? firestoreForm.createdAt : null,
       companyId: firestoreForm.companyId ?? '',
       departmentId: firestoreForm.departmentId ?? '',
+      collaborators: Array.isArray(firestoreForm.collaborators) ? firestoreForm.collaborators : [],
+      authorizedUsers: Array.isArray(firestoreForm.authorizedUsers) ? firestoreForm.authorizedUsers : [],
+      theme: firestoreForm.theme || {
+        bgColor: '#ffffff',
+        accentColor: '#3b82f6',
+        fontColor: '#000000',
+        borderRadius: 8,
+        spacing: 'normal' as const,
+      },
+      settings: {
+        allowSave: firestoreForm.settings?.allowSave ?? false,
+        showProgress: firestoreForm.settings?.showProgress ?? false,
+        confirmBeforeSubmit: firestoreForm.settings?.confirmBeforeSubmit ?? false,
+        dailyLimitEnabled: firestoreForm.settings?.dailyLimitEnabled,
+        dailyLimitCount: firestoreForm.settings?.dailyLimitCount,
+      },
     });
   } catch (e) {
     console.error(e);

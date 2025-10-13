@@ -9,24 +9,111 @@
 
 /* ====== RESPONSIVO: CollaboratorView ====== */
 
-/* Quebra do header/topo */
+/* Grid de cards - responsivo fluido */
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr));
+  gap: clamp(12px, 2vw, 24px);
+}
+
+/* Barra de filtros do Histórico */
+.filtersBar {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr));
+  gap: clamp(8px, 1.5vw, 16px);
+}
+
+/* Input base */
+.input {
+  width: 100%;
+  min-height: 44px; /* Touch target mínimo */
+  font-size: clamp(14px, 2vw, 16px);
+}
+
+/* Container de botões de ação (Gerar PDF, etc) */
+.actionButtons {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  gap: clamp(6px, 1.5vw, 10px);
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+/* ===== BREAKPOINTS GRANULARES ===== */
+
+/* Desktop ultra-wide (1920px+) */
+@media (min-width: 1920px) {
+  .content,
+  .headerContent {
+    max-width: 1600px;
+  }
+  .grid {
+    grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+    gap: 2.5rem;
+  }
+}
+
+/* Desktop grande (1400px - 1920px) */
+@media (min-width: 1400px) and (max-width: 1919px) {
+  .grid {
+    grid-template-columns: repeat(auto-fit, minmax(380px, 1fr));
+    gap: 2rem;
+  }
+  .content,
+  .headerContent {
+    max-width: 1400px;
+  }
+}
+
+/* Tablet landscape / Desktop pequeno (900px - 1200px) */
+@media (max-width: 1200px) {
+  .header {
+    padding: clamp(1rem, 2vw, 1.5rem) clamp(1rem, 3vw, 2rem);
+  }
+  .content {
+    padding: clamp(1rem, 2.5vw, 2rem);
+  }
+}
+
+/* Tablet portrait (768px - 900px) */
 @media (max-width: 900px) {
   .headerContent {
     flex-direction: column;
     align-items: flex-start;
-    gap: 12px;
+    gap: clamp(10px, 2vw, 16px);
   }
   .userInfoBox {
     width: 100%;
     justify-content: space-between;
+    flex-wrap: wrap;
   }
   .title {
-    font-size: clamp(18px, 4vw, 28px);
+    font-size: clamp(1.3rem, 4vw, 1.8rem);
+  }
+  .grid {
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr));
   }
 }
 
-/* Tabs empilham e aumentam área clicável */
-@media (max-width: 680px) {
+/* Mobile landscape / Tablet pequeno (640px - 768px) */
+@media (max-width: 768px) {
+  .viewToggle {
+    gap: clamp(6px, 1.5vw, 10px);
+    margin-bottom: clamp(1rem, 3vw, 1.5rem);
+  }
+  .toggleButton {
+    padding: clamp(8px, 2vw, 12px) clamp(12px, 3vw, 16px);
+    font-size: clamp(14px, 2vw, 16px);
+  }
+  .filtersBar {
+    grid-template-columns: 1fr 1fr;
+    gap: clamp(8px, 2vw, 12px);
+  }
+}
+
+/* Mobile portrait (480px - 640px) */
+@media (max-width: 640px) {
   .viewToggle {
     display: grid;
     grid-template-columns: 1fr 1fr;
@@ -34,168 +121,264 @@
   }
   .toggleButton {
     width: 100%;
-    padding: 10px 12px;
+    min-height: 44px; /* Touch target */
   }
-}
-
-/* Grid de cards (Formulários e Histórico) */
-.grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-  gap: 14px;
-}
-
-@media (max-width: 420px) {
   .grid {
     grid-template-columns: 1fr;
+    gap: clamp(12px, 3vw, 16px);
   }
-  .cardTitle {
-    font-size: 1rem;
-  }
-  .cardButton {
-    width: 100%;
-  }
-}
-
-/* Resumo do dia (badges) */
-@media (max-width: 680px) {
-  .todaySummary {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 8px;
-  }
-}
-
-/* Barra de filtros do Histórico (inputs ocupam linha inteira no mobile) */
-.filtersBar {
-  display: grid;
-  grid-template-columns: 1fr 1fr 2fr auto;
-  gap: 12px;
-}
-
-@media (max-width: 1024px) {
-  .filtersBar {
-    grid-template-columns: 1fr 1fr;
-  }
-}
-@media (max-width: 640px) {
   .filtersBar {
     grid-template-columns: 1fr;
   }
-  .filtersBar .cardButton {
+  .filtersBar .cardButton,
+  .actionButtons .cardButton {
     width: 100%;
+    min-height: 48px;
+  }
+  .actionButtons {
+    width: 100%;
+  }
+  .userInfoBox {
+    gap: clamp(0.8rem, 2vw, 1.2rem);
+  }
+  .userNameRow {
+    font-size: clamp(1rem, 3vw, 1.2rem);
+  }
+  .userInfoLine {
+    font-size: clamp(0.85rem, 2.5vw, 1rem);
   }
 }
 
-/* Input base nas telas menores */
-.input {
-  width: 100%;
-  min-height: 40px;
+/* Mobile pequeno (360px - 480px) */
+@media (max-width: 480px) {
+  .header {
+    padding: clamp(0.8rem, 3vw, 1.2rem) clamp(0.8rem, 4vw, 1.5rem);
+  }
+  .content {
+    padding: clamp(0.8rem, 3vw, 1.5rem);
+  }
+  .card {
+    border-radius: clamp(10px, 2vw, 14px);
+  }
+  .cardIcon {
+    padding: clamp(1rem, 3vw, 1.5rem);
+    font-size: clamp(1.5rem, 5vw, 2rem);
+  }
+  .cardBody {
+    padding: clamp(1rem, 3vw, 1.5rem);
+  }
+  .cardTitle {
+    font-size: clamp(1rem, 3.5vw, 1.25rem);
+  }
+  .cardSubtitle {
+    font-size: clamp(0.85rem, 2.5vw, 0.97rem);
+  }
+  .cardButton {
+    padding: clamp(0.8rem, 3vw, 1rem);
+    font-size: clamp(0.85rem, 2.5vw, 1rem);
+    min-height: 48px;
+  }
+  .userAvatar {
+    width: clamp(36px, 10vw, 48px);
+    height: clamp(36px, 10vw, 48px);
+    font-size: clamp(1.3rem, 5vw, 2rem);
+    margin-right: clamp(6px, 2vw, 10px);
+  }
+  .logoutButton {
+    width: clamp(36px, 9vw, 44px);
+    height: clamp(36px, 9vw, 44px);
+    min-width: 44px; /* Touch target */
+    min-height: 44px;
+  }
+  .emptyState {
+    padding: clamp(1.5rem, 5vw, 3rem);
+  }
+  .emptyState p {
+    font-size: clamp(1rem, 3vw, 1.17rem);
+  }
+}
+
+/* Mobile muito pequeno (<360px) */
+@media (max-width: 360px) {
+  .header {
+    padding: 0.8rem 0.6rem;
+  }
+  .content {
+    padding: 0.8rem 0.6rem;
+  }
+  .userInfoBox {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
+  }
+  .logoutButton {
+    align-self: flex-end;
+    margin-left: 0;
+    margin-top: -2.5rem;
+  }
+  .viewToggle {
+    gap: 6px;
+    padding-bottom: 0.8rem;
+  }
+  .toggleButton {
+    padding: 10px 8px;
+    font-size: 0.85rem;
+    letter-spacing: 0.01em;
+  }
+  .badgeDone,
+  .badgePending {
+    font-size: 11px;
+    padding: 5px 8px;
+  }
+  .statusBadge {
+    font-size: 10px;
+    padding: 3px 6px;
+    top: 8px;
+    right: 8px;
+  }
+}
+
+/* Landscape em dispositivos móveis */
+@media (max-height: 500px) and (orientation: landscape) {
+  .header {
+    padding: 0.8rem 1.5rem;
+  }
+  .content {
+    padding: 1rem 1.5rem;
+  }
+  .userAvatar {
+    width: 36px;
+    height: 36px;
+    font-size: 1.3rem;
+  }
+  .viewToggle {
+    margin-bottom: 1rem;
+  }
 }
 
 
 .main {
   min-height: 100vh;
-  padding-bottom: 3vw;
+  padding-bottom: clamp(1rem, 3vw, 3rem);
   animation: fadeIn 0.7s;
   background: #202533;
 }
+
 .header {
   background-color: #232b3b;
-  padding: 1.3rem 2rem;
+  padding: clamp(1rem, 2vw, 1.5rem) clamp(1rem, 3vw, 2rem);
   border-bottom: 1px solid #354059;
   box-shadow: 0 2px 10px #0002;
 }
+
 .headerContent {
   max-width: 1200px;
   margin: 0 auto;
   display: flex;
   flex-direction: column;
-  gap: 1.2rem;
+  gap: clamp(0.8rem, 2vw, 1.5rem);
 }
+
 .userInfoBox {
   display: flex;
   align-items: center;
-  gap: 1.7rem;
+  gap: clamp(0.8rem, 2.5vw, 1.7rem);
   margin-bottom: 0.5rem;
 }
+
 .userAvatar {
   background: linear-gradient(135deg, #33c6fa 30%, #07485B 100%);
-  width: 48px;
-  height: 48px;
+  width: clamp(40px, 8vw, 48px);
+  height: clamp(40px, 8vw, 48px);
   border-radius: 50%;
   color: #fff;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 2rem;
+  font-size: clamp(1.5rem, 4vw, 2rem);
   box-shadow: 0 1px 7px #3333;
-  margin-right: 10px;
+  margin-right: clamp(6px, 1.5vw, 10px);
+  flex-shrink: 0;
 }
+
 .userNameRow {
   font-family: 'Montserrat', 'Segoe UI', Arial, sans-serif;
-  font-size: 1.2rem;
+  font-size: clamp(1rem, 2.5vw, 1.2rem);
   font-weight: 700;
   color: #fff;
   display: flex;
   align-items: center;
-  gap: 0.7rem;
+  gap: clamp(0.4rem, 1.5vw, 0.7rem);
+  flex-wrap: wrap;
 }
+
 .userInfoLine {
-  font-size: 1.02rem;
+  font-size: clamp(0.85rem, 2vw, 1.02rem);
   margin: 0.17em 0 0.18em 0;
   color: #b8c0d7;
   display: flex;
   align-items: center;
   gap: 0.35em;
+  flex-wrap: wrap;
 }
+
 .userInfoLabel {
   color: #a0aec0;
   font-weight: 600;
 }
+
 .logoutButton {
   margin-left: auto;
   background: transparent;
   border: 1.3px solid #354059;
   color: #b7c0d1;
   border-radius: 50%;
-  width: 38px;
-  height: 38px;
+  width: clamp(40px, 8vw, 44px);
+  height: clamp(40px, 8vw, 44px);
+  min-width: 44px;
+  min-height: 44px;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
   transition: 0.18s;
+  flex-shrink: 0;
 }
+
 .logoutButton:hover {
   background: rgba(226,91,99, 0.07);
   color: #e25b63;
   border-color: #e25b63;
 }
+
 .title {
   font-family: 'Montserrat', 'Segoe UI', Arial, sans-serif;
-  font-size: 1.8rem;
+  font-size: clamp(1.3rem, 3.5vw, 1.8rem);
   color: #fff;
   font-weight: 700;
   margin-bottom: 0.3em;
 }
+
 .content {
-  padding: 2rem;
+  padding: clamp(1rem, 3vw, 2rem);
   max-width: 1200px;
   margin: 0 auto;
 }
+
 .viewToggle {
   display: flex;
-  gap: 0.5rem;
-  margin-bottom: 2rem;
+  gap: clamp(0.4rem, 1vw, 0.8rem);
+  margin-bottom: clamp(1rem, 3vw, 2rem);
   border-bottom: 1px solid #354059;
-  padding-bottom: 1rem;
+  padding-bottom: clamp(0.8rem, 2vw, 1rem);
+  flex-wrap: wrap;
 }
+
 .toggleButton {
-  padding: 0.6rem 1.2rem;
+  padding: clamp(0.5rem, 1.5vw, 0.7rem) clamp(0.8rem, 2vw, 1.2rem);
   font-family: 'Montserrat', 'Segoe UI', Arial, sans-serif;
   font-weight: 500;
-  font-size: 1rem;
+  font-size: clamp(0.9rem, 2vw, 1rem);
   background-color: transparent;
   border: none;
   color: #a0aec0;
@@ -204,139 +387,141 @@
   transition: all 0.2s;
   position: relative;
   letter-spacing: 0.03em;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
+
 .toggleButton.active {
   color: #33c6fa;
   background: rgba(51,198,250,0.08);
   font-weight: 600;
 }
+
 .toggleButton.active::after {
   content: '';
   position: absolute;
-  bottom: -1rem;
+  bottom: calc(-1 * clamp(0.8rem, 2vw, 1rem));
   left: 0;
   width: 100%;
   height: 2px;
   background-color: #33c6fa;
   animation: slideIn 0.3s ease-out;
 }
+
 .toggleButton:not(.active):hover {
   color: #fff;
 }
-.grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
-  gap: 1.5rem;
-}
+
 .card {
   background-color: #232b3b;
   border: 1px solid #354059;
-  border-radius: 14px;
+  border-radius: clamp(10px, 2vw, 14px);
   box-shadow: 0 4px 14px rgba(0,0,0,0.13);
   display: flex;
   flex-direction: column;
   transition: all 0.3s;
   animation: fadeIn 0.5s;
+  position: relative;
 }
+
 .card:hover {
   transform: translateY(-5px) scale(1.01);
   border-color: #33c6fa;
   box-shadow: 0 6px 22px #33c6fa1c;
 }
+
 .cardBody {
-  padding: 1.5rem;
+  padding: clamp(1rem, 2.5vw, 1.5rem);
   flex-grow: 1;
 }
+
 .cardIcon {
-  padding: 1.5rem;
+  padding: clamp(1rem, 2.5vw, 1.5rem);
   text-align: center;
   border-bottom: 1px solid #354059;
   color: #33c6fa;
   background-color: #1a202c;
-  border-top-left-radius: 14px;
-  border-top-right-radius: 14px;
-  font-size: 2rem;
+  border-top-left-radius: clamp(10px, 2vw, 14px);
+  border-top-right-radius: clamp(10px, 2vw, 14px);
+  font-size: clamp(1.5rem, 4vw, 2rem);
 }
+
 .cardTitle {
   font-family: 'Montserrat', 'Segoe UI', Arial, sans-serif;
-  font-size: 1.25rem;
+  font-size: clamp(1rem, 2.5vw, 1.25rem);
   font-weight: 700;
   color: #fff;
   margin: 0 0 0.5rem 0;
   letter-spacing: 0.03em;
 }
+
 .cardSubtitle {
-  font-size: 0.97rem;
+  font-size: clamp(0.85rem, 2vw, 0.97rem);
   color: #a0aec0;
+  line-height: 1.5;
 }
+
 .cardButton {
   background-color: #33c6fa;
   color: #101d22;
   border: none;
-  padding: 1rem;
+  padding: clamp(0.8rem, 2vw, 1rem);
   font-family: 'Montserrat', 'Segoe UI', Arial, sans-serif;
   font-weight: 600;
-  font-size: 1rem;
+  font-size: clamp(0.85rem, 2vw, 1rem);
   text-transform: uppercase;
   cursor: pointer;
   transition: background-color 0.2s;
-  border-bottom-left-radius: 14px;
-  border-bottom-right-radius: 14px;
+  border-bottom-left-radius: clamp(10px, 2vw, 14px);
+  border-bottom-right-radius: clamp(10px, 2vw, 14px);
   letter-spacing: 0.08em;
+  min-height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
+
 .cardButton:hover {
   background-color: #0595c5;
 }
+
 .emptyState {
   text-align: center;
-  padding: 3rem;
+  padding: clamp(2rem, 5vw, 3rem);
   border: 2px dashed #354059;
-  border-radius: 14px;
+  border-radius: clamp(10px, 2vw, 14px);
   background-color: #232b3b;
 }
+
 .emptyState p {
   font-family: 'Montserrat', 'Segoe UI', Arial, sans-serif;
-  font-size: 1.17rem;
+  font-size: clamp(1rem, 2.5vw, 1.17rem);
   margin-top: 1rem;
   color: #fff;
   letter-spacing: 0.03em;
 }
+
 .emptyState span {
-  font-size: 1rem;
-  color: #a0aec0;
-}
-.loadingText, .errorText {
-  text-align: center;
-  font-size: 1.13rem;
-  padding: 2.5rem;
+  font-size: clamp(0.9rem, 2vw, 1rem);
   color: #a0aec0;
 }
 
-/* Responsividade */
-@media (max-width: 950px) {
-  .content, .headerContent { max-width: 98vw; padding-left: 4vw; padding-right: 4vw; }
-  .main { padding-bottom: 8vw; }
-}
-@media (max-width: 700px) {
-  .content, .headerContent { padding-left: 2vw; padding-right: 2vw; }
-  .grid { grid-template-columns: 1fr; }
-  .headerContent { flex-direction: column; gap: 0.8rem; }
-  .userInfoBox { flex-direction: column; align-items: flex-start; gap: 0.3rem; }
-}
-@media (max-width: 430px) {
-  .content, .headerContent { padding-left: 0.2rem; padding-right: 0.2rem; }
-  .main { padding-bottom: 4vw; }
-  .userNameRow { font-size: 1rem; }
-  .userAvatar { width: 35px; height: 35px; font-size: 1.2rem; }
+.loadingText, .errorText {
+  text-align: center;
+  font-size: clamp(1rem, 2.5vw, 1.13rem);
+  padding: clamp(1.5rem, 4vw, 2.5rem);
+  color: #a0aec0;
 }
 
 
 /* Resumo topo da aba "Formulários" */
 .todaySummary {
   display: flex;
-  gap: 10px;
+  gap: clamp(8px, 1.5vw, 12px);
   align-items: center;
-  margin: 6px 2px 14px 2px;
+  margin: clamp(4px, 1vw, 8px) 2px clamp(10px, 2vw, 16px) 2px;
   flex-wrap: wrap;
 }
 
@@ -344,10 +529,11 @@
 .badgePending {
   display: inline-flex;
   align-items: center;
-  padding: 6px 10px;
+  padding: clamp(5px, 1vw, 7px) clamp(8px, 1.5vw, 12px);
   border-radius: 9999px;
-  font-size: 13px;
+  font-size: clamp(11px, 2vw, 13px);
   font-weight: 600;
+  white-space: nowrap;
 }
 
 .badgeDone {
@@ -362,25 +548,21 @@
   border: 1px solid rgba(148, 163, 184, 0.35);
 }
 
-/* O card precisa ser relativo pro badge ficar no canto */
-.card {
-  position: relative;
-}
-
 /* Badge de status no canto do card */
 .statusBadge {
   position: absolute;
-  top: 10px;
-  right: 10px;
+  top: clamp(8px, 1.5vw, 12px);
+  right: clamp(8px, 1.5vw, 12px);
   display: inline-flex;
   align-items: center;
-  padding: 4px 8px;
-  gap: 4px;
+  padding: clamp(3px, 0.8vw, 5px) clamp(6px, 1.2vw, 9px);
+  gap: clamp(3px, 0.8vw, 5px);
   border-radius: 9999px;
-  font-size: 12px;
+  font-size: clamp(10px, 1.8vw, 12px);
   font-weight: 700;
   line-height: 1;
   user-select: none;
+  white-space: nowrap;
 }
 
 .statusDone {
@@ -395,8 +577,130 @@
   border: 1px solid rgba(148, 163, 184, 0.35);
 }
 
-/* (opcional) aparência do botão quando já respondeu */
+/* Aparência do botão quando já respondeu */
 .cardButton:disabled {
   opacity: 0.6;
   cursor: not-allowed;
+}
+
+/* ===== ACESSIBILIDADE & PERFORMANCE ===== */
+
+/* Reduz animações para quem prefere */
+@media (prefers-reduced-motion: reduce) {
+  .main,
+  .card,
+  .toggleButton,
+  .cardButton,
+  .logoutButton {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+  .card:hover {
+    transform: none;
+  }
+}
+
+/* Alto contraste */
+@media (prefers-contrast: high) {
+  .card {
+    border-width: 2px;
+  }
+  .toggleButton.active {
+    border: 2px solid #33c6fa;
+  }
+  .statusBadge,
+  .badgeDone,
+  .badgePending {
+    border-width: 2px;
+  }
+}
+
+/* Modo escuro forçado (já está escuro, mas garante consistência) */
+@media (prefers-color-scheme: dark) {
+  .main {
+    background: #202533;
+  }
+}
+
+/* Otimização para impressão */
+@media print {
+  .logoutButton,
+  .viewToggle {
+    display: none;
+  }
+  .card {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+  .main {
+    background: white;
+    color: black;
+  }
+  .card,
+  .header {
+    border-color: #000;
+  }
+}
+
+/* ===== OTIMIZAÇÕES DE PERFORMANCE ===== */
+
+/* Aceleração de hardware para animações */
+.card,
+.toggleButton,
+.cardButton,
+.logoutButton {
+  will-change: transform;
+  transform: translateZ(0);
+  backface-visibility: hidden;
+}
+
+/* Otimização para dispositivos touch */
+@media (hover: none) and (pointer: coarse) {
+  /* Aumenta área de toque em mobile */
+  .toggleButton,
+  .cardButton,
+  .logoutButton {
+    min-height: 48px;
+    min-width: 48px;
+  }
+  
+  /* Remove hover em touch devices */
+  .card:hover {
+    transform: none;
+    border-color: #354059;
+    box-shadow: 0 4px 14px rgba(0,0,0,0.13);
+  }
+  
+  .toggleButton:not(.active):hover {
+    color: #a0aec0;
+  }
+  
+  .cardButton:hover {
+    background-color: #33c6fa;
+  }
+  
+  .logoutButton:hover {
+    background: transparent;
+    color: #b7c0d1;
+    border-color: #354059;
+  }
+  
+  /* Adiciona feedback visual no active */
+  .card:active {
+    transform: scale(0.98);
+  }
+  
+  .cardButton:active,
+  .toggleButton:active,
+  .logoutButton:active {
+    opacity: 0.8;
+  }
+}
+
+/* Suavização de fontes */
+.main {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
 }

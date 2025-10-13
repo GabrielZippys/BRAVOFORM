@@ -719,7 +719,7 @@ function loadImage(src: string): Promise<HTMLImageElement> {
         </div>
 
         <div>
-          <label className={styles.userInfoLabel} htmlFor="search">Pesquisar (título, usuário, respostas…)</label>
+          <label className={styles.userInfoLabel} htmlFor="search">Pesquisar</label>
           <input
             id="search"
             type="text"
@@ -729,20 +729,21 @@ function loadImage(src: string): Promise<HTMLImageElement> {
             onChange={(e) => setSearch(e.target.value)}
           />
         </div>
+      </div>
 
-        <div style={{ display: 'flex', gap: 8 }}>
+       <div className={styles.actionButtons}>
+          
           <button className={styles.cardButton} onClick={toggleSelectAllFiltered}>
-            {isAllFilteredSelected ? 'Desmarcar lista' : 'Selecionar lista'}
+            {isAllFilteredSelected ? 'Desmarcar Formulários' : 'Todos os Formulários'}
           </button>
           <button
             className={styles.cardButton}
             onClick={handleExportPdf}
             title="Gera um PDF com os selecionados (ou todos os filtrados, se nada estiver selecionado)"
           >
-            Gerar PDF
+            Gerar Relatório
           </button>
         </div>
-      </div>
 
       {/* resumo */}
       <div style={{ marginBottom: 8, fontSize: 14, opacity: 0.85 }}>
