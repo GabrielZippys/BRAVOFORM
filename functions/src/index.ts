@@ -38,52 +38,140 @@ const truncate = (s: string, max = 600) => (s.length > max ? s.slice(0, max) + "
 
 // Função utilitária para transformar respostas em texto legível (sem [object Object])
 function formatAnswerValue(answer: any, field?: any): string {
+  // Null/undefined
+  if (answer == null) return '';
+  
   // Assinatura (imagem base64)
   if (typeof answer === 'string' && answer.startsWith('data:image')) {
     return '[Assinatura anexada]';
   }
+  
   // Outros data URLs longos
   if (typeof answer === 'string' && answer.startsWith('data:')) {
     return '[Arquivo incorporado]';
   }
+  
   // Tabela será tratada no HTML (retorna marcador)
   if (field && field.type === 'Tabela' && typeof answer === 'object' && answer !== null) {
     return '__TABLE__';
   }
+  
   // Arrays
   if (Array.isArray(answer)) {
     if (answer.length === 0) return '';
-    // Array de primitvos
+    
+    // Array de primitivos
     if (answer.every((x) => x == null || ['string','number','boolean'].includes(typeof x))) {
-      return answer.map((x) => (x == null ? '' : typeof x === 'boolean' ? (x ? 'Sim' : 'Não') : String(x))).join(', ');
+      return answer.map((x) => {
+        if (x == null) return '';
+        if (typeof x === 'boolean') return x ? 'Sim' : 'Não';
+        return String(x);
+      }).filter(Boolean).join(', ');
     }
+    
     // Array de objetos (imagens/arquivos ou pares label/valor)
     return answer.map((it: any, i: number) => {
       if (!it) return '';
-      // imagem/arquivo
+      
+      // Imagem/arquivo
       if (typeof it === 'object' && (it.type?.startsWith?.('image') || it.url)) {
         const name = it.name || `Arquivo ${i + 1}`;
         const url = it.url ? ` (${it.url})` : '';
         return `${name}${url}`;
       }
-      // par label/valor comum
-      const label = it.label || it.question || it.name || it.title || `item_${i + 1}`;
-      const value = it.value ?? it.answer ?? it.response ?? it[label];
-      if (value != null) return `${label}: ${String(value)}`;
-      try { return JSON.stringify(it); } catch { return String(it); }
+      
+      // Objeto com propriedades conhecidas
+      if (typeof it === 'object') {
+        // Tenta extrair valor de propriedades comuns
+        const label = it.label || it.question || it.name || it.title;
+        const value = it.value ?? it.answer ?? it.response ?? it.text ?? it.content;
+        
+        if (label && value != null) {
+          return `${label}: ${formatAnswerValue(value)}`;
+        }
+        
+        // Se tem apenas um valor, retorna ele
+        if (value != null) {
+          return formatAnswerValue(value);
+        }
+        
+        // Tenta extrair propriedades úteis do objeto
+        const keys = Object.keys(it).filter(k => !['id', '_id', 'timestamp', 'createdAt', 'updatedAt'].includes(k));
+        if (keys.length === 1) {
+          return formatAnswerValue(it[keys[0]]);
+        }
+        
+        // Formata objeto como chave: valor
+        const formatted = keys.map(key => {
+          const val = it[key];
+          if (val != null && val !== '') {
+            return `${key}: ${formatAnswerValue(val)}`;
+          }
+          return null;
+        }).filter(Boolean).join(', ');
+        
+        return formatted || `[Objeto: ${keys.join(', ')}]`;
+      }
+      
+      // Primitivo
+      return formatAnswerValue(it);
     }).filter(Boolean).join('\n');
   }
-  // Boolean, number, string
+  
+  // Boolean
   if (typeof answer === 'boolean') return answer ? 'Sim' : 'Não';
+  
+  // Number
   if (typeof answer === 'number') return String(answer);
+  
+  // String
   if (typeof answer === 'string') return truncate(answer);
-  // Objeto solto
+  
+  // Objeto
   if (typeof answer === 'object' && answer !== null) {
-    // Arquivo
-    if (answer.url) return `${answer.name || 'Arquivo'} (${answer.url})`;
-    try { return truncate(JSON.stringify(answer)); } catch { return String(answer); }
+    // Arquivo com URL
+    if (answer.url) {
+      const name = answer.name || answer.filename || 'Arquivo';
+      return `${name} (${answer.url})`;
+    }
+    
+    // Objeto com propriedades de texto
+    if (answer.text || answer.content || answer.value) {
+      return formatAnswerValue(answer.text || answer.content || answer.value);
+    }
+    
+    // Objeto com label e value
+    if (answer.label && answer.value != null) {
+      return `${answer.label}: ${formatAnswerValue(answer.value)}`;
+    }
+    
+    // Tenta extrair propriedades úteis
+    const keys = Object.keys(answer).filter(k => !['id', '_id', 'timestamp', 'createdAt', 'updatedAt'].includes(k));
+    
+    if (keys.length === 0) return '[Objeto vazio]';
+    
+    if (keys.length === 1) {
+      const value = answer[keys[0]];
+      return formatAnswerValue(value);
+    }
+    
+    // Múltiplas propriedades - formata como lista
+    const formatted = keys.map(key => {
+      const value = answer[key];
+      if (value != null && value !== '') {
+        if (typeof value === 'object') {
+          return `${key}: ${formatAnswerValue(value)}`;
+        }
+        return `${key}: ${String(value)}`;
+      }
+      return null;
+    }).filter(Boolean).join(', ');
+    
+    return formatted || '[Objeto sem dados legíveis]';
   }
-  return '';
+  
+  // Fallback para outros tipos
+  return String(answer);
 }
 
 // Gera o HTML do e-mail igual ao site
@@ -100,6 +188,17 @@ function generateBravoformEmailHTML(formData: any, responseData: any): string {
     const label = field?.label || field?.id;
     if (!label || label === 'Assinatura') return '';
     const raw = responseData?.answers?.[field?.id];
+    
+    // Debug log para entender o que está sendo processado
+    console.log(`Processando campo "${label}":`, {
+      fieldId: field?.id,
+      fieldType: field?.type,
+      rawValue: raw,
+      rawType: typeof raw,
+      isArray: Array.isArray(raw),
+      isObject: typeof raw === 'object' && raw !== null
+    });
+    
     const formatted = formatAnswerValue(raw, field);
 
     // Tabela (renderização própria)
@@ -184,13 +283,31 @@ function generateBravoformEmailHTML(formData: any, responseData: any): string {
 function generateWhatsappMessage(formData: any, responseData: any): string {
   const fields = formData.fields || [];
   let messageBody = `📝 *Nova resposta recebida para o formulário: "${formData.title}"*\n\n`;
+  
   for (const field of fields) {
     const label = field.label || field.id;
     const answer = responseData.answers?.[field.id] ?? '';
     if (label === 'Assinatura') continue;
+    
+    console.log(`WhatsApp - Processando campo "${label}":`, {
+      fieldId: field.id,
+      fieldType: field.type,
+      rawValue: answer,
+      rawType: typeof answer
+    });
+    
     const formatted = formatAnswerValue(answer, field);
-    messageBody += `*${label}:* ${formatted}\n`;
+    
+    // Para WhatsApp, evita quebras de linha excessivas em tabelas
+    if (formatted === '__TABLE__') {
+      messageBody += `*${label}:* [Tabela - veja detalhes no email]\n`;
+    } else if (formatted && formatted.trim()) {
+      // Limita o tamanho para WhatsApp e remove quebras excessivas
+      const cleanFormatted = formatted.replace(/\n+/g, ' | ').substring(0, 300);
+      messageBody += `*${label}:* ${cleanFormatted}\n`;
+    }
   }
+  
   return messageBody;
 }
 
