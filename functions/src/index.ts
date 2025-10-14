@@ -13,17 +13,7 @@ const nodemailerPass = defineString("NODEMAILER_PASS");
 const twilioSid = defineString("TWILIO_SID");
 const twilioToken = defineString("TWILIO_TOKEN");
 
-const mailTransport = nodemailer.createTransport({
-  service: "gmail",
-  auth: {
-    user: nodemailerUser.value(),
-    pass: nodemailerPass.value(),
-  },
-});
-const twilioClient = new Twilio(
-  twilioSid.value(),
-  twilioToken.value(),
-);
+// Inicialização será feita dentro da função para evitar problemas com params
 
 // Utils de formatação/segurança
 const escapeHtml = (s: string) =>
@@ -176,11 +166,12 @@ function formatAnswerValue(answer: any, field?: any): string {
 
 // Gera o HTML do e-mail igual ao site
 function generateBravoformEmailHTML(formData: any, responseData: any): string {
-  const BRAND_BG = '#0B1220';
-  const CARD_BG = '#0E1B2A';
-  const ACCENT = '#C5A05C';
-  const TEXT = '#E7E6E3';
-  const SUBTEXT = '#B6BDC6';
+  const CARD_BG = '#F8F9FA';         // Fundo levemente cinza
+  const ACCENT = '#B8860B';          // Dourado mais escuro para melhor contraste
+  const ACCENT_LIGHT = '#F4E4BC';    // Dourado claro para alternância
+  const TEXT = '#212529';            // Texto quase preto
+  const SUBTEXT = '#6C757D';         // Texto secundário cinza médio
+  const BORDER = '#DEE2E6';          // Bordas cinza claro
 
   const fields = Array.isArray(formData.fields) ? formData.fields : [];
 
@@ -219,8 +210,8 @@ function generateBravoformEmailHTML(formData: any, responseData: any): string {
       }).join('');
 
       const header = `<tr>
-        <th style="width:28%;padding:10px;background:${BRAND_BG};color:${ACCENT};text-align:left;border-bottom:1px solid ${ACCENT};">Linha</th>
-        ${cols.map((c:any)=>`<th style=\"padding:10px;background:${BRAND_BG};color:${ACCENT};text-align:left;border-bottom:1px solid ${ACCENT};\">${escapeHtml(String(c.label||c.id))}</th>`).join('')}
+        <th style="width:28%;padding:12px 15px;background:${ACCENT};color:#FFFFFF;text-align:left;border:1px solid ${BORDER};font-weight:600;font-size:14px;">Linha</th>
+        ${cols.map((c:any)=>`<th style=\"padding:12px 15px;background:${ACCENT};color:#FFFFFF;text-align:left;border:1px solid ${BORDER};font-weight:600;font-size:14px;\">${escapeHtml(String(c.label||c.id))}</th>`).join('')}
       </tr>`;
 
       return `
@@ -240,8 +231,10 @@ function generateBravoformEmailHTML(formData: any, responseData: any): string {
       .replace(/\n/g, '<br>');
     return `
       <tr>
-        <td style="padding:12px 14px;border-bottom:1px solid ${ACCENT}40;color:${ACCENT};font-weight:600;">${escapeHtml(String(label))}</td>
-        <td style="padding:12px 14px;border-bottom:1px solid ${ACCENT}40;color:${TEXT};white-space:pre-wrap;">${safe}</td>
+        <td colspan="2" style="padding:0;border:1px solid ${BORDER};">
+          <div style="padding:10px 15px;background:${ACCENT};color:#FFFFFF;font-weight:600;font-size:14px;margin:0;">${escapeHtml(String(label))}</div>
+          <div style="padding:12px 15px;background:#FFFFFF;color:${TEXT};font-size:14px;line-height:1.5;margin:0;min-height:20px;">${safe || '—'}</div>
+        </td>
       </tr>
     `;
   }).join('');
@@ -253,26 +246,43 @@ function generateBravoformEmailHTML(formData: any, responseData: any): string {
       <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
       <meta name="viewport" content="width=device-width, initial-scale=1" />
       <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
-        .container { max-width: 680px; margin: 0 auto; background: ${CARD_BG}; border: 1px solid ${ACCENT}66; border-radius: 10px; overflow: hidden; }
-        .header { padding: 22px 24px; background: ${BRAND_BG}; border-bottom: 2px solid ${ACCENT}; }
-        .title { margin: 0; color: ${TEXT}; font-family: 'Inter', system-ui, -apple-system, Segoe UI, Roboto, 'Helvetica Neue', Arial, 'Noto Sans', 'Liberation Sans', sans-serif; font-size: 18px; font-weight: 700; }
-        .subtitle { margin: 6px 0 0; color: ${SUBTEXT}; font-size: 13px; }
-        .table { width: 100%; border-collapse: collapse; }
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+        body { font-family: 'Inter', Arial, sans-serif; margin: 0; padding: 20px; background: #E9ECEF; }
+        .container { max-width: 800px; margin: 0 auto; background: #FFFFFF; border: 1px solid ${BORDER}; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        .header { padding: 25px 20px; background: ${ACCENT_LIGHT}; border-bottom: 3px solid ${ACCENT}; text-align: center; }
+        .logo-section { display: flex; align-items: center; justify-content: center; margin-bottom: 15px; }
+        .title { margin: 0; color: ${TEXT}; font-family: 'Inter', Arial, sans-serif; font-size: 22px; font-weight: 700; }
+        .subtitle { margin: 8px 0 0; color: ${SUBTEXT}; font-size: 15px; font-weight: 500; }
+        .form-title { margin: 10px 0 0; color: ${TEXT}; font-size: 17px; font-weight: 600; padding: 10px 15px; background: #FFFFFF; border-radius: 6px; border: 1px solid ${BORDER}; }
+        .table { width: 100%; border-collapse: collapse; margin: 0; border-spacing: 0; }
+        .content { padding: 15px; background: ${CARD_BG}; }
+        .footer { padding: 20px; background: ${ACCENT_LIGHT}; border-top: 1px solid ${BORDER}; color: ${SUBTEXT}; font-size: 13px; text-align: center; }
       </style>
     </head>
-    <body style="margin:0;padding:24px;background:${BRAND_BG};">
+    <body>
       <div class="container">
         <div class="header">
-          <div class="title">BRAVOFORM • Nova resposta recebida</div>
-          <div class="subtitle">Formulário: ${escapeHtml(String(formData.title || ''))}</div>
+          <div class="logo-section">
+            <div style="width: 40px; height: 40px; background: ${ACCENT}; border-radius: 6px; display: flex; align-items: center; justify-content: center; margin-right: 12px;">
+              <span style="color: #FFFFFF; font-weight: bold; font-size: 16px;">B</span>
+            </div>
+            <div>
+              <div class="title">BRAVOFORM</div>
+              <div class="subtitle">Nova resposta recebida</div>
+            </div>
+          </div>
+          <div class="form-title">${escapeHtml(String(formData.title || ''))}</div>
         </div>
-        <table class="table" cellpadding="0" cellspacing="0" role="presentation">
-          <tbody>
-            ${rowsHtml}
-          </tbody>
-        </table>
-        <div style="padding:14px 18px;border-top:1px solid ${ACCENT}66;color:${SUBTEXT};font-size:12px;">Este é um e-mail automático enviado pela plataforma BRAVOFORM.</div>
+        <div class="content">
+          <table class="table" cellpadding="0" cellspacing="0" role="presentation">
+            <tbody>
+              ${rowsHtml}
+            </tbody>
+          </table>
+        </div>
+        <div class="footer">
+          Este é um e-mail automático enviado pela plataforma BRAVOFORM.
+        </div>
       </div>
     </body>
     </html>
@@ -340,6 +350,15 @@ export const onNewFormResponse = onDocumentCreated(
       }
 
       if (type === "email") {
+        // Inicializa o transporte de email dentro da função
+        const mailTransport = nodemailer.createTransport({
+          service: "gmail",
+          auth: {
+            user: nodemailerUser.value(),
+            pass: nodemailerPass.value(),
+          },
+        });
+
         const htmlBody = generateBravoformEmailHTML(formData, responseData);
         const mailOptions = {
           from: `"BRAVOFORM" <${nodemailerUser.value()}>`,
@@ -352,6 +371,12 @@ export const onNewFormResponse = onDocumentCreated(
         console.log("E-mail enviado com sucesso!");
 
       } else if (type === "whatsapp") {
+        // Inicializa o cliente Twilio dentro da função
+        const twilioClient = new Twilio(
+          twilioSid.value(),
+          twilioToken.value(),
+        );
+
         const messageBody = generateWhatsappMessage(formData, responseData);
 
         // Usando o número de Sandbox correto da Twilio como remetente.
