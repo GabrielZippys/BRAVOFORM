@@ -49,6 +49,7 @@ interface TableColumn {
   id: string;
   label: string;
   type: 'text' | 'number' | 'date' | 'select';
+  numberType?: 'integer' | 'decimal';
   options?: string[];
 }
 interface TableRow { id: string; label: string; }
@@ -383,6 +384,7 @@ function FieldProperties({ field, updateField }: {
       id: generateTableId('col'),
       label: `Coluna ${field.columns ? field.columns.length + 1 : 1}`,
       type: 'text',
+      numberType: 'integer', // Define o tipo de número como inteiro por padrão
       options: [],
     };
     updateField({ columns: [...(field.columns || []), newCol] });
@@ -526,195 +528,188 @@ function FieldProperties({ field, updateField }: {
               <Plus size={14} /> Nova opção
             </button>
             <textarea
-  className={styles.propertyTextarea}
-  style={{ marginTop: 8 }}
-  rows={4}
-  placeholder="Cole opções, uma por linha"
-  value={(field.options || []).join('\n')}
-  onChange={e =>
-  updateField({
-    options: e.target.value.split('\n')
-  })
-}
-
-/>
-<small style={{ color: '#6fd3fa', fontSize: 12 }}>
-  (Cole ou digite várias opções de uma vez, cada linha vira uma opção)
-</small>
-
+              className={styles.propertyTextarea}
+              style={{ marginTop: 8 }}
+              rows={4}
+              placeholder="Cole opções, uma por linha"
+              value={(field.options || []).join('\n')}
+              onChange={e => {
+                const options = e.target.value.split('\n').filter(opt => opt.trim() !== '');
+                updateField({ options });
+              }}
+            />
+            <small style={{ color: '#6fd3fa', fontSize: 11 }}>
+              (Cole ou digite várias opções de uma vez, cada linha vira uma opção)
+            </small>
           </div>
         </div>
       )}
 
-      {/* TABELA */}
-     {field.type === 'Tabela' && (
-  <>
-    {/* COLUNAS */}
-    <div className={styles.propertyGroup}>
-      <label>Colunas</label>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-        {field.columns?.map((col, colIndex) => (
-          <div key={col.id} style={{ background: '#101524', borderRadius: 8, padding: 8, marginBottom: 4 }}>
-            <div style={{ display: 'flex', gap: 6 }}>
-              <input
-                type="text"
-                value={col.label}
-                onChange={e => handleColumnChange(colIndex, { label: e.target.value })}
-                placeholder="Nome da coluna"
-                className={styles.propertyInput}
-                style={{ flex: 1 }}
-              />
-              <select
-                value={col.type}
-                onChange={e => handleColumnChange(colIndex, { type: e.target.value as TableColumn['type'] })}
-                className={styles.propertyInput}
-                style={{ width: 100 }}
-              >
-                <option value="text">Texto</option>
-                <option value="number">Número</option>
-                <option value="date">Data</option>
-                <option value="select">Seleção</option>
-              </select>
-              <button className={styles.deleteBtn} onClick={() => removeColumn(colIndex)} type="button">
-                <Trash2 size={14} />
-              </button>
-            </div>
-            {/* Opções da coluna tipo seleção */}
-            {col.type === 'select' && (
-              <div style={{ marginLeft: 12, marginTop: 5 }}>
-                <label style={{ color: '#6fd3fa', fontSize: 13 }}>Opções da coluna</label>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                  {col.options?.map((opt, i) => (
-                    <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                      <input
-                        type="text"
-                        value={opt}
-                        onChange={e => handleColumnOptionChange(colIndex, i, e.target.value)}
-                        className={styles.propertyInput}
-                      />
-                      <button className={styles.deleteBtn} onClick={() => removeColumnOption(colIndex, i)} type="button">
-                        <Trash2 size={13} />
-                      </button>
+      {field.type === 'Tabela' && (
+        <>
+          {/* COLUNAS */}
+          <div className={styles.propertyGroup}>
+            <label>Colunas</label>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              {field.columns?.map((col, colIndex) => (
+                <div key={col.id} style={{ background: '#101524', borderRadius: 8, padding: 8, marginBottom: 4 }}>
+                  <div style={{ display: 'flex', gap: 6 }}>
+                    <input
+                      type="text"
+                      value={col.label}
+                      onChange={e => handleColumnChange(colIndex, { label: e.target.value })}
+                      className={styles.propertyInput}
+                      style={{ flex: 1 }}
+                    />
+                    <select
+                      value={col.type}
+                      onChange={e => handleColumnChange(colIndex, { type: e.target.value as any })}
+                      className={styles.propertyInput}
+                      style={{ width: 100 }}
+                    >
+                      <option value="text">Texto</option>
+                      <option value="number">Número</option>
+                      <option value="date">Data</option>
+                      <option value="select">Seleção</option>
+                    </select>
+                    <button className={styles.deleteBtn} onClick={() => removeColumn(colIndex)} type="button">
+                      <Trash2 size={15} />
+                    </button>
+                  </div>
+                  {col.type === 'select' && (
+                    <div style={{ marginLeft: 12, marginTop: 5 }}>
+                      <label style={{ color: '#6fd3fa', fontSize: 13 }}>Opções da coluna</label>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                        {col.options?.map((opt, i) => (
+                          <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                            <input
+                              type="text"
+                              value={opt}
+                              onChange={e => handleColumnOptionChange(colIndex, i, e.target.value)}
+                              className={styles.propertyInput}
+                            />
+                            <button className={styles.deleteBtn} onClick={() => removeColumnOption(colIndex, i)} type="button">
+                              <Trash2 size={13} />
+                            </button>
+                          </div>
+                        ))}
+                        <button className={styles.actionBtn} onClick={() => addColumnOption(colIndex)} type="button">
+                          <Plus size={13} /> Nova opção
+                        </button>
+                        <textarea
+                          className={styles.propertyTextarea}
+                          style={{ marginTop: 8 }}
+                          rows={4}
+                          placeholder="Cole opções, uma por linha"
+                          value={(col.options || []).join('\n')}
+                          onChange={e => {
+                            const options = e.target.value.split('\n').filter(opt => opt.trim() !== '');
+                            handleColumnChange(colIndex, { options });
+                          }}
+                        />
+                        <small style={{ color: '#6fd3fa', fontSize: 11 }}>
+                          (Cole várias opções de uma vez — cada linha vira uma opção da coluna)
+                        </small>
+                      </div>
                     </div>
-                  ))}
-                  <button className={styles.actionBtn} onClick={() => addColumnOption(colIndex)} type="button">
-                    <Plus size={13} /> Nova opção
-                  </button>
-                  <textarea
-  className={styles.propertyTextarea}
-  style={{ marginTop: 8 }}
-  rows={4}
-  placeholder="Cole opções, uma por linha"
-  value={(col.options || []).join('\n')}
-  onChange={e => {
-  const labels = e.target.value.split('\n').filter(l => l.trim() !== '');
-  const newColumns = labels.map((label, idx) => ({
-    id: field.columns?.[idx]?.id || generateTableId('col'),
-    label,
-    type: field.columns?.[idx]?.type || 'text',
-    options: field.columns?.[idx]?.options || [],
-  }));
-  updateField({ columns: newColumns });
-}}
-
-  onKeyDown={e => {
-    if (e.key === 'Enter') {
-      const value = (e.target as HTMLTextAreaElement).value;
-      const newColumns = [...(field.columns || [])];
-      newColumns[colIndex] = {
-        ...col,
-        options: value.split('\n').filter(s => s.trim() !== ''),
-      };
-      updateField({ columns: newColumns });
-    }
-  }}
-/>
-
-
-                  <small style={{ color: '#6fd3fa', fontSize: 11 }}>
-                    (Cole várias opções de uma vez — cada linha vira uma opção da coluna)
-                  </small>
+                  )}
+                  {col.type === 'number' && (
+                    <div style={{ marginLeft: 12, marginTop: 5 }}>
+                      <label style={{ color: '#6fd3fa', fontSize: 13 }}>Tipo de número</label>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 5 }}>
+                        <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}>
+                          <input
+                            type="radio"
+                            name={`numberType-${col.id}`}
+                            checked={col.numberType === 'integer'}
+                            onChange={() => handleColumnChange(colIndex, { numberType: 'integer' })}
+                          />
+                          Número inteiro (ex: 1, 2, 3)
+                        </label>
+                        <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}>
+                          <input
+                            type="radio"
+                            name={`numberType-${col.id}`}
+                            checked={col.numberType === 'decimal'}
+                            onChange={() => handleColumnChange(colIndex, { numberType: 'decimal' })}
+                          />
+                          Número decimal (ex: 1.5, 2.3, 3.14)
+                        </label>
+                      </div>
+                    </div>
+                  )}
                 </div>
-              </div>
-            )}
+              ))}
+              <button className={styles.actionBtn} onClick={addColumn} type="button">
+                <Plus size={14} /> Nova coluna
+              </button>
+              <textarea
+                className={styles.propertyTextarea}
+                style={{ marginTop: 10 }}
+                rows={3}
+                placeholder="Cole várias colunas, uma por linha"
+                value={field.columns?.map(col => col.label).join('\n') || ''}
+                onChange={e => {
+                  const labels = e.target.value.split('\n').filter(l => l.trim() !== '');
+                  const newColumns = labels.map((label, idx) => ({
+                    id: field.columns?.[idx]?.id || generateTableId('col'),
+                    label,
+                    type: field.columns?.[idx]?.type || 'text',
+                    numberType: field.columns?.[idx]?.numberType || 'integer',
+                    options: field.columns?.[idx]?.options || [],
+                  }));
+                  updateField({ columns: newColumns });
+                }}
+              />
+              <small style={{ color: '#6fd3fa', fontSize: 11 }}>
+                (Cole várias colunas de uma vez — cada linha vira uma coluna)
+              </small>
+            </div>
           </div>
-        ))}
-        <button className={styles.actionBtn} onClick={addColumn} type="button">
-          <Plus size={14} /> Nova coluna
-        </button>
-        {/* TEXTAREA PARA VÁRIAS COLUNAS */}
-        <textarea
-          className={styles.propertyTextarea}
-          style={{ marginTop: 10 }}
-          rows={3}
-          placeholder="Cole várias colunas, uma por linha"
-          value={field.columns?.map(col => col.label).join('\n') || ''}
-          onChange={e => {
-            // Cria colunas do tipo texto ao colar várias linhas
-            const labels = e.target.value.split('\n').filter(l => l.trim() !== '');
-            const newColumns = labels.map((label, idx) => ({
-              id: field.columns?.[idx]?.id || generateTableId('col'),
-              label,
-              type: field.columns?.[idx]?.type || 'text',
-              options: field.columns?.[idx]?.options || [],
-            }));
-            updateField({ columns: newColumns });
-                options: e.target.value.split('\n')
 
-          }}
-        />
-        <small style={{ color: '#6fd3fa', fontSize: 11 }}>
-          (Cole várias colunas de uma vez — cada linha vira uma coluna)
-        </small>
-      </div>
-    </div>
-
-    {/* LINHAS */}
-    <div className={styles.propertyGroup}>
-      <label>Linhas</label>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-        {field.rows?.map((row, rowIndex) => (
-          <div key={row.id} style={{ display: 'flex', gap: 8 }}>
-            <input
-              type="text"
-              value={row.label}
-              onChange={e => handleRowChange(rowIndex, e.target.value)}
-              placeholder="Nome da linha"
-              className={styles.propertyInput}
-            />
-            <button className={styles.deleteBtn} onClick={() => removeRow(rowIndex)} type="button">
-              <Trash2 size={14} />
-            </button>
+          {/* LINHAS */}
+          <div className={styles.propertyGroup}>
+            <label>Linhas</label>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              {field.rows?.map((row, rowIndex) => (
+                <div key={row.id} style={{ display: 'flex', gap: 8 }}>
+                  <input
+                    type="text"
+                    value={row.label}
+                    onChange={e => handleRowChange(rowIndex, e.target.value)}
+                    placeholder="Nome da linha"
+                    className={styles.propertyInput}
+                  />
+                  <button className={styles.deleteBtn} onClick={() => removeRow(rowIndex)} type="button">
+                    <Trash2 size={14} />
+                  </button>
+                </div>
+              ))}
+              <button className={styles.actionBtn} onClick={addRow} type="button">
+                <Plus size={14} /> Nova linha
+              </button>
+              <textarea
+                className={styles.propertyTextarea}
+                style={{ marginTop: 10 }}
+                rows={3}
+                placeholder="Cole várias linhas, uma por linha"
+                value={field.rows?.map(row => row.label).join('\n') || ''}
+                onChange={e => {
+                  const labels = e.target.value.split('\n').filter(l => l.trim() !== '');
+                  const newRows = labels.map((label, idx) => ({
+                    id: field.rows?.[idx]?.id || generateTableId('row'),
+                    label,
+                  }));
+                  updateField({ rows: newRows });
+                }}
+              />
+              <small style={{ color: '#6fd3fa', fontSize: 11 }}>
+                (Cole várias linhas de uma vez — cada linha vira uma linha da tabela)
+              </small>
+            </div>
           </div>
-        ))}
-        <button className={styles.actionBtn} onClick={addRow} type="button">
-          <Plus size={14} /> Nova linha
-        </button>
-        {/* TEXTAREA PARA VÁRIAS LINHAS */}
-        <textarea
-          className={styles.propertyTextarea}
-          style={{ marginTop: 10 }}
-          rows={3}
-          placeholder="Cole várias linhas, uma por linha"
-          value={field.rows?.map(row => row.label).join('\n') || ''}
-          onChange={e => {
-            const labels = e.target.value.split('\n').filter(l => l.trim() !== '');
-            const newRows = labels.map((label, idx) => ({
-              id: field.rows?.[idx]?.id || generateTableId('row'),
-              label,
-            }));
-            updateField({ rows: newRows });
-          }}
-        />
-        <small style={{ color: '#6fd3fa', fontSize: 11 }}>
-          (Cole várias linhas de uma vez — cada linha vira uma linha da tabela)
-        </small>
-      </div>
-    </div>
-  </>
-)}
-
-
+        </>
+      )}
 
       <div className={styles.propertyGroup}>
         <label>Descrição/Ajuda</label>
@@ -1235,6 +1230,7 @@ caretColor: autoInputColor,   // (opcional) garante o cursor visível
                                             ? 'date'
                                             : 'text'
                                         }
+                                        step={col.type === 'number' && col.numberType === 'integer' ? '1' : 'any'}
                                         value={cellValue}
                                         onChange={(e) =>
                                           onTableChange(field.id, row.id, col.id, e.target.value)

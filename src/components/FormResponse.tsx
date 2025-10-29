@@ -155,53 +155,88 @@ function parseColor(c: string): {r:number,g:number,b:number,a:number} {
   return { r: 0, g: 0, b: 0, a: 1 };
 }
 
-// --- DECIMAIS: aceitam , e . ---
-const DEC_SEP: ',' | '.' = ','; // como exibir
+// --- NUMBER HANDLING ---
+const DEC_SEP: ',' | '.' = ','; // Decimal separator for display
+const DEC_REGEX = /^\d+([,]\d{0,2})?$/; // Regex for decimal numbers (e.g., 123,45)
+const INT_REGEX = /^\d+$/; // Regex for integer numbers
 
-const sanitizeDecimal = (raw: string, maxDecimals = 2) => {
-  let s = (raw ?? '').replace(/[^\d.,-]/g, ''); // mantém dígitos, vírgula, ponto, sinal
+/**
+ * Sanitizes a numeric input string based on the specified number type
+ * @param raw - The raw input string
+ * @param maxDecimals - Maximum number of decimal places (0 for integers)
+ * @returns Sanitized number string
+ */
+const sanitizeDecimal = (raw: string, maxDecimals = 2): string => {
+  // Remove all non-digit characters except comma, minus, and decimal point
+  let s = (raw ?? '').replace(/[^\d.,-]/g, '');
   if (!s) return '';
 
-  // normaliza sinal: só 1 "-" no início
-  const neg = s.trim().startsWith('-') ? '-' : '';
-  s = s.replace(/-/g, '');
+  // Handle negative numbers
+  const isNegative = s.startsWith('-');
+  if (isNegative) {
+    s = s.substring(1);
+  }
 
-  // normaliza ponto -> vírgula
+  // If no decimals allowed (integer), remove any decimal part
+  if (maxDecimals === 0) {
+    // Remove all non-digit characters
+    s = s.replace(/[^\d]/g, '');
+    return isNegative && s ? `-${s}` : s || '0';
+  }
+
+  // For decimal numbers, normalize decimal separator
   s = s.replace(/\./g, ',');
+  
+  // Handle leading decimal point
+  if (s.startsWith(',')) {
+    s = '0' + s;
+  }
 
-  // permite começar pela vírgula (vira "0,")
-  if (s.startsWith(',')) s = '0' + s;
+  // Split into integer and fractional parts
+  const [intPart, ...fracParts] = s.split(',');
+  const cleanInt = intPart.replace(/^0+(\d)/, '$1') || '0';
+  const cleanFrac = fracParts.join('').replace(/[^\d]/g, '').slice(0, maxDecimals);
 
-  // quebra apenas a primeira vírgula
-  const parts = s.split(',');
-  let intPart = (parts[0] || '0').replace(/^0+(?=\d)/, ''); // tira zeros à esquerda
-  let fracRaw = parts.slice(1).join('').replace(/,/g, '');  // remove vírgulas extras
+  // Rebuild the number
+  let result = cleanInt;
+  if (cleanFrac) {
+    result += DEC_SEP + cleanFrac;
+  } else if (s.includes(',')) {
+    // Keep the decimal separator if the user is typing
+    result += DEC_SEP;
+  }
 
-  // limita casas
-  if (maxDecimals >= 0) fracRaw = fracRaw.slice(0, maxDecimals);
-
-  const hadComma = s.includes(',');
-
-  // mantém vírgula "pendurada" durante a digitação (ex.: "12,")
-  if (hadComma && fracRaw.length === 0) return `${neg}${intPart}${DEC_SEP}`;
-
-  // comum
-  return fracRaw.length ? `${neg}${intPart}${DEC_SEP}${fracRaw}` : `${neg}${intPart}`;
+  return isNegative ? `-${result}` : result;
 };
 
-const padDecimals = (raw: string, maxDecimals = 2) => {
+/**
+ * Pads decimal places to ensure consistent display
+ * @param raw - The raw input string
+ * @param maxDecimals - Number of decimal places to pad to
+ * @returns Formatted number string with padded decimals
+ */
+const padDecimals = (raw: string, maxDecimals = 2): string => {
+  if (!raw) return '';
+  
+  // For integers, just return the sanitized value
+  if (maxDecimals === 0) {
+    return sanitizeDecimal(raw, 0);
+  }
+
   let s = sanitizeDecimal(raw, maxDecimals);
-  if (!s) return s;
+  if (!s) return '';
 
-  const neg = s.startsWith('-') ? '-' : '';
-  let body = neg ? s.slice(1) : s;
+  const isNegative = s.startsWith('-');
+  if (isNegative) {
+    s = s.substring(1);
+  }
 
-  // garante separador
-  if (!body.includes(DEC_SEP)) body += DEC_SEP;
+  // Ensure we have a decimal separator and pad with zeros if needed
+  const [intPart, fracPart = ''] = s.split(DEC_SEP);
+  const paddedFrac = (fracPart + '0'.repeat(maxDecimals)).slice(0, maxDecimals);
+  const result = paddedFrac ? `${intPart}${DEC_SEP}${paddedFrac}` : intPart;
 
-  const [i, f = ''] = body.split(DEC_SEP);
-  const ff = (f + '0'.repeat(maxDecimals)).slice(0, maxDecimals);
-  return `${neg}${i}${DEC_SEP}${ff}`;
+  return isNegative ? `-${result}` : result;
 };
 
 // Para converter "7,90" -> número JS: parseFloat(str.replace(/\./g,'').replace(',', '.'))
@@ -853,25 +888,41 @@ else if ((c.type || '').toLowerCase() === 'date') {
       );
 
     case 'number': {
-  const decimals = Number((col as any).decimals ?? 2); // pode ler de col.decimals se existir
-  return (
-    <input
-      style={base}
-      type="text"
-      inputMode="decimal"
-      // aceita 12, 12,3, 12.34, etc:
-      pattern="^\d+(?:[.,]\d{0,})?$"
-      value={value}
-      onChange={e =>
-        handleTableInputChange(fieldId, rowId, colId, sanitizeDecimal(e.target.value, decimals))
-      }
-      onBlur={e =>
-        handleTableInputChange(fieldId, rowId, colId, padDecimals(e.target.value, decimals))
-      }
-      disabled={disabled}
-    />
-  );
-}
+      const numberType = (col as any).numberType || 'decimal';
+      const maxDecimals = numberType === 'integer' ? 0 : 2; // No decimals for integers
+      
+      return (
+        <input
+          style={base}
+          type="text"
+          inputMode={numberType === 'integer' ? 'numeric' : 'decimal'}
+          pattern={numberType === 'integer' ? '^\d*$' : '^\d+([,]\d{0,2})?$'}
+          value={value}
+          onChange={e => {
+            let newValue = e.target.value;
+            // For integers, remove any non-digit characters
+            if (numberType === 'integer') {
+              newValue = newValue.replace(/[^\d-]/g, '');
+              // Only allow minus at the start
+              if (newValue.includes('-')) {
+                newValue = '-' + newValue.replace(/[^\d]/g, '');
+              }
+              handleTableInputChange(fieldId, rowId, colId, newValue);
+            } else {
+              // For decimals, use the existing sanitizeDecimal
+              handleTableInputChange(fieldId, rowId, colId, sanitizeDecimal(newValue, maxDecimals));
+            }
+          }}
+          onBlur={e => {
+            if (numberType === 'decimal') {
+              handleTableInputChange(fieldId, rowId, colId, padDecimals(e.target.value, maxDecimals));
+            }
+          }}
+          disabled={disabled}
+          placeholder={numberType === 'integer' ? '0' : '0,00'}
+        />
+      );
+    }
 
 
     case 'date':
