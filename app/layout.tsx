@@ -1,8 +1,7 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
+import { Analytics } from "@vercel/analytics/react";
 import "./globals.css";
-
-// O AuthProvider foi removido, pois não é utilizado no seu projeto.
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -19,8 +18,8 @@ export default function RootLayout({
   return (
     <html lang="pt-BR">
       <body className={inter.className}>
-        {/* Renderiza diretamente os componentes filhos sem o AuthProvider */}
         {children}
+        <Analytics />
       </body>
     </html>
   );
