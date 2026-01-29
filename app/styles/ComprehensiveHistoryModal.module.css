@@ -90,6 +90,8 @@
   border: 1px solid #d1d5db;
   border-radius: 8px;
   font-size: 14px;
+  color: #374151;
+  background: white;
   outline: none;
   transition: border-color 0.2s;
 }
