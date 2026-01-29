@@ -692,41 +692,35 @@ function loadImage(src: string): Promise<HTMLImageElement> {
   if (error)   return <p className={styles.errorText}>{error}</p>;
 
   return (
-    <div className={styles.historyContainer ?? ''}>
+    <div className={styles.historyContainer}>
       {/* Filtros */}
-      <div
-        className={styles.filtersBar ?? ''}
-        style={{ display: 'grid', gap: 12, gridTemplateColumns: '1fr 1fr 2fr auto', alignItems: 'end', marginBottom: 16 }}
-      >
-        <div>
-          <label className={styles.userInfoLabel} htmlFor="startDate">Data inicial</label>
+      <div className={styles.historyFiltersBar}>
+        <div className={styles.historyFilterGroup}>
+          <label htmlFor="startDate">Data inicial</label>
           <input
             id="startDate"
             type="date"
-            className={styles.input ?? ''}
             value={startDate}
             onChange={(e) => setStartDate(e.target.value)}
           />
         </div>
 
-        <div>
-          <label className={styles.userInfoLabel} htmlFor="endDate">Data final</label>
+        <div className={styles.historyFilterGroup}>
+          <label htmlFor="endDate">Data final</label>
           <input
             id="endDate"
             type="date"
-            className={styles.input ?? ''}
             value={endDate}
             onChange={(e) => setEndDate(e.target.value)}
           />
         </div>
 
-        <div>
-          <label className={styles.userInfoLabel} htmlFor="search">Pesquisar</label>
+        <div className={styles.historyFilterGroup}>
+          <label htmlFor="search">Pesquisar</label>
           <input
             id="search"
             type="text"
             placeholder="Digite para filtrar…"
-            className={styles.input ?? ''}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
@@ -748,7 +742,7 @@ function loadImage(src: string): Promise<HTMLImageElement> {
         </div>
 
       {/* resumo */}
-      <div style={{ marginBottom: 8, fontSize: 14, opacity: 0.85 }}>
+      <div className={styles.historySummary}>
         Itens: <strong>{filtered.length}</strong>
         {selected.size > 0 && <> — Selecionados: <strong>{selected.size}</strong></>}
       </div>
