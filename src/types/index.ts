@@ -116,7 +116,7 @@ export interface FormResponse {
   collaboratorUsername: string; 
   answers: Record<string, any>;
   submittedAt: Timestamp;
-  status: 'pending' | 'approved' | 'rejected';
+  status: 'pending' | 'approved' | 'rejected' | 'submitted';
 }
 
 // --- TIPOS DE ORGANIZAÇÃO ---

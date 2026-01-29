@@ -9,6 +9,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { Company, Department, Form, FormResponse } from '@/types';
 import styles from '../styles/Dashboard.module.css';
 import AdminHistoryModal from '@/components/AdminHistoryModal'; // <<< SEU MODAL DE HISTÓRICO
+import ComprehensiveHistoryModal from '@/components/ComprehensiveHistoryModal'; // <<< NOVO MODAL COMPLETO
 
 // --- Utils ---
 function toDateCompat(val: any): Date | null {
@@ -127,6 +128,9 @@ export default function DashboardPage() {
     } | null;
     const [modalOpen, setModalOpen] = useState<ModalColabType>(null);
 
+    // Modal completo de histórico:
+    const [comprehensiveHistoryOpen, setComprehensiveHistoryOpen] = useState(false);
+
     // Carregar dados
     useEffect(() => {
         getDocs(query(collection(db, "companies"))).then(qs => {
@@ -160,6 +164,16 @@ export default function DashboardPage() {
             setLoading(l => ({ ...l, responses: false }));
         });
     }, [user]);
+
+    // Função para recarregar respostas após exclusão
+    const refreshResponses = () => {
+        if (!user) return;
+        setLoading(l => ({ ...l, responses: true }));
+        getDocs(query(collectionGroup(db, "responses"))).then(qs => {
+            setAllResponses(qs.docs.map(doc => ({ id: doc.id, ...doc.data() } as FormResponse)));
+            setLoading(l => ({ ...l, responses: false }));
+        });
+    };
 
     // Filtros
     const filteredResponses = useMemo(() => allResponses.filter(r => (
@@ -269,7 +283,14 @@ export default function DashboardPage() {
         <div className={styles.dashboardContainer}>
             <div className={styles.header}>
                 <h1 className={styles.title}>Dashboard Administrativo</h1>
-                <div className={styles.timeFilters}>
+                <div className={styles.headerActions}>
+                    <button
+                        className={styles.comprehensiveHistoryButton}
+                        onClick={() => setComprehensiveHistoryOpen(true)}
+                    >
+                        Histórico Completo
+                    </button>
+                    <div className={styles.timeFilters}>
                     {['day','week','month','year'].map(key => (
                         <button
                             key={key}
@@ -279,6 +300,7 @@ export default function DashboardPage() {
                             {key === 'day' ? 'Hoje' : key === 'week' ? 'Semana' : key === 'month' ? 'Mês' : 'Ano'}
                         </button>
                     ))}
+                    </div>
                 </div>
             </div>
 
@@ -505,65 +527,16 @@ export default function DashboardPage() {
 
             </div>
 
-            <div className={styles.adminSection}>
-                <h3 className={styles.adminTitle}>Resumo Detalhado por Colaborador / Depto / Empresa</h3>
-                <div className={styles.adminTableWrapper}>
-                    <table className={styles.adminTable}>
-                        <thead>
-                            <tr>
-                                <th>Empresa</th>
-                                <th>Departamento</th>
-                                <th>Colaborador</th>
-                                <th>Respostas</th>
-                                <th>Última Resposta</th>
-                                <th>Histórico</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {colaboradorRows.map((row, i) => {
-                                const empresa = companies.find(c => c.id === row.companyId)?.name || '';
-                                const depto = departments.find(d => d.id === row.departmentId)?.name || '';
-                                const ultima = row.responses.reduce((acc, curr) => {
-                                    const dt = toDateCompat(curr.createdAt) || toDateCompat(curr.submittedAt);
-                                    if (!acc) return dt;
-                                    return dt && dt > acc ? dt : acc;
-                                }, null as Date | null);
-
-                                return (
-                                    <tr key={row.id}>
-                                        <td>{empresa}</td>
-                                        <td>{depto}</td>
-                                        <td>{row.username}</td>
-                                        <td>{row.responses.length}</td>
-                                        <td>{ultima ? ultima.toLocaleString('pt-BR') : '-'}</td>
-                                        <td>
-                                            <button
-                                                className={styles.viewButton}
-                                                onClick={() => setModalOpen({
-                                                    username: row.username,
-                                                    empresa,
-                                                    depto,
-                                                    responses: row.responses
-                                                })}
-                                            >Histórico</button>
-                                        </td>
-                                    </tr>
-                                )
-                            })}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-
-            {/* SEU MODAL DE HISTÓRICO ADMIN */}
-            {modalOpen && (
-                <AdminHistoryModal
-                    open={!!modalOpen}
-                    onClose={() => setModalOpen(null)}
-                    collaboratorName={modalOpen.username}
-                    companyName={modalOpen.empresa}
-                    responses={modalOpen.responses}
+            {/* NOVO MODAL DE HISTÓRICO COMPLETO */}
+            {comprehensiveHistoryOpen && (
+                <ComprehensiveHistoryModal
+                    open={comprehensiveHistoryOpen}
+                    onClose={() => setComprehensiveHistoryOpen(false)}
+                    responses={filteredResponses}
                     forms={allForms}
+                    companies={companies}
+                    departments={departments}
+                    onResponsesUpdate={refreshResponses}
                 />
             )}
 
