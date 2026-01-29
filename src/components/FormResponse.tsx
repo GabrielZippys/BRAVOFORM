@@ -1,5 +1,4 @@
 // components/FormResponse.tsx
-
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
@@ -1597,7 +1596,7 @@ const controlBase = {
       disabled={isSubmitting}
     >
       <Send size={19} />
-      <span>{isSubmitting ? 'A Enviar...' : existingResponse ? 'Atualizar Resposta' : 'Submeter Resposta'}</span>
+      <span>{isSubmitting ? 'A Enviar...' : existingResponse ? 'Atualizar Resposta' : 'Enviar'}</span>
     </button>
   )}
 </div>
