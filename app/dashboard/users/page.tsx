@@ -153,7 +153,7 @@ export default function UsersPage() {
     }
     try {
       const userCredential = await createUserWithEmailAndPassword(auth, formState.adminEmail, formState.adminPassword);
-      await addDoc(collection(db, "users"), {
+      await addDoc(collection(db, "admins"), {
         uid: userCredential.user.uid,
         name: formState.adminName,
         email: formState.adminEmail,
