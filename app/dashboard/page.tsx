@@ -500,7 +500,7 @@ export default function DashboardPage() {
         <div key={response.id} className={styles.responseItem}>
           <div>
             <h4 className={styles.responseForm}>
-              {allForms.find(f => f.id === response.formId)?.title || 'Formulário Desconhecido'}
+              {response.formTitle || allForms.find(f => f.id === response.formId)?.title || 'Formulário Desconhecido'}
             </h4>
             <p className={styles.responseMeta}>
               {(() => {
