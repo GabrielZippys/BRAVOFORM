@@ -49,10 +49,18 @@ export default function LoginPage() {
   const [isRecovering, setIsRecovering] = useState(false);
   const router = useRouter();
 
-  // UX: guarda último usuário
+  // Limpar dados antigos quando a página carregar (importante para mobile)
   useEffect(() => {
+    console.log('🧹 Limpando dados antigos ao carregar página de login...');
+    
+    // Limpar sessionStorage para evitar conflitos com IDs antigos
+    sessionStorage.clear();
+    
+    // Manter apenas o último credential para UX
     const last = localStorage.getItem('last_credential');
     if (last) setCredential(last);
+    
+    console.log('✅ Página de login limpa e pronta');
   }, []);
 
   const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -65,6 +73,24 @@ export default function LoginPage() {
     if (isLoading) return;
     setError('');
     setIsLoading(true);
+
+    // Limpar dados antigos de sessão antes do login
+    console.log('🧹 Limpando dados antigos de sessão...');
+    try {
+      // Limpar sessionStorage completamente
+      sessionStorage.clear();
+      
+      // Limpar apenas dados sensíveis do localStorage (mantém preferências do usuário)
+      const keysToRemove = ['formDraft', 'last_credential'];
+      keysToRemove.forEach(key => localStorage.removeItem(key));
+      
+      // Fazer logout do Firebase Auth para limpar cache de autenticação
+      await auth.signOut();
+      
+      console.log('✅ Cache limpo com sucesso');
+    } catch (cleanupError) {
+      console.warn('⚠️ Erro ao limpar cache (não crítico):', cleanupError);
+    }
 
     // Buscar email correto no Firestore se for username
     console.log('=== LOGIN POR USERNAME/EMAIL ===');
