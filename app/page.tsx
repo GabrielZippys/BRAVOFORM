@@ -81,11 +81,8 @@ export default function LoginPage() {
       sessionStorage.clear();
       
       // Limpar apenas dados sensíveis do localStorage (mantém preferências do usuário)
-      const keysToRemove = ['formDraft', 'last_credential'];
+      const keysToRemove = ['formDraft'];
       keysToRemove.forEach(key => localStorage.removeItem(key));
-      
-      // Fazer logout do Firebase Auth para limpar cache de autenticação
-      await auth.signOut();
       
       console.log('✅ Cache limpo com sucesso');
     } catch (cleanupError) {
@@ -248,6 +245,9 @@ export default function LoginPage() {
             break;
           case 'auth/weak-password':
             errorMessage = 'A senha deve ter pelo menos 6 caracteres';
+            break;
+          case 'auth/too-many-requests':
+            errorMessage = 'Muitas tentativas de login. Por favor, aguarde alguns minutos e tente novamente.';
             break;
           default:
             errorMessage = firebaseError.message || 'Usuário ou senha incorretos';
