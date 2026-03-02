@@ -177,6 +177,9 @@ useEffect(() => {
   if (!collaborator?.id) return;
   setLoading(true);
 
+  console.log('🔍 Buscando formulários para colaborador ID:', collaborator.id);
+  console.log('📋 Colaborador completo:', collaborator);
+
   const qForms = query(
     collection(db, 'forms'),
     where('authorizedUsers', 'array-contains', collaborator.id)
@@ -185,6 +188,11 @@ useEffect(() => {
   const unsub = onSnapshot(
     qForms,
     (snapshot) => {
+      console.log('📊 Formulários encontrados para este colaborador:', snapshot.docs.length);
+      snapshot.docs.forEach((doc) => {
+        console.log('  - Formulário:', doc.data().title, '| ID:', doc.id);
+      });
+      
       const mapped = snapshot.docs.map((docSnap) => {
   const data = docSnap.data() as any;
   const safeId =

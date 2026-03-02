@@ -1817,11 +1817,19 @@ const toggleAutofill = useCallback((checked: boolean) => {
 
   // Handler de colaboradores
   const handleCollaboratorToggle = (collaboratorId: string): void => {
-    setAssignedCollaborators(prev =>
-      prev.includes(collaboratorId)
+    console.log('🔄 Toggle colaborador:', collaboratorId);
+    setAssignedCollaborators(prev => {
+      const isCurrentlyAssigned = prev.includes(collaboratorId);
+      const newAssigned = isCurrentlyAssigned
         ? prev.filter(id => id !== collaboratorId)
-        : [...prev, collaboratorId]
-    );
+        : [...prev, collaboratorId];
+      
+      console.log('Antes:', prev);
+      console.log('Depois:', newAssigned);
+      console.log('Ação:', isCurrentlyAssigned ? 'REMOVIDO' : 'ADICIONADO');
+      
+      return newAssigned;
+    });
   };
 
   // Handlers do menu

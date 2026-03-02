@@ -114,7 +114,7 @@ export default function LoginPage() {
         
         // Salvar dados da sessão
         const sessionData = {
-          id: userCredential.user.uid,
+          id: collaboratorSnapByUid.docs[0].id,  // ID do documento Firestore, não o UID
           username: collaboratorDataFound.username,
           name: collaboratorDataFound.name,
           email: collaboratorDataFound.email,
