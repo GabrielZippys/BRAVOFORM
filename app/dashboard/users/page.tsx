@@ -10,7 +10,7 @@ import styles from '../../styles/UsersSimple.module.css';
 import modalStyles from '../../styles/Modal.module.css';
 import { db } from '../../../firebase/config';
 import {
-  collection, addDoc, onSnapshot, query, where, doc, updateDoc, deleteDoc, getDoc
+  collection, addDoc, onSnapshot, query, where, doc, updateDoc, deleteDoc, getDoc, serverTimestamp
 } from 'firebase/firestore';
 import { createUserWithEmailAndPassword } from 'firebase/auth';
 import { auth } from '../../../firebase/config';
@@ -167,7 +167,7 @@ export default function UsersPage() {
     }
   };
 
-  // criar colaborador (Cloud Function com Firebase Auth)
+  // criar colaborador diretamente com Firebase Auth e Firestore
   const handleAddCollaborator = async (e: React.FormEvent) => {
     e.preventDefault();
     setFormError('');
@@ -178,36 +178,42 @@ export default function UsersPage() {
     }
 
     try {
-      const response = await fetch('https://us-central1-formbravo-8854e.cloudfunctions.net/createCollaborator', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          username: formState.collabUsername,
-          email: formState.collabEmail || `${formState.collabUsername.toLowerCase()}@bravoform.com`,
-          password: formState.collabPassword,
-          name: formState.collabName || formState.collabUsername,
-          department: selectedDepartment.name,
-          role: 'collaborator',
-          permissions: {
-            canEditHistory: false,
-            canDeleteForms: false,
-            canManageUsers: false
-          },
-          active: true
-        })
+      const email = formState.collabEmail || `${formState.collabUsername.toLowerCase()}@bravoform.com`;
+      
+      // Criar usuário no Firebase Auth
+      const userCredential = await createUserWithEmailAndPassword(auth, email, formState.collabPassword);
+      
+      // Salvar dados do colaborador no Firestore
+      await addDoc(collection(db, "collaborators"), {
+        uid: userCredential.user.uid,
+        username: formState.collabUsername,
+        email: email,
+        name: formState.collabName || formState.collabUsername,
+        department: selectedDepartment.name,
+        role: 'collaborator',
+        permissions: {
+          canViewHistory: false,
+          canEditHistory: false,
+          canManageUsers: false
+        },
+        active: true,
+        createdAt: serverTimestamp(),
+        lastLogin: null
       });
-
-      if (response.ok) {
-        const result = await response.json();
-        console.log('Collaborator created:', result);
-        closeModal();
-      } else {
-        const result = await response.json();
-        setFormError(result.error || "Não foi possível criar o acesso.");
-      }
-    } catch (error) {
-      setFormError("Erro de comunicação ao criar o acesso.");
+      
+      console.log('Collaborator created successfully:', userCredential.user.uid);
+      closeModal();
+    } catch (error: any) {
       console.error("Erro ao criar acesso de colaborador:", error);
+      if (error.code === 'auth/weak-password') {
+        setFormError('A senha deve ter pelo menos 6 caracteres.');
+      } else if (error.code === 'auth/email-already-in-use') {
+        setFormError('Este e-mail já está em uso.');
+      } else if (error.code === 'auth/invalid-email') {
+        setFormError('E-mail inválido.');
+      } else {
+        setFormError("Erro ao criar o acesso: " + (error.message || "Erro desconhecido"));
+      }
     }
   };
 
