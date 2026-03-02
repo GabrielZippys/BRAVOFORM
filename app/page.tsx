@@ -53,8 +53,33 @@ export default function LoginPage() {
   useEffect(() => {
     console.log('🧹 Limpando dados antigos ao carregar página de login...');
     
-    // Limpar sessionStorage para evitar conflitos com IDs antigos
+    // Limpar sessionStorage completamente
     sessionStorage.clear();
+    
+    // Limpar dados específicos do localStorage que podem estar corrompidos
+    const keysToClean = [
+      'collaborator_data',
+      'admin_data', 
+      'formDraft',
+      'firebase:authUser',
+      'firebase:host'
+    ];
+    
+    keysToClean.forEach(key => {
+      try {
+        // Limpar chaves exatas
+        localStorage.removeItem(key);
+        
+        // Limpar chaves que começam com o padrão (para Firebase)
+        Object.keys(localStorage).forEach(storageKey => {
+          if (storageKey.includes(key) || storageKey.startsWith('firebase:')) {
+            localStorage.removeItem(storageKey);
+          }
+        });
+      } catch (e) {
+        console.warn('Erro ao limpar chave:', key, e);
+      }
+    });
     
     // Manter apenas o último credential para UX
     const last = localStorage.getItem('last_credential');
@@ -98,17 +123,22 @@ export default function LoginPage() {
     if (!credential.includes('@')) {
       console.log('Buscando colaborador pelo username:', credential);
       
-      const collaboratorQuery = query(collection(db, "collaborators"), where("username", "==", credential));
-      const collaboratorSnap = await getDocs(collaboratorQuery);
-      
-      if (!collaboratorSnap.empty) {
-        const collaboratorData = collaboratorSnap.docs[0].data();
-        email = collaboratorData.email || `${credential.toLowerCase()}@bravoform.com`;
-        console.log('Email encontrado no Firestore:', email);
-      } else {
-        // Se não encontrar, gerar email automático
+      try {
+        const collaboratorQuery = query(collection(db, "collaborators"), where("username", "==", credential));
+        const collaboratorSnap = await getDocs(collaboratorQuery);
+        
+        if (!collaboratorSnap.empty) {
+          const collaboratorData = collaboratorSnap.docs[0].data();
+          email = collaboratorData.email || `${credential.toLowerCase()}@bravoform.com`;
+          console.log('Email encontrado no Firestore:', email);
+        } else {
+          // Se não encontrar, gerar email automático
+          email = `${credential.toLowerCase()}@bravoform.com`;
+          console.log('Email gerado (usuário não encontrado):', email);
+        }
+      } catch (queryError) {
+        console.warn('⚠️ Erro ao buscar colaborador, usando email gerado:', queryError);
         email = `${credential.toLowerCase()}@bravoform.com`;
-        console.log('Email gerado (usuário não encontrado):', email);
       }
     }
     
@@ -152,11 +182,16 @@ export default function LoginPage() {
         sessionStorage.setItem('collaborator_data', JSON.stringify(sessionData));
         localStorage.setItem('last_credential', credential);
         
-        // Atualizar último login no Firestore
-        await updateDoc(collaboratorSnapByUid.docs[0].ref, {
-          lastLogin: new Date(),
-          updatedAt: new Date()
-        });
+        // Atualizar último login no Firestore (não crítico, não bloqueia login)
+        try {
+          await updateDoc(collaboratorSnapByUid.docs[0].ref, {
+            lastLogin: new Date(),
+            updatedAt: new Date()
+          });
+          console.log('✅ Último login atualizado no Firestore');
+        } catch (updateError) {
+          console.warn('⚠️ Erro ao atualizar último login (não crítico):', updateError);
+        }
         
         router.push(sessionData.isTemporaryPassword ? '/set-new-password' : '/collaborator-view');
         
@@ -248,6 +283,13 @@ export default function LoginPage() {
             break;
           case 'auth/too-many-requests':
             errorMessage = 'Muitas tentativas de login. Por favor, aguarde alguns minutos e tente novamente.';
+            break;
+          case 'auth/network-request-failed':
+            errorMessage = 'Erro de conexão. Verifique sua internet e tente novamente.';
+            break;
+          case 'permission-denied':
+          case 'unavailable':
+            errorMessage = 'Erro ao conectar ao servidor. Tente novamente em alguns instantes.';
             break;
           default:
             errorMessage = firebaseError.message || 'Usuário ou senha incorretos';
