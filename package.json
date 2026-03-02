@@ -6,7 +6,8 @@
     "dev": "next dev --turbopack",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "migrate:collaborator-ids": "tsx scripts/migrate-collaborator-ids.ts"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
@@ -39,6 +40,7 @@
     "@types/recharts": "^1.8.29",
     "eslint": "^9",
     "eslint-config-next": "15.3.3",
+    "tsx": "^4.7.0",
     "typescript": "^5"
   }
 }
