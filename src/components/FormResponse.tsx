@@ -31,11 +31,12 @@ interface FormResponseProps {
   collaborator: {
     id: string;
     username: string;
-    companyId: string;
-    departmentId: string;
-    canViewHistory?: boolean;
-    canEditHistory?: boolean;
-    isLeader?: boolean;   // << ADICIONE ISTO
+    department?: string;
+    permissions?: {
+      canViewHistory?: boolean;
+      canEditHistory?: boolean;
+      canManageUsers?: boolean;
+    };
   };
   onClose: () => void;
   existingResponse?: FormResponseType | null;
@@ -644,7 +645,7 @@ async function ensureUploaded(item: any, pathPrefix: string) {
 
   // Preenche respostas automaticamente (somente para líderes)
 const handleAutoFillLeader = () => {
-  if (!collaborator?.isLeader) return;
+  if (!collaborator?.permissions?.canManageUsers) return;
 
   const nextResponses: Record<string, any> = { ...responses };
   const nextOthers: Record<string, string> = { ...otherInputValues };
@@ -857,7 +858,6 @@ else if ((c.type || '').toLowerCase() === 'date') {
       ? responses[fieldId][rowId][colId]
       : '';
   const disabled = !canEdit && !!existingResponse;
-
   const base = {
   width: '100%',
   background: theme.inputBgColor,
@@ -871,7 +871,6 @@ else if ((c.type || '').toLowerCase() === 'date') {
   fontSize: 16,
   ...invalidize(fieldId),
 } as React.CSSProperties;
-
 
   switch (col.type) {
     case 'text':
@@ -923,7 +922,6 @@ else if ((c.type || '').toLowerCase() === 'date') {
       );
     }
 
-
     case 'date':
 case 'Data':
   return (
@@ -935,7 +933,6 @@ case 'Data':
       disabled={disabled}
     />
   );
-
 
     case 'select':
       return (
@@ -1551,7 +1548,7 @@ const controlBase = {
     </div>
   )}
 
-  {collaborator?.isLeader && (
+  {collaborator?.permissions?.canManageUsers && (
     <button
       type="button"
       onClick={handleAutoFillLeader}

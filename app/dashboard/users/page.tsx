@@ -6,7 +6,7 @@ import {
   UserPlus, Edit, Trash2, KeyRound, History, Star
 } from 'lucide-react';
 import Modal from '@/components/Modal';
-import styles from '../../styles/Users.module.css';
+import styles from '../../styles/UsersSimple.module.css';
 import modalStyles from '../../styles/Modal.module.css';
 import { db } from '../../../firebase/config';
 import {
@@ -294,10 +294,12 @@ export default function UsersPage() {
   });
 
   const renderContent = () => {
-    switch (view) {
-      case 'collaborators':
-        return (
-          <div className={styles.frame}>
+    try {
+      switch (view) {
+        case 'collaborators':
+          console.log('📍 Rendering collaborators, count:', sortedCollaborators.length);
+          return (
+            <div className={styles.frame}>
             <div className={styles.frameHeader}>
               <h3 className={styles.frameTitle}>Acesso dos Colaboradores</h3>
               <button onClick={() => openModal('collaborator')} className={styles.button}>
@@ -306,7 +308,9 @@ export default function UsersPage() {
             </div>
 
             <div className={styles.list}>
-              {sortedCollaborators.length > 0 ? sortedCollaborators.map(c => (
+              {sortedCollaborators.length > 0 ? sortedCollaborators.map(c => {
+                console.log('📍 Rendering collaborator:', c.username, c.id);
+                return (
                 <div key={c.id} className={styles.itemCard} style={{ flexDirection: 'column', alignItems: 'stretch' }}>
                   <h4
                     className={styles.itemName}
@@ -321,7 +325,7 @@ export default function UsersPage() {
                   >
                     {c.username}
 
-                    {c.isLeader && (
+                    {c.permissions?.canManageUsers && (
                       <span className={styles.leaderBadge}>
                         <Star size={14} fill="currentColor" />
                         Líder
@@ -346,54 +350,56 @@ export default function UsersPage() {
                     </button>
                   </h4>
 
-                  <div className={styles.advancedOptions}>
-                    <div className={styles.permissionsGrid}>
-                      <div className={styles.permissionToggle}>
-                        <label className={styles.toggleLabel} htmlFor={`history-toggle-${c.id}`}>Ver Histórico</label>
-                        <label className={styles.toggleSwitch}>
-                          <input
-                            id={`history-toggle-${c.id}`}
-                            type="checkbox"
-                            checked={!!c.canViewHistory}
-                            onChange={() => handleTogglePermission(c, 'canViewHistory')}
-                          />
-                          <span className={styles.slider}></span>
-                        </label>
-                      </div>
-
-                      <div className={styles.permissionToggle}>
-                        <label className={styles.toggleLabel} htmlFor={`edit-toggle-${c.id}`}>Editar Histórico</label>
-                        <label className={styles.toggleSwitch}>
-                          <input
-                            id={`edit-toggle-${c.id}`}
-                            type="checkbox"
-                            checked={!!c.canEditHistory}
-                            onChange={() => handleTogglePermission(c, 'canEditHistory')}
-                          />
-                          <span className={styles.slider}></span>
-                        </label>
-                      </div>
-
-                      <div className={styles.permissionToggle}>
-                        <button
-                          type="button"
-                          className={`${styles.leaderToggle} ${c.isLeader ? styles.on : ''}`}
-                          onClick={() => handleToggleLeader(c)}
-                          aria-pressed={!!c.isLeader}
-                          title={c.isLeader ? 'Remover como líder' : 'Definir como líder'}
-                        >
-                          <Star size={16} fill={c.isLeader ? 'currentColor' : 'none'} />
-                          {c.isLeader ? 'Líder' : 'Tornar líder'}
-                        </button>
-                      </div>
-
-                      <button className={styles.deleteButton} onClick={() => handleDeleteCollaborator(c.id)}>
-                        <Trash2 size={16} /> Excluir
-                      </button>
+                  <div className={styles.permissionsGrid}>
+                    <div className={styles.permissionItem}>
+                      <span>Ver Histórico</span>
+                      <label className={styles.switch}>
+                        <input
+                          id={`history-toggle-${c.id}`}
+                          type="checkbox"
+                          checked={!!c.permissions?.canViewHistory}
+                          onChange={() => handleTogglePermission(c, 'canViewHistory')}
+                        />
+                        <span className={styles.slider}></span>
+                      </label>
+                    </div>
+                    <div className={styles.permissionItem}>
+                      <span>Editar Histórico</span>
+                      <label className={styles.switch}>
+                        <input
+                          id={`edit-toggle-${c.id}`}
+                          type="checkbox"
+                          checked={!!c.permissions?.canEditHistory}
+                          onChange={() => handleTogglePermission(c, 'canEditHistory')}
+                        />
+                        <span className={styles.slider}></span>
+                      </label>
+                    </div>
+                    <div className={styles.permissionItem}>
+                      <span>Líder</span>
+                      <label className={styles.switch}>
+                        <input
+                          id={`leader-toggle-${c.id}`}
+                          type="checkbox"
+                          checked={!!c.permissions?.canManageUsers}
+                          onChange={() => handleToggleLeader(c)}
+                        />
+                        <span className={styles.slider}></span>
+                      </label>
                     </div>
                   </div>
+
+                  <div className={styles.cardActions}>
+                    <button
+                      onClick={() => handleDeleteCollaborator(c.id)}
+                      className={styles.deleteButton}
+                    >
+                      <Trash2 size={16} /> Excluir
+                    </button>
+                  </div>
                 </div>
-              )) : (
+              );
+              }) : (
                 <p className={styles.emptyState}>Nenhum acesso criado para este setor.</p>
               )}
             </div>
@@ -467,6 +473,10 @@ export default function UsersPage() {
             </div>
           </>
         );
+      }
+    } catch (error) {
+      console.error('❌ Error in renderContent:', error);
+      return <div style={{padding: '20px', color: 'red'}}>Erro ao renderizar conteúdo: {String(error)}</div>;
     }
   };
 
@@ -642,16 +652,6 @@ export default function UsersPage() {
                 </div>
 
                 <div className={modalStyles.formGroup}>
-                  <label className={modalStyles.label}>Nome Completo</label>
-                  <input
-                    value={formState.collabName}
-                    onChange={e => setFormState({ ...formState, collabName: e.target.value })}
-                    className={modalStyles.input}
-                    placeholder="Nome completo do colaborador"
-                  />
-                </div>
-
-                <div className={modalStyles.formGroup}>
                   <label className={modalStyles.label}>Email</label>
                   <input
                     type="email"
@@ -659,6 +659,7 @@ export default function UsersPage() {
                     onChange={e => setFormState({ ...formState, collabEmail: e.target.value })}
                     className={modalStyles.input}
                     placeholder="email@empresa.com"
+                    required
                   />
                 </div>
 

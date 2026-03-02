@@ -122,29 +122,42 @@ const responsesToday = useMemo(() => {
 }, [allDeptResponses, todayStart, todayEnd]);
 
 useEffect(() => {
-  if (!departmentId) { setCollaborators([]); return; }
+  if (!department) { setCollaborators([]); return; }
+
+  // Query collaborators by department name from root collection
+  const q = query(
+    collection(db, 'collaborators'),
+    where('department', '==', department)
+  );
 
   const unsub = onSnapshot(
-    collection(db, 'departments', departmentId, 'collaborators'),
+    q,
     (snap) => {
       const list = snap.docs.map((d) => {
         const data = d.data() as any;
         return {
           id: d.id,
-          username: data.username ?? data.name ?? '(sem nome)',
-          isLeader: !!data.isLeader,
-        } as CollaboratorDoc;
+          username: data.username ?? '',
+          isLeader: !!data.permissions?.canManageUsers,
+        };
       });
-
-      setCollaborators(list.filter((c) => !c.isLeader)); // só não-líderes
-    }
+      setCollaborators(list);
+    },
+    (err) => console.error('Erro ao carregar colaboradores:', err)
   );
 
   return () => unsub();
-}, [departmentId]);
+}, [department]);
   
- // 🔧 Carrega formulários do setor
+ // TODO: Carrega formulários do setor - precisa ser adaptado para usar department name
   useEffect(() => {
+    // Temporarily disabled - needs refactoring to use department name instead of IDs
+    setForms([]);
+    setCounts({});
+    setLoading(false);
+    return;
+    
+    /* COMMENTED OUT - NEEDS REFACTORING
     if (!companyId || !departmentId) {
       setForms([]);
       setCounts({});
