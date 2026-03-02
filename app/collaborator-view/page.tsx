@@ -27,11 +27,19 @@ interface Collaborator {
   id: string;
   username: string;
   email?: string;
-  companyId: string;
-  departmentId: string;
-  canViewHistory?: boolean;
-  canEditHistory?: boolean;
-  isLeader?: boolean;
+  department?: string; // Nova estrutura: nome do departamento em vez de ID
+  role?: string;
+  permissions?: {
+    canViewHistory?: boolean;
+    canEditHistory?: boolean;
+    canDeleteForms?: boolean;
+    canManageUsers?: boolean;
+  };
+  active?: boolean;
+  isTemporaryPassword?: boolean;
+  lastLogin?: any;
+  createdAt?: any;
+  updatedAt?: any;
 }
 
 interface Form {
@@ -118,11 +126,32 @@ const [todayCountByForm, setTodayCountByForm] = useState<Record<string, number>>
           return;
         }
         const parsed = JSON.parse(storedData) as Collaborator;
-        const collRef = doc(db, 'departments', parsed.departmentId, 'collaborators', parsed.id);
+        
+        console.log('👤 Dados do colaborador do sessionStorage:', parsed);
+        console.log('Permissões:', parsed.permissions);
+        console.log('canViewHistory:', parsed.permissions?.canViewHistory);
+        console.log('canEditHistory:', parsed.permissions?.canEditHistory);
+        console.log('canManageUsers:', parsed.permissions?.canManageUsers);
+        
+        // Buscar na nova estrutura: coleção raiz 'collaborators'
+        const collRef = doc(db, 'collaborators', parsed.id);
         const snap = await getDoc(collRef);
-        if (snap.exists()) setCollaborator({ ...parsed, ...(snap.data() as any) });
-        else setCollaborator(parsed);
-      } catch {
+        
+        if (snap.exists()) {
+          const firestoreData = snap.data();
+          const mergedData = { ...parsed, ...firestoreData };
+          setCollaborator(mergedData);
+          console.log('✅ Colaborador carregado da coleção raiz:', mergedData);
+          console.log('Permissões finais:', mergedData.permissions);
+          console.log('FINAL - canViewHistory:', mergedData.permissions?.canViewHistory);
+          console.log('FINAL - canEditHistory:', mergedData.permissions?.canEditHistory);
+          console.log('FINAL - canManageUsers:', mergedData.permissions?.canManageUsers);
+        } else {
+          console.log('Colaborador não encontrado na coleção raiz, usando dados do sessionStorage');
+          setCollaborator(parsed);
+        }
+      } catch (error) {
+        console.error('Error loading collaborator:', error);
         router.push('/');
       }
     };
@@ -130,38 +159,17 @@ const [todayCountByForm, setTodayCountByForm] = useState<Record<string, number>>
   }, [router]);
 
   // Nomes de empresa/departamento
-useEffect(() => {
-  if (!collaborator) return;
-  const { companyId, departmentId } = collaborator;
-
-  (async () => {
-    try {
-      // Empresa
-      let cName = '';
-      if (companyId) {
-        const csnap = await getDoc(doc(db, 'companies', companyId));
-        if (csnap.exists()) cName = (csnap.data() as any).name ?? '';
-      }
-
-      // Departamento: tenta subcoleção dentro da empresa e, se não existir, top-level
-      let dName = '';
-      if (companyId && departmentId) {
-        let dsnap = await getDoc(doc(db, 'companies', companyId, 'departments', departmentId));
-        if (!dsnap.exists()) {
-          dsnap = await getDoc(doc(db, 'departments', departmentId));
-        }
-        if (dsnap.exists()) dName = (dsnap.data() as any).name ?? '';
-      }
-
-      setCompanyName(cName);
-      setDepartmentName(dName);
-    } catch (e) {
-      console.error('Erro ao buscar nomes:', e);
-      setCompanyName('');
-      setDepartmentName('');
-    }
-  })();
-}, [collaborator?.companyId, collaborator?.departmentId]);
+  useEffect(() => {
+    if (!collaborator) return;
+    
+    // Na nova estrutura, temos apenas 'department' com o nome do departamento
+    const { department } = collaborator;
+    
+    setCompanyName('BRAVOFORM'); // Nome fixo da empresa
+    setDepartmentName(department || ''); // Usar o nome do departamento diretamente
+    
+    console.log('Collaborator department:', department);
+  }, [collaborator?.department]);
 
 
   // Formulários autorizados
@@ -431,7 +439,7 @@ const doneToday = totalForms - pendingToday;
             Formulários
           </button>
 
-          {collaborator?.canViewHistory && (
+          {collaborator?.permissions?.canViewHistory && (
             <button
               className={`${styles.toggleButton} ${view === 'history' ? styles.active : ''}`}
               onClick={() => setView('history')}
@@ -440,7 +448,7 @@ const doneToday = totalForms - pendingToday;
             </button>
           )}
 
-          {collaborator?.isLeader && (
+          {collaborator?.permissions?.canManageUsers && (
             <button
               className={`${styles.toggleButton} ${view === 'leaderDash' ? styles.active : ''}`}
               onClick={() => setView('leaderDash')}
@@ -537,20 +545,20 @@ const respondedToday = used > 0;
           )
         )}
         
-{view === 'history' && collaborator?.canViewHistory && (
+{view === 'history' && collaborator?.permissions?.canViewHistory && (
   <HistoryPanel
     collaboratorId={collaborator.id}
-    canEdit={!!collaborator?.canEditHistory}
+    canEdit={!!collaborator?.permissions?.canEditHistory}
     onOpen={handleHistoryOpen} // abre o modal que você já tem
   />
 )}
         
         
         {/* DASH DO LÍDER */}
-        {!loading && view === 'leaderDash' && collaborator?.isLeader && collaborator?.companyId && collaborator?.departmentId && (
+        {!loading && view === 'leaderDash' && collaborator?.permissions?.canManageUsers && (
           <DepartmentLeaderDash
-            companyId={collaborator.companyId}
-            departmentId={collaborator.departmentId}
+            collaboratorId={collaborator.id}
+            department={collaborator.department || ''}
           />
         )}
       </div>
@@ -562,7 +570,7 @@ const respondedToday = used > 0;
           onClose={() => setModalOpen(false)}
           form={formSelecionado}
           response={respostaSelecionada}
-          canEdit={!!collaborator?.canEditHistory}
+          canEdit={!!collaborator?.permissions?.canEditHistory}
         />
       )}
 

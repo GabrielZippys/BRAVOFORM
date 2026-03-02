@@ -93,7 +93,7 @@ type TimeWindow = '7d' | '30d' | '90d';
 type FilterMode = 'presets' | 'range' | 'day';
 
 
-export default function DepartmentLeaderDash({ companyId, departmentId }: { companyId: string; departmentId: string; }) {
+export default function DepartmentLeaderDash({ collaboratorId, department }: { collaboratorId: string; department: string }) {
   const [forms, setForms] = useState<FormDoc[]>([]);
   const [counts, setCounts] = useState<Record<string, number>>({});
   const [recent, setRecent] = useState<RespDoc[]>([]);

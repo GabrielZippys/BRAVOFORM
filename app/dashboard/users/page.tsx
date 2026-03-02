@@ -8,11 +8,12 @@ import {
 import Modal from '@/components/Modal';
 import styles from '../../styles/Users.module.css';
 import modalStyles from '../../styles/Modal.module.css';
-import { db, auth } from '../../../firebase/config';
+import { db } from '../../../firebase/config';
 import {
-  collection, addDoc, onSnapshot, query, where, doc, updateDoc, deleteDoc
+  collection, addDoc, onSnapshot, query, where, doc, updateDoc, deleteDoc, getDoc
 } from 'firebase/firestore';
 import { createUserWithEmailAndPassword } from 'firebase/auth';
+import { auth } from '../../../firebase/config';
 
 // --- Tipos de Dados ---
 interface Company { id: string; name: string; }
@@ -24,6 +25,12 @@ interface Collaborator {
   canViewHistory?: boolean;
   canEditHistory?: boolean;
   isLeader?: boolean;
+  permissions?: {
+    canViewHistory?: boolean;
+    canEditHistory?: boolean;
+    canDeleteForms?: boolean;
+    canManageUsers?: boolean;
+  };
 }
 type ModalType = 'company' | 'department' | 'collaborator' | 'adminUser' | 'editCollaborator';
 
@@ -47,6 +54,8 @@ export default function UsersPage() {
     adminPassword: '',
     adminPasswordConfirm: '',
     collabUsername: '',
+    collabEmail: '',
+    collabName: '',
     collabPassword: '',
   });
   const [showPassword, setShowPassword] = useState(false);
@@ -81,7 +90,7 @@ export default function UsersPage() {
   useEffect(() => {
     if (!selectedDepartment) { setCollaborators([]); return; }
     const unsub = onSnapshot(
-      query(collection(db, `departments/${selectedDepartment.id}/collaborators`)),
+      query(collection(db, "collaborators"), where("department", "==", selectedDepartment.name)),
       (snapshot) => setCollaborators(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Collaborator)))
     );
     return () => unsub();
@@ -109,10 +118,13 @@ export default function UsersPage() {
       adminPassword: '',
       adminPasswordConfirm: '',
       collabUsername: '',
+      collabEmail: '',
+      collabName: '',
       collabPassword: '',
     });
     setEditingTarget(null);
     setEditingName('');
+    setFormError('');
   };
 
   // --- CRUD ---
@@ -155,7 +167,7 @@ export default function UsersPage() {
     }
   };
 
-  // criar colaborador (Cloud Function)
+  // criar colaborador (Cloud Function com Firebase Auth)
   const handleAddCollaborator = async (e: React.FormEvent) => {
     e.preventDefault();
     setFormError('');
@@ -166,18 +178,28 @@ export default function UsersPage() {
     }
 
     try {
-      const response = await fetch('https://southamerica-east1-formbravo-8854e.cloudfunctions.net/createCollaborator', {
+      const response = await fetch('https://us-central1-formbravo-8854e.cloudfunctions.net/createCollaborator', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           username: formState.collabUsername,
+          email: formState.collabEmail || `${formState.collabUsername.toLowerCase()}@bravoform.com`,
           password: formState.collabPassword,
-          companyId: selectedCompany.id,
-          departmentId: selectedDepartment.id
+          name: formState.collabName || formState.collabUsername,
+          department: selectedDepartment.name,
+          role: 'collaborator',
+          permissions: {
+            canEditHistory: false,
+            canDeleteForms: false,
+            canManageUsers: false
+          },
+          active: true
         })
       });
 
       if (response.ok) {
+        const result = await response.json();
+        console.log('Collaborator created:', result);
         closeModal();
       } else {
         const result = await response.json();
@@ -192,9 +214,13 @@ export default function UsersPage() {
   // --- NOVAS FUNÇÕES: permissões e líder ---
   const handleTogglePermission = async (collaborator: Collaborator, permission: 'canViewHistory' | 'canEditHistory') => {
     if (!selectedDepartment) return;
-    const collaboratorRef = doc(db, `departments/${selectedDepartment.id}/collaborators`, collaborator.id);
+    const collaboratorRef = doc(db, "collaborators", collaborator.id);
     try {
-      await updateDoc(collaboratorRef, { [permission]: !collaborator[permission] });
+      const currentValue = collaborator.permissions?.[permission] || false;
+      await updateDoc(collaboratorRef, { 
+        [`permissions.${permission}`]: !currentValue 
+      });
+      console.log(`✅ Permissão ${permission} atualizada para:`, !currentValue);
     } catch (error) {
       console.error("Erro ao atualizar permissão:", error);
     }
@@ -202,19 +228,38 @@ export default function UsersPage() {
 
   const handleDeleteCollaborator = async (collaboratorId: string) => {
     if (!selectedDepartment) return;
-    const collaboratorRef = doc(db, `departments/${selectedDepartment.id}/collaborators`, collaboratorId);
-    try {
-      await deleteDoc(collaboratorRef);
-    } catch (error) {
-      console.error("Erro ao excluir colaborador:", error);
+    
+    if (confirm('Tem certeza que deseja excluir este colaborador? Esta ação não pode ser desfeita.')) {
+      try {
+        // 1. Excluir da coleção raiz
+        const collaboratorRef = doc(db, "collaborators", collaboratorId);
+        await deleteDoc(collaboratorRef);
+        console.log('Documento excluído da coleção raiz');
+        
+        // 2. Excluir da subcoleção do departamento
+        const deptCollabRef = doc(db, `departments/${selectedDepartment.id}/collaborators`, collaboratorId);
+        await deleteDoc(deptCollabRef);
+        console.log('Documento excluído da subcoleção do departamento');
+        
+        console.log('Colaborador excluído do Firestore');
+        alert('Colaborador excluído com sucesso! Para excluir completamente do Firebase Authentication, use o console do Firebase.');
+        
+      } catch (error) {
+        console.error("Erro ao excluir colaborador:", error);
+        alert('Erro ao excluir colaborador. Tente novamente.');
+      }
     }
   };
 
   const handleToggleLeader = async (collaborator: Collaborator) => {
     if (!selectedDepartment) return;
-    const collaboratorRef = doc(db, `departments/${selectedDepartment.id}/collaborators`, collaborator.id);
+    const collaboratorRef = doc(db, "collaborators", collaborator.id);
     try {
-      await updateDoc(collaboratorRef, { isLeader: !collaborator.isLeader });
+      const currentValue = collaborator.permissions?.canManageUsers || false;
+      await updateDoc(collaboratorRef, { 
+        'permissions.canManageUsers': !currentValue 
+      });
+      console.log(`✅ Permissão de líder atualizada para:`, !currentValue);
     } catch (error) {
       console.error("Erro ao atualizar líder:", error);
     }
@@ -230,7 +275,7 @@ export default function UsersPage() {
   const handleSaveCollaboratorName = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedDepartment || !editingTarget) return;
-    const ref = doc(db, `departments/${selectedDepartment.id}/collaborators`, editingTarget.id);
+    const ref = doc(db, "collaborators", editingTarget.id);
     try {
       await updateDoc(ref, { username: editingName.trim() });
       closeModal();
@@ -593,6 +638,27 @@ export default function UsersPage() {
                     onChange={e => setFormState({ ...formState, collabUsername: e.target.value })}
                     className={modalStyles.input}
                     required
+                  />
+                </div>
+
+                <div className={modalStyles.formGroup}>
+                  <label className={modalStyles.label}>Nome Completo</label>
+                  <input
+                    value={formState.collabName}
+                    onChange={e => setFormState({ ...formState, collabName: e.target.value })}
+                    className={modalStyles.input}
+                    placeholder="Nome completo do colaborador"
+                  />
+                </div>
+
+                <div className={modalStyles.formGroup}>
+                  <label className={modalStyles.label}>Email</label>
+                  <input
+                    type="email"
+                    value={formState.collabEmail}
+                    onChange={e => setFormState({ ...formState, collabEmail: e.target.value })}
+                    className={modalStyles.input}
+                    placeholder="email@empresa.com"
                   />
                 </div>
 

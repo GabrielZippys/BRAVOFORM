@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { signInWithEmailAndPassword } from 'firebase/auth';
-import { collection, query, where, getDocs } from 'firebase/firestore';
+import { collection, query, where, getDocs, updateDoc } from 'firebase/firestore';
 import { auth, db } from '../firebase/config';
 import styles from '../app/styles/entrada.module.css';
 import Image from 'next/image';
@@ -56,38 +56,184 @@ export default function LoginPage() {
   }, []);
 
   const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
+    console.log('=== INÍCIO DO HANDLE LOGIN ===');
+    console.log('credential:', credential);
+    console.log('password:', password ? '***' : 'vazio');
+    console.log('isLoading:', isLoading);
+    
     e.preventDefault();
     if (isLoading) return;
     setError('');
     setIsLoading(true);
 
-    const isEmail = credential.includes('@');
-    try {
-      if (isEmail) {
-        const userCredential = await signInWithEmailAndPassword(auth, credential, password);
-        const usersQuery = query(collection(db, "users"), where("uid", "==", userCredential.user.uid));
-        const snap = await getDocs(usersQuery);
-        if (!snap.empty && (snap.docs[0].data() as AppUser).role === 'Admin') {
-          localStorage.setItem('last_credential', credential);
-          router.push('/dashboard');
-        } else {
-          await auth.signOut();
-          throw new Error('Este utilizador não tem permissões de administrador.');
-        }
+    // Buscar email correto no Firestore se for username
+    console.log('=== LOGIN POR USERNAME/EMAIL ===');
+    
+    let email = credential;
+    
+    // Se não for email, buscar o colaborador para obter o email correto
+    if (!credential.includes('@')) {
+      console.log('Buscando colaborador pelo username:', credential);
+      
+      const collaboratorQuery = query(collection(db, "collaborators"), where("username", "==", credential));
+      const collaboratorSnap = await getDocs(collaboratorQuery);
+      
+      if (!collaboratorSnap.empty) {
+        const collaboratorData = collaboratorSnap.docs[0].data();
+        email = collaboratorData.email || `${credential.toLowerCase()}@bravoform.com`;
+        console.log('Email encontrado no Firestore:', email);
       } else {
-        const response = await fetch('https://us-central1-formbravo-8854e.cloudfunctions.net/collaboratorLogin', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ username: credential, password })
-        });
-        const sessionData = await response.json();
-        if (!response.ok) throw new Error(sessionData.error || 'Falha no login.');
+        // Se não encontrar, gerar email automático
+        email = `${credential.toLowerCase()}@bravoform.com`;
+        console.log('Email gerado (usuário não encontrado):', email);
+      }
+    }
+    
+    console.log('Credential fornecido:', credential);
+    console.log('Email usado para login:', email);
+    
+    try {
+      // Login com Firebase Auth usando o email
+      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      console.log('Firebase Auth successful:', userCredential.user.uid);
+      
+      // Buscar dados do colaborador na coleção raiz
+      const collaboratorQueryByUid = query(collection(db, "collaborators"), where("uid", "==", userCredential.user.uid));
+      const collaboratorSnapByUid = await getDocs(collaboratorQueryByUid);
+      console.log('Collaborator query snapshot:', collaboratorSnapByUid.empty ? 'empty' : collaboratorSnapByUid.docs[0].data());
+      
+      if (!collaboratorSnapByUid.empty) {
+        const collaboratorDataFound = collaboratorSnapByUid.docs[0].data();
+        console.log('Collaborator data found:', collaboratorDataFound);
+        
+        // Verificar se está ativo
+        if (!collaboratorDataFound.active) {
+          await auth.signOut();
+          throw new Error('Usuário inativo.');
+        }
+        
+        // Salvar dados da sessão
+        const sessionData = {
+          id: userCredential.user.uid,
+          username: collaboratorDataFound.username,
+          name: collaboratorDataFound.name,
+          email: collaboratorDataFound.email,
+          department: collaboratorDataFound.department,
+          role: collaboratorDataFound.role,
+          permissions: collaboratorDataFound.permissions || {},
+          isTemporaryPassword: collaboratorDataFound.isTemporaryPassword || false,
+          lastLogin: new Date().toISOString()
+        };
+        
+        console.log('Session data created:', sessionData);
         sessionStorage.setItem('collaborator_data', JSON.stringify(sessionData));
         localStorage.setItem('last_credential', credential);
+        
+        // Atualizar último login no Firestore
+        await updateDoc(collaboratorSnapByUid.docs[0].ref, {
+          lastLogin: new Date(),
+          updatedAt: new Date()
+        });
+        
         router.push(sessionData.isTemporaryPassword ? '/set-new-password' : '/collaborator-view');
+        
+      } else {
+        console.log('Colaborador não encontrado, tentando login como admin...');
+        
+        // Se não encontrou como colaborador, tentar como admin (só se for email)
+        if (credential.includes('@')) {
+          console.log('=== TENTANDO LOGIN COMO ADMIN ===');
+          const usersQuery = query(collection(db, "users"), where("uid", "==", userCredential.user.uid));
+          const snap = await getDocs(usersQuery);
+          console.log('Admin query result - empty:', snap.empty, 'docs count:', snap.docs.length);
+          
+          if (!snap.empty && (snap.docs[0].data() as AppUser).role === 'Admin') {
+            console.log('Admin user found and role is Admin:', snap.docs[0].data());
+            localStorage.setItem('last_credential', credential);
+            router.push('/dashboard');
+          } else {
+            console.log('Admin user not found or role is not Admin');
+            await auth.signOut();
+            throw new Error('Usuário ou senha incorretos');
+          }
+        } else {
+          await auth.signOut();
+          throw new Error('Usuário ou senha incorretos');
+        }
       }
-    } catch (err: any) {
-      setError('Usuário ou senha incorretos');
+    } catch (err) {
+      console.error('Erro durante login - tipo:', typeof err);
+      console.error('Erro durante login - valor:', err);
+      console.error('Erro durante login - string:', String(err));
+      console.error('Erro durante login - JSON:', JSON.stringify(err, null, 2));
+      console.error('Erro durante login - keys:', err ? Object.keys(err) : 'no keys');
+      
+      // Tentar acessar propriedades específicas do erro
+      if (err && typeof err === 'object') {
+        console.error('Erro.code:', (err as any).code);
+        console.error('Erro.message:', (err as any).message);
+        console.error('Erro.customData:', (err as any).customData);
+      }
+      
+      // Se for erro de credenciais inválidas, mostrar qual email foi tentado
+      if ((err as any)?.code === 'auth/invalid-credential') {
+        console.log('🔍 DEBUG - Credenciais inválidas:');
+        console.log('   Username informado:', credential);
+        console.log('   Email tentado:', email);
+        console.log('   Possíveis causas:');
+        console.log('   1. Email no Firebase Auth é diferente');
+        console.log('   2. Senha está incorreta');
+        console.log('   3. Usuário não existe no Firebase Auth');
+        
+        // Tentar buscar o usuário pelo username para ver qual email está cadastrado
+        console.log('🔍 Buscando usuário no Firestore para verificar email cadastrado...');
+        const collaboratorQuery = query(collection(db, "collaborators"), where("username", "==", credential));
+        const collaboratorSnap = await getDocs(collaboratorQuery);
+        
+        if (!collaboratorSnap.empty) {
+          const collaboratorData = collaboratorSnap.docs[0].data();
+          console.log('   Usuário encontrado no Firestore:', collaboratorData);
+          console.log('   Email cadastrado no Firestore:', collaboratorData.email);
+        } else {
+          console.log('   Usuário não encontrado no Firestore');
+        }
+      }
+      
+      let errorMessage = 'Usuário ou senha incorretos';
+      
+      // Verificar se é um erro do Firebase Auth
+      if (err && typeof err === 'object' && 'code' in err) {
+        const firebaseError = err as any;
+        console.log('Firebase error code:', firebaseError.code);
+        console.log('Firebase error message:', firebaseError.message);
+        
+        switch (firebaseError.code) {
+          case 'auth/invalid-credential':
+            errorMessage = 'Email ou senha incorretos';
+            break;
+          case 'auth/user-not-found':
+            errorMessage = 'Usuário não encontrado';
+            break;
+          case 'auth/wrong-password':
+            errorMessage = 'Senha incorreta';
+            break;
+          case 'auth/email-already-in-use':
+            errorMessage = 'Email já está em uso';
+            break;
+          case 'auth/weak-password':
+            errorMessage = 'A senha deve ter pelo menos 6 caracteres';
+            break;
+          default:
+            errorMessage = firebaseError.message || 'Usuário ou senha incorretos';
+        }
+      } else if (err && typeof err === 'object' && 'message' in err) {
+        errorMessage = (err as any).message;
+      } else if (typeof err === 'string') {
+        errorMessage = err;
+      }
+      
+      console.log('Mensagem de erro final:', errorMessage);
+      setError(errorMessage);
       setIsLoading(false);
     }
   };

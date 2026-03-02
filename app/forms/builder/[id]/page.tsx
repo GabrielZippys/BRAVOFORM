@@ -1379,33 +1379,47 @@ const loadCollaborators = useCallback(
 );
 
  useEffect(() => {
-    setLoading(true);
+    const loadData = async () => {
+      setLoading(true);
 
-    const resolvedCompanyId = props.companyId || searchParams.get('companyId');
-    const resolvedDepartmentId = props.departmentId || searchParams.get('departmentId');
+      const resolvedCompanyId = props.companyId || searchParams.get('companyId');
+      const resolvedDepartmentId = props.departmentId || searchParams.get('departmentId');
 
-    if (!resolvedCompanyId || !resolvedDepartmentId) {
-        setLoading(false);
-        return;
-    }
+      if (!resolvedCompanyId || !resolvedDepartmentId) {
+          setLoading(false);
+          return;
+      }
 
-    setCompanyId(resolvedCompanyId);
-    setDepartmentId(resolvedDepartmentId);
+      setCompanyId(resolvedCompanyId);
+      setDepartmentId(resolvedDepartmentId);
 
-    // --- Lógica de Colaboradores (onSnapshot) ---
-    const collaboratorsQuery = query(
-        collection(db, 'collaborators'),
-        where('companyId', '==', resolvedCompanyId),
-        where('departmentId', '==', resolvedDepartmentId)
-    );
+      // --- Lógica de Colaboradores (onSnapshot) ---
+      // Buscar o nome do departamento a partir do departmentId na subcoleção da empresa
+      console.log('Buscando departamento com ID:', resolvedDepartmentId, 'na empresa:', resolvedCompanyId);
+      
+      const departmentDoc = await getDoc(doc(db, 'companies', resolvedCompanyId, 'departments', resolvedDepartmentId));
+      console.log('Departamento existe?', departmentDoc.exists());
+      console.log('Dados do departamento:', departmentDoc.data());
+      
+      const departmentName = departmentDoc.exists() ? departmentDoc.data()?.name : '';
+      
+      console.log('Nome do departamento encontrado:', departmentName);
+      console.log('Buscando colaboradores para departamento:', departmentName);
+      
+      const collaboratorsQuery = query(
+          collection(db, 'collaborators'),
+          where('department', '==', departmentName)
+      );
 
-    const unsubscribe = onSnapshot(collaboratorsQuery, (querySnapshot) => {
-        const collaboratorsList = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Collaborator));
-        setCollaborators(collaboratorsList);
-    }, (error) => {
-        console.error("Erro ao carregar colaboradores: ", error);
-        setCollaborators([]);
-    });
+      const unsubscribe = onSnapshot(collaboratorsQuery, (querySnapshot) => {
+          const collaboratorsList = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Collaborator));
+          console.log('Colaboradores encontrados:', collaboratorsList.length);
+          console.log('Lista de colaboradores:', collaboratorsList);
+          setCollaborators(collaboratorsList);
+      }, (error) => {
+          console.error("Erro ao carregar colaboradores: ", error);
+          setCollaborators([]);
+      });
 
     // --- Lógica de Carregamento do Formulário (Draft) ---
     // Se o formulário já veio via props (modo de edição), use-o diretamente.
@@ -1421,48 +1435,54 @@ const loadCollaborators = useCallback(
 
     // Se não, tente carregar do localStorage ou do Firebase (cenário de refresh da página)
     else {
-        const savedDraft = localStorage.getItem(FORM_KEY(resolvedCompanyId, resolvedDepartmentId, formId));
-if (savedDraft) {
-    const parsed = JSON.parse(savedDraft);
-    const normalized = normalizeForm(parsed);
-    setDraft(normalized);
-    setAssignedCollaborators(normalized.collaborators || []);
-    setLoading(false);
-}
- else if (formId !== 'novo') {
+        const localStorageKey = FORM_KEY(resolvedCompanyId, resolvedDepartmentId, formId);
+        const savedDraft = localStorage.getItem(localStorageKey);
+        console.log('🔍 Verificando localStorage para:', localStorageKey);
+        console.log('Dados no localStorage:', savedDraft ? 'Encontrado' : 'Não encontrado');
+        
+        // SEMPRE tentar carregar do Firestore primeiro para formulários existentes
+        if (formId !== 'novo') {
+            console.log('⚠️ Limpando localStorage para forçar carregamento do Firestore');
+            localStorage.removeItem(localStorageKey);
+            
             getDoc(doc(db, 'forms', formId)).then(docSnap => {
-    if (docSnap.exists()) {
-        const data = docSnap.data() as Form;
-        const normalized = normalizeForm(data);
-        setDraft(normalized);
-        setAssignedCollaborators(normalized.collaborators || []);
-    }
-    setLoading(false);
-});
-
+                if (docSnap.exists()) {
+                    const data = docSnap.data() as Form;
+                    console.log('📄 Formulário carregado do Firestore:', data);
+                    console.log('Colaboradores no formulário:', data.collaborators);
+                    console.log('Authorized users no formulário:', data.authorizedUsers);
+                    
+                    const normalized = normalizeForm(data);
+                    console.log('Formulário normalizado:', normalized);
+                    console.log('Colaboradores após normalização:', normalized.collaborators);
+                    
+                    setDraft(normalized);
+                    setAssignedCollaborators(normalized.collaborators || []);
+                    console.log('✅ Colaboradores atribuídos ao estado:', normalized.collaborators || []);
+                }
+                setLoading(false);
+            });
         } else {
-             setLoading(false); // Caso de formulário novo sem rascunho
+            // Para formulários novos, pode usar localStorage
+            if (savedDraft) {
+                const parsed = JSON.parse(savedDraft);
+                console.log('📦 Formulário NOVO carregado do localStorage:', parsed);
+                
+                const normalized = normalizeForm(parsed);
+                setDraft(normalized);
+                setAssignedCollaborators(normalized.collaborators || []);
+                setLoading(false);
+            } else {
+                setLoading(false);
+            }
         }
     }
 
     return () => unsubscribe(); // Limpeza do listener de colaboradores
-
+  };
+  
+  loadData();
 }, [formId, props.companyId, props.departmentId, props.existingForm, searchParams]);
-
-  useEffect(() => {
-    if (!departmentId) {
-      setCollaborators([]);
-      return;
-    }
-    const collabsRef = collection(db, `departments/${departmentId}/collaborators`);
-    const unsubscribe = onSnapshot(collabsRef, (snapshot) => {
-      setCollaborators(snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data(),
-      } as Collaborator)));
-    });
-    return () => unsubscribe();
-  }, [departmentId]);
 
   // Estado do formulário
   const [draft, setDraft] = useState<BuilderForm>({
@@ -1857,6 +1877,9 @@ const toggleAutofill = useCallback((checked: boolean) => {
   // Handler de salvar
   const handleSave = async (): Promise<void> => {
     setSaving(true);
+    console.log('💾 Salvando formulário...');
+    console.log('Colaboradores atribuídos:', assignedCollaborators);
+    
     try {
       let resultId = formId;
       const formData: Form = {
@@ -1868,18 +1891,27 @@ const toggleAutofill = useCallback((checked: boolean) => {
         updatedAt: serverTimestamp()
       };
 
+      console.log('Dados do formulário a serem salvos:', formData);
+
       if (formId === 'novo') {
         const docRef = await addDoc(collection(db, 'forms'), {
           ...formData,
           createdAt: serverTimestamp()
         });
         resultId = docRef.id;
+        console.log('✅ Formulário criado com ID:', resultId);
       } else {
         await setDoc(doc(db, 'forms', formId), formData);
+        console.log('✅ Formulário atualizado:', formId);
       }
+      
+      // Limpar localStorage para garantir que próximo load venha do Firestore
       localStorage.removeItem(FORM_KEY(companyId, departmentId, formId));
+      console.log('🗑️ localStorage limpo para garantir carregamento do Firestore');
+      
       closeEditor(resultId);
     } catch (error) {
+      console.error('❌ Erro ao salvar formulário:', error);
       alert('Erro ao salvar formulário. Tente novamente.');
     } finally {
       setSaving(false);

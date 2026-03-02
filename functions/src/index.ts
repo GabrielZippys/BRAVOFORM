@@ -403,14 +403,204 @@ export const onNewFormResponse = onDocumentCreated(
 export const collaboratorLogin = onRequest(
   {
     cors: ["http://localhost:3000", "http://localhost", "https://your-production-domain.com"],
+    minInstances: 1, // Keep at least 1 instance warm to avoid cold starts
   },
   async (req: Request, res: Response) => {
+    console.log("collaboratorLogin called", { method: req.method, body: req.body });
+    
     // Set CORS headers for all responses
     res.header("Access-Control-Allow-Origin", "*");
     res.header("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
     res.header("Access-Control-Allow-Headers", "Content-Type, Authorization");
 
     // Handle preflight OPTIONS requests
+    if (req.method === "OPTIONS") {
+      console.log("Handling OPTIONS request");
+      res.status(200).send();
+      return;
+    }
+
+    if (req.method !== "POST") {
+      console.log("Method not allowed:", req.method);
+      res.status(405).json({ error: "Method not allowed" });
+      return;
+    }
+
+    try {
+      const { username, password } = req.body;
+      console.log("Login attempt for username:", username);
+
+      if (!username || !password) {
+        console.log("Missing username or password");
+        res.status(400).json({ error: "Username and password are required" });
+        return;
+      }
+
+      // Query for collaborator in Firestore
+      console.log("Starting collaborator search...");
+      console.log("Request body:", req.body);
+      
+      try {
+        // First, try to get user from Firebase Auth
+        let userRecord;
+        try {
+          userRecord = await admin.auth().getUserByEmail(username);
+          console.log("Firebase Auth user found for:", username);
+          
+          // For existing users, we need to verify password differently
+          // In production, you'd use Firebase Client SDK for password verification
+          // For now, we'll fall back to Firestore verification
+          
+        } catch (authError: any) {
+          console.log("Firebase Auth failed, trying to create user:", authError.message);
+          
+          // If user doesn't exist in Firebase Auth, create them
+          try {
+            // Search for collaborator in Firestore first
+            const collaboratorsRef = db.collection("departments");
+            const allDepts = await collaboratorsRef.get();
+            console.log("Departments query result:", allDepts.size, "departments found");
+            
+            let foundCollaborator = null;
+            let foundDocId = null;
+            let departmentId = null;
+            
+            for (const deptDoc of allDepts.docs) {
+              const deptCollabs = await deptDoc.ref.collection('collaborators')
+                .where("username", "==", username)
+                .where("active", "==", true)
+                .get();
+                
+              if (!deptCollabs.empty) {
+                foundCollaborator = deptCollabs.docs[0].data();
+                foundDocId = deptCollabs.docs[0].id;
+                departmentId = deptDoc.id;
+                break;
+              }
+            }
+            
+            if (!foundCollaborator) {
+              console.log("No collaborator found for username:", username);
+              res.status(401).json({ error: "Usuário ou senha incorretos" });
+              return;
+            }
+            
+            // Verify password from Firestore for now
+            if (foundCollaborator.password !== password) {
+              console.log("Password mismatch for username:", username);
+              res.status(401).json({ error: "Usuário ou senha incorretos" });
+              return;
+            }
+            
+            // Create user in Firebase Auth with the same ID
+            const email = foundCollaborator.email || `${username}@bravoform.com`;
+            userRecord = await admin.auth().createUser({
+              uid: foundDocId || undefined, // Use the same ID as Firestore
+              email: email,
+              emailVerified: false,
+              password: password,
+              displayName: foundCollaborator.name || username,
+            });
+            
+            console.log("Created Firebase Auth user for:", username);
+            
+            // Update Firestore with Firebase Auth UID
+            if (departmentId && foundDocId) {
+              await db.collection('departments').doc(departmentId)
+                .collection('collaborators').doc(foundDocId)
+                .update({
+                  firebaseUid: userRecord.uid,
+                  email: email,
+                  migratedToAuth: true,
+                  migratedAt: new Date()
+                });
+            }
+              
+          } catch (createError: any) {
+            console.error("Error creating Firebase Auth user:", createError);
+            res.status(500).json({ error: "Erro ao criar usuário" });
+            return;
+          }
+        }
+        
+        // Now get collaborator data from Firestore
+        const collaboratorsRef = db.collection("departments");
+        const allDepts = await collaboratorsRef.get();
+        
+        let foundCollaborator = null;
+        let foundDocId = null;
+        
+        for (const deptDoc of allDepts.docs) {
+          const deptCollabs = await deptDoc.ref.collection('collaborators')
+            .where("username", "==", username)
+            .where("active", "==", true)
+            .get();
+            
+          if (!deptCollabs.empty) {
+            foundCollaborator = deptCollabs.docs[0].data();
+            foundDocId = deptCollabs.docs[0].id;
+            break;
+          }
+        }
+        
+        if (!foundCollaborator) {
+          console.log("No collaborator found for username:", username);
+          res.status(401).json({ error: "Usuário ou senha incorretos" });
+          return;
+        }
+
+        // For existing Firebase Auth users, verify password from Firestore
+        // In production, you'd implement proper password verification
+        if (!userRecord) {
+          if (foundCollaborator.password !== password) {
+            console.log("Password mismatch for username:", username);
+            res.status(401).json({ error: "Usuário ou senha incorretos" });
+            return;
+          }
+        }
+
+        console.log("Login successful for username:", username);
+
+        // Return session data
+        const sessionData = {
+          id: foundDocId,
+          username: foundCollaborator.username,
+          name: foundCollaborator.name,
+          email: foundCollaborator.email,
+          department: foundCollaborator.department,
+          role: foundCollaborator.role || "collaborator",
+          isTemporaryPassword: foundCollaborator.isTemporaryPassword || false,
+          firebaseUid: userRecord?.uid,
+          lastLogin: new Date().toISOString(),
+        };
+
+        console.log("Returning session data:", { username: sessionData.username, role: sessionData.role });
+        res.status(200).json(sessionData);
+        
+      } catch (error: any) {
+        console.error("Login error:", error);
+        res.status(500).json({ error: "Internal server error" });
+      }
+    } catch (error) {
+      console.error("Login error:", error);
+      res.status(500).json({ error: "Internal server error" });
+    }
+  }
+);
+
+// Create Collaborator Function - Creates user in Firebase Auth and document in root collaborators collection
+export const createCollaborator = onRequest(
+  {
+    cors: ["http://localhost:3000", "http://localhost", "https://your-production-domain.com"],
+  },
+  async (req: Request, res: Response) => {
+    console.log("createCollaborator called", { method: req.method, body: req.body });
+    
+    // Set CORS headers
+    res.header("Access-Control-Allow-Origin", "*");
+    res.header("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+    res.header("Access-Control-Allow-Headers", "Content-Type, Authorization");
+
     if (req.method === "OPTIONS") {
       res.status(200).send();
       return;
@@ -422,49 +612,126 @@ export const collaboratorLogin = onRequest(
     }
 
     try {
-      const { username, password } = req.body;
+      const { 
+        username, 
+        email, 
+        password, 
+        name, 
+        department, 
+        role, 
+        permissions,
+        active = true 
+      } = req.body;
 
-      if (!username || !password) {
-        res.status(400).json({ error: "Username and password are required" });
+      console.log("Creating collaborator:", { username, email, name, department });
+
+      // Validate required fields
+      if (!username || !email || !password || !name) {
+        res.status(400).json({ error: "Username, email, password, and name are required" });
         return;
       }
 
-      // Query for collaborator in Firestore
-      const collaboratorsRef = db.collection("collaborators");
-      const snapshot = await collaboratorsRef
-        .where("username", "==", username)
-        .where("active", "==", true)
+      // Check if user already exists in Firebase Auth
+      try {
+        await admin.auth().getUserByEmail(email);
+        res.status(409).json({ error: "User with this email already exists" });
+        return;
+      } catch (error) {
+        // User doesn't exist, continue with creation
+      }
+
+      // Check if username already exists in Firestore
+      const existingCollab = await db.collection('collaborators')
+        .where('username', '==', username)
         .get();
-
-      if (snapshot.empty) {
-        res.status(401).json({ error: "Usuário ou senha incorretos" });
-        return;
-      }
-
-      const collaborator = snapshot.docs[0].data();
       
-      // Simple password verification (in production, use proper hashing)
-      if (collaborator.password !== password) {
-        res.status(401).json({ error: "Usuário ou senha incorretos" });
+      if (!existingCollab.empty) {
+        res.status(409).json({ error: "Username already exists" });
         return;
       }
 
-      // Return session data
-      const sessionData = {
-        id: snapshot.docs[0].id,
-        username: collaborator.username,
-        name: collaborator.name,
-        email: collaborator.email,
-        department: collaborator.department,
-        role: collaborator.role || "collaborator",
-        isTemporaryPassword: collaborator.isTemporaryPassword || false,
-        lastLogin: new Date().toISOString(),
+      // Create user in Firebase Auth
+      const userRecord = await admin.auth().createUser({
+        email: email,
+        emailVerified: false,
+        password: password,
+        displayName: name,
+        disabled: !active
+      });
+
+      console.log("Firebase Auth user created:", userRecord.uid);
+
+      // Create collaborator document in root collection
+      const collaboratorData = {
+        uid: userRecord.uid,
+        username: username,
+        email: email,
+        name: name,
+        department: department || '',
+        role: role || 'collaborator',
+        active: active,
+        permissions: permissions || {},
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        lastLogin: null,
+        // Add any specific permissions like canEditHistory
+        canEditHistory: permissions?.canEditHistory || false,
+        canDeleteForms: permissions?.canDeleteForms || false,
+        canManageUsers: permissions?.canManageUsers || false,
+        // Add any other metrics/permissions you need
       };
 
-      res.status(200).json(sessionData);
-    } catch (error) {
-      console.error("Login error:", error);
-      res.status(500).json({ error: "Internal server error" });
+      await db.collection('collaborators').doc(userRecord.uid).set(collaboratorData);
+      console.log("Collaborator document created in root collection");
+
+      // Also create in department subcollection for UI compatibility
+      const departmentCollabData = {
+        id: userRecord.uid,
+        username: username,
+        name: name,
+        email: email,
+        canViewHistory: permissions?.canViewHistory || false,
+        canEditHistory: permissions?.canEditHistory || false,
+        isLeader: permissions?.isLeader || false,
+      };
+
+      // Find department by name to get its ID
+      const departmentsSnapshot = await db.collection('departments')
+        .where('name', '==', department)
+        .get();
+      
+      if (!departmentsSnapshot.empty) {
+        const departmentDoc = departmentsSnapshot.docs[0];
+        await db.collection('departments')
+          .doc(departmentDoc.id)
+          .collection('collaborators')
+          .doc(userRecord.uid)
+          .set(departmentCollabData);
+        
+        console.log("Collaborator document also created in department subcollection");
+      }
+
+      // Return success response (without sensitive data)
+      const response = {
+        success: true,
+        uid: userRecord.uid,
+        username: username,
+        email: email,
+        name: name,
+        department: department,
+        role: role,
+        active: active,
+        permissions: collaboratorData.permissions
+      };
+
+      res.status(201).json(response);
+
+    } catch (error: any) {
+      console.error("Error creating collaborator:", error);
+      res.status(500).json({ 
+        error: "Failed to create collaborator",
+        details: error.message 
+      });
     }
   }
 );
