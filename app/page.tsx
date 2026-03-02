@@ -87,7 +87,7 @@ export default function LoginPage() {
         router.push(sessionData.isTemporaryPassword ? '/set-new-password' : '/collaborator-view');
       }
     } catch (err: any) {
-      setError(err.message || 'Erro ao autenticar.');
+      setError('Usuário ou senha incorretos');
       setIsLoading(false);
     }
   };

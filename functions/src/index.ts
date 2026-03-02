@@ -1,8 +1,10 @@
 import { onDocumentCreated } from "firebase-functions/v2/firestore";
+import { onRequest } from "firebase-functions/v2/https";
 import * as admin from "firebase-admin";
 import * as nodemailer from "nodemailer";
 import { Twilio } from "twilio";
 import { defineString } from "firebase-functions/params";
+import { Request, Response } from "express";
 
 admin.initializeApp();
 const db = admin.firestore();
@@ -324,7 +326,7 @@ function generateWhatsappMessage(formData: any, responseData: any): string {
 // Firestore Trigger
 export const onNewFormResponse = onDocumentCreated(
   "forms/{formId}/responses/{responseId}",
-  async (event) => {
+  async (event: any) => {
     const responseData = event.data?.data();
     const formId = event.params.formId;
 
@@ -396,3 +398,73 @@ export const onNewFormResponse = onDocumentCreated(
       return null;
     }
   });
+
+// Collaborator Login Function with CORS
+export const collaboratorLogin = onRequest(
+  {
+    cors: ["http://localhost:3000", "http://localhost", "https://your-production-domain.com"],
+  },
+  async (req: Request, res: Response) => {
+    // Set CORS headers for all responses
+    res.header("Access-Control-Allow-Origin", "*");
+    res.header("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+    res.header("Access-Control-Allow-Headers", "Content-Type, Authorization");
+
+    // Handle preflight OPTIONS requests
+    if (req.method === "OPTIONS") {
+      res.status(200).send();
+      return;
+    }
+
+    if (req.method !== "POST") {
+      res.status(405).json({ error: "Method not allowed" });
+      return;
+    }
+
+    try {
+      const { username, password } = req.body;
+
+      if (!username || !password) {
+        res.status(400).json({ error: "Username and password are required" });
+        return;
+      }
+
+      // Query for collaborator in Firestore
+      const collaboratorsRef = db.collection("collaborators");
+      const snapshot = await collaboratorsRef
+        .where("username", "==", username)
+        .where("active", "==", true)
+        .get();
+
+      if (snapshot.empty) {
+        res.status(401).json({ error: "Usuário ou senha incorretos" });
+        return;
+      }
+
+      const collaborator = snapshot.docs[0].data();
+      
+      // Simple password verification (in production, use proper hashing)
+      if (collaborator.password !== password) {
+        res.status(401).json({ error: "Usuário ou senha incorretos" });
+        return;
+      }
+
+      // Return session data
+      const sessionData = {
+        id: snapshot.docs[0].id,
+        username: collaborator.username,
+        name: collaborator.name,
+        email: collaborator.email,
+        department: collaborator.department,
+        role: collaborator.role || "collaborator",
+        isTemporaryPassword: collaborator.isTemporaryPassword || false,
+        lastLogin: new Date().toISOString(),
+      };
+
+      res.status(200).json(sessionData);
+    } catch (error) {
+      console.error("Login error:", error);
+      res.status(500).json({ error: "Internal server error" });
+    }
+  }
+);
