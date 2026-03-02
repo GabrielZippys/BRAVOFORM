@@ -112,6 +112,7 @@ export interface FormResponse {
   formTitle: string;
   companyId: string;
   departmentId: string;
+  department?: string; // New structure: department name
   collaboratorId: string;
   collaboratorUsername: string; 
   answers: Record<string, any>;

@@ -143,7 +143,7 @@ export default function LoginPage() {
         // Se não encontrou como colaborador, tentar como admin (só se for email)
         if (credential.includes('@')) {
           console.log('=== TENTANDO LOGIN COMO ADMIN ===');
-          const usersQuery = query(collection(db, "users"), where("uid", "==", userCredential.user.uid));
+          const usersQuery = query(collection(db, "admins"), where("uid", "==", userCredential.user.uid));
           const snap = await getDocs(usersQuery);
           console.log('Admin query result - empty:', snap.empty, 'docs count:', snap.docs.length);
           

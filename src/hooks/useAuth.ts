@@ -26,7 +26,7 @@ export function useAuth(): AuthState {
         try {
           // CORREÇÃO: Faz uma consulta para encontrar o documento
           // onde o CAMPO 'uid' é igual ao uid do utilizador autenticado.
-          const usersQuery = query(collection(db, "users"), where("uid", "==", user.uid));
+          const usersQuery = query(collection(db, "admins"), where("uid", "==", user.uid));
           const querySnapshot = await getDocs(usersQuery);
 
           if (!querySnapshot.empty) {
@@ -34,7 +34,7 @@ export function useAuth(): AuthState {
             setAuthState({ user, appUser: userDoc, loading: false });
           } else {
             // Utilizador do Firebase existe, mas não há documento correspondente no Firestore.
-            console.error(`Utilizador autenticado (UID: ${user.uid}) sem documento na coleção 'users'.`);
+            console.error(`Utilizador autenticado (UID: ${user.uid}) sem documento na coleção 'admins'.`);
             setAuthState({ user: null, appUser: null, loading: false });
           }
         } catch (error) {

@@ -30,7 +30,7 @@ export default function ResponseDetailsModal({
   company,
   department
 }: ResponseDetailsModalProps) {
-  if (!open || !response || !form) return null;
+  if (!open || !response) return null;
 
   const getStatusInfo = (status: string) => {
     switch (status) {
@@ -115,7 +115,7 @@ export default function ResponseDetailsModal({
           <div className={styles.headerInfo}>
             <h2 className={styles.modalTitle}>
               <FileText size={24} />
-              {form.title}
+              {response.formTitle || form?.title || 'Formulário Desconhecido'}
             </h2>
             <div className={styles.responseMeta}>
               <span className={`${styles.statusBadge} ${statusInfo.class}`}>
@@ -154,7 +154,7 @@ export default function ResponseDetailsModal({
                 <Users size={16} className={styles.infoIcon} />
                 <div>
                   <label>Departamento</label>
-                  <span>{department?.name || 'Departamento Desconhecido'}</span>
+                  <span>{response.department || department?.name || 'Departamento Desconhecido'}</span>
                 </div>
               </div>
               
@@ -180,7 +180,7 @@ export default function ResponseDetailsModal({
           <div className={styles.answersSection}>
             <h3 className={styles.sectionTitle}>Respostas do Formulário</h3>
             <div className={styles.answersList}>
-              {form.fields.map((field: any) => {
+              {form?.fields ? form.fields.map((field: any) => {
                 const answer = response.answers?.[field.id];
                 return (
                   <div key={field.id} className={styles.answerItem}>
@@ -193,7 +193,132 @@ export default function ResponseDetailsModal({
                     </div>
                   </div>
                 );
-              })}
+              }) : (
+                <div className={styles.noFieldsMessage}>
+                  {(() => {
+                    // If we have fieldMetadata, use answers object (with IDs) + metadata (with labels)
+                    // Otherwise, use direct fields (saved by label)
+                    const hasMetadata = !!(response as any).fieldMetadata;
+                    
+                    let fieldsToShow: [string, any][];
+                    
+                    if (hasMetadata) {
+                      // Use answers object when we have metadata
+                      fieldsToShow = Object.entries(response.answers || {});
+                    } else {
+                      // Use direct fields (by label) when no metadata
+                      fieldsToShow = Object.entries(response as any)
+                        .filter(([key]) => 
+                          !['id', 'formId', 'formTitle', 'collaboratorId', 'collaboratorUsername', 
+                            'companyId', 'departmentId', 'department', 'status', 'createdAt', 
+                            'submittedAt', 'updatedAt', 'answers', 'fieldMetadata'].includes(key)
+                        )
+                        .filter(([_, value]) => value !== '' && value !== null && value !== undefined);
+                    }
+                    
+                    if (fieldsToShow.length === 0) {
+                      return <p style={{ textAlign: 'center', color: '#999', padding: '2rem' }}>Nenhuma resposta encontrada.</p>;
+                    }
+                    
+                    return fieldsToShow.map(([key, value]) => {
+                      // Handle different value types
+                      let content;
+                      
+                      // Try to get metadata for this field
+                      const metadata = (response as any).fieldMetadata?.[key];
+                      
+                      // Check if this is a table field
+                      const isTable = typeof value === 'object' && value !== null && !Array.isArray(value);
+                      const hasTableMetadata = metadata?.type === 'Tabela' && Array.isArray(metadata?.rows) && Array.isArray(metadata?.columns);
+                      
+                      console.log('Field:', key, 'IsTable:', isTable, 'HasMetadata:', hasTableMetadata, 'Metadata:', metadata);
+                      
+                      if (typeof value === 'object' && value !== null) {
+                        if (Array.isArray(value)) {
+                          // Array - show as comma-separated list
+                          content = <span className={styles.answerText}>{value.join(', ')}</span>;
+                        } else if (hasTableMetadata) {
+                          // Table with metadata - render as proper HTML table
+                          console.log('✅ Rendering table with metadata for:', key, metadata);
+                          content = (
+                            <div className={styles.tableContainer}>
+                              <table className={styles.table}>
+                                <thead>
+                                  <tr>
+                                    <th>Linha</th>
+                                    {metadata.columns.map((col: any) => (
+                                      <th key={col.id}>{col.label}</th>
+                                    ))}
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {metadata.rows.map((row: any) => (
+                                    <tr key={row.id}>
+                                      <td>{row.label}</td>
+                                      {metadata.columns.map((col: any) => (
+                                        <td key={col.id}>{value?.[row.id]?.[col.id] ?? '-'}</td>
+                                      ))}
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            </div>
+                          );
+                        } else {
+                          // Object without metadata - show as cards
+                          content = (
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                              {Object.entries(value).map(([rowKey, rowValue]: [string, any]) => {
+                                if (typeof rowValue === 'object' && rowValue !== null) {
+                                  return (
+                                    <div key={rowKey} style={{ 
+                                      padding: '0.75rem', 
+                                      background: '#f8f9fa', 
+                                      borderRadius: '6px',
+                                      border: '1px solid #e0e0e0'
+                                    }}>
+                                      <strong style={{ display: 'block', marginBottom: '0.5rem', color: '#333' }}>
+                                        {rowKey}
+                                      </strong>
+                                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', fontSize: '0.9rem' }}>
+                                        {Object.entries(rowValue).map(([colKey, colValue]) => (
+                                          <div key={colKey} style={{ display: 'flex', gap: '0.5rem' }}>
+                                            <span style={{ color: '#666', minWidth: '150px' }}>{colKey}:</span>
+                                            <span style={{ color: '#333', fontWeight: 500 }}>{String(colValue)}</span>
+                                          </div>
+                                        ))}
+                                      </div>
+                                    </div>
+                                  );
+                                }
+                                return (
+                                  <div key={rowKey} style={{ padding: '0.5rem', background: '#f8f9fa', borderRadius: '4px' }}>
+                                    <strong>{rowKey}:</strong> {String(rowValue)}
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          );
+                        }
+                      } else {
+                        // Simple value
+                        content = <span className={styles.answerText}>{String(value)}</span>;
+                      }
+                      
+                      return (
+                        <div key={key} className={styles.answerItem}>
+                          <div className={styles.questionHeader}>
+                            <label className={styles.questionLabel}>{metadata?.label || key}</label>
+                          </div>
+                          <div className={styles.questionAnswer}>
+                            {content}
+                          </div>
+                        </div>
+                      );
+                    });
+                  })()}
+                </div>
+              )}
             </div>
           </div>
         </div>

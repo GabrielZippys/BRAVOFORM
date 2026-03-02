@@ -72,7 +72,7 @@ export default function UsersPage() {
       setCompanies(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Company)));
       setLoading(false);
     });
-    const qAdminUsers = onSnapshot(query(collection(db, "users"), where("role", "==", "Admin")), (snapshot) => {
+    const qAdminUsers = onSnapshot(query(collection(db, "admins"), where("role", "==", "Admin")), (snapshot) => {
       setAdminUsers(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as AppUser)));
     });
     return () => { qCompanies(); qAdminUsers(); };

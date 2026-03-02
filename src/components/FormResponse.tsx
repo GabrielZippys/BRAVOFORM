@@ -807,8 +807,9 @@ else if ((c.type || '').toLowerCase() === 'date') {
       collaboratorUsername: collaborator.username,
       formId: form.id,
       formTitle: form.title,
-      companyId: form.companyId,
-      departmentId: form.departmentId,
+      department: collaborator.department || '', // Use collaborator's department name
+      companyId: form.companyId || '', // Keep for backward compatibility
+      departmentId: form.departmentId || '', // Keep for backward compatibility
       status: 'pending',
       submittedAt: serverTimestamp(),
     };
@@ -824,6 +825,20 @@ else if ((c.type || '').toLowerCase() === 'date') {
       answers[String(field.id)] = normalized[String(field.id)] ?? '';
     });
     payload.answers = answers;
+
+    // Save field metadata for better display later (especially for tables)
+    const fieldMetadata: Record<string, any> = {};
+    (form.fields as EnhancedFormField[]).forEach((field) => {
+      fieldMetadata[String(field.id)] = {
+        label: field.label,
+        type: field.type,
+        ...(field.type === 'Tabela' && {
+          rows: field.rows?.map((r: any) => ({ id: r.id, label: r.label })),
+          columns: field.columns?.map((c: any) => ({ id: c.id, label: c.label, type: c.type }))
+        })
+      };
+    });
+    payload.fieldMetadata = fieldMetadata;
 
     // 3) Grava 1x
     if (existingResponse?.id) {

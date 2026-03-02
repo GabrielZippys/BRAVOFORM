@@ -442,13 +442,13 @@ export default function ComprehensiveHistoryModal({
                       <div className={styles.responseInfo}>
                         <div className={styles.responseTitle}>
                           <FileText size={16} />
-                          {form?.title || 'Formulário Desconhecido'}
+                          {response.formTitle || form?.title || 'Formulário Desconhecido'}
                         </div>
                         <div className={styles.responseMeta}>
                           <Building size={12} />
                           {company?.name || 'Empresa Desconhecida'}
                           <Users size={12} />
-                          {department?.name || 'Departamento Desconhecido'}
+                          {response.department || department?.name || 'Departamento Desconhecido'}
                         </div>
                       </div>
                       

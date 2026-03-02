@@ -17,7 +17,7 @@ functions.http('requestPasswordReset', (req, res) => {
       const { email, answers } = req.body;
 
       // Encontra o usuário pelo email na coleção 'users'
-      const usersQuery = query(collection(db, 'users'), where('email', '==', email));
+      const usersQuery = query(collection(db, 'admins'), where('email', '==', email));
       const userSnapshot = await getDocs(usersQuery);
 
       if (userSnapshot.empty) {
