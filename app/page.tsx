@@ -75,7 +75,7 @@ export default function LoginPage() {
           throw new Error('Este utilizador não tem permissões de administrador.');
         }
       } else {
-        const response = await fetch('https://southamerica-east1-formbravo-8854e.cloudfunctions.net/collaboratorLogin', {
+        const response = await fetch('https://us-central1-formbravo-8854e.cloudfunctions.net/collaboratorLogin', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ username: credential, password })
