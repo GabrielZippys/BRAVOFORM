@@ -13,6 +13,14 @@
 /* --- IMPORTAÇÃO DAS FONTES --- */
 @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@500;700&family=Roboto:wght@400;500&display=swap');
 
+/* === RESET E ESTILOS GLOBAIS === */
+html, body {
+  overflow: hidden;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
+
 /* === VARIÁVEIS GLOBAIS (BOTH PALETTES) === */
 :root {
   /* Paleta Bravo TI */

@@ -56,7 +56,7 @@ export interface FormTheme {
 // --- CAMPOS DO FORMULÁRIO ---
 export interface FormField {
   id: string;
-  type: 'Texto' | 'Anexo' | 'Assinatura' | 'Caixa de Seleção' | 'Múltipla Escolha' | 'Data' | 'Cabeçalho' | 'Tabela';
+  type: 'Texto' | 'Anexo' | 'Assinatura' | 'Caixa de Seleção' | 'Múltipla Escolha' | 'Data' | 'Cabeçalho' | 'Tabela' | 'Grade de Pedidos';
   label: string;
   required?: boolean;
   displayAs?: 'radio' | 'dropdown';
@@ -141,4 +141,128 @@ export interface ResetNotification {
   collaboratorUsername: string;
   status: 'pending' | 'completed';
   createdAt: Timestamp;
+}
+
+// --- INTERFACES PARA GRADE DE PEDIDOS ---
+
+// Configuração da fonte de dados
+export interface DataSourceConfig {
+  type: 'firestore' | 'api' | 'static';
+  collection?: string;
+  endpoint?: string;
+  filters?: {
+    field: string;
+    operator: '==' | '!=' | '>' | '<' | '>=' | '<=' | 'array-contains';
+    value: string | number | boolean;
+  }[];
+  displayField: string;
+  valueField: string;
+  searchFields?: string[];
+}
+
+// Configuração de variações
+export interface VariationConfig {
+  id: string;
+  label: string;
+  dependsOn: string;
+  required: boolean;
+  fieldType: 'select' | 'radio' | 'text';
+}
+
+// Configuração de quantidade
+export interface QuantityConfig {
+  label: string;
+  min: number;
+  max?: number;
+  step: number;
+  decimals: boolean;
+  unitOfMeasure?: string;
+}
+
+// Configuração de preço (preparado para V2.0)
+export interface PriceConfig {
+  enabled: boolean;
+  priceField: string;
+  currency: string;
+  showInTable: boolean;
+  allowEdit: boolean;
+  applyDiscount?: boolean;
+}
+
+// Features avançadas
+export interface AdvancedFeatures {
+  allowBarcodeScanner: boolean;
+  allowSmartPaste: boolean;
+  enableKeyboardShortcuts: boolean;
+  enableOfflineMode: boolean;
+  enableDragAndDrop: boolean;
+  realtimeStockCheck: boolean;
+}
+
+// Configuração de exibição
+export interface DisplayConfig {
+  showSearch: boolean;
+  showImages: boolean;
+  imageField?: string;
+  columns: {
+    field: string;
+    label: string;
+    width?: string;
+    isSortable?: boolean;
+    isFilterable?: boolean;
+  }[];
+  emptyStateMessage?: string;
+}
+
+// Campos adicionais por item
+export interface AdditionalFieldConfig {
+  id: string;
+  label: string;
+  type: 'text' | 'number' | 'date' | 'select' | 'textarea';
+  required: boolean;
+  options?: string[];
+  defaultValue?: any;
+}
+
+// Interface para item individual
+export interface OrderItem {
+  productId: string;
+  productName: string;
+  productCode?: string;
+  variations: Record<string, string>;
+  quantity: number;
+  unitPrice?: number;
+  subTotal?: number;
+  additionalData?: Record<string, any>;
+  inputType?: 'manual' | 'barcode' | 'smart_paste';
+  imageUrl?: string;
+  notes?: string;
+}
+
+// Interface para valor completo do campo
+export interface OrderGridValue {
+  items: OrderItem[];
+  summary: {
+    totalItems: number;
+    totalQuantity: number;
+    totalValue?: number;
+  };
+  metadata?: {
+    inputMethods?: Record<string, number>;
+    completionTime?: number;
+    wasOffline?: boolean;
+    lastSync?: string;
+  };
+}
+
+// Interface para o campo Grade de Pedidos
+export interface OrderGridField extends FormField {
+  type: 'Grade de Pedidos';
+  dataSource: DataSourceConfig;
+  variations?: VariationConfig[];
+  quantityConfig: QuantityConfig;
+  priceConfig?: PriceConfig;
+  additionalFields?: AdditionalFieldConfig[];
+  advancedFeatures?: AdvancedFeatures;
+  displayConfig: DisplayConfig;
 }

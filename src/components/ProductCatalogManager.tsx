@@ -1,0 +1,943 @@
+'use client';
+
+import React, { useState, useEffect } from 'react';
+import { Plus, Trash2, Edit2, X, Save, FolderOpen } from 'lucide-react';
+import { db } from '../../firebase/config';
+import { collection, addDoc, getDocs, updateDoc, deleteDoc, doc, query, where, serverTimestamp } from 'firebase/firestore';
+
+interface ProductCatalog {
+  id: string;
+  name: string;
+  description: string;
+  collection: string;
+  companyId: string;
+  fields: {
+    displayField: string;
+    valueField: string;
+    searchFields: string[];
+    additionalFields: string[];
+  };
+  createdAt: any;
+  updatedAt: any;
+}
+
+interface ProductCatalogManagerProps {
+  companyId: string;
+  onClose: () => void;
+  onSelectCatalog: (catalog: ProductCatalog) => void;
+}
+
+const ProductCatalogManager: React.FC<ProductCatalogManagerProps> = ({ companyId, onClose, onSelectCatalog }) => {
+  const [catalogs, setCatalogs] = useState<ProductCatalog[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [showForm, setShowForm] = useState(false);
+  const [editingCatalog, setEditingCatalog] = useState<ProductCatalog | null>(null);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [successMessage, setSuccessMessage] = useState('');
+  
+  // Form state
+  const [formData, setFormData] = useState({
+    name: '',
+    description: '',
+    collection: '',
+    displayField: 'nome',
+    valueField: 'id',
+    searchFields: 'nome, codigo, ean',
+    additionalFields: [] as string[],
+  });
+
+  // Products state for inline management
+  const [products, setProducts] = useState<Array<{
+    id?: string;
+    nome: string;
+    codigo?: string;
+    unidade: 'UN' | 'KG' | 'L' | 'CX' | 'PC';
+    quantidadeMin: number;
+    quantidadeMax: number;
+    valorUnitario: number;
+    formatoNumero: ',' | '.';
+  }>>([]);
+
+  const [newProduct, setNewProduct] = useState({
+    nome: '',
+    codigo: '',
+    unidade: 'UN' as 'UN' | 'KG' | 'L' | 'CX' | 'PC',
+    quantidadeMin: 1,
+    quantidadeMax: 999,
+    valorUnitario: 0,
+    formatoNumero: ',' as ',' | '.',
+  });
+
+  const [editingProductIndex, setEditingProductIndex] = useState<number | null>(null);
+
+  useEffect(() => {
+    loadCatalogs();
+  }, [companyId]);
+
+  const loadCatalogs = async () => {
+    try {
+      setLoading(true);
+      const q = query(
+        collection(db, 'product_catalogs'),
+        where('companyId', '==', companyId)
+      );
+      const snapshot = await getDocs(q);
+      const catalogsData = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      })) as ProductCatalog[];
+      setCatalogs(catalogsData);
+    } catch (error) {
+      console.error('Erro ao carregar catálogos:', error);
+      alert('Erro ao carregar catálogos');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSaveCatalog = async () => {
+    if (!formData.name) {
+      alert('Preencha o nome do catálogo');
+      return;
+    }
+
+    if (products.length === 0) {
+      alert('Adicione pelo menos um produto ao catálogo');
+      return;
+    }
+
+    try {
+      const catalogData = {
+        name: formData.name,
+        description: formData.description,
+        collection: 'products', // Sempre usa a coleção 'products'
+        companyId,
+        fields: {
+          displayField: 'nome',
+          valueField: 'id',
+          searchFields: ['nome', 'codigo', 'ean'],
+          additionalFields: formData.additionalFields,
+        },
+        updatedAt: serverTimestamp(),
+      };
+
+      if (editingCatalog) {
+        // Atualizar catálogo
+        await updateDoc(doc(db, 'product_catalogs', editingCatalog.id), catalogData);
+
+        // Atualizar produtos: remover produtos antigos que não estão na lista
+        const currentProductsQuery = query(
+          collection(db, 'products'),
+          where('catalogId', '==', editingCatalog.id)
+        );
+        const currentProductsSnapshot = await getDocs(currentProductsQuery);
+        
+        // Remover produtos que foram deletados
+        for (const productDoc of currentProductsSnapshot.docs) {
+          const existsInNewList = products.some(p => p.id === productDoc.id);
+          if (!existsInNewList) {
+            await deleteDoc(doc(db, 'products', productDoc.id));
+          }
+        }
+
+        // Adicionar novos produtos (que não têm ID)
+        for (const product of products) {
+          if (!product.id) {
+            await addDoc(collection(db, 'products'), {
+              catalogId: editingCatalog.id,
+              nome: product.nome,
+              codigo: product.codigo || '',
+              unidade: product.unidade,
+              quantidadeMin: product.quantidadeMin,
+              quantidadeMax: product.quantidadeMax,
+              valorUnitario: product.valorUnitario,
+              formatoNumero: product.formatoNumero,
+              createdAt: serverTimestamp(),
+              updatedAt: serverTimestamp(),
+            });
+          } else {
+            // Atualizar produto existente
+            await updateDoc(doc(db, 'products', product.id), {
+              nome: product.nome,
+              codigo: product.codigo || '',
+              unidade: product.unidade,
+              quantidadeMin: product.quantidadeMin,
+              quantidadeMax: product.quantidadeMax,
+              valorUnitario: product.valorUnitario,
+              formatoNumero: product.formatoNumero,
+              updatedAt: serverTimestamp(),
+            });
+          }
+        }
+
+        setSuccessMessage(`Catálogo atualizado com sucesso!\n${products.length} produto(s) no catálogo ✨`);
+      } else {
+        // Criar novo catálogo
+        const docRef = await addDoc(collection(db, 'product_catalogs'), {
+          ...catalogData,
+          createdAt: serverTimestamp(),
+        });
+
+        // Salvar produtos
+        for (const product of products) {
+          await addDoc(collection(db, 'products'), {
+            catalogId: docRef.id,
+            nome: product.nome,
+            codigo: product.codigo || '',
+            unidade: product.unidade,
+            quantidadeMin: product.quantidadeMin,
+            quantidadeMax: product.quantidadeMax,
+            valorUnitario: product.valorUnitario,
+            formatoNumero: product.formatoNumero,
+            createdAt: serverTimestamp(),
+            updatedAt: serverTimestamp(),
+          });
+        }
+
+        setSuccessMessage(`Catálogo criado com sucesso!\n${products.length} produto(s) adicionado(s) ✨`);
+      }
+
+      setShowForm(false);
+      setEditingCatalog(null);
+      resetForm();
+      setProducts([]);
+      setShowSuccessModal(true);
+      loadCatalogs();
+    } catch (error) {
+      console.error('Erro ao salvar catálogo:', error);
+      alert('Erro ao salvar catálogo');
+    }
+  };
+
+  const handleDeleteCatalog = async (catalogId: string) => {
+    if (!confirm('Tem certeza que deseja excluir este catálogo?')) return;
+
+    try {
+      await deleteDoc(doc(db, 'product_catalogs', catalogId));
+      alert('Catálogo excluído com sucesso!');
+      loadCatalogs();
+    } catch (error) {
+      console.error('Erro ao excluir catálogo:', error);
+      alert('Erro ao excluir catálogo');
+    }
+  };
+
+  const handleEditCatalog = async (catalog: ProductCatalog) => {
+    setEditingCatalog(catalog);
+    setFormData({
+      name: catalog.name,
+      description: catalog.description,
+      collection: catalog.collection,
+      displayField: catalog.fields.displayField,
+      valueField: catalog.fields.valueField,
+      searchFields: catalog.fields.searchFields.join(', '),
+      additionalFields: catalog.fields.additionalFields || [],
+    });
+
+    // Carregar produtos do catálogo
+    try {
+      const q = query(
+        collection(db, 'products'),
+        where('catalogId', '==', catalog.id)
+      );
+      const snapshot = await getDocs(q);
+      const productsData = snapshot.docs.map(doc => ({
+        id: doc.id,
+        nome: doc.data().nome,
+        codigo: doc.data().codigo || '',
+        unidade: doc.data().unidade || 'UN',
+        quantidadeMin: doc.data().quantidadeMin || 1,
+        quantidadeMax: doc.data().quantidadeMax || 999,
+        valorUnitario: doc.data().valorUnitario || 0,
+        formatoNumero: doc.data().formatoNumero || ',',
+      }));
+      setProducts(productsData);
+    } catch (error) {
+      console.error('Erro ao carregar produtos:', error);
+    }
+
+    setShowForm(true);
+  };
+
+  const resetForm = () => {
+    setFormData({
+      name: '',
+      description: '',
+      collection: '',
+      displayField: 'nome',
+      valueField: 'id',
+      searchFields: 'nome, codigo, ean',
+      additionalFields: [],
+    });
+  };
+
+  const handleAddProduct = () => {
+    if (!newProduct.nome) {
+      alert('Preencha o nome do produto');
+      return;
+    }
+
+    if (editingProductIndex !== null) {
+      // Atualizar produto existente
+      const updatedProducts = [...products];
+      updatedProducts[editingProductIndex] = { ...newProduct };
+      setProducts(updatedProducts);
+      setEditingProductIndex(null);
+    } else {
+      // Adicionar novo produto
+      setProducts([...products, { ...newProduct }]);
+    }
+
+    setNewProduct({ 
+      nome: '', 
+      codigo: '',
+      unidade: 'UN',
+      quantidadeMin: 1,
+      quantidadeMax: 999,
+      valorUnitario: 0,
+      formatoNumero: ',',
+    });
+  };
+
+  const handleEditProduct = (index: number) => {
+    const product = products[index];
+    setNewProduct({
+      nome: product.nome,
+      codigo: product.codigo || '',
+      unidade: product.unidade,
+      quantidadeMin: product.quantidadeMin,
+      quantidadeMax: product.quantidadeMax,
+      valorUnitario: product.valorUnitario,
+      formatoNumero: product.formatoNumero,
+    });
+    setEditingProductIndex(index);
+  };
+
+  const handleCancelEdit = () => {
+    setNewProduct({ 
+      nome: '', 
+      codigo: '',
+      unidade: 'UN',
+      quantidadeMin: 1,
+      quantidadeMax: 999,
+      valorUnitario: 0,
+      formatoNumero: ',',
+    });
+    setEditingProductIndex(null);
+  };
+
+  const handleRemoveProduct = (index: number) => {
+    setProducts(products.filter((_, i) => i !== index));
+  };
+
+  const modalStyle: React.CSSProperties = {
+    position: 'fixed',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    background: 'rgba(0, 0, 0, 0.8)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 9999,
+  };
+
+  const contentStyle: React.CSSProperties = {
+    background: '#1e293b',
+    borderRadius: '12px',
+    padding: '24px',
+    maxWidth: '700px',
+    width: '90%',
+    maxHeight: '80vh',
+    overflow: 'auto',
+    color: '#fff',
+  };
+
+  const inputStyle: React.CSSProperties = {
+    width: '100%',
+    padding: '10px 12px',
+    background: '#0f172a',
+    border: '1px solid #334155',
+    borderRadius: '6px',
+    color: '#fff',
+    fontSize: '14px',
+  };
+
+  const buttonStyle = (variant: 'primary' | 'secondary' | 'danger' = 'primary'): React.CSSProperties => ({
+    padding: '8px 16px',
+    background: variant === 'primary' ? '#3b82f6' : variant === 'danger' ? '#ef4444' : '#64748b',
+    border: 'none',
+    borderRadius: '6px',
+    color: '#fff',
+    cursor: 'pointer',
+    fontSize: '14px',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '6px',
+  });
+
+  return (
+    <div style={modalStyle} onClick={onClose}>
+      <div style={contentStyle} onClick={(e) => e.stopPropagation()}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+          <div>
+            <h2 style={{ margin: 0, fontSize: '20px', color: '#fff' }}>
+              📁 Gerenciar Catálogos
+            </h2>
+          </div>
+          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+            {!showForm && (
+              <button
+                onClick={() => {
+                  setShowForm(true);
+                  setEditingCatalog(null);
+                  resetForm();
+                  setProducts([]);
+                }}
+                style={{
+                  background: '#3b82f6',
+                  border: 'none',
+                  borderRadius: '6px',
+                  color: '#fff',
+                  cursor: 'pointer',
+                  padding: '8px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+                title="Novo catálogo"
+              >
+                <Plus size={20} />
+              </button>
+            )}
+            <button
+              onClick={onClose}
+              style={{
+                background: 'none',
+                border: 'none',
+                color: '#94a3b8',
+                cursor: 'pointer',
+                padding: '8px',
+              }}
+            >
+              <X size={24} />
+            </button>
+          </div>
+        </div>
+
+        {!showForm ? (
+          <>
+
+            {loading ? (
+              <div style={{ textAlign: 'center', padding: '40px', color: '#94a3b8' }}>
+                Carregando catálogos...
+              </div>
+            ) : catalogs.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '60px 20px' }}>
+                <div style={{ fontSize: '48px', marginBottom: '16px' }}>📦</div>
+                <h3 style={{ color: '#94a3b8', fontSize: '16px', margin: 0 }}>
+                  Sem listas cadastradas
+                </h3>
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                {catalogs.map((catalog) => (
+                  <div
+                    key={catalog.id}
+                    style={{
+                      padding: '20px',
+                      background: '#1a2332',
+                      borderRadius: '8px',
+                      border: '1px solid #2d3748',
+                      marginBottom: '16px',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s',
+                      position: 'relative',
+                    }}
+                    onClick={() => {
+                      onSelectCatalog(catalog);
+                      onClose();
+                    }}
+                    onMouseOver={(e) => {
+                      e.currentTarget.style.borderColor = '#667eea';
+                      e.currentTarget.style.transform = 'translateY(-2px)';
+                    }}
+                    onMouseOut={(e) => {
+                      e.currentTarget.style.borderColor = '#2d3748';
+                      e.currentTarget.style.transform = 'translateY(0)';
+                    }}
+                  >
+                    {/* Ícones de ação no canto superior direito */}
+                    <div style={{ position: 'absolute', top: '12px', right: '12px', display: 'flex', gap: '8px' }}>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleEditCatalog(catalog);
+                        }}
+                        style={{
+                          background: 'none',
+                          border: 'none',
+                          color: '#94a3b8',
+                          cursor: 'pointer',
+                          padding: '6px',
+                          borderRadius: '4px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          transition: 'all 0.2s',
+                        }}
+                        onMouseOver={(e) => {
+                          e.currentTarget.style.background = '#334155';
+                          e.currentTarget.style.color = '#fff';
+                        }}
+                        onMouseOut={(e) => {
+                          e.currentTarget.style.background = 'none';
+                          e.currentTarget.style.color = '#94a3b8';
+                        }}
+                      >
+                        <Edit2 size={16} />
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDeleteCatalog(catalog.id);
+                        }}
+                        style={{
+                          background: 'none',
+                          border: 'none',
+                          color: '#94a3b8',
+                          cursor: 'pointer',
+                          padding: '6px',
+                          borderRadius: '4px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          transition: 'all 0.2s',
+                        }}
+                        onMouseOver={(e) => {
+                          e.currentTarget.style.background = '#ef4444';
+                          e.currentTarget.style.color = '#fff';
+                        }}
+                        onMouseOut={(e) => {
+                          e.currentTarget.style.background = 'none';
+                          e.currentTarget.style.color = '#94a3b8';
+                        }}
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
+
+                    {/* Nome do catálogo */}
+                    <h3 style={{ margin: '0 0 12px 0', fontSize: '18px', color: '#fff', fontWeight: 600, paddingRight: '60px' }}>
+                      {catalog.name}
+                    </h3>
+
+                    {/* Descrição */}
+                    <p style={{ margin: 0, fontSize: '13px', color: '#94a3b8', lineHeight: '1.5' }}>
+                      {catalog.description || 'Sem descrição'}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            )}
+          </>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            <h3 style={{ margin: 0, fontSize: '16px', color: '#60a5fa' }}>
+              {editingCatalog ? 'Editar Catálogo' : 'Novo Catálogo'}
+            </h3>
+
+            <div>
+              <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', color: '#94a3b8' }}>
+                Nome do Catálogo *
+              </label>
+              <input
+                type="text"
+                value={formData.name}
+                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                placeholder="Ex: Produtos Coca-Cola"
+                style={inputStyle}
+              />
+            </div>
+
+            <div>
+              <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', color: '#94a3b8' }}>
+                Descrição
+              </label>
+              <textarea
+                value={formData.description}
+                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                placeholder="Ex: Bebidas da linha Coca-Cola"
+                style={{ ...inputStyle, minHeight: '60px', resize: 'vertical' }}
+              />
+            </div>
+
+            {/* Lista de Produtos */}
+            <div style={{ 
+              padding: '16px', 
+              background: '#0f172a', 
+              borderRadius: '8px',
+              border: '1px solid #334155'
+            }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                <h4 style={{ margin: 0, fontSize: '14px', color: '#fff' }}>
+                  📦 Produtos do Catálogo ({products.length})
+                </h4>
+                {editingProductIndex !== null && (
+                  <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                    <span style={{ fontSize: '12px', color: '#60a5fa' }}>✏️ Editando produto</span>
+                    <button
+                      onClick={handleCancelEdit}
+                      type="button"
+                      style={{
+                        padding: '4px 8px',
+                        background: '#334155',
+                        border: 'none',
+                        borderRadius: '4px',
+                        color: '#fff',
+                        cursor: 'pointer',
+                        fontSize: '11px',
+                      }}
+                    >
+                      Cancelar
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {/* Formulário para adicionar produto */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '12px' }}>
+                {/* Linha 1: Nome e Código */}
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <input
+                    type="text"
+                    value={newProduct.nome}
+                    onChange={(e) => setNewProduct({ ...newProduct, nome: e.target.value })}
+                    placeholder="Nome do produto *"
+                    style={{ ...inputStyle, flex: 2 }}
+                  />
+                  <input
+                    type="text"
+                    value={newProduct.codigo}
+                    onChange={(e) => setNewProduct({ ...newProduct, codigo: e.target.value })}
+                    placeholder="Código"
+                    style={{ ...inputStyle, flex: 1 }}
+                  />
+                </div>
+
+                {/* Linha 2: Unidade, Min, Max, Step */}
+                <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-end' }}>
+                  <div style={{ flex: 1 }}>
+                    <label style={{ display: 'block', marginBottom: '4px', fontSize: '11px', color: '#94a3b8' }}>
+                      Unidade
+                    </label>
+                    <select
+                      value={newProduct.unidade}
+                      onChange={(e) => setNewProduct({ ...newProduct, unidade: e.target.value as any })}
+                      style={inputStyle}
+                    >
+                      <option value="UN">Unidade (UN)</option>
+                      <option value="KG">Quilograma (KG)</option>
+                      <option value="L">Litro (L)</option>
+                      <option value="CX">Caixa (CX)</option>
+                      <option value="PC">Peça (PC)</option>
+                    </select>
+                  </div>
+
+                  <div style={{ flex: 1 }}>
+                    <label style={{ display: 'block', marginBottom: '4px', fontSize: '11px', color: '#94a3b8' }}>
+                      Mín
+                    </label>
+                    <input
+                      type="number"
+                      value={newProduct.quantidadeMin}
+                      onChange={(e) => setNewProduct({ ...newProduct, quantidadeMin: parseFloat(e.target.value) || 0 })}
+                      placeholder="Mín"
+                      step="0.01"
+                      style={inputStyle}
+                    />
+                  </div>
+
+                  <div style={{ flex: 1 }}>
+                    <label style={{ display: 'block', marginBottom: '4px', fontSize: '11px', color: '#94a3b8' }}>
+                      Máx
+                    </label>
+                    <input
+                      type="number"
+                      value={newProduct.quantidadeMax}
+                      onChange={(e) => setNewProduct({ ...newProduct, quantidadeMax: parseFloat(e.target.value) || 999 })}
+                      placeholder="Máx"
+                      step="0.01"
+                      style={inputStyle}
+                    />
+                  </div>
+
+                  <div style={{ flex: 1 }}>
+                    <label style={{ display: 'block', marginBottom: '4px', fontSize: '11px', color: '#94a3b8' }}>
+                      Valor Unit.
+                    </label>
+                    <input
+                      type="number"
+                      value={newProduct.valorUnitario}
+                      onChange={(e) => setNewProduct({ ...newProduct, valorUnitario: parseFloat(e.target.value) || 0 })}
+                      placeholder="0.00"
+                      step="0.01"
+                      style={inputStyle}
+                    />
+                  </div>
+
+                  <div style={{ flex: 1 }}>
+                    <label style={{ display: 'block', marginBottom: '4px', fontSize: '11px', color: '#94a3b8' }}>
+                      Formato
+                    </label>
+                    <select
+                      value={newProduct.formatoNumero}
+                      onChange={(e) => setNewProduct({ ...newProduct, formatoNumero: e.target.value as ',' | '.' })}
+                      style={inputStyle}
+                    >
+                      <option value=",">Vírgula (,)</option>
+                      <option value=".">Ponto (.)</option>
+                    </select>
+                  </div>
+
+                  <button
+                    onClick={handleAddProduct}
+                    type="button"
+                    style={{
+                      padding: '8px 12px',
+                      background: editingProductIndex !== null ? '#60a5fa' : '#10b981',
+                      border: 'none',
+                      borderRadius: '6px',
+                      color: '#fff',
+                      cursor: 'pointer',
+                      fontSize: '12px',
+                      whiteSpace: 'nowrap',
+                      height: '38px',
+                    }}
+                    title={editingProductIndex !== null ? 'Salvar alterações' : 'Adicionar produto'}
+                  >
+                    {editingProductIndex !== null ? <Save size={16} /> : <Plus size={16} />}
+                  </button>
+                </div>
+              </div>
+
+              {/* Lista de produtos adicionados */}
+              {products.length > 0 ? (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '200px', overflowY: 'auto' }}>
+                  {products.map((product, index) => (
+                    <div
+                      key={index}
+                      style={{
+                        padding: '8px 12px',
+                        background: '#1a2332',
+                        borderRadius: '6px',
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                      }}
+                    >
+                      <div style={{ fontSize: '13px', color: '#fff', flex: 1 }}>
+                        <div>
+                          <strong>{product.nome}</strong>
+                          {product.codigo && <span style={{ color: '#94a3b8', marginLeft: '8px' }}>Cód: {product.codigo}</span>}
+                        </div>
+                        <div style={{ fontSize: '11px', color: '#64748b', marginTop: '2px' }}>
+                          {product.unidade} • Min: {product.quantidadeMin} • Max: {product.quantidadeMax} • R$ {product.valorUnitario.toFixed(2).replace('.', product.formatoNumero)}
+                        </div>
+                      </div>
+                      <div style={{ display: 'flex', gap: '4px' }}>
+                        <button
+                          onClick={() => handleEditProduct(index)}
+                          style={{
+                            background: 'none',
+                            border: 'none',
+                            color: '#60a5fa',
+                            cursor: 'pointer',
+                            padding: '4px',
+                          }}
+                        >
+                          <Edit2 size={16} />
+                        </button>
+                        <button
+                          onClick={() => handleRemoveProduct(index)}
+                          style={{
+                            background: 'none',
+                            border: 'none',
+                            color: '#ef4444',
+                            cursor: 'pointer',
+                            padding: '4px',
+                          }}
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div style={{ textAlign: 'center', padding: '20px', color: '#64748b', fontSize: '13px' }}>
+                  Nenhum produto adicionado. Digite o nome e clique em + para adicionar.
+                </div>
+              )}
+            </div>
+
+            <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', marginTop: '8px' }}>
+              <button
+                onClick={() => {
+                  setShowForm(false);
+                  setEditingCatalog(null);
+                  resetForm();
+                }}
+                style={buttonStyle('secondary')}
+              >
+                Cancelar
+              </button>
+              <button onClick={handleSaveCatalog} style={buttonStyle('primary')}>
+                <Save size={16} /> {editingCatalog ? 'Atualizar' : 'Criar'} Catálogo
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Modal de Sucesso com Animação */}
+      {showSuccessModal && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'rgba(0, 0, 0, 0.85)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 10000,
+          animation: 'fadeIn 0.3s ease-in-out',
+        }}>
+          <style>
+            {`
+              @keyframes fadeIn {
+                from { opacity: 0; }
+                to { opacity: 1; }
+              }
+              @keyframes slideUp {
+                from { 
+                  transform: translateY(30px) scale(0.9);
+                  opacity: 0;
+                }
+                to { 
+                  transform: translateY(0) scale(1);
+                  opacity: 1;
+                }
+              }
+              @keyframes pulse {
+                0%, 100% { transform: scale(1); }
+                50% { transform: scale(1.05); }
+              }
+              @keyframes confetti {
+                0% { transform: translateY(0) rotate(0deg); opacity: 1; }
+                100% { transform: translateY(100vh) rotate(720deg); opacity: 0; }
+              }
+            `}
+          </style>
+          
+          {/* Confetes */}
+          {[...Array(20)].map((_, i) => (
+            <div
+              key={i}
+              style={{
+                position: 'absolute',
+                top: '-10px',
+                left: `${Math.random() * 100}%`,
+                width: '10px',
+                height: '10px',
+                background: ['#667eea', '#764ba2', '#10b981', '#f59e0b', '#ef4444'][i % 5],
+                animation: `confetti ${2 + Math.random() * 2}s linear ${Math.random() * 0.5}s`,
+                borderRadius: '2px',
+              }}
+            />
+          ))}
+
+          <div style={{
+            background: 'linear-gradient(135deg, #1a2332 0%, #0f172a 100%)',
+            borderRadius: '16px',
+            padding: '40px',
+            maxWidth: '500px',
+            width: '90%',
+            border: '2px solid #667eea',
+            boxShadow: '0 20px 60px rgba(102, 126, 234, 0.3)',
+            animation: 'slideUp 0.5s ease-out',
+            textAlign: 'center',
+          }}>
+            {/* Ícone de Sucesso Animado */}
+            <div style={{
+              width: '80px',
+              height: '80px',
+              borderRadius: '50%',
+              background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+              margin: '0 auto 24px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: '40px',
+              animation: 'pulse 1s ease-in-out infinite',
+              boxShadow: '0 10px 30px rgba(16, 185, 129, 0.4)',
+            }}>
+              ✓
+            </div>
+
+            {/* Mensagem */}
+            <h2 style={{
+              margin: '0 0 12px 0',
+              fontSize: '24px',
+              color: '#fff',
+              fontWeight: 700,
+            }}>
+              Sucesso!
+            </h2>
+            <p style={{
+              margin: '0 0 32px 0',
+              fontSize: '16px',
+              color: '#94a3b8',
+              lineHeight: '1.6',
+              whiteSpace: 'pre-line',
+            }}>
+              {successMessage}
+            </p>
+
+            {/* Botão OK */}
+            <button
+              onClick={() => setShowSuccessModal(false)}
+              style={{
+                padding: '14px 40px',
+                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                border: 'none',
+                borderRadius: '8px',
+                color: '#fff',
+                fontSize: '16px',
+                fontWeight: 600,
+                cursor: 'pointer',
+                boxShadow: '0 4px 15px rgba(102, 126, 234, 0.4)',
+                transition: 'all 0.3s',
+              }}
+              onMouseOver={(e) => {
+                e.currentTarget.style.transform = 'translateY(-2px)';
+                e.currentTarget.style.boxShadow = '0 6px 20px rgba(102, 126, 234, 0.6)';
+              }}
+              onMouseOut={(e) => {
+                e.currentTarget.style.transform = 'translateY(0)';
+                e.currentTarget.style.boxShadow = '0 4px 15px rgba(102, 126, 234, 0.4)';
+              }}
+            >
+              OK
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default ProductCatalogManager;

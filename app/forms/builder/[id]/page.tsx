@@ -8,12 +8,13 @@ import { CSS } from '@dnd-kit/utilities';
 import {
   Plus, Trash2, GripVertical, Save, ChevronLeft, Type, CheckSquare,
   List, Calendar, PenTool, Paperclip, Table, Heading, Eye, Settings, MoreVertical,
-  Download, Sun, Moon, RefreshCcw, Mail, MessageCircle
+  Download, Sun, Moon, RefreshCcw, Mail, MessageCircle, ShoppingCart
 } from 'lucide-react';
 import { db } from '../../../../firebase/config';
 import { doc, getDoc, setDoc, addDoc, collection, serverTimestamp, query, onSnapshot, where, getDocs } from 'firebase/firestore';
 import styles from '../../../../app/styles/FormBuilder.module.css';
 import type { Form, Collaborator } from "@/types";
+import ProductCatalogManager from '../../../../src/components/ProductCatalogManager';
 
 // ---- ESTILO DO MENU SUSPENSO ----
 const menuBtnStyle: React.CSSProperties = {
@@ -34,7 +35,7 @@ const menuBtnStyle: React.CSSProperties = {
 };
 
 // ---- TIPOS
-type FieldType = 'Texto' | 'Caixa de Seleção' | 'Múltipla Escolha' | 'Data' | 'Assinatura' | 'Anexo' | 'Tabela' | 'Cabeçalho';
+type FieldType = 'Texto' | 'Caixa de Seleção' | 'Múltipla Escolha' | 'Data' | 'Assinatura' | 'Anexo' | 'Tabela' | 'Cabeçalho' | 'Grade de Pedidos';
 type TableCellValues = Record<string, Record<string, string>>; // fieldId -> rowId -> colId -> value
 type PreviewValues = Record<string, string | string[] | TableCellValues | undefined>;
 // ---- Tipos locais para suportar o limite diário ----
@@ -124,6 +125,493 @@ const defaultTheme: FormTheme = {
   tableCellFont: '#e0e6f7'
 };
 
+// ---- COMPONENTE: CatalogSelector
+function CatalogSelector({ value, onChange, companyId }: { value?: string; onChange: (catalogId: string) => void; companyId?: string }) {
+  const [catalogs, setCatalogs] = useState<Array<{ id: string; name: string }>>([]);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (!companyId) return;
+
+    const loadCatalogs = async () => {
+      setLoading(true);
+      try {
+        const q = query(collection(db, 'product_catalogs'), where('companyId', '==', companyId));
+        const snapshot = await getDocs(q);
+        const catalogsData = snapshot.docs.map(doc => ({
+          id: doc.id,
+          name: doc.data().name || 'Sem nome'
+        }));
+        setCatalogs(catalogsData);
+      } catch (error) {
+        console.error('Erro ao carregar catálogos:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadCatalogs();
+  }, [companyId]);
+
+  return (
+    <select
+      value={value || ''}
+      onChange={e => onChange(e.target.value)}
+      style={{
+        width: '100%',
+        padding: '8px 12px',
+        background: '#171e2c',
+        border: '1px solid #2d3748',
+        borderRadius: '6px',
+        color: '#e8f2ff',
+        fontSize: '14px',
+        cursor: 'pointer'
+      }}
+    >
+      <option value="">{loading ? 'Carregando catálogos...' : 'Selecione um catálogo'}</option>
+      {catalogs.map(catalog => (
+        <option key={catalog.id} value={catalog.id}>
+          {catalog.name}
+        </option>
+      ))}
+    </select>
+  );
+}
+
+// ---- COMPONENTE: OrderGridPreview
+function OrderGridPreview({ catalogId, theme, required }: { catalogId?: string; theme: any; required?: boolean }) {
+  const [products, setProducts] = useState<Array<{ 
+    id: string; 
+    nome: string; 
+    codigo?: string; 
+    unidade?: string;
+    quantidadeMin: number;
+    quantidadeMax: number;
+  }>>([]);
+  const [loading, setLoading] = useState(false);
+  const [selectedProductId, setSelectedProductId] = useState('');
+  const [quantity, setQuantity] = useState(1);
+  const [editingItemId, setEditingItemId] = useState<string | null>(null);
+  const [addedItems, setAddedItems] = useState<Array<{ 
+    id: string; 
+    productId: string;
+    nome: string; 
+    codigo?: string;
+    unidade?: string;
+    quantidade: number;
+  }>>([]);
+
+  useEffect(() => {
+    if (!catalogId) {
+      setProducts([]);
+      return;
+    }
+
+    const loadProducts = async () => {
+      setLoading(true);
+      try {
+        const q = query(collection(db, 'products'), where('catalogId', '==', catalogId));
+        const snapshot = await getDocs(q);
+        const productsData = snapshot.docs.map(doc => ({
+          id: doc.id,
+          nome: doc.data().nome || '',
+          codigo: doc.data().codigo || '',
+          unidade: doc.data().unidade || 'UN',
+          quantidadeMin: doc.data().quantidadeMin || 1,
+          quantidadeMax: doc.data().quantidadeMax || 999,
+        }));
+        setProducts(productsData);
+      } catch (error) {
+        console.error('Erro ao carregar produtos:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadProducts();
+  }, [catalogId]);
+
+  // Atualizar quantidade quando produto é selecionado
+  useEffect(() => {
+    if (selectedProductId) {
+      const product = products.find(p => p.id === selectedProductId);
+      if (product) {
+        setQuantity(product.quantidadeMin);
+      }
+    }
+  }, [selectedProductId, products]);
+
+  const handleAddItem = () => {
+    if (!selectedProductId) {
+      alert('Selecione um produto');
+      return;
+    }
+
+    const product = products.find(p => p.id === selectedProductId);
+    if (!product) return;
+
+    // Validar quantidade
+    if (quantity < product.quantidadeMin) {
+      alert(`Quantidade mínima para ${product.nome}: ${product.quantidadeMin} ${product.unidade}`);
+      return;
+    }
+
+    if (quantity > product.quantidadeMax) {
+      alert(`Quantidade máxima para ${product.nome}: ${product.quantidadeMax} ${product.unidade}`);
+      return;
+    }
+
+    const newItem = {
+      id: `${Date.now()}`,
+      productId: product.id,
+      nome: product.nome,
+      codigo: product.codigo,
+      unidade: product.unidade,
+      quantidade: quantity
+    };
+
+    setAddedItems([...addedItems, newItem]);
+    setSelectedProductId('');
+    setQuantity(1);
+  };
+
+  const handleRemoveItem = (itemId: string) => {
+    setAddedItems(addedItems.filter(item => item.id !== itemId));
+  };
+
+  const handleQuantityChange = (value: number) => {
+    const product = products.find(p => p.id === selectedProductId);
+    const min = product?.quantidadeMin || 1;
+    const max = product?.quantidadeMax || 999;
+    
+    if (value >= min && value <= max) {
+      setQuantity(value);
+    }
+  };
+
+  const handleEditItem = (itemId: string) => {
+    const item = addedItems.find(i => i.id === itemId);
+    if (!item) return;
+
+    setSelectedProductId(item.productId);
+    setQuantity(item.quantidade);
+    setEditingItemId(itemId);
+  };
+
+  const handleUpdateItem = () => {
+    if (!editingItemId) return;
+
+    const product = products.find(p => p.id === selectedProductId);
+    if (!product) return;
+
+    // Validar quantidade
+    if (quantity < product.quantidadeMin) {
+      alert(`Quantidade mínima para ${product.nome}: ${product.quantidadeMin} ${product.unidade}`);
+      return;
+    }
+
+    if (quantity > product.quantidadeMax) {
+      alert(`Quantidade máxima para ${product.nome}: ${product.quantidadeMax} ${product.unidade}`);
+      return;
+    }
+
+    setAddedItems(addedItems.map(item => 
+      item.id === editingItemId 
+        ? { ...item, quantidade: quantity }
+        : item
+    ));
+
+    setEditingItemId(null);
+    setSelectedProductId('');
+    setQuantity(1);
+  };
+
+  const handleCancelEdit = () => {
+    setEditingItemId(null);
+    setSelectedProductId('');
+    setQuantity(1);
+  };
+
+  return (
+    <>
+      {/* Dropdown de Produtos */}
+      <div style={{ marginBottom: '16px' }}>
+        <label style={{ 
+          display: 'block', 
+          marginBottom: '6px', 
+          fontSize: '13px',
+          fontWeight: 500,
+          color: '#374151'
+        }}>
+          Referência ou Nome do Produto {required && <span style={{ color: '#ef4444' }}>*</span>}
+        </label>
+        <select
+          value={selectedProductId}
+          onChange={(e) => setSelectedProductId(e.target.value)}
+          style={{
+            width: '100%',
+            padding: '10px 12px',
+            border: '1px solid #d1d5db',
+            borderRadius: theme.borderRadius,
+            fontSize: '14px',
+            background: '#fff',
+            color: '#374151',
+            cursor: 'pointer',
+          }}
+        >
+          <option value="">
+            {loading ? 'Carregando produtos...' : 'Selecione um produto'}
+          </option>
+          {products.map(product => (
+            <option key={product.id} value={product.id}>
+              {product.codigo ? `${product.codigo} - ${product.nome}` : product.nome}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      {/* Campo de Quantidade */}
+      <div style={{ marginBottom: '16px' }}>
+        <label style={{ 
+          display: 'block', 
+          marginBottom: '6px', 
+          fontSize: '13px',
+          fontWeight: 500,
+          color: '#374151'
+        }}>
+          Quantidade
+        </label>
+        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+          <button
+            type="button"
+            onClick={() => handleQuantityChange(quantity - 1)}
+            style={{
+              width: '36px',
+              height: '36px',
+              border: '1px solid #d1d5db',
+              borderRadius: theme.borderRadius,
+              background: '#fff',
+              color: '#374151',
+              fontSize: '18px',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            −
+          </button>
+          <input
+            type="number"
+            value={quantity}
+            onChange={(e) => handleQuantityChange(parseFloat(e.target.value) || 1)}
+            min={products.find(p => p.id === selectedProductId)?.quantidadeMin || 1}
+            max={products.find(p => p.id === selectedProductId)?.quantidadeMax || 999}
+            step="0.01"
+            style={{
+              flex: 1,
+              padding: '10px 12px',
+              border: '1px solid #d1d5db',
+              borderRadius: theme.borderRadius,
+              fontSize: '14px',
+              background: '#fff',
+              color: '#374151',
+              textAlign: 'center',
+            }}
+          />
+          <button
+            type="button"
+            onClick={() => handleQuantityChange(quantity + 1)}
+            style={{
+              width: '36px',
+              height: '36px',
+              border: '1px solid #d1d5db',
+              borderRadius: theme.borderRadius,
+              background: '#fff',
+              color: '#374151',
+              fontSize: '18px',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            +
+          </button>
+        </div>
+      </div>
+
+      {/* Botões Adicionar/Atualizar */}
+      <div style={{ display: 'flex', gap: '8px', marginBottom: '20px' }}>
+        <button
+          type="button"
+          onClick={editingItemId ? handleUpdateItem : handleAddItem}
+          style={{
+            flex: 1,
+            padding: '12px',
+            background: editingItemId ? '#10b981' : theme.accentColor,
+            border: 'none',
+            borderRadius: theme.borderRadius,
+            color: '#fff',
+            fontSize: '14px',
+            fontWeight: 600,
+            cursor: 'pointer',
+            transition: 'all 0.2s',
+          }}
+          onMouseOver={(e) => e.currentTarget.style.opacity = '0.9'}
+          onMouseOut={(e) => e.currentTarget.style.opacity = '1'}
+        >
+          {editingItemId ? '✓ Atualizar Item' : 'Adicionar ao Pedido +'}
+        </button>
+        {editingItemId && (
+          <button
+            type="button"
+            onClick={handleCancelEdit}
+            style={{
+              padding: '12px 20px',
+              background: '#6b7280',
+              border: 'none',
+              borderRadius: theme.borderRadius,
+              color: '#fff',
+              fontSize: '14px',
+              fontWeight: 600,
+              cursor: 'pointer',
+              transition: 'all 0.2s',
+            }}
+            onMouseOver={(e) => e.currentTarget.style.opacity = '0.9'}
+            onMouseOut={(e) => e.currentTarget.style.opacity = '1'}
+          >
+            Cancelar
+          </button>
+        )}
+      </div>
+
+      {/* Tabela de Itens */}
+      <div style={{
+        borderRadius: theme.borderRadius,
+        border: `1px solid ${theme.tableBorderColor}`,
+        overflow: 'hidden'
+      }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+          <thead>
+            <tr style={{ background: theme.tableHeaderBg }}>
+              <th style={{ 
+                padding: '10px 12px', 
+                textAlign: 'left',
+                color: theme.tableHeaderFont,
+                fontSize: '13px',
+                fontWeight: 600,
+                borderBottom: `1px solid ${theme.tableBorderColor}`
+              }}>
+                Produto
+              </th>
+              <th style={{ 
+                padding: '10px 12px', 
+                textAlign: 'center',
+                color: theme.tableHeaderFont,
+                fontSize: '13px',
+                fontWeight: 600,
+                borderBottom: `1px solid ${theme.tableBorderColor}`,
+                width: '120px'
+              }}>
+                Qtd
+              </th>
+              <th style={{ 
+                padding: '10px 12px', 
+                textAlign: 'center',
+                color: theme.tableHeaderFont,
+                fontSize: '13px',
+                fontWeight: 600,
+                borderBottom: `1px solid ${theme.tableBorderColor}`,
+                width: '80px'
+              }}>
+                Ações
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {addedItems.length === 0 ? (
+              <tr>
+                <td colSpan={3} style={{ 
+                  padding: '24px',
+                  textAlign: 'center',
+                  color: '#94a3b8',
+                  fontSize: '13px',
+                  fontStyle: 'italic',
+                  background: theme.tableOddRowBg
+                }}>
+                  Os itens adicionados aparecerão aqui
+                </td>
+              </tr>
+            ) : (
+              addedItems.map((item, index) => (
+                <tr key={item.id} style={{ 
+                  background: index % 2 === 0 ? theme.tableEvenRowBg : theme.tableOddRowBg 
+                }}>
+                  <td style={{ 
+                    padding: '10px 12px',
+                    fontSize: '13px',
+                    color: '#374151',
+                    borderBottom: `1px solid ${theme.tableBorderColor}`
+                  }}>
+                    {item.codigo ? `${item.codigo} - ${item.nome}` : item.nome}
+                  </td>
+                  <td style={{ 
+                    padding: '10px 12px',
+                    fontSize: '13px',
+                    color: '#374151',
+                    textAlign: 'center',
+                    borderBottom: `1px solid ${theme.tableBorderColor}`
+                  }}>
+                    {item.quantidade} {item.unidade}
+                  </td>
+                  <td style={{ 
+                    padding: '10px 12px',
+                    textAlign: 'center',
+                    borderBottom: `1px solid ${theme.tableBorderColor}`
+                  }}>
+                    <div style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
+                      <button
+                        type="button"
+                        onClick={() => handleEditItem(item.id)}
+                        style={{
+                          background: 'none',
+                          border: 'none',
+                          color: '#3b82f6',
+                          cursor: 'pointer',
+                          padding: '4px',
+                          fontSize: '18px'
+                        }}
+                        title="Editar item"
+                      >
+                        ✏️
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveItem(item.id)}
+                        style={{
+                          background: 'none',
+                          border: 'none',
+                          color: '#ef4444',
+                          cursor: 'pointer',
+                          padding: '4px',
+                          fontSize: '18px'
+                        }}
+                        title="Remover item"
+                      >
+                        🗑️
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
+      </div>
+    </>
+  );
+}
 
 // ---- FIELD TYPES
 const FIELD_TYPES: Array<{
@@ -139,7 +627,8 @@ const FIELD_TYPES: Array<{
   { type: 'Assinatura', label: 'Assinatura', icon: PenTool, description: 'Campo para assinatura digital' },
   { type: 'Anexo', label: 'Anexo', icon: Paperclip, description: 'Upload de arquivos' },
   { type: 'Tabela', label: 'Tabela', icon: Table, description: 'Tabela editável' },
-  { type: 'Cabeçalho', label: 'Cabeçalho', icon: Heading, description: 'Título ou seção' }
+  { type: 'Cabeçalho', label: 'Cabeçalho', icon: Heading, description: 'Título ou seção' },
+  { type: 'Grade de Pedidos', label: 'Grade de Pedidos', icon: ShoppingCart, description: 'Grade de itens com busca de produtos' }
 ];
 
 // ---- UTILS
@@ -349,9 +838,10 @@ function DraggableFieldType({ fieldType }: { fieldType: typeof FIELD_TYPES[0] })
 }
 
 // Sidebar de propriedades do campo selecionado
-function FieldProperties({ field, updateField }: {
+function FieldProperties({ field, updateField, companyId }: {
   field: EnhancedFormField;
   updateField: (updates: Partial<EnhancedFormField>) => void;
+  companyId?: string;
 }) {
 
   // Opções para campos de opções (checkbox, múltipla escolha)
@@ -709,6 +1199,59 @@ function FieldProperties({ field, updateField }: {
             </div>
           </div>
         </>
+      )}
+
+      {field.type === 'Grade de Pedidos' && (
+        <div className={styles.propertyGroup}>
+          <label>Catálogo de Produtos</label>
+          <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-start' }}>
+            <div style={{ flex: 1 }}>
+              <CatalogSelector
+                value={(field as any).dataSource?.catalogId}
+                companyId={companyId}
+                onChange={(catalogId) => {
+                  updateField({
+                    dataSource: {
+                      ...(field as any).dataSource,
+                      catalogId,
+                      collection: 'products',
+                      displayField: 'nome',
+                      valueField: 'id',
+                      searchFields: ['nome', 'codigo']
+                    }
+                  } as any);
+                }}
+              />
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                // Abrirá o modal de gerenciamento de catálogos
+                const event = new CustomEvent('openCatalogManager');
+                window.dispatchEvent(event);
+              }}
+              style={{
+                padding: '8px 16px',
+                background: '#3b82f6',
+                border: 'none',
+                borderRadius: '6px',
+                color: '#fff',
+                fontSize: '14px',
+                fontWeight: 500,
+                cursor: 'pointer',
+                whiteSpace: 'nowrap',
+                transition: 'background 0.2s'
+              }}
+              onMouseOver={(e) => e.currentTarget.style.background = '#2563eb'}
+              onMouseOut={(e) => e.currentTarget.style.background = '#3b82f6'}
+            >
+              📁 Gerenciar
+            </button>
+          </div>
+          <small style={{ color: '#6fd3fa', fontSize: 11, marginTop: 4, display: 'block' }}>
+            Selecione o catálogo de produtos que será usado neste campo
+          </small>
+        </div>
       )}
 
       <div className={styles.propertyGroup}>
@@ -1256,6 +1799,50 @@ caretColor: autoInputColor,   // (opcional) garante o cursor visível
                     </table>
                   </div>
                 )}
+
+                {/* GRADE DE PEDIDOS */}
+                {field.type === 'Grade de Pedidos' && (
+                  <div>
+                    {/* Verificar se catálogo está selecionado */}
+                    {!(field as any).dataSource?.catalogId ? (
+                      <div style={{
+                        padding: '24px',
+                        background: '#fef3c7',
+                        border: '1px solid #fbbf24',
+                        borderRadius: theme.borderRadius,
+                        textAlign: 'center'
+                      }}>
+                        <p style={{ margin: 0, color: '#92400e', fontSize: '14px' }}>
+                          ⚠️ Selecione um catálogo nas configurações acima para visualizar o preview
+                        </p>
+                      </div>
+                    ) : (
+                      <div style={{
+                        padding: '20px',
+                        background: '#fff',
+                        border: `1px solid ${theme.tableBorderColor}`,
+                        borderRadius: theme.borderRadius
+                      }}>
+                        <h4 style={{ 
+                          margin: '0 0 16px 0', 
+                          fontSize: '14px', 
+                          fontWeight: 600,
+                          color: '#374151'
+                        }}>
+                          Preview: Formulário de inclusão de produto
+                        </h4>
+
+                        {/* Componente completo de Grade de Pedidos */}
+                        <OrderGridPreview 
+                          key={`ordergrid-${(field as any).dataSource?.catalogId}`}
+                          catalogId={(field as any).dataSource?.catalogId}
+                          theme={theme}
+                          required={field.required}
+                        />
+                      </div>
+                    )}
+                  </div>
+                )}
               </>
             )}
           </div>
@@ -1327,6 +1914,7 @@ const [autoFill, setAutoFill] = useState<boolean>(false);
   const [activeTab, setActiveTab] = useState<'design' | 'preview'>('design');
   const [selectedFieldId, setSelectedFieldId] = useState<string | null>(null);
   const [menuOpen, setMenuOpen] = useState<boolean>(false);
+  const [catalogManagerOpen, setCatalogManagerOpen] = useState<boolean>(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
   // Estados dos dados
@@ -1543,6 +2131,17 @@ useEffect(() => {
   });
 }, [draft.fields]);
 
+  // Escutar evento para abrir modal de catálogos
+  useEffect(() => {
+    const handleOpenCatalogManager = () => {
+      setCatalogManagerOpen(true);
+    };
+
+    window.addEventListener('openCatalogManager', handleOpenCatalogManager);
+    return () => {
+      window.removeEventListener('openCatalogManager', handleOpenCatalogManager);
+    };
+  }, []);
 
   // Fechar menu ao clicar fora
   useEffect(() => {
@@ -2003,21 +2602,197 @@ const toggleAutofill = useCallback((checked: boolean) => {
         >
           {/* Sidebar Esquerda */}
           <aside className={styles.sidebarLeft}>
-            <div className={styles.sidebarHeader}>
-              <h3>Adicionar Campos</h3>
-              <p>Arraste para o formulário</p>
-            </div>
-            <div className={styles.fieldTypesList}>
-              {FIELD_TYPES.map((fieldType) => (
-                <div
-                  key={fieldType.type}
-                  className={styles.fieldTypeItem}
-                  onClick={() => addField(fieldType.type)}
-                >
-                  <DraggableFieldType fieldType={fieldType} />
+            {activeTab === 'preview' ? (
+              // Mostrar Aparência no modo Preview
+              <>
+                <div className={styles.sidebarHeader}>
+                  <h3>Aparência</h3>
+                  <p>Personalize as cores</p>
                 </div>
-              ))}
-            </div>
+                <div style={{ padding: '0 12px', overflowY: 'auto', maxHeight: 'calc(100vh - 180px)' }}>
+                  {/* Grid de 2 colunas para cores */}
+                  <div style={{ 
+                    display: 'grid', 
+                    gridTemplateColumns: '1fr 1fr', 
+                    gap: '6px',
+                    marginTop: '4px'
+                  }}>
+                    <div className={styles.propertyGroup} style={{ marginBottom: '4px' }}>
+                      <label style={{ fontSize: '11px', marginBottom: '2px' }}>Título</label>
+                      <input
+                        type="color"
+                        value={draft.theme.titleColor || '#ffffff'}
+                        onChange={(e) => updateTheme({ titleColor: e.target.value })}
+                        className={styles.colorInput}
+                        style={{ height: '32px' }}
+                      />
+                    </div>
+
+                    <div className={styles.propertyGroup} style={{ marginBottom: '4px' }}>
+                      <label style={{ fontSize: '11px', marginBottom: '2px' }}>Descrição</label>
+                      <input
+                        type="color"
+                        value={draft.theme.descriptionColor || '#b8c5d6'}
+                        onChange={(e) => updateTheme({ descriptionColor: e.target.value })}
+                        className={styles.colorInput}
+                        style={{ height: '32px' }}
+                      />
+                    </div>
+
+                    <div className={styles.propertyGroup} style={{ marginBottom: '4px' }}>
+                      <label style={{ fontSize: '11px', marginBottom: '2px' }}>Texto Cabeçalho</label>
+                      <input
+                        type="color"
+                        value={draft.theme.sectionHeaderFont || '#ffffff'}
+                        onChange={(e) => updateTheme({ sectionHeaderFont: e.target.value })}
+                        className={styles.colorInput}
+                        style={{ height: '32px' }}
+                      />
+                    </div>
+
+                    <div className={styles.propertyGroup} style={{ marginBottom: '4px' }}>
+                      <label style={{ fontSize: '11px', marginBottom: '2px' }}>Fundo Cabeçalho</label>
+                      <input
+                        type="color"
+                        value={draft.theme.sectionHeaderBg ||""}
+                        onChange={e => updateTheme({ sectionHeaderBg: e.target.value })}
+                        className={styles.colorInput}
+                        style={{ height: '32px' }}
+                      />
+                    </div>
+
+                    <div className={styles.propertyGroup} style={{ marginBottom: '4px' }}>
+                      <label style={{ fontSize: '11px', marginBottom: '2px' }}>Fundo Painel</label>
+                      <input
+                        type="color"
+                        value={draft.theme.bgColor}
+                        onChange={e => updateTheme({ bgColor: e.target.value })}
+                        className={styles.colorInput}
+                        style={{ height: '32px' }}
+                      />
+                    </div>
+
+                    <div className={styles.propertyGroup} style={{ marginBottom: '4px' }}>
+                      <label style={{ fontSize: '11px', marginBottom: '2px' }}>Fundo Campos</label>
+                      <input
+                        type="color"
+                        value={draft.theme.inputBgColor}
+                        onChange={e => updateTheme({ inputBgColor: e.target.value })}
+                        className={styles.inputBgColor}
+                        style={{ height: '32px' }}
+                      />
+                    </div>
+
+                    <div className={styles.propertyGroup} style={{ marginBottom: '4px' }}>
+                      <label style={{ fontSize: '11px', marginBottom: '2px' }}>Fundo Botão</label>
+                      <input
+                        type="color"
+                        value={draft.theme.accentColor}
+                        onChange={e => updateTheme({ accentColor: e.target.value })}
+                        className={styles.colorInput}
+                        style={{ height: '32px' }}
+                      />
+                    </div>
+
+                    <div className={styles.propertyGroup} style={{ marginBottom: '4px' }}>
+                      <label style={{ fontSize: '11px', marginBottom: '2px' }}>Texto</label>
+                      <input
+                        type="color"
+                        value={draft.theme.fontColor}
+                        onChange={e => updateTheme({ fontColor: e.target.value })}
+                        className={styles.colorInput}
+                        style={{ height: '32px' }}
+                      />
+                    </div>
+
+                    <div className={styles.propertyGroup} style={{ marginBottom: '4px' }}>
+                      <label style={{ fontSize: '11px', marginBottom: '2px' }}>Fundo Header Tabela</label>
+                      <input
+                        type="color"
+                        value={draft.theme.tableHeaderBg || "#1a2238"}
+                        onChange={e => updateTheme({ tableHeaderBg: e.target.value })}
+                        className={styles.colorInput}
+                        style={{ height: '32px' }}
+                      />
+                    </div>
+
+                    <div className={styles.propertyGroup} style={{ marginBottom: '4px' }}>
+                      <label style={{ fontSize: '11px', marginBottom: '2px' }}>Texto Header Tabela</label>
+                      <input
+                        type="color"
+                        value={draft.theme.tableHeaderFont || "#49cfff"}
+                        onChange={e => updateTheme({ tableHeaderFont: e.target.value })}
+                        className={styles.colorInput}
+                        style={{ height: '32px' }}
+                      />
+                    </div>
+
+                    <div className={styles.propertyGroup} style={{ marginBottom: '4px' }}>
+                      <label style={{ fontSize: '11px', marginBottom: '2px' }}>Texto Linhas Tabela</label>
+                      <input
+                        type="color"
+                        value={draft.theme.tableCellFont || "#e0e6f7"}
+                        onChange={e => updateTheme({ tableCellFont: e.target.value })}
+                        className={styles.colorInput}
+                        style={{ height: '32px' }}
+                      />
+                    </div>
+
+                    <div className={styles.propertyGroup} style={{ marginBottom: '4px' }}>
+                      <label style={{ fontSize: '11px', marginBottom: '2px' }}>Bordas</label>
+                      <input
+                        type="color"
+                        value={draft.theme.tableBorderColor || "#19263b"}
+                        onChange={e => updateTheme({ tableBorderColor: e.target.value })}
+                        className={styles.colorInput}
+                        style={{ height: '32px' }}
+                      />
+                    </div>
+
+                    <div className={styles.propertyGroup} style={{ marginBottom: '4px' }}>
+                      <label style={{ fontSize: '11px', marginBottom: '2px' }}>Linhas Ímpares</label>
+                      <input
+                        type="color"
+                        value={draft.theme.tableOddRowBg || "#222c42"}
+                        onChange={e => updateTheme({ tableOddRowBg: e.target.value })}
+                        className={styles.colorInput}
+                        style={{ height: '32px' }}
+                      />
+                    </div>
+
+                    <div className={styles.propertyGroup} style={{ marginBottom: '4px' }}>
+                      <label style={{ fontSize: '11px', marginBottom: '2px' }}>Linhas Pares</label>
+                      <input
+                        type="color"
+                        value={draft.theme.tableEvenRowBg || "#171e2c"}
+                        onChange={e => updateTheme({ tableEvenRowBg: e.target.value })}
+                        className={styles.colorInput}
+                        style={{ height: '32px' }}
+                      />
+                    </div>
+                  </div>
+                </div>
+              </>
+            ) : (
+              // Mostrar Adicionar Campos no modo Design
+              <>
+                <div className={styles.sidebarHeader}>
+                  <h3>Adicionar Campos</h3>
+                  <p>Arraste para o formulário</p>
+                </div>
+                <div className={styles.fieldTypesList}>
+                  {FIELD_TYPES.map((fieldType) => (
+                    <div
+                      key={fieldType.type}
+                      className={styles.fieldTypeItem}
+                      onClick={() => addField(fieldType.type)}
+                    >
+                      <DraggableFieldType fieldType={fieldType} />
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
           </aside>
 
           {/* Canvas Central */}
@@ -2063,76 +2838,29 @@ const toggleAutofill = useCallback((checked: boolean) => {
                 )}
               </div>
             ) : (
-              <div className={styles.previewCanvas}>
-                <div className={styles.previewHeader}>
-                  <h4>Preview do Formulário</h4>
-                  <p>Como o colaborador verá</p>
+              <div className={styles.previewCanvas} style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
+                <div className={styles.previewHeader} style={{ padding: '16px 20px', borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '20px' }}>
+                    <div style={{ flex: 1 }}>
+                      <h4 style={{ margin: 0, fontSize: '16px', fontWeight: 600 }}>Preview do Formulário</h4>
+                      <p style={{ margin: '4px 0 0 0', fontSize: '12px', opacity: 0.7 }}>Como o colaborador verá</p>
+                    </div>
+                    {/* Controles do preview */}
+                    <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexShrink: 0 }}>
+                      <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '5px 10px', border: `1px solid ${draft.theme.tableBorderColor || '#26314a'}`, borderRadius: 6, cursor: 'pointer', userSelect: 'none', fontSize: '12px', whiteSpace: 'nowrap' }}>
+                        <input type="checkbox" checked={autoFill} onChange={(e) => toggleAutofill(e.target.checked)} />
+                        Autopreencher
+                      </label>
+                      <button type="button" onClick={fillRandomValues} style={{ padding: '5px 12px', borderRadius: 6, border: '1px solid transparent', background: draft.theme.accentColor, color: '#fff', fontSize: 12, cursor: 'pointer', whiteSpace: 'nowrap' }} title="Gerar novos valores aleatórios">
+                        Regerar
+                      </button>
+                      <button type="button" onClick={clearPreview} style={{ padding: '5px 12px', borderRadius: 6, border: `1px solid ${draft.theme.tableBorderColor || '#26314a'}`, background: 'transparent', color: draft.theme.fontColor, fontSize: 12, cursor: 'pointer', whiteSpace: 'nowrap' }} title="Limpar respostas">
+                        Limpar
+                      </button>
+                    </div>
+                  </div>
                 </div>
-                {/* Controles do preview */}
-<div
-  style={{
-    display: 'flex',
-    flexWrap: 'wrap',
-    gap: 8,
-    alignItems: 'center',
-    margin: '0 0 14px 0',
-  }}
->
-  <label
-    style={{
-      display: 'inline-flex',
-      alignItems: 'center',
-      gap: 8,
-      padding: '6px 10px',
-      border: `1px solid ${draft.theme.tableBorderColor || '#26314a'}`,
-      borderRadius: 8,
-      cursor: 'pointer',
-      userSelect: 'none',
-    }}
-  >
-    <input
-      type="checkbox"
-      checked={autoFill}
-      onChange={(e) => toggleAutofill(e.target.checked)}
-    />
-    Autopreencher
-  </label>
-
-  <button
-    type="button"
-    onClick={fillRandomValues}
-    style={{
-      padding: '6px 12px',
-      borderRadius: 8,
-      border: '1px solid transparent',
-      background: draft.theme.accentColor,
-      color: '#fff',
-      fontSize: 13,
-      cursor: 'pointer',
-    }}
-    title="Gerar novos valores aleatórios para todos os campos"
-  >
-    Regerar
-  </button>
-
-  <button
-    type="button"
-    onClick={clearPreview}
-    style={{
-      padding: '6px 12px',
-      borderRadius: 8,
-      border: `1px solid ${draft.theme.tableBorderColor || '#26314a'}`,
-      background: 'transparent',
-      color: draft.theme.fontColor,
-      fontSize: 13,
-      cursor: 'pointer',
-    }}
-    title="Limpar todas as respostas do preview"
-  >
-    Limpar
-  </button>
-</div>
-                <div className={styles.formPreview}>
+                <div className={styles.formPreview} style={{ flex: 1, overflowY: 'auto', padding: '16px' }}>
                   <div
                     className={styles.previewForm}
                     style={{
@@ -2275,23 +3003,25 @@ const toggleAutofill = useCallback((checked: boolean) => {
               <FieldProperties
                 field={selectedField}
                 updateField={updateField}
+                companyId={companyId}
               />
             ) : (
               <>
-              
-                <div className={styles.formSettings}></div>
-                  <div className={styles.propertyGroup}>
-                    <label>Descrição do Formulário</label>
+                <div className={styles.formSettings}>
+                  <div className={styles.propertyGroup} style={{ marginBottom: '12px' }}>
+                    <label style={{ fontSize: '13px', marginBottom: '4px' }}>Descrição do Formulário</label>
                     <textarea
                       value={draft.description}
                       onChange={e => setDraft(prev => ({ ...prev, description: e.target.value }))}
                       className={styles.propertyTextarea}
                       placeholder="Descrição opcional..."
+                      style={{ minHeight: '60px', fontSize: '13px' }}
                     />
                   </div>
+                </div>
                   
-                  <div className={styles.propertyGroup}>
-  <label>Logo do Formulário</label>
+                  <div className={styles.propertyGroup} style={{ marginBottom: '12px' }}>
+  <label style={{ fontSize: '13px', marginBottom: '4px' }}>Logo do Formulário</label>
   <input
     type="file"
     accept="image/*"
@@ -2318,13 +3048,13 @@ const toggleAutofill = useCallback((checked: boolean) => {
     }}
   />
   {logoPreview && (
-    <div style={{ margin: '10px 0', textAlign: draft.logo?.align || 'center' }}>
+    <div style={{ margin: '6px 0', textAlign: draft.logo?.align || 'center' }}>
       <img
         src={logoPreview}
         alt="Logo Preview"
         style={{
           width: draft.logo?.size ? `${draft.logo.size}%` : '40%',
-          maxWidth: 200,
+          maxWidth: 160,
           display: 'block',
           margin: draft.logo?.align === 'left'
             ? '0 auto 0 0'
@@ -2335,8 +3065,8 @@ const toggleAutofill = useCallback((checked: boolean) => {
       />
     </div>
   )}
-  <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 6 }}>
-    <label style={{ fontSize: 13 }}>Tamanho:</label>
+  <div style={{ display: 'flex', gap: 6, alignItems: 'center', marginTop: 4 }}>
+    <label style={{ fontSize: 12 }}>Tamanho:</label>
     <input
       type="range"
       min={10}
@@ -2354,11 +3084,12 @@ const toggleAutofill = useCallback((checked: boolean) => {
           }
         }))
       }
+      style={{ flex: 1 }}
     />
-    <span style={{ fontSize: 12 }}>{draft.logo?.size || 40}%</span>
+    <span style={{ fontSize: 11, minWidth: '35px' }}>{draft.logo?.size || 40}%</span>
   </div>
-  <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginTop: 6 }}>
-    <label style={{ fontSize: 13 }}>Alinhamento:</label>
+  <div style={{ display: 'flex', gap: 6, alignItems: 'center', marginTop: 4 }}>
+    <label style={{ fontSize: 12 }}>Alinhamento:</label>
     <select
       value={draft.logo?.align || 'center'}
       onChange={e =>
@@ -2373,7 +3104,7 @@ const toggleAutofill = useCallback((checked: boolean) => {
           }
         }))
       }
-      style={{ fontSize: 13, padding: '2px 8px' }}
+      style={{ fontSize: 12, padding: '3px 6px', flex: 1 }}
     >
       <option value="left">Esquerda</option>
       <option value="center">Centro</option>
@@ -2383,7 +3114,7 @@ const toggleAutofill = useCallback((checked: boolean) => {
       <button
         type="button"
         className={styles.deleteBtn}
-        style={{ fontSize: 13, padding: '1px 8px', marginLeft: 6 }}
+        style={{ fontSize: 11, padding: '3px 8px', marginLeft: 4 }}
         onClick={() => {
           setLogoPreview(null);
           setLogoFileName('');
@@ -2393,184 +3124,45 @@ const toggleAutofill = useCallback((checked: boolean) => {
           }));
         }}
       >
-        Remover Logo
+        Remover
       </button>
     )}
   </div>
 </div>
 
 
-    <div className={styles.card}>
-  <div className={styles.cardTitle}>Aparência</div>     
-
-  <div className={styles.propertyGroup}>
-  <label>Cor do Título</label>
-  <input
-    type="color"
-    value={draft.theme.titleColor || '#ffffff'}
-    onChange={(e) => updateTheme({ titleColor: e.target.value })}
-    className={styles.colorInput}
-  />
-</div>
-
-<div className={styles.propertyGroup}>
-  <label>Cor da Descrição</label>
-  <input
-    type="color"
-    value={draft.theme.descriptionColor || '#b8c5d6'}
-    onChange={(e) => updateTheme({ descriptionColor: e.target.value })}
-    className={styles.colorInput}
-  />
-</div>
-
-<div className={styles.propertyGroup}>
-  <label>Cor do Texto do Cabeçalho</label>
-  <input
-    type="color"
-    value={draft.theme.sectionHeaderFont || '#ffffff'}
-    onChange={(e) => updateTheme({ sectionHeaderFont: e.target.value })}
-    className={styles.colorInput}
-  />
-</div>
-
-
-<div className={styles.propertyGroup}>
-  <label>Cor Fundo do Cabeçalho</label>
-  <input
-    type="color"
-    value={draft.theme.sectionHeaderBg ||""}
-    onChange={e => updateTheme({ sectionHeaderBg: e.target.value })}
-    className={styles.colorInput}
-  />
-</div>
-
-  <div className={styles.propertyGroup}>
-  <label>Cor de Fundo do Painel</label>
-  <input
-    type="color"
-    value={draft.theme.bgColor}
-    onChange={e => updateTheme({ bgColor: e.target.value })}
-    className={styles.colorInput}
-  />
-</div>
-
-<div className={styles.propertyGroup}>
-  <label>Cor de Fundo dos Campos</label>
-  <input
-    type="color"
-    value={draft.theme.inputBgColor}
-    onChange={e => updateTheme({ inputBgColor: e.target.value })}
-    className={styles.inputBgColor}
-  />
-</div>
-
-<div className={styles.propertyGroup}>
-  <label>Cor de Fundo</label>
-  <input
-    type="color"
-    value={draft.theme.accentColor}
-    onChange={e => updateTheme({ accentColor: e.target.value })}
-    className={styles.colorInput}
-  />
-</div>
-<div className={styles.propertyGroup}>
-  <label>Cor do Texto</label>
-  <input
-    type="color"
-    value={draft.theme.fontColor}
-    onChange={e => updateTheme({ fontColor: e.target.value })}
-    className={styles.colorInput}
-  />
-</div>
-
-{/* --------- NOVOS CAMPOS DE CORES PARA TABELA --------- */}
-<div className={styles.propertyGroup}>
-  <label>Cor de Fundo do Cabeçalho da Tabela</label>
-  <input
-    type="color"
-    value={draft.theme.tableHeaderBg || "#1a2238"}
-    onChange={e => updateTheme({ tableHeaderBg: e.target.value })}
-    className={styles.colorInput}
-  />
-</div>
-<div className={styles.propertyGroup}>
-  <label>Cor do Texto da Coluna da Tabela</label>
-  <input
-    type="color"
-    value={draft.theme.tableHeaderFont || "#49cfff"}
-    onChange={e => updateTheme({ tableHeaderFont: e.target.value })}
-    className={styles.colorInput}
-  />
-</div>
-<div className={styles.propertyGroup}>
-  <label>Cor do Texto das Linhas da Tabela</label>
-  <input
-    type="color"
-    value={draft.theme.tableCellFont || "#e0e6f7"}
-    onChange={e => updateTheme({ tableCellFont: e.target.value })}
-    className={styles.colorInput}
-  />
-</div>
-<div className={styles.propertyGroup}>
-  <label>Cor das Bordas</label>
-  <input
-    type="color"
-    value={draft.theme.tableBorderColor || "#19263b"}
-    onChange={e => updateTheme({ tableBorderColor: e.target.value })}
-    className={styles.colorInput}
-  />
-</div>
-<div className={styles.propertyGroup}>
-  <label>Cor das Linhas Ímpares da Tabela</label>
-  <input
-    type="color"
-    value={draft.theme.tableOddRowBg || "#222c42"}
-    onChange={e => updateTheme({ tableOddRowBg: e.target.value })}
-    className={styles.colorInput}
-  />
-</div>
-<div className={styles.propertyGroup}>
-  <label>Cor das Linhas Pares da Tabela</label>
-  <input
-    type="color"
-    value={draft.theme.tableEvenRowBg || "#171e2c"}
-    onChange={e => updateTheme({ tableEvenRowBg: e.target.value })}
-    className={styles.colorInput}
-  />
-</div>
-
-</div>
 
 {/* Limite diário de respostas */}
-<div className={styles.card} style={{ marginBottom: 14 }}>
-  <h4 className={styles.subTitle}>Limite diário de respostas</h4>
+<div className={styles.card} style={{ marginBottom: 12, padding: '12px' }}>
+  <h4 className={styles.subTitle} style={{ fontSize: '13px', marginBottom: '8px' }}>Limite diário de respostas</h4>
 
-  <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+  <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
     <button
       type="button"
       className={`${styles.togglePill} ${draft.settings?.dailyLimitEnabled ? styles.on : ''}`}
       onClick={toggleDailyLimitEnabled}
+      style={{ fontSize: '12px', padding: '4px 10px' }}
     >
       Limitar respostas diárias?
     </button>
 
     {draft.settings?.dailyLimitEnabled && (
-      <div className={styles.propertyGroup} style={{ margin: 0 }}>
-        <label>Quantidade por dia</label>
+      <div className={styles.propertyGroup} style={{ margin: 0, flex: 1 }}>
+        <label style={{ fontSize: '12px', marginBottom: '2px' }}>Quantidade por dia</label>
         <input
           type="number"
           min={1}
           value={draft.settings?.dailyLimitCount ?? 1}
           onChange={(e) => setDailyLimitCount(e.target.value as unknown as number)}
           className={styles.propertyInput}
-          style={{ width: 140 }}
+          style={{ width: '100%', fontSize: '12px', padding: '4px 8px' }}
         />
       </div>
     )}
   </div>
 
   {draft.settings?.dailyLimitEnabled && (
-    <small style={{ color: '#9fb6d1', display: 'block', marginTop: 6 }}>
+    <small style={{ color: '#9fb6d1', display: 'block', marginTop: 4, fontSize: '11px' }}>
       O limite é por formulário e reinicia diariamente.
     </small>
   )}
@@ -2579,23 +3171,25 @@ const toggleAutofill = useCallback((checked: boolean) => {
 
 
                 {/* Automação */}
-                <div className={styles.automationSection}>
-                  <h4 className={styles.subTitle}>Automação de Notificação</h4>
-                  <div className={styles.automationToggle}>
+                <div className={styles.automationSection} style={{ marginBottom: '12px' }}>
+                  <h4 className={styles.subTitle} style={{ fontSize: '13px', marginBottom: '8px' }}>Automação de Notificação</h4>
+                  <div className={styles.automationToggle} style={{ gap: '6px', marginBottom: '8px' }}>
   <button
     className={`${styles.togglePill} ${draft.automation?.type === 'email' ? styles.on : ''}`}
     onClick={() => setAutomationType('email')}
     type="button"
+    style={{ fontSize: '12px', padding: '4px 10px' }}
   >
-    <Mail size={16}/> E-mail
+    <Mail size={14}/> E-mail
   </button>
 
   <button
     className={`${styles.togglePill} ${draft.automation?.type === 'whatsapp' ? styles.on : ''}`}
     onClick={() => setAutomationType('whatsapp')}
     type="button"
+    style={{ fontSize: '12px', padding: '4px 10px' }}
   >
-    <MessageCircle size={16}/> WhatsApp
+    <MessageCircle size={14}/> WhatsApp
   </button>
 </div>
 
@@ -2605,11 +3199,12 @@ const toggleAutofill = useCallback((checked: boolean) => {
                     onChange={e => setAutomationTarget(e.target.value)}
                     placeholder={draft.automation?.type === 'email' ? 'Digite o e-mail' : 'Digite o nº de WhatsApp'}
                     className={styles.propertyInput}
+                    style={{ fontSize: '12px', padding: '6px 10px' }}
                   />
                 </div>
                 {/* Colaboradores */}
-                <div className={styles.collaboratorsSection}>
-                  <h4 className={styles.subTitle}>Colaboradores Autorizados</h4>
+                <div className={styles.collaboratorsSection} style={{ marginBottom: '12px' }}>
+                  <h4 className={styles.subTitle} style={{ fontSize: '13px', marginBottom: '8px' }}>Colaboradores Autorizados</h4>
                   <div className={styles.collaboratorsList}>
                     {collaborators.length > 0 ? (
                       collaborators.map(collaborator => (
@@ -2623,7 +3218,7 @@ const toggleAutofill = useCallback((checked: boolean) => {
                         </label>
                       ))
                     ) : (
-                      <p style={{ color: '#6b7280', fontSize: '14px', fontStyle: 'italic' }}>
+                      <p style={{ color: '#6b7280', fontSize: '12px', fontStyle: 'italic' }}>
                         Nenhum colaborador encontrado
                       </p>
                     )}
@@ -2634,6 +3229,29 @@ const toggleAutofill = useCallback((checked: boolean) => {
           </aside>
         </DndContext>
       </div>
+
+      {/* Modal de Gerenciamento de Catálogos */}
+      {catalogManagerOpen && companyId && (
+        <ProductCatalogManager
+          companyId={companyId}
+          onClose={() => setCatalogManagerOpen(false)}
+          onSelectCatalog={(catalogId) => {
+            // Atualizar o campo selecionado com o catálogo escolhido
+            if (selectedFieldId) {
+              updateField({
+                dataSource: {
+                  catalogId,
+                  collection: 'products',
+                  displayField: 'nome',
+                  valueField: 'id',
+                  searchFields: ['nome', 'codigo']
+                }
+              } as any);
+            }
+            setCatalogManagerOpen(false);
+          }}
+        />
+      )}
     </div>
   );
 }
