@@ -14,11 +14,18 @@
 @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@500;700&family=Roboto:wght@400;500&display=swap');
 
 /* === RESET E ESTILOS GLOBAIS === */
-html, body {
-  overflow: hidden;
+html {
   height: 100%;
   margin: 0;
   padding: 0;
+}
+
+body {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  overflow-x: hidden; /* Apenas scroll horizontal bloqueado */
+  overflow-y: auto; /* Permite scroll vertical quando necessário */
 }
 
 /* === VARIÁVEIS GLOBAIS (BOTH PALETTES) === */
