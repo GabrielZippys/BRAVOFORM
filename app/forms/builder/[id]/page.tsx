@@ -2617,52 +2617,9 @@ const toggleAutofill = useCallback((checked: boolean) => {
                     gap: '6px',
                     marginTop: '4px'
                   }}>
+                    {/* GRUPO 1: CORES GERAIS DO FORMULÁRIO */}
                     <div className={styles.propertyGroup} style={{ marginBottom: '4px' }}>
-                      <label style={{ fontSize: '11px', marginBottom: '2px' }}>Título</label>
-                      <input
-                        type="color"
-                        value={draft.theme.titleColor || '#ffffff'}
-                        onChange={(e) => updateTheme({ titleColor: e.target.value })}
-                        className={styles.colorInput}
-                        style={{ height: '32px' }}
-                      />
-                    </div>
-
-                    <div className={styles.propertyGroup} style={{ marginBottom: '4px' }}>
-                      <label style={{ fontSize: '11px', marginBottom: '2px' }}>Descrição</label>
-                      <input
-                        type="color"
-                        value={draft.theme.descriptionColor || '#b8c5d6'}
-                        onChange={(e) => updateTheme({ descriptionColor: e.target.value })}
-                        className={styles.colorInput}
-                        style={{ height: '32px' }}
-                      />
-                    </div>
-
-                    <div className={styles.propertyGroup} style={{ marginBottom: '4px' }}>
-                      <label style={{ fontSize: '11px', marginBottom: '2px' }}>Texto Cabeçalho</label>
-                      <input
-                        type="color"
-                        value={draft.theme.sectionHeaderFont || '#ffffff'}
-                        onChange={(e) => updateTheme({ sectionHeaderFont: e.target.value })}
-                        className={styles.colorInput}
-                        style={{ height: '32px' }}
-                      />
-                    </div>
-
-                    <div className={styles.propertyGroup} style={{ marginBottom: '4px' }}>
-                      <label style={{ fontSize: '11px', marginBottom: '2px' }}>Fundo Cabeçalho</label>
-                      <input
-                        type="color"
-                        value={draft.theme.sectionHeaderBg ||""}
-                        onChange={e => updateTheme({ sectionHeaderBg: e.target.value })}
-                        className={styles.colorInput}
-                        style={{ height: '32px' }}
-                      />
-                    </div>
-
-                    <div className={styles.propertyGroup} style={{ marginBottom: '4px' }}>
-                      <label style={{ fontSize: '11px', marginBottom: '2px' }}>Fundo Painel</label>
+                      <label style={{ fontSize: '11px', marginBottom: '2px' }}>📄 Fundo Geral</label>
                       <input
                         type="color"
                         value={draft.theme.bgColor}
@@ -2673,7 +2630,65 @@ const toggleAutofill = useCallback((checked: boolean) => {
                     </div>
 
                     <div className={styles.propertyGroup} style={{ marginBottom: '4px' }}>
-                      <label style={{ fontSize: '11px', marginBottom: '2px' }}>Fundo Campos</label>
+                      <label style={{ fontSize: '11px', marginBottom: '2px' }}>📝 Texto Geral</label>
+                      <input
+                        type="color"
+                        value={draft.theme.fontColor}
+                        onChange={e => updateTheme({ fontColor: e.target.value })}
+                        className={styles.colorInput}
+                        style={{ height: '32px' }}
+                      />
+                    </div>
+
+                    {/* GRUPO 2: TÍTULO E DESCRIÇÃO */}
+                    <div className={styles.propertyGroup} style={{ marginBottom: '4px' }}>
+                      <label style={{ fontSize: '11px', marginBottom: '2px' }}>🏷️ Texto Título</label>
+                      <input
+                        type="color"
+                        value={draft.theme.titleColor || '#ffffff'}
+                        onChange={(e) => updateTheme({ titleColor: e.target.value })}
+                        className={styles.colorInput}
+                        style={{ height: '32px' }}
+                      />
+                    </div>
+
+                    <div className={styles.propertyGroup} style={{ marginBottom: '4px' }}>
+                      <label style={{ fontSize: '11px', marginBottom: '2px' }}>📋 Texto Descrição</label>
+                      <input
+                        type="color"
+                        value={draft.theme.descriptionColor || '#b8c5d6'}
+                        onChange={(e) => updateTheme({ descriptionColor: e.target.value })}
+                        className={styles.colorInput}
+                        style={{ height: '32px' }}
+                      />
+                    </div>
+
+                    {/* GRUPO 3: CABEÇALHOS DE SEÇÃO */}
+                    <div className={styles.propertyGroup} style={{ marginBottom: '4px' }}>
+                      <label style={{ fontSize: '11px', marginBottom: '2px' }}>🔖 Fundo Seção</label>
+                      <input
+                        type="color"
+                        value={draft.theme.sectionHeaderBg ||""}
+                        onChange={e => updateTheme({ sectionHeaderBg: e.target.value })}
+                        className={styles.colorInput}
+                        style={{ height: '32px' }}
+                      />
+                    </div>
+
+                    <div className={styles.propertyGroup} style={{ marginBottom: '4px' }}>
+                      <label style={{ fontSize: '11px', marginBottom: '2px' }}>🔖 Texto Seção</label>
+                      <input
+                        type="color"
+                        value={draft.theme.sectionHeaderFont || '#ffffff'}
+                        onChange={(e) => updateTheme({ sectionHeaderFont: e.target.value })}
+                        className={styles.colorInput}
+                        style={{ height: '32px' }}
+                      />
+                    </div>
+
+                    {/* GRUPO 4: CAMPOS E BOTÕES */}
+                    <div className={styles.propertyGroup} style={{ marginBottom: '4px' }}>
+                      <label style={{ fontSize: '11px', marginBottom: '2px' }}>⬜ Fundo Campos</label>
                       <input
                         type="color"
                         value={draft.theme.inputBgColor}
@@ -2684,7 +2699,7 @@ const toggleAutofill = useCallback((checked: boolean) => {
                     </div>
 
                     <div className={styles.propertyGroup} style={{ marginBottom: '4px' }}>
-                      <label style={{ fontSize: '11px', marginBottom: '2px' }}>Fundo Botão</label>
+                      <label style={{ fontSize: '11px', marginBottom: '2px' }}>🔵 Fundo Botões</label>
                       <input
                         type="color"
                         value={draft.theme.accentColor}
@@ -2694,19 +2709,9 @@ const toggleAutofill = useCallback((checked: boolean) => {
                       />
                     </div>
 
+                    {/* GRUPO 5: TABELAS - CABEÇALHO */}
                     <div className={styles.propertyGroup} style={{ marginBottom: '4px' }}>
-                      <label style={{ fontSize: '11px', marginBottom: '2px' }}>Texto</label>
-                      <input
-                        type="color"
-                        value={draft.theme.fontColor}
-                        onChange={e => updateTheme({ fontColor: e.target.value })}
-                        className={styles.colorInput}
-                        style={{ height: '32px' }}
-                      />
-                    </div>
-
-                    <div className={styles.propertyGroup} style={{ marginBottom: '4px' }}>
-                      <label style={{ fontSize: '11px', marginBottom: '2px' }}>Fundo Header Tabela</label>
+                      <label style={{ fontSize: '11px', marginBottom: '2px' }}>📊 Tab: Fundo Header</label>
                       <input
                         type="color"
                         value={draft.theme.tableHeaderBg || "#1a2238"}
@@ -2717,7 +2722,7 @@ const toggleAutofill = useCallback((checked: boolean) => {
                     </div>
 
                     <div className={styles.propertyGroup} style={{ marginBottom: '4px' }}>
-                      <label style={{ fontSize: '11px', marginBottom: '2px' }}>Texto Header Tabela</label>
+                      <label style={{ fontSize: '11px', marginBottom: '2px' }}>📊 Tab: Texto Header</label>
                       <input
                         type="color"
                         value={draft.theme.tableHeaderFont || "#49cfff"}
@@ -2727,30 +2732,9 @@ const toggleAutofill = useCallback((checked: boolean) => {
                       />
                     </div>
 
+                    {/* GRUPO 6: TABELAS - LINHAS */}
                     <div className={styles.propertyGroup} style={{ marginBottom: '4px' }}>
-                      <label style={{ fontSize: '11px', marginBottom: '2px' }}>Texto Linhas Tabela</label>
-                      <input
-                        type="color"
-                        value={draft.theme.tableCellFont || "#e0e6f7"}
-                        onChange={e => updateTheme({ tableCellFont: e.target.value })}
-                        className={styles.colorInput}
-                        style={{ height: '32px' }}
-                      />
-                    </div>
-
-                    <div className={styles.propertyGroup} style={{ marginBottom: '4px' }}>
-                      <label style={{ fontSize: '11px', marginBottom: '2px' }}>Bordas</label>
-                      <input
-                        type="color"
-                        value={draft.theme.tableBorderColor || "#19263b"}
-                        onChange={e => updateTheme({ tableBorderColor: e.target.value })}
-                        className={styles.colorInput}
-                        style={{ height: '32px' }}
-                      />
-                    </div>
-
-                    <div className={styles.propertyGroup} style={{ marginBottom: '4px' }}>
-                      <label style={{ fontSize: '11px', marginBottom: '2px' }}>Linhas Ímpares</label>
+                      <label style={{ fontSize: '11px', marginBottom: '2px' }}>📊 Tab: Linha Ímpar</label>
                       <input
                         type="color"
                         value={draft.theme.tableOddRowBg || "#222c42"}
@@ -2761,11 +2745,34 @@ const toggleAutofill = useCallback((checked: boolean) => {
                     </div>
 
                     <div className={styles.propertyGroup} style={{ marginBottom: '4px' }}>
-                      <label style={{ fontSize: '11px', marginBottom: '2px' }}>Linhas Pares</label>
+                      <label style={{ fontSize: '11px', marginBottom: '2px' }}>📊 Tab: Linha Par</label>
                       <input
                         type="color"
                         value={draft.theme.tableEvenRowBg || "#171e2c"}
                         onChange={e => updateTheme({ tableEvenRowBg: e.target.value })}
+                        className={styles.colorInput}
+                        style={{ height: '32px' }}
+                      />
+                    </div>
+
+                    {/* GRUPO 7: TABELAS - TEXTO E BORDAS */}
+                    <div className={styles.propertyGroup} style={{ marginBottom: '4px' }}>
+                      <label style={{ fontSize: '11px', marginBottom: '2px' }}>📊 Tab: Texto Linhas</label>
+                      <input
+                        type="color"
+                        value={draft.theme.tableCellFont || "#e0e6f7"}
+                        onChange={e => updateTheme({ tableCellFont: e.target.value })}
+                        className={styles.colorInput}
+                        style={{ height: '32px' }}
+                      />
+                    </div>
+
+                    <div className={styles.propertyGroup} style={{ marginBottom: '4px' }}>
+                      <label style={{ fontSize: '11px', marginBottom: '2px' }}>📊 Tab: Bordas</label>
+                      <input
+                        type="color"
+                        value={draft.theme.tableBorderColor || "#19263b"}
+                        onChange={e => updateTheme({ tableBorderColor: e.target.value })}
                         className={styles.colorInput}
                         style={{ height: '32px' }}
                       />

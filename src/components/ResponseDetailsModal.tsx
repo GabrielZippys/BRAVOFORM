@@ -15,10 +15,44 @@ interface ResponseDetailsModalProps {
 
 function toDateCompat(val: any): string {
   if (!val) return '-';
-  if (typeof val.toDate === 'function') return val.toDate().toLocaleString('pt-BR');
-  if (val.seconds) return new Date(val.seconds * 1000).toLocaleString('pt-BR');
-  if (val._seconds) return new Date(val._seconds * 1000).toLocaleString('pt-BR');
-  if (typeof val === 'string') return new Date(val).toLocaleString('pt-BR');
+  
+  try {
+    // Firestore Timestamp com método toDate()
+    if (typeof val.toDate === 'function') {
+      return val.toDate().toLocaleString('pt-BR');
+    }
+    
+    // Firestore Timestamp serializado (seconds)
+    if (val.seconds) {
+      return new Date(val.seconds * 1000).toLocaleString('pt-BR');
+    }
+    
+    // Firestore Timestamp serializado (_seconds)
+    if (val._seconds) {
+      return new Date(val._seconds * 1000).toLocaleString('pt-BR');
+    }
+    
+    // Timestamp em milissegundos
+    if (typeof val === 'number') {
+      return new Date(val).toLocaleString('pt-BR');
+    }
+    
+    // String ISO ou outra string de data
+    if (typeof val === 'string') {
+      const date = new Date(val);
+      if (!isNaN(date.getTime())) {
+        return date.toLocaleString('pt-BR');
+      }
+    }
+    
+    // Objeto Date
+    if (val instanceof Date) {
+      return val.toLocaleString('pt-BR');
+    }
+  } catch (error) {
+    console.error('Erro ao converter data:', error, val);
+  }
+  
   return '-';
 }
 
@@ -51,6 +85,37 @@ export default function ResponseDetailsModal({
   const renderAnswer = (field: any, answer: any) => {
     if (answer === undefined || answer === null || answer === '') {
       return <span className={styles.emptyValue}>-</span>;
+    }
+
+    // Grade de Pedidos
+    if (field.type === 'Grade de Pedidos' && Array.isArray(answer)) {
+      if (answer.length === 0) {
+        return <span className={styles.emptyValue}>Nenhum item adicionado</span>;
+      }
+      return (
+        <div className={styles.tableContainer}>
+          <table className={styles.table}>
+            <thead>
+              <tr>
+                <th>Produto</th>
+                <th>Código</th>
+                <th>Quantidade</th>
+                <th>Unidade</th>
+              </tr>
+            </thead>
+            <tbody>
+              {answer.map((item: any, idx: number) => (
+                <tr key={item.id || idx}>
+                  <td>{item.nome || '-'}</td>
+                  <td>{item.codigo || '-'}</td>
+                  <td style={{ textAlign: 'right' }}>{item.quantidade || 0}</td>
+                  <td>{item.unidade || 'UN'}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      );
     }
 
     if (field.type === 'Tabela' && typeof answer === 'object' && answer !== null) {
@@ -235,8 +300,42 @@ export default function ResponseDetailsModal({
                       
                       if (typeof value === 'object' && value !== null) {
                         if (Array.isArray(value)) {
-                          // Array - show as comma-separated list
-                          content = <span className={styles.answerText}>{value.join(', ')}</span>;
+                          // Check if it's a Grade de Pedidos (array of order items)
+                          const isOrderGrid = metadata?.type === 'Grade de Pedidos' || 
+                                             (value.length > 0 && value[0]?.nome && value[0]?.quantidade);
+                          
+                          if (isOrderGrid) {
+                            // Render as order grid table
+                            content = value.length === 0 ? (
+                              <span className={styles.emptyValue}>Nenhum item adicionado</span>
+                            ) : (
+                              <div className={styles.tableContainer}>
+                                <table className={styles.table}>
+                                  <thead>
+                                    <tr>
+                                      <th>Produto</th>
+                                      <th>Código</th>
+                                      <th>Quantidade</th>
+                                      <th>Unidade</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody>
+                                    {value.map((item: any, idx: number) => (
+                                      <tr key={item.id || idx}>
+                                        <td>{item.nome || '-'}</td>
+                                        <td>{item.codigo || '-'}</td>
+                                        <td style={{ textAlign: 'right' }}>{item.quantidade || 0}</td>
+                                        <td>{item.unidade || 'UN'}</td>
+                                      </tr>
+                                    ))}
+                                  </tbody>
+                                </table>
+                              </div>
+                            );
+                          } else {
+                            // Array - show as comma-separated list
+                            content = <span className={styles.answerText}>{value.join(', ')}</span>;
+                          }
                         } else if (hasTableMetadata) {
                           // Table with metadata - render as proper HTML table
                           console.log('✅ Rendering table with metadata for:', key, metadata);

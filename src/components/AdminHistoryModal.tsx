@@ -147,6 +147,44 @@ export default function AdminHistoryModal({
                       <tbody>
                         {form.fields.map((field: any) => {
                           const answer = resp.answers?.[field.id];
+                          
+                          // Grade de Pedidos
+                          if (field.type === 'Grade de Pedidos' && Array.isArray(answer)) {
+                            return (
+                              <tr key={field.id}>
+                                <td colSpan={2} className={styles.tabelaField}>
+                                  <div className={styles.fieldLabel}>{field.label}</div>
+                                  {answer.length === 0 ? (
+                                    <span className={styles.emptyValue}>Nenhum item adicionado</span>
+                                  ) : (
+                                    <div className={styles.tableWrapper}>
+                                      <table className={styles.innerTable}>
+                                        <thead>
+                                          <tr>
+                                            <th>Produto</th>
+                                            <th>Código</th>
+                                            <th style={{ textAlign: 'right' }}>Quantidade</th>
+                                            <th>Unidade</th>
+                                          </tr>
+                                        </thead>
+                                        <tbody>
+                                          {answer.map((item: any, idx: number) => (
+                                            <tr key={item.id || idx}>
+                                              <td>{item.nome || '-'}</td>
+                                              <td>{item.codigo || '-'}</td>
+                                              <td style={{ textAlign: 'right' }}>{item.quantidade || 0}</td>
+                                              <td>{item.unidade || 'UN'}</td>
+                                            </tr>
+                                          ))}
+                                        </tbody>
+                                      </table>
+                                    </div>
+                                  )}
+                                </td>
+                              </tr>
+                            );
+                          }
+                          
                           if (field.type === 'Tabela' && typeof answer === 'object' && answer !== null) {
                             return (
                               <tr key={field.id}>

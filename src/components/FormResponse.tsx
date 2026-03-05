@@ -7,6 +7,7 @@ import { doc, addDoc, updateDoc, collection, serverTimestamp } from 'firebase/fi
 import { type Form, type FormResponse as FormResponseType } from '@/types';
 import { X, Send, Eraser, CheckCircle2, AlertTriangle } from 'lucide-react';
 import { ref as sRef, uploadBytes, getDownloadURL } from 'firebase/storage';
+import OrderGridFieldResponse from './OrderGridFieldResponse';
 
 
 
@@ -241,8 +242,7 @@ const padDecimals = (raw: string, maxDecimals = 2): string => {
 
 // Para converter "7,90" -> número JS: parseFloat(str.replace(/\./g,'').replace(',', '.'))
 
-
-
+// --- utils de cor/contraste ---
 function srgbToLin(v:number){ v/=255; return v<=0.04045? v/12.92 : Math.pow((v+0.055)/1.055,2.4); }
 function relLuminance({r,g,b}:{r:number,g:number,b:number}) {
   const R = srgbToLin(r), G = srgbToLin(g), B = srgbToLin(b);
@@ -354,6 +354,11 @@ function validateRequiredField(field: EnhancedFormField): string | '' {
         }
       }
       return '';
+    }
+
+    case 'Grade de Pedidos': {
+      const arr = Array.isArray(val) ? val : [];
+      return arr.length === 0 ? 'Preencha a grade de pedidos' : '';
     }
 
     default:
@@ -610,9 +615,6 @@ const textOn = (
   handleInputChange(fieldId, [ ...(responses[fieldId] || []), ...items ]);
 };
 
-const looksUrl = (s?: string) =>
-  !!s && (/^https?:\/\//i.test(s) || /^data:/i.test(s) || /^blob:/i.test(s));
-
 async function ensureUploaded(item: any, pathPrefix: string) {
   if (item?.url && (/^https?:\/\//i.test(item.url) || /^data:/i.test(item.url))) return item;
 
@@ -707,9 +709,9 @@ const handleAutoFillLeader = () => {
             const colId = String(c.id);
             if (table[String(r.id)][colId] !== undefined) return;
             if ((c.type || '').toLowerCase() === 'number') table[String(r.id)][colId] = '0';
-else if ((c.type || '').toLowerCase() === 'date') {
-  table[String(r.id)][colId] = nowDT;
-}
+            else if ((c.type || '').toLowerCase() === 'date') {
+              table[String(r.id)][colId] = nowDT;
+            }
             else if ((c.type || '').toLowerCase() === 'select') {
               const opt = (c.options?.[0] as string) ?? '';
               table[String(r.id)][colId] = opt;
@@ -725,6 +727,11 @@ else if ((c.type || '').toLowerCase() === 'date') {
       case 'Assinatura':
       case 'Anexo':
         // não autopreenche (assinar/anexar exige ação manual)
+        break;
+
+      case 'Grade de Pedidos':
+        // inicializa com array vazio (usuário precisa adicionar itens manualmente)
+        nextResponses[id] = nextResponses[id] ?? [];
         break;
 
       default:
@@ -1351,6 +1358,17 @@ case 'Data':
       style={{ ...controlBase }}
     />
   );
+
+      case 'Grade de Pedidos':
+        return (
+          <OrderGridFieldResponse
+            field={field}
+            value={responses[fieldId] || []}
+            onChange={(value) => handleInputChange(fieldId, value)}
+            theme={theme}
+            disabled={disabled}
+          />
+        );
 
       default:
         return (

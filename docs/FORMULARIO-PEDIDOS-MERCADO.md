@@ -30,30 +30,44 @@ Este recurso transforma a plataforma de um simples construtor de formulários em
 - [x] 1.4 - Criar interface `OrderGridValue` para resposta completa
 - [x] 1.5 - Criar interfaces auxiliares (DataSourceConfig, VariationConfig, QuantityConfig, PriceConfig, AdvancedFeatures)
 - [ ] 1.6 - Criar Schema de Validação com Zod (opcional mas recomendado)
-- [ ] **💡 Ideia Adicional:** Considerar a criação de um sistema de versionamento para as interfaces, permitindo evoluções futuras sem quebrar compatibilidade
 
-#### **FASE 2: Builder (Configuração no Form Builder)** ✅ CONCLUÍDA
-- [x] 2.1 - Criar arquivo `src/components/OrderGridBuilder.tsx`
-- [x] 2.2 - Implementar seletor de coleção Firestore com dropdown
-- [x] 2.3 - Implementar configurador de filtros dinâmicos (campos de busca)
-- [x] 2.4 - Implementar configurador de variações (adicionar/remover)
-- [x] 2.5 - Implementar configurador de quantidade (min, max, step, decimais)
-- [x] 2.6 - Implementar configurador de preço (preparado para V2)
-- [x] 2.7 - Implementar configurador de features avançadas (barcode, smart paste, keyboard)
-- [ ] 2.8 - Adicionar preview interativo da configuração (será implementado na Fase 3)
-- [x] 2.9 - Integrar ao `FIELD_TYPES` em `app/forms/builder/[id]/page.tsx` com ícone (ShoppingCart)
-- [x] 2.10 - Integrar ao `FieldProperties` para edição de propriedades
-- [ ] **💡 Ideia Adicional:** Implementar um sistema de templates de configuração para a grade de pedidos, permitindo que administradores salvem e reutilizem configurações complexas
+#### **FASE 2: Builder & Catálogos** ✅ CONCLUÍDA (Estratégia Modificada)
+**MUDANÇA DE ESTRATÉGIA:** Ao invés de criar apenas um builder de configuração, foi implementado um sistema completo de gerenciamento de catálogos de produtos:
 
-#### **FASE 3: Form Response (Preenchimento pelo Usuário)**
-- [ ] 3.1 - Criar arquivo `src/components/OrderGridField.tsx`
-- [ ] 3.2 - Implementar gerenciamento de estado com `react-hook-form` + `useFieldArray`
-- [ ] 3.3 - Implementar botão "Adicionar Item" com ícone Plus
-- [ ] 3.4 - Implementar abertura/fechamento do modal de adição
-- [ ] 3.5 - Implementar validação de campo obrigatório (items.length > 0)
-- [ ] 3.6 - Integrar ao `renderField` em `FormResponse.tsx`
-- [ ] 3.7 - Implementar sincronização com estado do formulário
-- [ ] **💡 Ideia Adicional:** Adicionar um indicador visual de progresso ou de itens restantes para formulários com limites de itens
+- [x] 2.1 - Criar `src/components/ProductCatalogManager.tsx` (CRUD completo de catálogos)
+- [x] 2.2 - Implementar gerenciamento de produtos com campos:
+  - nome, codigo, unidade, quantidadeMin, quantidadeMax, valorUnitario, formatoNumero
+- [x] 2.3 - Integrar ao `FIELD_TYPES` com ícone ShoppingCart
+- [x] 2.4 - Integrar ao `FieldProperties` para seleção de catálogo
+- [x] 2.5 - Implementar botão "Gerenciar Catálogos" que abre modal completo
+- [x] 2.6 - Salvar produtos no Firestore (coleção `products` com `catalogId`)
+
+#### **FASE 2.5: Preview Interativo no Builder** ✅ CONCLUÍDA
+- [x] 2.5.1 - Criar componente `OrderGridPreview` em `app/forms/builder/[id]/page.tsx`
+- [x] 2.5.2 - Implementar busca e seleção de produtos do catálogo
+- [x] 2.5.3 - Implementar campo de quantidade com validação (min/max)
+- [x] 2.5.4 - Suporte a quantidades decimais (step: 0.01)
+- [x] 2.5.5 - Implementar tabela de itens adicionados
+- [x] 2.5.6 - Implementar edição de itens (botão editar reabre com dados)
+- [x] 2.5.7 - Implementar remoção de itens
+- [x] 2.5.8 - Aplicar tema do formulário ao preview
+
+#### **FASE 3: FormResponse (Preenchimento pelo Colaborador)** ✅ CONCLUÍDA
+**Colaboradores agora podem preencher formulários com Grade de Pedidos!**
+
+- [x] 3.1 - Criar componente `OrderGridFieldResponse.tsx` separado
+- [x] 3.2 - Implementar carregamento de produtos do catálogo via Firestore
+- [x] 3.3 - Implementar seleção de produtos com dropdown
+- [x] 3.4 - Implementar campo de quantidade com validação (min/max)
+- [x] 3.5 - Implementar adição de itens ao pedido
+- [x] 3.6 - Implementar edição de itens (botão editar)
+- [x] 3.7 - Implementar remoção de itens (botão remover)
+- [x] 3.8 - Implementar tabela de itens adicionados com tema do formulário
+- [x] 3.9 - Adicionar case `'Grade de Pedidos'` ao `renderField` em `FormResponse.tsx`
+- [x] 3.10 - Importar OrderGridFieldResponse no FormResponse
+- [x] 3.11 - Validação de campo obrigatório (items.length > 0)
+- [x] 3.12 - Sincronizar com estado do formulário (responses)
+- [x] 3.13 - Estrutura pronta para salvar no Firestore
 
 #### **FASE 4: Modal de Adição (Core da Experiência)**
 - [ ] 4.1 - Criar arquivo `src/components/OrderItemModal.tsx`
