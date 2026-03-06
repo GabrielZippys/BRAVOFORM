@@ -16,6 +16,75 @@ import styles from '../../../../app/styles/FormBuilder.module.css';
 import type { Form, Collaborator } from "@/types";
 import ProductCatalogManager from '../../../../src/components/ProductCatalogManager';
 
+// ---- COMPONENTE DE TOOLTIP DE AJUDA ----
+const HelpTooltip = ({ text }: { text: string }) => {
+  const [show, setShow] = useState(false);
+  
+  return (
+    <span 
+      style={{ 
+        position: 'relative',
+        display: 'inline-block',
+        marginLeft: '6px',
+        verticalAlign: 'middle'
+      }}
+    >
+      <span
+        onMouseEnter={() => setShow(true)}
+        onMouseLeave={() => setShow(false)}
+        style={{ 
+          display: 'inline-flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          width: '16px',
+          height: '16px',
+          borderRadius: '50%',
+          background: 'rgba(100, 255, 218, 0.15)',
+          color: '#64ffda',
+          fontSize: '11px',
+          fontWeight: 'bold',
+          cursor: 'help',
+          border: '1px solid rgba(100, 255, 218, 0.3)'
+        }}
+      >
+        ?
+      </span>
+      {show && (
+        <span style={{
+          position: 'absolute',
+          bottom: 'calc(100% + 8px)',
+          left: '0',
+          padding: '6px 10px',
+          background: '#1a2238',
+          color: '#e0e6f7',
+          fontSize: '11px',
+          borderRadius: '6px',
+          boxShadow: '0 4px 12px rgba(0, 0, 0, 0.3)',
+          border: '1px solid #334155',
+          zIndex: 99999,
+          pointerEvents: 'none',
+          whiteSpace: 'nowrap',
+          display: 'block',
+          minWidth: 'max-content'
+        }}>
+          {text}
+          <span style={{
+            content: '""',
+            position: 'absolute',
+            top: '100%',
+            left: '8px',
+            width: 0,
+            height: 0,
+            borderLeft: '5px solid transparent',
+            borderRight: '5px solid transparent',
+            borderTop: '5px solid #1a2238'
+          }} />
+        </span>
+      )}
+    </span>
+  );
+};
+
 // ---- ESTILO DO MENU SUSPENSO ----
 const menuBtnStyle: React.CSSProperties = {
   background: 'none',
@@ -959,7 +1028,10 @@ function FieldProperties({ field, updateField, companyId }: {
 
       {field.type === 'Múltipla Escolha' && (
         <div className={styles.propertyGroup}>
-          <label>Exibir como</label>
+          <label style={{ display: 'flex', alignItems: 'center' }}>
+            Exibir como
+            <HelpTooltip text="Escolha entre botões de rádio ou menu dropdown" />
+          </label>
           <select
             value={field.displayAs || 'radio'}
             onChange={e => updateField({ displayAs: e.target.value as 'radio' | 'dropdown' })}
@@ -986,7 +1058,10 @@ function FieldProperties({ field, updateField, companyId }: {
 
       {(field.type === 'Texto' || field.type === 'Data') && (
         <div className={styles.propertyGroup}>
-          <label>Placeholder</label>
+          <label style={{ display: 'flex', alignItems: 'center' }}>
+            Placeholder
+            <HelpTooltip text="Texto de exemplo que aparece no campo vazio" />
+          </label>
           <input
             type="text"
             value={field.placeholder || ''}
@@ -998,7 +1073,10 @@ function FieldProperties({ field, updateField, companyId }: {
 
       {(field.type === 'Caixa de Seleção' || field.type === 'Múltipla Escolha') && (
         <div className={styles.propertyGroup}>
-          <label>Opções</label>
+          <label style={{ display: 'flex', alignItems: 'center' }}>
+            Opções
+            <HelpTooltip text="Lista de opções que o usuário pode escolher" />
+          </label>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             {field.options?.map((opt, i) => (
               <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -1039,7 +1117,10 @@ function FieldProperties({ field, updateField, companyId }: {
         <>
           {/* COLUNAS */}
           <div className={styles.propertyGroup}>
-            <label>Colunas</label>
+            <label style={{ display: 'flex', alignItems: 'center' }}>
+              Colunas
+              <HelpTooltip text="Define as colunas da tabela (vertical)" />
+            </label>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               {field.columns?.map((col, colIndex) => (
                 <div key={col.id} style={{ background: '#101524', borderRadius: 8, padding: 8, marginBottom: 4 }}>
@@ -1159,7 +1240,10 @@ function FieldProperties({ field, updateField, companyId }: {
 
           {/* LINHAS */}
           <div className={styles.propertyGroup}>
-            <label>Linhas</label>
+            <label style={{ display: 'flex', alignItems: 'center' }}>
+              Linhas
+              <HelpTooltip text="Define as linhas da tabela (horizontal)" />
+            </label>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               {field.rows?.map((row, rowIndex) => (
                 <div key={row.id} style={{ display: 'flex', gap: 8 }}>
@@ -1203,7 +1287,10 @@ function FieldProperties({ field, updateField, companyId }: {
 
       {field.type === 'Grade de Pedidos' && (
         <div className={styles.propertyGroup}>
-          <label>Catálogo de Produtos</label>
+          <label style={{ display: 'flex', alignItems: 'center' }}>
+            Catálogo de Produtos
+            <HelpTooltip text="Selecione o catálogo de produtos para este campo" />
+          </label>
           <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-start' }}>
             <div style={{ flex: 1 }}>
               <CatalogSelector
@@ -1255,7 +1342,10 @@ function FieldProperties({ field, updateField, companyId }: {
       )}
 
       <div className={styles.propertyGroup}>
-        <label>Descrição/Ajuda</label>
+        <label style={{ display: 'flex', alignItems: 'center' }}>
+          Descrição/Ajuda
+          <HelpTooltip text="Texto explicativo que aparece abaixo do campo" />
+        </label>
         <textarea
           value={field.description || ''}
           onChange={e => updateField({ description: e.target.value })}
