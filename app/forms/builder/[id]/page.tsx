@@ -2266,14 +2266,6 @@ useEffect(() => {
     }
   };
 
-  // Handlers de automação
-  const setAutomationType = (type: 'email' | 'whatsapp'): void => {
-    setDraft(prev => ({
-      ...prev,
-      automation: { ...prev.automation, type, target: prev.automation?.target || '' }
-    }));
-  };
-
   // ---- Limite diário de respostas (UI do builder) ----
 const toggleDailyLimitEnabled = () => {
   setDraft(prev => ({
@@ -2295,14 +2287,6 @@ const setDailyLimitCount = (n: number) => {
     },
   }));
 };
-
-
-  const setAutomationTarget = (target: string): void => {
-    setDraft(prev => ({
-      ...prev,
-      automation: { ...prev.automation!, target }
-    }));
-  };
 
 // NEW – mudar um valor simples (texto, data, radio, dropdown)
 const handlePreviewChange = useCallback((fieldId: string, value: any) => {
@@ -2609,175 +2593,49 @@ const toggleAutofill = useCallback((checked: boolean) => {
                   <h3>Aparência</h3>
                   <p>Personalize as cores</p>
                 </div>
-                <div style={{ padding: '0 12px', overflowY: 'auto', maxHeight: 'calc(100vh - 180px)' }}>
-                  {/* Grid de 2 colunas para cores */}
-                  <div style={{ 
-                    display: 'grid', 
-                    gridTemplateColumns: '1fr 1fr', 
-                    gap: '6px',
-                    marginTop: '4px'
-                  }}>
-                    {/* GRUPO 1: CORES GERAIS DO FORMULÁRIO */}
-                    <div className={styles.propertyGroup} style={{ marginBottom: '4px' }}>
-                      <label style={{ fontSize: '11px', marginBottom: '2px' }}>📄 Fundo Geral</label>
+                <div style={{ padding: '16px', overflowY: 'auto', maxHeight: 'calc(100vh - 180px)' }}>
+                  {/* Estilo consistente para todos os inputs de cor */}
+                  {[
+                    { label: '📄 Fundo Geral', key: 'bgColor', value: draft.theme.bgColor },
+                    { label: '📝 Texto Geral', key: 'fontColor', value: draft.theme.fontColor },
+                    { label: '🏷️ Texto Título', key: 'titleColor', value: draft.theme.titleColor || '#ffffff' },
+                    { label: '📋 Texto Descrição', key: 'descriptionColor', value: draft.theme.descriptionColor || '#b8c5d6' },
+                    { label: '🔖 Fundo Seção', key: 'sectionHeaderBg', value: draft.theme.sectionHeaderBg || '' },
+                    { label: '🔖 Texto Seção', key: 'sectionHeaderFont', value: draft.theme.sectionHeaderFont || '#ffffff' },
+                    { label: '⬜ Fundo Campos', key: 'inputBgColor', value: draft.theme.inputBgColor },
+                    { label: '🔵 Fundo Botões', key: 'accentColor', value: draft.theme.accentColor },
+                    { label: '📊 Tab: Fundo Header', key: 'tableHeaderBg', value: draft.theme.tableHeaderBg || '#1a2238' },
+                    { label: '📊 Tab: Texto Header', key: 'tableHeaderFont', value: draft.theme.tableHeaderFont || '#49cfff' },
+                    { label: '📊 Tab: Linha Ímpar', key: 'tableOddRowBg', value: draft.theme.tableOddRowBg || '#222c42' },
+                    { label: '📊 Tab: Linha Par', key: 'tableEvenRowBg', value: draft.theme.tableEvenRowBg || '#171e2c' },
+                    { label: '📊 Tab: Texto Linhas', key: 'tableCellFont', value: draft.theme.tableCellFont || '#e0e6f7' },
+                    { label: '📊 Tab: Bordas', key: 'tableBorderColor', value: draft.theme.tableBorderColor || '#19263b' }
+                  ].map((item, idx) => (
+                    <div key={item.key} style={{ marginBottom: '16px' }}>
+                      <label style={{ 
+                        display: 'block',
+                        fontSize: '12px', 
+                        fontWeight: 500, 
+                        color: '#cbd5e1',
+                        marginBottom: '8px'
+                      }}>
+                        {item.label}
+                      </label>
                       <input
                         type="color"
-                        value={draft.theme.bgColor}
-                        onChange={e => updateTheme({ bgColor: e.target.value })}
-                        className={styles.colorInput}
-                        style={{ height: '32px' }}
+                        value={item.value}
+                        onChange={e => updateTheme({ [item.key]: e.target.value })}
+                        style={{ 
+                          height: '42px', 
+                          width: '100%',
+                          borderRadius: '8px',
+                          border: '2px solid #334155',
+                          cursor: 'pointer',
+                          backgroundColor: 'transparent'
+                        }}
                       />
                     </div>
-
-                    <div className={styles.propertyGroup} style={{ marginBottom: '4px' }}>
-                      <label style={{ fontSize: '11px', marginBottom: '2px' }}>📝 Texto Geral</label>
-                      <input
-                        type="color"
-                        value={draft.theme.fontColor}
-                        onChange={e => updateTheme({ fontColor: e.target.value })}
-                        className={styles.colorInput}
-                        style={{ height: '32px' }}
-                      />
-                    </div>
-
-                    {/* GRUPO 2: TÍTULO E DESCRIÇÃO */}
-                    <div className={styles.propertyGroup} style={{ marginBottom: '4px' }}>
-                      <label style={{ fontSize: '11px', marginBottom: '2px' }}>🏷️ Texto Título</label>
-                      <input
-                        type="color"
-                        value={draft.theme.titleColor || '#ffffff'}
-                        onChange={(e) => updateTheme({ titleColor: e.target.value })}
-                        className={styles.colorInput}
-                        style={{ height: '32px' }}
-                      />
-                    </div>
-
-                    <div className={styles.propertyGroup} style={{ marginBottom: '4px' }}>
-                      <label style={{ fontSize: '11px', marginBottom: '2px' }}>📋 Texto Descrição</label>
-                      <input
-                        type="color"
-                        value={draft.theme.descriptionColor || '#b8c5d6'}
-                        onChange={(e) => updateTheme({ descriptionColor: e.target.value })}
-                        className={styles.colorInput}
-                        style={{ height: '32px' }}
-                      />
-                    </div>
-
-                    {/* GRUPO 3: CABEÇALHOS DE SEÇÃO */}
-                    <div className={styles.propertyGroup} style={{ marginBottom: '4px' }}>
-                      <label style={{ fontSize: '11px', marginBottom: '2px' }}>🔖 Fundo Seção</label>
-                      <input
-                        type="color"
-                        value={draft.theme.sectionHeaderBg ||""}
-                        onChange={e => updateTheme({ sectionHeaderBg: e.target.value })}
-                        className={styles.colorInput}
-                        style={{ height: '32px' }}
-                      />
-                    </div>
-
-                    <div className={styles.propertyGroup} style={{ marginBottom: '4px' }}>
-                      <label style={{ fontSize: '11px', marginBottom: '2px' }}>🔖 Texto Seção</label>
-                      <input
-                        type="color"
-                        value={draft.theme.sectionHeaderFont || '#ffffff'}
-                        onChange={(e) => updateTheme({ sectionHeaderFont: e.target.value })}
-                        className={styles.colorInput}
-                        style={{ height: '32px' }}
-                      />
-                    </div>
-
-                    {/* GRUPO 4: CAMPOS E BOTÕES */}
-                    <div className={styles.propertyGroup} style={{ marginBottom: '4px' }}>
-                      <label style={{ fontSize: '11px', marginBottom: '2px' }}>⬜ Fundo Campos</label>
-                      <input
-                        type="color"
-                        value={draft.theme.inputBgColor}
-                        onChange={e => updateTheme({ inputBgColor: e.target.value })}
-                        className={styles.inputBgColor}
-                        style={{ height: '32px' }}
-                      />
-                    </div>
-
-                    <div className={styles.propertyGroup} style={{ marginBottom: '4px' }}>
-                      <label style={{ fontSize: '11px', marginBottom: '2px' }}>🔵 Fundo Botões</label>
-                      <input
-                        type="color"
-                        value={draft.theme.accentColor}
-                        onChange={e => updateTheme({ accentColor: e.target.value })}
-                        className={styles.colorInput}
-                        style={{ height: '32px' }}
-                      />
-                    </div>
-
-                    {/* GRUPO 5: TABELAS - CABEÇALHO */}
-                    <div className={styles.propertyGroup} style={{ marginBottom: '4px' }}>
-                      <label style={{ fontSize: '11px', marginBottom: '2px' }}>📊 Tab: Fundo Header</label>
-                      <input
-                        type="color"
-                        value={draft.theme.tableHeaderBg || "#1a2238"}
-                        onChange={e => updateTheme({ tableHeaderBg: e.target.value })}
-                        className={styles.colorInput}
-                        style={{ height: '32px' }}
-                      />
-                    </div>
-
-                    <div className={styles.propertyGroup} style={{ marginBottom: '4px' }}>
-                      <label style={{ fontSize: '11px', marginBottom: '2px' }}>📊 Tab: Texto Header</label>
-                      <input
-                        type="color"
-                        value={draft.theme.tableHeaderFont || "#49cfff"}
-                        onChange={e => updateTheme({ tableHeaderFont: e.target.value })}
-                        className={styles.colorInput}
-                        style={{ height: '32px' }}
-                      />
-                    </div>
-
-                    {/* GRUPO 6: TABELAS - LINHAS */}
-                    <div className={styles.propertyGroup} style={{ marginBottom: '4px' }}>
-                      <label style={{ fontSize: '11px', marginBottom: '2px' }}>📊 Tab: Linha Ímpar</label>
-                      <input
-                        type="color"
-                        value={draft.theme.tableOddRowBg || "#222c42"}
-                        onChange={e => updateTheme({ tableOddRowBg: e.target.value })}
-                        className={styles.colorInput}
-                        style={{ height: '32px' }}
-                      />
-                    </div>
-
-                    <div className={styles.propertyGroup} style={{ marginBottom: '4px' }}>
-                      <label style={{ fontSize: '11px', marginBottom: '2px' }}>📊 Tab: Linha Par</label>
-                      <input
-                        type="color"
-                        value={draft.theme.tableEvenRowBg || "#171e2c"}
-                        onChange={e => updateTheme({ tableEvenRowBg: e.target.value })}
-                        className={styles.colorInput}
-                        style={{ height: '32px' }}
-                      />
-                    </div>
-
-                    {/* GRUPO 7: TABELAS - TEXTO E BORDAS */}
-                    <div className={styles.propertyGroup} style={{ marginBottom: '4px' }}>
-                      <label style={{ fontSize: '11px', marginBottom: '2px' }}>📊 Tab: Texto Linhas</label>
-                      <input
-                        type="color"
-                        value={draft.theme.tableCellFont || "#e0e6f7"}
-                        onChange={e => updateTheme({ tableCellFont: e.target.value })}
-                        className={styles.colorInput}
-                        style={{ height: '32px' }}
-                      />
-                    </div>
-
-                    <div className={styles.propertyGroup} style={{ marginBottom: '4px' }}>
-                      <label style={{ fontSize: '11px', marginBottom: '2px' }}>📊 Tab: Bordas</label>
-                      <input
-                        type="color"
-                        value={draft.theme.tableBorderColor || "#19263b"}
-                        onChange={e => updateTheme({ tableBorderColor: e.target.value })}
-                        className={styles.colorInput}
-                        style={{ height: '32px' }}
-                      />
-                    </div>
-                  </div>
+                  ))}
                 </div>
               </>
             ) : (
@@ -3028,32 +2886,82 @@ const toggleAutofill = useCallback((checked: boolean) => {
                 </div>
                   
                   <div className={styles.propertyGroup} style={{ marginBottom: '12px' }}>
-  <label style={{ fontSize: '13px', marginBottom: '4px' }}>Logo do Formulário</label>
-  <input
-    type="file"
-    accept="image/*"
-    onChange={async (e) => {
-      const file = e.target.files?.[0];
-      if (file) {
-        const reader = new FileReader();
-        reader.onload = (ev) => {
-          setLogoPreview(ev.target?.result as string);
-          setLogoFileName(file.name);
-          setDraft((prev) => ({
-            ...prev,
-            logo: {
-              ...prev.logo,
-              url: ev.target?.result as string,
-              size: prev.logo?.size ?? 40,
-              align: prev.logo?.align ?? 'center',
-              name: file.name
-            }
-          }));
-        };
-        reader.readAsDataURL(file);
-      }
-    }}
-  />
+  <label style={{ fontSize: '13px', marginBottom: '8px', display: 'block' }}>Logo do Formulário</label>
+  <div style={{ position: 'relative' }}>
+    <input
+      type="file"
+      accept="image/*"
+      id="logo-upload-input"
+      onChange={async (e) => {
+        const file = e.target.files?.[0];
+        if (file) {
+          const reader = new FileReader();
+          reader.onload = (ev) => {
+            setLogoPreview(ev.target?.result as string);
+            setLogoFileName(file.name);
+            setDraft((prev) => ({
+              ...prev,
+              logo: {
+                ...prev.logo,
+                url: ev.target?.result as string,
+                size: prev.logo?.size ?? 40,
+                align: prev.logo?.align ?? 'center',
+                name: file.name
+              }
+            }));
+          };
+          reader.readAsDataURL(file);
+        }
+      }}
+      style={{
+        position: 'absolute',
+        opacity: 0,
+        width: '100%',
+        height: '100%',
+        cursor: 'pointer',
+        zIndex: 2
+      }}
+    />
+    <div style={{
+      display: 'flex',
+      flexDirection: 'column',
+      alignItems: 'center',
+      justifyContent: 'center',
+      padding: '10px 14px',
+      background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+      borderRadius: '6px',
+      border: '2px solid #667eea',
+      cursor: 'pointer',
+      transition: 'all 0.3s ease',
+      minHeight: '42px',
+      position: 'relative',
+      zIndex: 1
+    }}>
+      <div style={{
+        fontSize: '13px',
+        fontWeight: 500,
+        color: 'white',
+        textAlign: 'center',
+        marginBottom: logoFileName ? '3px' : '0'
+      }}>
+        📁 Escolher Arquivo
+      </div>
+      {logoFileName && (
+        <div style={{
+          fontSize: '10px',
+          color: 'rgba(255, 255, 255, 0.8)',
+          textAlign: 'center',
+          maxWidth: '100%',
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+          whiteSpace: 'nowrap',
+          padding: '0 6px'
+        }}>
+          {logoFileName}
+        </div>
+      )}
+    </div>
+  </div>
   {logoPreview && (
     <div style={{ margin: '6px 0', textAlign: draft.logo?.align || 'center' }}>
       <img
@@ -3140,75 +3048,113 @@ const toggleAutofill = useCallback((checked: boolean) => {
 
 
 {/* Limite diário de respostas */}
-<div className={styles.card} style={{ marginBottom: 12, padding: '12px' }}>
-  <h4 className={styles.subTitle} style={{ fontSize: '13px', marginBottom: '8px' }}>Limite diário de respostas</h4>
-
-  <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
+<div style={{ 
+  marginBottom: '16px',
+  padding: '16px',
+  background: 'rgba(255, 255, 255, 0.03)',
+  borderRadius: '10px',
+  border: '1px solid rgba(255, 255, 255, 0.08)'
+}}>
+  <div style={{ 
+    display: 'flex', 
+    alignItems: 'center', 
+    justifyContent: 'space-between',
+    marginBottom: '12px'
+  }}>
+    <h4 style={{ 
+      fontSize: '13px', 
+      fontWeight: 600,
+      color: '#cbd5e1',
+      margin: 0,
+      display: 'flex',
+      alignItems: 'center',
+      gap: '8px'
+    }}>
+      <span style={{ fontSize: '16px' }}>📊</span>
+      Limite diário de respostas
+    </h4>
+    
     <button
       type="button"
-      className={`${styles.togglePill} ${draft.settings?.dailyLimitEnabled ? styles.on : ''}`}
       onClick={toggleDailyLimitEnabled}
-      style={{ fontSize: '12px', padding: '4px 10px' }}
+      style={{
+        padding: '6px 14px',
+        fontSize: '12px',
+        fontWeight: 500,
+        borderRadius: '6px',
+        border: 'none',
+        cursor: 'pointer',
+        transition: 'all 0.3s ease',
+        background: draft.settings?.dailyLimitEnabled 
+          ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
+          : 'rgba(255, 255, 255, 0.08)',
+        color: draft.settings?.dailyLimitEnabled ? 'white' : '#94a3b8',
+        boxShadow: draft.settings?.dailyLimitEnabled 
+          ? '0 2px 8px rgba(102, 126, 234, 0.3)'
+          : 'none'
+      }}
     >
-      Limitar respostas diárias?
+      {draft.settings?.dailyLimitEnabled ? '✓ Ativado' : 'Desativado'}
     </button>
+  </div>
 
-    {draft.settings?.dailyLimitEnabled && (
-      <div className={styles.propertyGroup} style={{ margin: 0, flex: 1 }}>
-        <label style={{ fontSize: '12px', marginBottom: '2px' }}>Quantidade por dia</label>
+  {draft.settings?.dailyLimitEnabled && (
+    <div style={{
+      marginTop: '12px',
+      padding: '12px',
+      background: 'rgba(102, 126, 234, 0.1)',
+      borderRadius: '8px',
+      border: '1px solid rgba(102, 126, 234, 0.2)'
+    }}>
+      <label style={{ 
+        fontSize: '12px', 
+        fontWeight: 500,
+        color: '#cbd5e1',
+        display: 'block',
+        marginBottom: '8px'
+      }}>
+        Quantidade máxima por dia
+      </label>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
         <input
           type="number"
           min={1}
           value={draft.settings?.dailyLimitCount ?? 1}
           onChange={(e) => setDailyLimitCount(e.target.value as unknown as number)}
-          className={styles.propertyInput}
-          style={{ width: '100%', fontSize: '12px', padding: '4px 8px' }}
+          style={{
+            flex: 1,
+            padding: '8px 12px',
+            fontSize: '14px',
+            fontWeight: 500,
+            background: 'rgba(255, 255, 255, 0.08)',
+            border: '1px solid rgba(255, 255, 255, 0.15)',
+            borderRadius: '6px',
+            color: 'white',
+            outline: 'none'
+          }}
         />
+        <span style={{ 
+          fontSize: '12px', 
+          color: '#94a3b8',
+          whiteSpace: 'nowrap'
+        }}>
+          respostas/dia
+        </span>
       </div>
-    )}
-  </div>
-
-  {draft.settings?.dailyLimitEnabled && (
-    <small style={{ color: '#9fb6d1', display: 'block', marginTop: 4, fontSize: '11px' }}>
-      O limite é por formulário e reinicia diariamente.
-    </small>
+      <small style={{ 
+        color: '#94a3b8', 
+        display: 'block', 
+        marginTop: '8px', 
+        fontSize: '11px',
+        lineHeight: '1.4'
+      }}>
+        💡 O limite é por formulário e reinicia automaticamente a cada dia.
+      </small>
+    </div>
   )}
 </div>
 
 
-
-                {/* Automação */}
-                <div className={styles.automationSection} style={{ marginBottom: '12px' }}>
-                  <h4 className={styles.subTitle} style={{ fontSize: '13px', marginBottom: '8px' }}>Automação de Notificação</h4>
-                  <div className={styles.automationToggle} style={{ gap: '6px', marginBottom: '8px' }}>
-  <button
-    className={`${styles.togglePill} ${draft.automation?.type === 'email' ? styles.on : ''}`}
-    onClick={() => setAutomationType('email')}
-    type="button"
-    style={{ fontSize: '12px', padding: '4px 10px' }}
-  >
-    <Mail size={14}/> E-mail
-  </button>
-
-  <button
-    className={`${styles.togglePill} ${draft.automation?.type === 'whatsapp' ? styles.on : ''}`}
-    onClick={() => setAutomationType('whatsapp')}
-    type="button"
-    style={{ fontSize: '12px', padding: '4px 10px' }}
-  >
-    <MessageCircle size={14}/> WhatsApp
-  </button>
-</div>
-
-                  <input
-                    type={draft.automation?.type === 'email' ? 'email' : 'tel'}
-                    value={draft.automation?.target || ''}
-                    onChange={e => setAutomationTarget(e.target.value)}
-                    placeholder={draft.automation?.type === 'email' ? 'Digite o e-mail' : 'Digite o nº de WhatsApp'}
-                    className={styles.propertyInput}
-                    style={{ fontSize: '12px', padding: '6px 10px' }}
-                  />
-                </div>
                 {/* Colaboradores */}
                 <div className={styles.collaboratorsSection} style={{ marginBottom: '12px' }}>
                   <h4 className={styles.subTitle} style={{ fontSize: '13px', marginBottom: '8px' }}>Colaboradores Autorizados</h4>

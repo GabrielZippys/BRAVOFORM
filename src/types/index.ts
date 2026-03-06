@@ -98,10 +98,6 @@ export interface Form {
     showProgress: boolean;
     confirmBeforeSubmit: boolean;
   };
-  automation?: {
-    type: 'email' | 'whatsapp';
-    target: string;
-  };
 }
 
 // --- TIPO DE RESPOSTA DE FORMULÁRIO ---

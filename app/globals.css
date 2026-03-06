@@ -311,6 +311,7 @@ input[type="file"]:hover {
 input[type="file"]:focus {
   outline: none;
   border-color: #64ffda;
+  background: rgba(255, 255, 255, 0.1);
   box-shadow: 0 0 0 3px rgba(100, 255, 218, 0.3), 0 6px 20px rgba(102, 126, 234, 0.4);
 }
 
@@ -329,7 +330,9 @@ input[type="file"]::file-selector-button {
 
 input[type="file"]::before {
   content: '📁 Escolher Arquivo';
-  display: inline-block;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   background: transparent;
   border: none;
   color: inherit;
