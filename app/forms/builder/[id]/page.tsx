@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useState, useCallback, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { useRouter, useParams, useSearchParams } from 'next/navigation';
 import { DndContext, closestCenter, PointerSensor, useSensor, useSensors, DragEndEvent, DragStartEvent } from '@dnd-kit/core';
 import { arrayMove, SortableContext, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
@@ -19,17 +20,23 @@ import ProductCatalogManager from '../../../../src/components/ProductCatalogMana
 // ---- COMPONENTE DE TOOLTIP DE AJUDA ----
 const HelpTooltip = ({ text }: { text: string }) => {
   const [show, setShow] = useState(false);
+  const [position, setPosition] = useState({ top: 0, left: 0 });
+  const iconRef = useRef<HTMLSpanElement>(null);
+
+  useEffect(() => {
+    if (show && iconRef.current) {
+      const rect = iconRef.current.getBoundingClientRect();
+      setPosition({
+        top: rect.top + window.scrollY - 8,
+        left: rect.left + window.scrollX
+      });
+    }
+  }, [show]);
   
   return (
-    <span 
-      style={{ 
-        position: 'relative',
-        display: 'inline-block',
-        marginLeft: '6px',
-        verticalAlign: 'middle'
-      }}
-    >
+    <>
       <span
+        ref={iconRef}
         onMouseEnter={() => setShow(true)}
         onMouseLeave={() => setShow(false)}
         style={{ 
@@ -44,32 +51,36 @@ const HelpTooltip = ({ text }: { text: string }) => {
           fontSize: '11px',
           fontWeight: 'bold',
           cursor: 'help',
-          border: '1px solid rgba(100, 255, 218, 0.3)'
+          border: '1px solid rgba(100, 255, 218, 0.3)',
+          marginLeft: '6px',
+          verticalAlign: 'middle'
         }}
       >
         ?
       </span>
-      {show && (
-        <span style={{
-          position: 'absolute',
-          bottom: 'calc(100% + 8px)',
-          left: '0',
-          padding: '6px 10px',
-          background: '#1a2238',
-          color: '#e0e6f7',
-          fontSize: '11px',
-          borderRadius: '6px',
-          boxShadow: '0 4px 12px rgba(0, 0, 0, 0.3)',
-          border: '1px solid #334155',
-          zIndex: 99999,
-          pointerEvents: 'none',
-          whiteSpace: 'nowrap',
-          display: 'block',
-          minWidth: 'max-content'
-        }}>
+      {show && typeof document !== 'undefined' && createPortal(
+        <div 
+          style={{
+            position: 'fixed',
+            top: `${position.top}px`,
+            left: `${position.left}px`,
+            transform: 'translateY(-100%)',
+            padding: '6px 10px',
+            background: '#1a2238',
+            color: '#e0e6f7',
+            fontSize: '11px',
+            borderRadius: '6px',
+            boxShadow: '0 4px 12px rgba(0, 0, 0, 0.3)',
+            border: '1px solid #334155',
+            zIndex: 999999,
+            pointerEvents: 'none',
+            whiteSpace: 'nowrap',
+            maxWidth: '300px'
+          }}
+          onMouseEnter={() => setShow(false)}
+        >
           {text}
-          <span style={{
-            content: '""',
+          <div style={{
             position: 'absolute',
             top: '100%',
             left: '8px',
@@ -79,9 +90,10 @@ const HelpTooltip = ({ text }: { text: string }) => {
             borderRight: '5px solid transparent',
             borderTop: '5px solid #1a2238'
           }} />
-        </span>
+        </div>,
+        document.body
       )}
-    </span>
+    </>
   );
 };
 

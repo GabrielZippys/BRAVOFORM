@@ -69,6 +69,11 @@ const ProductCatalogManager: React.FC<ProductCatalogManagerProps> = ({ companyId
   });
 
   const [editingProductIndex, setEditingProductIndex] = useState<number | null>(null);
+  const [showBulkImport, setShowBulkImport] = useState(false);
+  const [bulkImportText, setBulkImportText] = useState('');
+  const [aiGeneratedProducts, setAiGeneratedProducts] = useState<typeof products>([]);
+  const [isProcessingAI, setIsProcessingAI] = useState(false);
+  const [showAIPreview, setShowAIPreview] = useState(false);
 
   useEffect(() => {
     loadCatalogs();
@@ -330,6 +335,145 @@ const ProductCatalogManager: React.FC<ProductCatalogManagerProps> = ({ companyId
     setProducts(products.filter((_, i) => i !== index));
   };
 
+  const handleProcessWithAI = async () => {
+    if (!bulkImportText.trim()) {
+      alert('Cole o texto com os produtos para processar');
+      return;
+    }
+
+    setIsProcessingAI(true);
+
+    try {
+      const response = await fetch('/api/process-products', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          text: bulkImportText
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: 'Erro desconhecido' }));
+        throw new Error(errorData.error || 'Erro ao processar com IA');
+      }
+
+      const data = await response.json();
+      const parsedProducts = data.products || [];
+
+      const formattedProducts = parsedProducts.map((p: any) => ({
+        nome: p.nome || '',
+        codigo: p.codigo || '',
+        unidade: ['UN', 'KG', 'L', 'CX', 'PC'].includes(p.unidade) ? p.unidade : 'UN',
+        quantidadeMin: 1,
+        quantidadeMax: 999,
+        valorUnitario: parseFloat(p.valorUnitario) || 0,
+        formatoNumero: ',' as ',' | '.',
+      }));
+
+      setAiGeneratedProducts(formattedProducts);
+      setShowAIPreview(true);
+    } catch (error) {
+      console.error('Erro ao processar com IA:', error);
+      alert(error instanceof Error ? error.message : 'Erro ao processar texto com IA. Tente novamente.');
+    } finally {
+      setIsProcessingAI(false);
+    }
+  };
+
+  const handleApproveAIProducts = () => {
+    setProducts([...products, ...aiGeneratedProducts]);
+    setShowBulkImport(false);
+    setShowAIPreview(false);
+    setBulkImportText('');
+    setAiGeneratedProducts([]);
+    alert(`✅ ${aiGeneratedProducts.length} produto(s) adicionado(s) com sucesso!`);
+  };
+
+  const handleBulkImport = () => {
+    if (!bulkImportText.trim()) {
+      alert('Cole o texto com os produtos para importar');
+      return;
+    }
+
+    const lines = bulkImportText.split('\n').filter(line => line.trim() !== '');
+    const importedProducts: typeof products = [];
+
+    for (const line of lines) {
+      // Detectar diferentes formatos:
+      // 1. "Nome | Código | Preço" ou "Nome, Código, Preço"
+      // 2. "Nome - Código - Preço"
+      // 3. "Nome (Código) Preço"
+      // 4. Apenas "Nome"
+      
+      let nome = '';
+      let codigo = '';
+      let valorUnitario = 0;
+
+      // Tentar detectar separadores
+      if (line.includes('|')) {
+        const parts = line.split('|').map(p => p.trim());
+        nome = parts[0] || '';
+        codigo = parts[1] || '';
+        valorUnitario = parseFloat(parts[2]?.replace(/[^\d.,]/g, '').replace(',', '.')) || 0;
+      } else if (line.includes('\t')) {
+        // Tab-separated (Excel paste)
+        const parts = line.split('\t').map(p => p.trim());
+        nome = parts[0] || '';
+        codigo = parts[1] || '';
+        valorUnitario = parseFloat(parts[2]?.replace(/[^\d.,]/g, '').replace(',', '.')) || 0;
+      } else if (line.match(/^(.+?)\s*-\s*(.+?)\s*-\s*(.+)$/)) {
+        // Formato: Nome - Código - Preço
+        const match = line.match(/^(.+?)\s*-\s*(.+?)\s*-\s*(.+)$/);
+        if (match) {
+          nome = match[1].trim();
+          codigo = match[2].trim();
+          valorUnitario = parseFloat(match[3].replace(/[^\d.,]/g, '').replace(',', '.')) || 0;
+        }
+      } else if (line.match(/^(.+?)\s*\((.+?)\)\s*(.*)$/)) {
+        // Formato: Nome (Código) Preço
+        const match = line.match(/^(.+?)\s*\((.+?)\)\s*(.*)$/);
+        if (match) {
+          nome = match[1].trim();
+          codigo = match[2].trim();
+          valorUnitario = parseFloat(match[3].replace(/[^\d.,]/g, '').replace(',', '.')) || 0;
+        }
+      } else if (line.includes(',')) {
+        // CSV format
+        const parts = line.split(',').map(p => p.trim());
+        nome = parts[0] || '';
+        codigo = parts[1] || '';
+        valorUnitario = parseFloat(parts[2]?.replace(/[^\d.,]/g, '').replace(',', '.')) || 0;
+      } else {
+        // Apenas nome
+        nome = line.trim();
+      }
+
+      if (nome) {
+        importedProducts.push({
+          nome,
+          codigo,
+          unidade: 'UN',
+          quantidadeMin: 1,
+          quantidadeMax: 999,
+          valorUnitario,
+          formatoNumero: ',',
+        });
+      }
+    }
+
+    if (importedProducts.length === 0) {
+      alert('Nenhum produto válido encontrado no texto');
+      return;
+    }
+
+    setProducts([...products, ...importedProducts]);
+    setShowBulkImport(false);
+    setBulkImportText('');
+    alert(`✅ ${importedProducts.length} produto(s) importado(s) com sucesso!`);
+  };
+
   const modalStyle: React.CSSProperties = {
     position: 'fixed',
     top: 0,
@@ -584,26 +728,49 @@ const ProductCatalogManager: React.FC<ProductCatalogManagerProps> = ({ companyId
                 <h4 style={{ margin: 0, fontSize: '14px', color: '#fff' }}>
                   📦 Produtos do Catálogo ({products.length})
                 </h4>
-                {editingProductIndex !== null && (
-                  <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                    <span style={{ fontSize: '12px', color: '#60a5fa' }}>✏️ Editando produto</span>
-                    <button
-                      onClick={handleCancelEdit}
-                      type="button"
-                      style={{
-                        padding: '4px 8px',
-                        background: '#334155',
-                        border: 'none',
-                        borderRadius: '4px',
-                        color: '#fff',
-                        cursor: 'pointer',
-                        fontSize: '11px',
-                      }}
-                    >
-                      Cancelar
-                    </button>
-                  </div>
-                )}
+                <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                  {editingProductIndex !== null && (
+                    <>
+                      <span style={{ fontSize: '12px', color: '#60a5fa' }}>✏️ Editando produto</span>
+                      <button
+                        onClick={handleCancelEdit}
+                        type="button"
+                        style={{
+                          padding: '4px 8px',
+                          background: '#334155',
+                          border: 'none',
+                          borderRadius: '4px',
+                          color: '#fff',
+                          cursor: 'pointer',
+                          fontSize: '11px',
+                        }}
+                      >
+                        Cancelar
+                      </button>
+                    </>
+                  )}
+                  <button
+                    onClick={() => setShowBulkImport(true)}
+                    type="button"
+                    style={{
+                      padding: '6px 12px',
+                      background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                      border: 'none',
+                      borderRadius: '6px',
+                      color: '#fff',
+                      cursor: 'pointer',
+                      fontSize: '11px',
+                      fontWeight: 500,
+                      whiteSpace: 'nowrap',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                    }}
+                    title="Importar vários produtos de uma vez"
+                  >
+                    📋 Importar em Massa
+                  </button>
+                </div>
               </div>
 
               {/* Formulário para adicionar produto */}
@@ -800,6 +967,177 @@ const ProductCatalogManager: React.FC<ProductCatalogManagerProps> = ({ companyId
           </div>
         )}
       </div>
+
+      {/* Modal de Importação em Massa */}
+      {showBulkImport && (
+        <div style={modalStyle} onClick={() => {
+          setShowBulkImport(false);
+          setShowAIPreview(false);
+          setAiGeneratedProducts([]);
+        }}>
+          <div style={{
+            ...contentStyle,
+            maxWidth: showAIPreview ? '1200px' : '600px',
+          }} onClick={(e) => e.stopPropagation()}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+              <h3 style={{ margin: 0, fontSize: '18px', color: '#fff' }}>
+                🤖 Importação Inteligente com IA
+              </h3>
+              <button
+                onClick={() => {
+                  setShowBulkImport(false);
+                  setShowAIPreview(false);
+                  setAiGeneratedProducts([]);
+                }}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: '#94a3b8',
+                  cursor: 'pointer',
+                  padding: '8px',
+                }}
+              >
+                <X size={24} />
+              </button>
+            </div>
+
+            <div style={{ display: 'flex', gap: '20px' }}>
+              {/* Coluna Esquerda - Input */}
+              <div style={{ flex: showAIPreview ? 1 : 1 }}>
+                <div style={{ marginBottom: '16px' }}>
+                  <p style={{ fontSize: '13px', color: '#94a3b8', margin: '0 0 12px 0', lineHeight: '1.6' }}>
+                    Cole qualquer texto com produtos. A IA vai extrair automaticamente as informações!
+                  </p>
+                  <div style={{
+                    padding: '12px',
+                    background: 'rgba(16, 185, 129, 0.1)',
+                    borderRadius: '6px',
+                    border: '1px solid rgba(16, 185, 129, 0.3)',
+                    marginBottom: '16px',
+                  }}>
+                    <p style={{ fontSize: '12px', color: '#10b981', margin: 0, lineHeight: '1.6' }}>
+                      🤖 <strong>IA Inteligente:</strong> Cole texto não estruturado, planilhas, listas, ou qualquer formato. A IA vai entender e organizar!
+                    </p>
+                  </div>
+                </div>
+
+                <textarea
+                  value={bulkImportText}
+                  onChange={(e) => setBulkImportText(e.target.value)}
+                  placeholder="Cole aqui qualquer texto com produtos... A IA vai processar automaticamente!"
+                  style={{
+                    ...inputStyle,
+                    minHeight: '300px',
+                    resize: 'vertical',
+                    fontFamily: 'monospace',
+                    fontSize: '13px',
+                  }}
+                  disabled={isProcessingAI}
+                />
+
+                <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', marginTop: '16px' }}>
+                  <button
+                    onClick={() => {
+                      setShowBulkImport(false);
+                      setBulkImportText('');
+                      setShowAIPreview(false);
+                      setAiGeneratedProducts([]);
+                    }}
+                    style={buttonStyle('secondary')}
+                    disabled={isProcessingAI}
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    onClick={handleProcessWithAI}
+                    style={{
+                      ...buttonStyle('primary'),
+                      background: isProcessingAI 
+                        ? '#64748b' 
+                        : 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                      cursor: isProcessingAI ? 'not-allowed' : 'pointer',
+                    }}
+                    disabled={isProcessingAI}
+                  >
+                    {isProcessingAI ? '🔄 Processando...' : '🤖 Processar com IA'}
+                  </button>
+                </div>
+              </div>
+
+              {/* Coluna Direita - Prévia */}
+              {showAIPreview && (
+                <div style={{ flex: 1, borderLeft: '1px solid #334155', paddingLeft: '20px' }}>
+                  <h4 style={{ margin: '0 0 16px 0', fontSize: '16px', color: '#10b981' }}>
+                    ✨ Produtos Detectados ({aiGeneratedProducts.length})
+                  </h4>
+                  
+                  <div style={{
+                    maxHeight: '400px',
+                    overflowY: 'auto',
+                    marginBottom: '16px',
+                  }}>
+                    {aiGeneratedProducts.map((product, index) => (
+                      <div
+                        key={index}
+                        style={{
+                          padding: '12px',
+                          background: '#1a2332',
+                          borderRadius: '6px',
+                          marginBottom: '8px',
+                          border: '1px solid #334155',
+                        }}
+                      >
+                        <div style={{ fontSize: '14px', color: '#fff', fontWeight: 600, marginBottom: '4px' }}>
+                          {product.nome}
+                        </div>
+                        <div style={{ fontSize: '12px', color: '#94a3b8', display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+                          {product.codigo && <span>📦 Cód: {product.codigo}</span>}
+                          <span>📏 {product.unidade}</span>
+                          <span>💰 R$ {product.valorUnitario.toFixed(2).replace('.', ',')}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div style={{
+                    padding: '12px',
+                    background: 'rgba(16, 185, 129, 0.1)',
+                    borderRadius: '6px',
+                    border: '1px solid rgba(16, 185, 129, 0.3)',
+                    marginBottom: '16px',
+                  }}>
+                    <p style={{ fontSize: '12px', color: '#10b981', margin: 0 }}>
+                      ✅ Revise os produtos acima e clique em "Aprovar e Adicionar" para incluí-los no catálogo.
+                    </p>
+                  </div>
+
+                  <div style={{ display: 'flex', gap: '12px' }}>
+                    <button
+                      onClick={() => {
+                        setShowAIPreview(false);
+                        setAiGeneratedProducts([]);
+                      }}
+                      style={buttonStyle('secondary')}
+                    >
+                      ❌ Rejeitar
+                    </button>
+                    <button
+                      onClick={handleApproveAIProducts}
+                      style={{
+                        ...buttonStyle('primary'),
+                        background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                        flex: 1,
+                      }}
+                    >
+                      ✅ Aprovar e Adicionar ({aiGeneratedProducts.length})
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Modal de Sucesso com Animação */}
       {showSuccessModal && (
