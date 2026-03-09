@@ -2,23 +2,31 @@ import { NextRequest, NextResponse } from 'next/server';
 
 export async function POST(request: NextRequest) {
   try {
+    console.log('🤖 Iniciando processamento com IA...');
+    
     const { text } = await request.json();
 
     if (!text || typeof text !== 'string') {
+      console.error('❌ Texto inválido recebido');
       return NextResponse.json(
         { error: 'Texto inválido' },
         { status: 400 }
       );
     }
 
+    console.log('📝 Texto recebido:', text.substring(0, 100) + '...');
+
     const apiKey = process.env.OPENAI_API_KEY;
 
     if (!apiKey) {
+      console.error('❌ OPENAI_API_KEY não configurada no .env.local');
       return NextResponse.json(
-        { error: 'Chave da API não configurada' },
+        { error: 'Chave da API não configurada. Adicione OPENAI_API_KEY no arquivo .env.local' },
         { status: 500 }
       );
     }
+
+    console.log('✅ Chave da API encontrada');
 
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
@@ -35,11 +43,10 @@ export async function POST(request: NextRequest) {
 Analise o texto fornecido e extraia uma lista de produtos com as seguintes informações:
 - nome: nome do produto (obrigatório)
 - codigo: código/SKU do produto (opcional)
-- valorUnitario: preço unitário em número decimal (opcional, padrão 0)
 - unidade: unidade de medida - deve ser exatamente um destes valores: "UN", "KG", "L", "CX", "PC" (padrão "UN")
 
 Retorne APENAS um array JSON válido de objetos, sem texto adicional. Exemplo:
-[{"nome":"Coca-Cola 2L","codigo":"1234","valorUnitario":8.50,"unidade":"UN"},{"nome":"Pepsi 2L","codigo":"5678","valorUnitario":7.90,"unidade":"UN"}]`
+[{"nome":"Coca-Cola 2L","codigo":"1234","unidade":"UN"},{"nome":"Pepsi 2L","codigo":"5678","unidade":"UN"}]`
           },
           {
             role: 'user',

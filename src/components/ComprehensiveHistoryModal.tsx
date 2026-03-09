@@ -67,15 +67,38 @@ export default function ComprehensiveHistoryModal({
   const [page, setPage] = useState(1);
   const perPage = 10;
   
-  // Opções para filtros
-  const availableForms = useMemo(() => {
-    const formIds = [...new Set(responses.map(r => r.formId))];
-    return forms.filter(f => formIds.includes(f.id));
-  }, [responses, forms]);
+  // Opções para filtros - Hierárquicos
+  // Filtrar respostas baseado na empresa selecionada
+  const companyFilteredResponses = useMemo(() => {
+    if (companyFilter === 'all') return responses;
+    return responses.filter(r => r.companyId === companyFilter);
+  }, [responses, companyFilter]);
 
+  // Filtrar respostas baseado na empresa E departamento selecionados
+  const departmentFilteredResponses = useMemo(() => {
+    let filtered = companyFilteredResponses;
+    if (departmentFilter !== 'all') {
+      filtered = filtered.filter(r => r.departmentId === departmentFilter);
+    }
+    return filtered;
+  }, [companyFilteredResponses, departmentFilter]);
+
+  // Formulários disponíveis baseados na empresa e departamento
+  const availableForms = useMemo(() => {
+    const formIds = [...new Set(departmentFilteredResponses.map(r => r.formId))];
+    return forms.filter(f => formIds.includes(f.id));
+  }, [departmentFilteredResponses, forms]);
+
+  // Usuários disponíveis baseados na empresa e departamento
   const availableUsers = useMemo(() => {
-    return [...new Set(responses.map(r => r.collaboratorUsername).filter(Boolean))];
-  }, [responses]);
+    return [...new Set(departmentFilteredResponses.map(r => r.collaboratorUsername).filter(Boolean))];
+  }, [departmentFilteredResponses]);
+
+  // Departamentos disponíveis baseados na empresa
+  const availableDepartments = useMemo(() => {
+    if (companyFilter === 'all') return departments;
+    return departments.filter(d => d.companyId === companyFilter);
+  }, [departments, companyFilter]);
 
   // Filtro aplicado
   const filteredResponses = useMemo(() => {
@@ -279,18 +302,14 @@ export default function ComprehensiveHistoryModal({
             <div className={styles.advancedFilters}>
               <div className={styles.filterRow}>
                 <div className={styles.filterGroup}>
-                  <label>Formulário</label>
-                  <select value={formFilter} onChange={e => { setFormFilter(e.target.value); setPage(1); }}>
-                    <option value="all">Todos os formulários</option>
-                    {availableForms.map(f => (
-                      <option key={f.id} value={f.id}>{f.title}</option>
-                    ))}
-                  </select>
-                </div>
-
-                <div className={styles.filterGroup}>
                   <label>Empresa</label>
-                  <select value={companyFilter} onChange={e => { setCompanyFilter(e.target.value); setDepartmentFilter('all'); setPage(1); }}>
+                  <select value={companyFilter} onChange={e => { 
+                    setCompanyFilter(e.target.value); 
+                    setDepartmentFilter('all');
+                    setFormFilter('all');
+                    setUserFilter('all');
+                    setPage(1); 
+                  }}>
                     <option value="all">Todas as empresas</option>
                     {companies.map(c => (
                       <option key={c.id} value={c.id}>{c.name}</option>
@@ -302,15 +321,28 @@ export default function ComprehensiveHistoryModal({
                   <label>Departamento</label>
                   <select 
                     value={departmentFilter} 
-                    onChange={e => { setDepartmentFilter(e.target.value); setPage(1); }}
-                    disabled={companyFilter !== 'all' ? false : departments.length === 0}
+                    onChange={e => { 
+                      setDepartmentFilter(e.target.value);
+                      setFormFilter('all');
+                      setUserFilter('all');
+                      setPage(1); 
+                    }}
+                    disabled={availableDepartments.length === 0}
                   >
                     <option value="all">Todos os departamentos</option>
-                    {departments
-                      .filter(d => companyFilter === 'all' || d.companyId === companyFilter)
-                      .map(d => (
-                        <option key={d.id} value={d.id}>{d.name}</option>
-                      ))}
+                    {availableDepartments.map(d => (
+                      <option key={d.id} value={d.id}>{d.name}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className={styles.filterGroup}>
+                  <label>Formulário</label>
+                  <select value={formFilter} onChange={e => { setFormFilter(e.target.value); setPage(1); }}>
+                    <option value="all">Todos os formulários</option>
+                    {availableForms.map(f => (
+                      <option key={f.id} value={f.id}>{f.title}</option>
+                    ))}
                   </select>
                 </div>
               </div>

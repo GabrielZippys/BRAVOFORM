@@ -54,8 +54,6 @@ const ProductCatalogManager: React.FC<ProductCatalogManagerProps> = ({ companyId
     unidade: 'UN' | 'KG' | 'L' | 'CX' | 'PC';
     quantidadeMin: number;
     quantidadeMax: number;
-    valorUnitario: number;
-    formatoNumero: ',' | '.';
   }>>([]);
 
   const [newProduct, setNewProduct] = useState({
@@ -64,8 +62,6 @@ const ProductCatalogManager: React.FC<ProductCatalogManagerProps> = ({ companyId
     unidade: 'UN' as 'UN' | 'KG' | 'L' | 'CX' | 'PC',
     quantidadeMin: 1,
     quantidadeMax: 999,
-    valorUnitario: 0,
-    formatoNumero: ',' as ',' | '.',
   });
 
   const [editingProductIndex, setEditingProductIndex] = useState<number | null>(null);
@@ -155,8 +151,6 @@ const ProductCatalogManager: React.FC<ProductCatalogManagerProps> = ({ companyId
               unidade: product.unidade,
               quantidadeMin: product.quantidadeMin,
               quantidadeMax: product.quantidadeMax,
-              valorUnitario: product.valorUnitario,
-              formatoNumero: product.formatoNumero,
               createdAt: serverTimestamp(),
               updatedAt: serverTimestamp(),
             });
@@ -168,8 +162,6 @@ const ProductCatalogManager: React.FC<ProductCatalogManagerProps> = ({ companyId
               unidade: product.unidade,
               quantidadeMin: product.quantidadeMin,
               quantidadeMax: product.quantidadeMax,
-              valorUnitario: product.valorUnitario,
-              formatoNumero: product.formatoNumero,
               updatedAt: serverTimestamp(),
             });
           }
@@ -192,8 +184,6 @@ const ProductCatalogManager: React.FC<ProductCatalogManagerProps> = ({ companyId
             unidade: product.unidade,
             quantidadeMin: product.quantidadeMin,
             quantidadeMax: product.quantidadeMax,
-            valorUnitario: product.valorUnitario,
-            formatoNumero: product.formatoNumero,
             createdAt: serverTimestamp(),
             updatedAt: serverTimestamp(),
           });
@@ -253,8 +243,6 @@ const ProductCatalogManager: React.FC<ProductCatalogManagerProps> = ({ companyId
         unidade: doc.data().unidade || 'UN',
         quantidadeMin: doc.data().quantidadeMin || 1,
         quantidadeMax: doc.data().quantidadeMax || 999,
-        valorUnitario: doc.data().valorUnitario || 0,
-        formatoNumero: doc.data().formatoNumero || ',',
       }));
       setProducts(productsData);
     } catch (error) {
@@ -299,8 +287,6 @@ const ProductCatalogManager: React.FC<ProductCatalogManagerProps> = ({ companyId
       unidade: 'UN',
       quantidadeMin: 1,
       quantidadeMax: 999,
-      valorUnitario: 0,
-      formatoNumero: ',',
     });
   };
 
@@ -312,8 +298,6 @@ const ProductCatalogManager: React.FC<ProductCatalogManagerProps> = ({ companyId
       unidade: product.unidade,
       quantidadeMin: product.quantidadeMin,
       quantidadeMax: product.quantidadeMax,
-      valorUnitario: product.valorUnitario,
-      formatoNumero: product.formatoNumero,
     });
     setEditingProductIndex(index);
   };
@@ -325,8 +309,6 @@ const ProductCatalogManager: React.FC<ProductCatalogManagerProps> = ({ companyId
       unidade: 'UN',
       quantidadeMin: 1,
       quantidadeMax: 999,
-      valorUnitario: 0,
-      formatoNumero: ',',
     });
     setEditingProductIndex(null);
   };
@@ -368,8 +350,6 @@ const ProductCatalogManager: React.FC<ProductCatalogManagerProps> = ({ companyId
         unidade: ['UN', 'KG', 'L', 'CX', 'PC'].includes(p.unidade) ? p.unidade : 'UN',
         quantidadeMin: 1,
         quantidadeMax: 999,
-        valorUnitario: parseFloat(p.valorUnitario) || 0,
-        formatoNumero: ',' as ',' | '.',
       }));
 
       setAiGeneratedProducts(formattedProducts);
@@ -457,8 +437,6 @@ const ProductCatalogManager: React.FC<ProductCatalogManagerProps> = ({ companyId
           unidade: 'UN',
           quantidadeMin: 1,
           quantidadeMax: 999,
-          valorUnitario,
-          formatoNumero: ',',
         });
       }
     }
@@ -840,33 +818,6 @@ const ProductCatalogManager: React.FC<ProductCatalogManagerProps> = ({ companyId
                     />
                   </div>
 
-                  <div style={{ flex: 1 }}>
-                    <label style={{ display: 'block', marginBottom: '4px', fontSize: '11px', color: '#94a3b8' }}>
-                      Valor Unit.
-                    </label>
-                    <input
-                      type="number"
-                      value={newProduct.valorUnitario}
-                      onChange={(e) => setNewProduct({ ...newProduct, valorUnitario: parseFloat(e.target.value) || 0 })}
-                      placeholder="0.00"
-                      step="0.01"
-                      style={inputStyle}
-                    />
-                  </div>
-
-                  <div style={{ flex: 1 }}>
-                    <label style={{ display: 'block', marginBottom: '4px', fontSize: '11px', color: '#94a3b8' }}>
-                      Formato
-                    </label>
-                    <select
-                      value={newProduct.formatoNumero}
-                      onChange={(e) => setNewProduct({ ...newProduct, formatoNumero: e.target.value as ',' | '.' })}
-                      style={inputStyle}
-                    >
-                      <option value=",">Vírgula (,)</option>
-                      <option value=".">Ponto (.)</option>
-                    </select>
-                  </div>
 
                   <button
                     onClick={handleAddProduct}
@@ -910,7 +861,7 @@ const ProductCatalogManager: React.FC<ProductCatalogManagerProps> = ({ companyId
                           {product.codigo && <span style={{ color: '#94a3b8', marginLeft: '8px' }}>Cód: {product.codigo}</span>}
                         </div>
                         <div style={{ fontSize: '11px', color: '#64748b', marginTop: '2px' }}>
-                          {product.unidade} • Min: {product.quantidadeMin} • Max: {product.quantidadeMax} • R$ {product.valorUnitario.toFixed(2).replace('.', product.formatoNumero)}
+                          {product.unidade} • Min: {product.quantidadeMin} • Max: {product.quantidadeMax}
                         </div>
                       </div>
                       <div style={{ display: 'flex', gap: '4px' }}>
@@ -981,7 +932,7 @@ const ProductCatalogManager: React.FC<ProductCatalogManagerProps> = ({ companyId
           }} onClick={(e) => e.stopPropagation()}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
               <h3 style={{ margin: 0, fontSize: '18px', color: '#fff' }}>
-                🤖 Importação Inteligente com IA
+                Importação Inteligente com IA
               </h3>
               <button
                 onClick={() => {
@@ -1006,7 +957,7 @@ const ProductCatalogManager: React.FC<ProductCatalogManagerProps> = ({ companyId
               <div style={{ flex: showAIPreview ? 1 : 1 }}>
                 <div style={{ marginBottom: '16px' }}>
                   <p style={{ fontSize: '13px', color: '#94a3b8', margin: '0 0 12px 0', lineHeight: '1.6' }}>
-                    Cole qualquer texto com produtos. A IA vai extrair automaticamente as informações!
+                    Cole o texto contendo a lista de produtos. O sistema extrairá automaticamente as informações.
                   </p>
                   <div style={{
                     padding: '12px',
@@ -1016,7 +967,7 @@ const ProductCatalogManager: React.FC<ProductCatalogManagerProps> = ({ companyId
                     marginBottom: '16px',
                   }}>
                     <p style={{ fontSize: '12px', color: '#10b981', margin: 0, lineHeight: '1.6' }}>
-                      🤖 <strong>IA Inteligente:</strong> Cole texto não estruturado, planilhas, listas, ou qualquer formato. A IA vai entender e organizar!
+                      <strong>Processamento Inteligente:</strong> Aceita texto não estruturado, planilhas, listas ou qualquer formato. O sistema identificará e organizará os dados automaticamente.
                     </p>
                   </div>
                 </div>
@@ -1024,7 +975,7 @@ const ProductCatalogManager: React.FC<ProductCatalogManagerProps> = ({ companyId
                 <textarea
                   value={bulkImportText}
                   onChange={(e) => setBulkImportText(e.target.value)}
-                  placeholder="Cole aqui qualquer texto com produtos... A IA vai processar automaticamente!"
+                  placeholder="Cole aqui o texto com os produtos..."
                   style={{
                     ...inputStyle,
                     minHeight: '300px',
@@ -1059,7 +1010,7 @@ const ProductCatalogManager: React.FC<ProductCatalogManagerProps> = ({ companyId
                     }}
                     disabled={isProcessingAI}
                   >
-                    {isProcessingAI ? '🔄 Processando...' : '🤖 Processar com IA'}
+                    {isProcessingAI ? 'Processando...' : 'Processar'}
                   </button>
                 </div>
               </div>
@@ -1068,7 +1019,7 @@ const ProductCatalogManager: React.FC<ProductCatalogManagerProps> = ({ companyId
               {showAIPreview && (
                 <div style={{ flex: 1, borderLeft: '1px solid #334155', paddingLeft: '20px' }}>
                   <h4 style={{ margin: '0 0 16px 0', fontSize: '16px', color: '#10b981' }}>
-                    ✨ Produtos Detectados ({aiGeneratedProducts.length})
+                    Produtos Detectados ({aiGeneratedProducts.length})
                   </h4>
                   
                   <div style={{
@@ -1091,9 +1042,8 @@ const ProductCatalogManager: React.FC<ProductCatalogManagerProps> = ({ companyId
                           {product.nome}
                         </div>
                         <div style={{ fontSize: '12px', color: '#94a3b8', display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
-                          {product.codigo && <span>📦 Cód: {product.codigo}</span>}
-                          <span>📏 {product.unidade}</span>
-                          <span>💰 R$ {product.valorUnitario.toFixed(2).replace('.', ',')}</span>
+                          {product.codigo && <span>Código: {product.codigo}</span>}
+                          <span>Unidade: {product.unidade}</span>
                         </div>
                       </div>
                     ))}
@@ -1107,7 +1057,7 @@ const ProductCatalogManager: React.FC<ProductCatalogManagerProps> = ({ companyId
                     marginBottom: '16px',
                   }}>
                     <p style={{ fontSize: '12px', color: '#10b981', margin: 0 }}>
-                      ✅ Revise os produtos acima e clique em "Aprovar e Adicionar" para incluí-los no catálogo.
+                      Revise os produtos detectados e clique em "Aprovar e Adicionar" para incluí-los no catálogo.
                     </p>
                   </div>
 
@@ -1119,7 +1069,7 @@ const ProductCatalogManager: React.FC<ProductCatalogManagerProps> = ({ companyId
                       }}
                       style={buttonStyle('secondary')}
                     >
-                      ❌ Rejeitar
+                      Rejeitar
                     </button>
                     <button
                       onClick={handleApproveAIProducts}
@@ -1129,7 +1079,7 @@ const ProductCatalogManager: React.FC<ProductCatalogManagerProps> = ({ companyId
                         flex: 1,
                       }}
                     >
-                      ✅ Aprovar e Adicionar ({aiGeneratedProducts.length})
+                      Aprovar e Adicionar ({aiGeneratedProducts.length})
                     </button>
                   </div>
                 </div>
