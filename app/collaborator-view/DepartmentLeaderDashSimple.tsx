@@ -2,18 +2,33 @@
 
 import { useEffect, useState } from 'react';
 import { db } from '../../firebase/config';
-import { collection, query, where, onSnapshot } from 'firebase/firestore';
-import { Users } from 'lucide-react';
+import { collection, query, where, onSnapshot, collectionGroup, Timestamp } from 'firebase/firestore';
+import { Users, CheckCircle, XCircle, Clock } from 'lucide-react';
 
 interface CollaboratorDoc {
   id: string;
   username: string;
   email?: string;
+  department?: string;
   permissions?: {
     canViewHistory?: boolean;
     canEditHistory?: boolean;
     canManageUsers?: boolean;
   };
+}
+
+interface FormDoc {
+  id: string;
+  title: string;
+  authorizedUsers: string[];
+}
+
+interface ResponseDoc {
+  id: string;
+  formId: string;
+  collaboratorId: string;
+  submittedAt?: Timestamp;
+  createdAt?: Timestamp;
 }
 
 export default function DepartmentLeaderDash({ 
@@ -24,12 +39,14 @@ export default function DepartmentLeaderDash({
   department: string;
 }) {
   const [collaborators, setCollaborators] = useState<CollaboratorDoc[]>([]);
+  const [forms, setForms] = useState<FormDoc[]>([]);
+  const [responses, setResponses] = useState<ResponseDoc[]>([]);
   const [loading, setLoading] = useState(true);
 
+  // Carregar colaboradores do departamento
   useEffect(() => {
     if (!department) {
       setCollaborators([]);
-      setLoading(false);
       return;
     }
 
@@ -38,114 +55,318 @@ export default function DepartmentLeaderDash({
       where('department', '==', department)
     );
 
+    const unsub = onSnapshot(q, (snap) => {
+      const list = snap.docs
+        .map((d) => ({
+          id: d.id,
+          ...d.data()
+        } as CollaboratorDoc))
+        .filter((c) => !c.permissions?.canManageUsers); // Excluir líderes
+      setCollaborators(list);
+    });
+
+    return () => unsub();
+  }, [department]);
+
+  // Carregar formulários autorizados para os colaboradores do departamento
+  useEffect(() => {
+    if (collaborators.length === 0) {
+      setForms([]);
+      return;
+    }
+
+    const collabIds = collaborators.map(c => c.id);
+    
     const unsub = onSnapshot(
-      q,
+      collection(db, 'forms'),
       (snap) => {
-        const list = snap.docs
+        const formsList = snap.docs
           .map((d) => ({
             id: d.id,
-            ...d.data()
+            title: d.data().title || 'Sem título',
+            authorizedUsers: d.data().authorizedUsers || []
           }))
-          .filter((c) => c.id !== collaboratorId) as CollaboratorDoc[]; // Remove o próprio colaborador logado
-        setCollaborators(list);
-        setLoading(false);
-      },
-      (err) => {
-        console.error('Erro ao carregar colaboradores:', err);
+          .filter((f) => 
+            f.authorizedUsers.some((userId: string) => collabIds.includes(userId))
+          ) as FormDoc[];
+        
+        setForms(formsList);
+      }
+    );
+
+    return () => unsub();
+  }, [collaborators]);
+
+  // Carregar respostas de hoje
+  useEffect(() => {
+    if (collaborators.length === 0) {
+      setResponses([]);
+      setLoading(false);
+      return;
+    }
+
+    const collabIds = collaborators.map(c => c.id);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const unsub = onSnapshot(
+      collectionGroup(db, 'responses'),
+      (snap) => {
+        const responsesList = snap.docs
+          .map((d) => {
+            const data = d.data();
+            return {
+              id: d.id,
+              formId: data.formId,
+              collaboratorId: data.collaboratorId,
+              submittedAt: data.submittedAt,
+              createdAt: data.createdAt
+            };
+          })
+          .filter((r) => {
+            if (!collabIds.includes(r.collaboratorId)) return false;
+            
+            const ts = r.submittedAt || r.createdAt;
+            if (!ts || !(ts instanceof Timestamp)) return false;
+            
+            const date = ts.toDate();
+            return date >= today;
+          }) as ResponseDoc[];
+        
+        setResponses(responsesList);
         setLoading(false);
       }
     );
 
     return () => unsub();
-  }, [department]);
+  }, [collaborators]);
+
+  // Função para verificar se um colaborador respondeu um formulário hoje
+  const hasResponded = (collaboratorId: string, formId: string): boolean => {
+    return responses.some(
+      (r) => r.collaboratorId === collaboratorId && r.formId === formId
+    );
+  };
+
+
+  // Calcular estatísticas
+  const totalCollaborators = collaborators.length;
+  const totalForms = forms.length;
+  const totalExpectedResponses = totalCollaborators * totalForms;
+  const totalActualResponses = responses.length;
+  const completionRate = totalExpectedResponses > 0 
+    ? Math.round((totalActualResponses / totalExpectedResponses) * 100) 
+    : 0;
 
   if (loading) {
-    return <div style={{ padding: '2rem', textAlign: 'center' }}>Carregando...</div>;
+    return <div style={{ padding: '2rem', textAlign: 'center', color: '#666' }}>Carregando dados...</div>;
   }
 
   return (
-    <div style={{ padding: '1.5rem' }}>
+    <div style={{ padding: '1rem', maxWidth: '100%', margin: '0 auto' }}>
+      {/* Header */}
       <div style={{ 
         display: 'flex', 
         alignItems: 'center', 
-        gap: '0.5rem',
-        marginBottom: '1.5rem',
-        paddingBottom: '1rem',
-        borderBottom: '1px solid #e0e0e0'
+        justifyContent: 'space-between',
+        marginBottom: '0.75rem',
+        paddingBottom: '0.75rem',
+        borderBottom: '2px solid #e0e0e0'
       }}>
-        <Users size={24} />
-        <h2 style={{ margin: 0, fontSize: '1.5rem', fontWeight: 600 }}>
-          Colaboradores do Departamento {department}
-        </h2>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          <Users size={22} color="#64b5f6" />
+          <h2 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 600, color: '#e3f2fd' }}>
+            Painel de Respostas - {department}
+          </h2>
+        </div>
+        <div style={{ 
+          display: 'flex', 
+          gap: '1.5rem',
+          fontSize: '0.75rem',
+          color: '#666'
+        }}>
+          <div style={{ textAlign: 'center' }}>
+            <div style={{ fontSize: '1.1rem', fontWeight: 700, color: '#1976d2' }}>
+              {totalActualResponses}/{totalExpectedResponses}
+            </div>
+            <div style={{ fontSize: '0.7rem' }}>Respostas</div>
+          </div>
+          <div style={{ textAlign: 'center' }}>
+            <div style={{ fontSize: '1.1rem', fontWeight: 700, color: completionRate >= 80 ? '#10b981' : completionRate >= 50 ? '#f59e0b' : '#ef4444' }}>
+              {completionRate}%
+            </div>
+            <div style={{ fontSize: '0.7rem' }}>Conclusão</div>
+          </div>
+        </div>
       </div>
 
+      {/* Tabela de Status */}
       {collaborators.length === 0 ? (
-        <p style={{ textAlign: 'center', color: '#999', padding: '2rem' }}>
+        <p style={{ textAlign: 'center', color: '#999', padding: '3rem' }}>
           Nenhum colaborador encontrado neste departamento.
         </p>
+      ) : forms.length === 0 ? (
+        <p style={{ textAlign: 'center', color: '#999', padding: '3rem' }}>
+          Nenhum formulário disponível para este departamento.
+        </p>
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-          {collaborators.map((collab) => (
-            <div
-              key={collab.id}
-              style={{
-                background: '#f8f9fa',
-                border: '1px solid #e0e0e0',
-                borderRadius: '8px',
-                padding: '1rem',
-              }}
-            >
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <div>
-                  <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: 500 }}>
-                    {collab.username}
-                    {collab.permissions?.canManageUsers && (
-                      <span style={{
-                        marginLeft: '0.5rem',
-                        padding: '0.2rem 0.5rem',
-                        background: 'rgba(255, 193, 7, 0.15)',
-                        color: '#ffc107',
-                        borderRadius: '12px',
-                        fontSize: '0.75rem',
-                        border: '1px solid rgba(255, 193, 7, 0.35)'
+        <div style={{ 
+          overflowX: 'auto',
+          background: 'white',
+          borderRadius: '8px',
+          boxShadow: '0 1px 4px rgba(0,0,0,0.1)'
+        }}>
+          <table style={{ 
+            width: '100%', 
+            borderCollapse: 'collapse',
+            fontSize: '0.75rem'
+          }}>
+            <thead>
+              <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
+                <th style={{ 
+                  padding: '0.5rem 0.75rem', 
+                  textAlign: 'left',
+                  fontWeight: 600,
+                  color: '#1f2937',
+                  position: 'sticky',
+                  left: 0,
+                  background: '#f8fafc',
+                  zIndex: 10,
+                  minWidth: '80px',
+                  fontSize: '0.75rem'
+                }}>
+                  Loja
+                </th>
+                {forms.map((form) => {
+                  const shortTitle = form.title.length > 15 ? form.title.substring(0, 15) + '...' : form.title;
+                  return (
+                    <th key={form.id} style={{ 
+                      padding: '0.5rem 0.4rem', 
+                      textAlign: 'center',
+                      fontWeight: 600,
+                      color: '#1f2937',
+                      minWidth: '70px',
+                      maxWidth: '100px',
+                      fontSize: '0.7rem',
+                      lineHeight: '1.2'
+                    }} title={form.title}>
+                      {shortTitle}
+                    </th>
+                  );
+                })}
+                <th style={{ 
+                  padding: '0.5rem 0.75rem', 
+                  textAlign: 'center',
+                  fontWeight: 600,
+                  color: '#1f2937',
+                  minWidth: '60px',
+                  fontSize: '0.75rem'
+                }}>
+                  Total
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {collaborators.map((collab, index) => {
+                const collabResponses = forms.filter(f => hasResponded(collab.id, f.id)).length;
+                const collabTotal = forms.length;
+                const collabRate = collabTotal > 0 ? Math.round((collabResponses / collabTotal) * 100) : 0;
+                
+                return (
+                  <tr key={collab.id} style={{ 
+                    background: index % 2 === 0 ? '#ffffff' : '#f9fafb',
+                    borderBottom: '1px solid #e5e7eb',
+                    transition: 'background 0.15s'
+                  }}
+                  onMouseEnter={(e) => e.currentTarget.style.background = '#f1f5f9'}
+                  onMouseLeave={(e) => e.currentTarget.style.background = index % 2 === 0 ? '#ffffff' : '#f9fafb'}
+                  >
+                    <td style={{ 
+                      padding: '0.5rem 0.75rem',
+                      fontWeight: 600,
+                      color: '#1f2937',
+                      position: 'sticky',
+                      left: 0,
+                      background: 'inherit',
+                      zIndex: 5,
+                      fontSize: '0.8rem'
+                    }}>
+                      {collab.username}
+                    </td>
+                    {forms.map((form) => {
+                      const responded = hasResponded(collab.id, form.id);
+                      return (
+                        <td key={form.id} style={{ 
+                          padding: '0.4rem', 
+                          textAlign: 'center'
+                        }}>
+                          <div style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            width: '28px',
+                            height: '28px',
+                            borderRadius: '6px',
+                            background: responded ? '#d1fae5' : '#fee2e2',
+                            border: `1.5px solid ${responded ? '#10b981' : '#ef4444'}`
+                          }}>
+                            {responded ? (
+                              <CheckCircle size={16} color="#10b981" strokeWidth={2.5} />
+                            ) : (
+                              <XCircle size={16} color="#ef4444" strokeWidth={2.5} />
+                            )}
+                          </div>
+                        </td>
+                      );
+                    })}
+                    <td style={{ 
+                      padding: '0.5rem 0.75rem', 
+                      textAlign: 'center',
+                      fontWeight: 700
+                    }}>
+                      <div style={{
+                        display: 'inline-block',
+                        padding: '0.25rem 0.5rem',
+                        borderRadius: '8px',
+                        background: collabRate === 100 ? '#d1fae5' : collabRate >= 50 ? '#fef3c7' : '#fee2e2',
+                        color: collabRate === 100 ? '#10b981' : collabRate >= 50 ? '#f59e0b' : '#ef4444',
+                        fontSize: '0.7rem'
                       }}>
-                        Líder
-                      </span>
-                    )}
-                  </h3>
-                  {collab.email && (
-                    <p style={{ margin: '0.25rem 0 0 0', fontSize: '0.85rem', color: '#666' }}>
-                      {collab.email}
-                    </p>
-                  )}
-                </div>
-                <div style={{ display: 'flex', gap: '0.5rem', fontSize: '0.8rem' }}>
-                  {collab.permissions?.canViewHistory && (
-                    <span style={{
-                      padding: '0.25rem 0.5rem',
-                      background: 'rgba(0, 123, 255, 0.1)',
-                      color: '#007bff',
-                      borderRadius: '12px'
-                    }}>
-                      Ver Histórico
-                    </span>
-                  )}
-                  {collab.permissions?.canEditHistory && (
-                    <span style={{
-                      padding: '0.25rem 0.5rem',
-                      background: 'rgba(40, 167, 69, 0.1)',
-                      color: '#28a745',
-                      borderRadius: '12px'
-                    }}>
-                      Editar Histórico
-                    </span>
-                  )}
-                </div>
-              </div>
-            </div>
-          ))}
+                        {collabResponses}/{collabTotal}
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
         </div>
       )}
+
+      {/* Legenda */}
+      <div style={{ 
+        marginTop: '0.75rem',
+        padding: '0.6rem',
+        background: '#f8fafc',
+        borderRadius: '6px',
+        display: 'flex',
+        gap: '1.5rem',
+        justifyContent: 'center',
+        fontSize: '0.7rem'
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+          <CheckCircle size={14} color="#10b981" />
+          <span>Respondido</span>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+          <XCircle size={14} color="#ef4444" />
+          <span>Pendente</span>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+          <Clock size={14} color="#6b7280" />
+          <span>Hoje</span>
+        </div>
+      </div>
     </div>
   );
 }
