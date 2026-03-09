@@ -113,6 +113,13 @@ export default function ResponseDetailsModal({
                 </tr>
               ))}
             </tbody>
+            <tfoot>
+              <tr style={{ fontWeight: 700, background: '#f3f4f6' }}>
+                <td colSpan={2} style={{ textAlign: 'left' }}>Total de Produtos: {answer.length}</td>
+                <td style={{ textAlign: 'right' }}>Total: {answer.reduce((sum: number, item: any) => sum + (parseFloat(item.quantidade) || 0), 0)}</td>
+                <td></td>
+              </tr>
+            </tfoot>
           </table>
         </div>
       );
@@ -329,6 +336,13 @@ export default function ResponseDetailsModal({
                                       </tr>
                                     ))}
                                   </tbody>
+                                  <tfoot>
+                                    <tr style={{ fontWeight: 700, background: '#f3f4f6' }}>
+                                      <td colSpan={2} style={{ textAlign: 'left' }}>Total de Produtos: {value.length}</td>
+                                      <td style={{ textAlign: 'right' }}>Total: {value.reduce((sum: number, item: any) => sum + (parseFloat(item.quantidade) || 0), 0)}</td>
+                                      <td></td>
+                                    </tr>
+                                  </tfoot>
                                 </table>
                               </div>
                             );

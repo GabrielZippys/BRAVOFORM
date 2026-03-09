@@ -462,6 +462,36 @@ export default function OrderGridFieldResponse({
               ))
             )}
           </tbody>
+          {value.length > 0 && (
+            <tfoot>
+              <tr style={{ background: theme.tableHeaderBg }}>
+                <td style={{ 
+                  padding: '10px 12px',
+                  fontSize: '13px',
+                  fontWeight: 700,
+                  color: theme.tableHeaderFont,
+                  borderTop: `2px solid ${theme.tableBorderColor}`
+                }}>
+                  Total de Produtos: {value.length}
+                </td>
+                <td style={{ 
+                  padding: '10px 12px',
+                  fontSize: '13px',
+                  fontWeight: 700,
+                  color: theme.tableHeaderFont,
+                  textAlign: 'center',
+                  borderTop: `2px solid ${theme.tableBorderColor}`
+                }}>
+                  Total: {value.reduce((sum, item) => sum + (parseFloat(item.quantidade) || 0), 0)}
+                </td>
+                <td style={{ 
+                  padding: '10px 12px',
+                  borderTop: `2px solid ${theme.tableBorderColor}`
+                }}>
+                </td>
+              </tr>
+            </tfoot>
+          )}
         </table>
       </div>
     </div>

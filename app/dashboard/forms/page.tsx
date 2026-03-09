@@ -21,7 +21,7 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 
-import { Plus, Edit, Trash2, AlertTriangle, GripVertical, Pause, Play, Archive } from 'lucide-react';
+import { Plus, Edit, Trash2, AlertTriangle, GripVertical, Pause, Play, Archive, Copy } from 'lucide-react';
 import EnhancedFormBuilderPage from '@/components/EnhancedFormBuilder';
 import ConfirmModal from '@/components/ConfirmModal';
 import ArchivedFormsModal from '@/components/ArchivedFormsModal';
@@ -29,7 +29,7 @@ import styles from '../../styles/Forms.module.css';
 
 import { db, auth } from '../../../firebase/config';
 import { onAuthStateChanged, type User } from 'firebase/auth';
-import { collection, onSnapshot, query, where, doc, deleteDoc, updateDoc, Timestamp } from 'firebase/firestore';
+import { collection, onSnapshot, query, where, doc, deleteDoc, updateDoc, Timestamp, addDoc } from 'firebase/firestore';
 import { type Form, type Company, type Department } from '@/types';
 
 // --- Card arrastável ---
@@ -39,12 +39,14 @@ const SortableFormCard = ({
   onDelete,
   onTogglePause,
   onArchive,
+  onDuplicate,
 }: {
   form: Form;
   onEdit: (form: Form) => void;
   onDelete: (id: string) => void;
   onTogglePause: (id: string, currentPausedState: boolean) => void;
   onArchive: (id: string, title: string) => void;
+  onDuplicate: (form: Form) => void;
 }) => {
   const { attributes, listeners, setNodeRef, transform, transition } = useSortable({
     id: form.id,
@@ -98,6 +100,18 @@ const SortableFormCard = ({
 
         <button onClick={() => onEdit(form)} className={styles.actionButton} title="Editar">
           <Edit size={16} />
+        </button>
+
+        <button
+          onClick={() => onDuplicate(form)}
+          className={styles.actionButton}
+          title="Duplicar formulário"
+          style={{
+            background: 'rgba(59, 130, 246, 0.1)',
+            color: '#3b82f6'
+          }}
+        >
+          <Copy size={16} />
         </button>
 
         <button
@@ -330,6 +344,43 @@ export default function FormsPage() {
     });
   };
 
+  const handleDuplicateForm = (form: Form) => {
+    setConfirmModal({
+      isOpen: true,
+      title: 'Duplicar formulário?',
+      message: `"${form.title}"\n\nSerá criada uma cópia exata da estrutura deste formulário.\nOs envios já realizados NÃO serão copiados.`,
+      isDanger: false,
+      onConfirm: async () => {
+        try {
+          // Cria cópia do formulário sem o ID e sem dados de arquivamento/pausa
+          const formCopy: any = {
+            ...form,
+            title: `${form.title} (Cópia)`,
+            createdAt: Timestamp.now(),
+            createdBy: currentUser?.email || currentUser?.uid || 'unknown',
+            archived: false,
+            paused: false,
+          };
+
+          // Remove campos que não devem existir no formulário duplicado
+          delete formCopy.id;
+          delete formCopy.archivedAt;
+          delete formCopy.archivedBy;
+          delete formCopy.restoredAt;
+          delete formCopy.restoredBy;
+
+          // Adiciona o novo formulário ao Firestore
+          await addDoc(collection(db, 'forms'), formCopy);
+          
+          setConfirmModal({ ...confirmModal, isOpen: false });
+        } catch (error) {
+          console.error('Erro ao duplicar formulário:', error);
+          alert('Erro ao duplicar o formulário. Tente novamente.');
+        }
+      },
+    });
+  };
+
   if (loading.auth) {
     return <p className={styles.emptyState}>A verificar autenticação...</p>;
   }
@@ -435,6 +486,7 @@ export default function FormsPage() {
                     onDelete={handleDeleteForm}
                     onTogglePause={handleTogglePause}
                     onArchive={handleArchiveForm}
+                    onDuplicate={handleDuplicateForm}
                   />
                 ))
               ) : (
