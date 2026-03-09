@@ -228,3 +228,34 @@ input:checked + .slider:before {
   font-size: 0.75rem;
   border: 1px solid rgba(255, 193, 7, 0.35);
 }
+
+/* Estilo para permissões bloqueadas por líder */
+.lockedByLeader {
+  opacity: 0.6;
+  pointer-events: none;
+  position: relative;
+}
+
+.lockedByLeader::after {
+  content: '🔒';
+  position: absolute;
+  right: -24px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 0.85rem;
+  opacity: 0.5;
+}
+
+.lockedByLeader .switch {
+  cursor: not-allowed;
+}
+
+.lockedByLeader input:disabled + .slider {
+  background-color: #28a745;
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+.lockedByLeader input:disabled + .slider:before {
+  transform: translateX(20px);
+}

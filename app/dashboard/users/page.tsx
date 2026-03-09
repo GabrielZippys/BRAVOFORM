@@ -262,10 +262,23 @@ export default function UsersPage() {
     const collaboratorRef = doc(db, "collaborators", collaborator.id);
     try {
       const currentValue = collaborator.permissions?.canManageUsers || false;
-      await updateDoc(collaboratorRef, { 
-        'permissions.canManageUsers': !currentValue 
-      });
-      console.log(`✅ Permissão de líder atualizada para:`, !currentValue);
+      const newLeaderValue = !currentValue;
+      
+      // Se está ativando líder, ativa automaticamente Ver e Editar
+      if (newLeaderValue) {
+        await updateDoc(collaboratorRef, { 
+          'permissions.canManageUsers': true,
+          'permissions.canViewHistory': true,
+          'permissions.canEditHistory': true
+        });
+        console.log(`✅ Líder ativado - Permissões Ver e Editar ativadas automaticamente`);
+      } else {
+        // Se está desativando líder, apenas remove a permissão de líder
+        await updateDoc(collaboratorRef, { 
+          'permissions.canManageUsers': false
+        });
+        console.log(`✅ Líder desativado`);
+      }
     } catch (error) {
       console.error("Erro ao atualizar líder:", error);
     }
@@ -357,7 +370,7 @@ export default function UsersPage() {
                   </h4>
 
                   <div className={styles.permissionsGrid}>
-                    <div className={styles.permissionItem}>
+                    <div className={`${styles.permissionItem} ${c.permissions?.canManageUsers ? styles.lockedByLeader : ''}`}>
                       <span>Ver Histórico</span>
                       <label className={styles.switch}>
                         <input
@@ -365,11 +378,12 @@ export default function UsersPage() {
                           type="checkbox"
                           checked={!!c.permissions?.canViewHistory}
                           onChange={() => handleTogglePermission(c, 'canViewHistory')}
+                          disabled={!!c.permissions?.canManageUsers}
                         />
                         <span className={styles.slider}></span>
                       </label>
                     </div>
-                    <div className={styles.permissionItem}>
+                    <div className={`${styles.permissionItem} ${c.permissions?.canManageUsers ? styles.lockedByLeader : ''}`}>
                       <span>Editar Histórico</span>
                       <label className={styles.switch}>
                         <input
@@ -377,6 +391,7 @@ export default function UsersPage() {
                           type="checkbox"
                           checked={!!c.permissions?.canEditHistory}
                           onChange={() => handleTogglePermission(c, 'canEditHistory')}
+                          disabled={!!c.permissions?.canManageUsers}
                         />
                         <span className={styles.slider}></span>
                       </label>
