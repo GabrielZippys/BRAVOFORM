@@ -10,10 +10,12 @@ import {
   onSnapshot,
   query,
   where,
-  Timestamp
+  Timestamp,
+  updateDoc
 } from 'firebase/firestore';
 
 import styles from '../../app/styles/CollaboratorView.module.css';
+import ConfirmModal from './ConfirmModal';
 
 // --- BRANDING (troque quando quiser) ---
 const BRAVOFORM_LOGO = '/formbravo-logo.png'; // ou dataURL
@@ -32,6 +34,7 @@ export interface HistoryResp {
   answers?: Record<string, any>;
   createdAt?: FireTs;
   submittedAt?: FireTs;
+  deletedAt?: FireTs;
 }
 
 // ------- Tipos de schema do Form -------
@@ -212,14 +215,20 @@ function normalizeValue(v:any): string {
 type Props = {
   collaboratorId?: string;
   canEdit?: boolean;
+  canDelete?: boolean;
   onOpen?: (resp: HistoryResp) => void;
 };
 
-export default function HistoryPanel({ collaboratorId, canEdit = false, onOpen = () => {} }: Props) {
+export default function HistoryPanel({ collaboratorId, canEdit = false, canDelete = false, onOpen = () => {} }: Props) {
   // base
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string>('');
   const [responses, setResponses] = useState<HistoryResp[]>([]);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+
+  // Modal de confirmação
+  const [confirmModalOpen, setConfirmModalOpen] = useState(false);
+  const [responseToDelete, setResponseToDelete] = useState<HistoryResp | null>(null);
 
   // cache de schema por formId
   const [schemas, setSchemas] = useState<Record<string, FormSchema>>({});
@@ -232,6 +241,40 @@ export default function HistoryPanel({ collaboratorId, canEdit = false, onOpen =
 
   // seleção
   const [selected, setSelected] = useState<Set<string>>(new Set());
+
+  // Abre modal de confirmação de exclusão
+  const openDeleteConfirmation = (response: HistoryResp) => {
+    if (!response.path) {
+      alert('Erro: caminho da resposta não encontrado.');
+      return;
+    }
+    setResponseToDelete(response);
+    setConfirmModalOpen(true);
+  };
+
+  // Função para excluir resposta (soft delete)
+  const handleDeleteResponse = async () => {
+    if (!responseToDelete) return;
+
+    setConfirmModalOpen(false);
+    setDeletingId(responseToDelete.id);
+    
+    try {
+      const responseRef = fsDoc(db, responseToDelete.path!);
+      await updateDoc(responseRef, {
+        deletedAt: Timestamp.now(),
+        deletedBy: collaboratorId,
+        deletedByUsername: responseToDelete.collaboratorUsername || 'Desconhecido'
+      });
+      console.log('✅ Resposta movida para lixeira:', responseToDelete.id);
+    } catch (error) {
+      console.error('❌ Erro ao excluir resposta:', error);
+      alert('Erro ao excluir resposta. Tente novamente.');
+    } finally {
+      setDeletingId(null);
+      setResponseToDelete(null);
+    }
+  };
 
   // Carrega respostas SOMENTE do colaborador
   useEffect(() => {
@@ -251,24 +294,27 @@ export default function HistoryPanel({ collaboratorId, canEdit = false, onOpen =
     const unsub = onSnapshot(
       qRef,
       (snap) => {
-        const items: HistoryResp[] = snap.docs.map((d) => {
-          const x = d.data() as any;
-          const createdAt: FireTs =
-            x?.submittedAt instanceof Timestamp ? x.submittedAt :
-            x?.createdAt   instanceof Timestamp ? x.createdAt   : undefined;
+        const items: HistoryResp[] = snap.docs
+          .map((d) => {
+            const x = d.data() as any;
+            const createdAt: FireTs =
+              x?.submittedAt instanceof Timestamp ? x.submittedAt :
+              x?.createdAt   instanceof Timestamp ? x.createdAt   : undefined;
 
-          return {
-            id: d.id,
-            path: d.ref.path, // Adiciona o caminho completo do documento
-            formId: x?.formId ?? '',
-            formTitle: x?.formTitle ?? '',
-            collaboratorId: x?.collaboratorId ?? '',
-            collaboratorUsername: x?.collaboratorUsername ?? '',
-            answers: x?.answers,
-            createdAt,
-            submittedAt: x?.submittedAt
-          };
-        });
+            return {
+              id: d.id,
+              path: d.ref.path,
+              formId: x?.formId ?? '',
+              formTitle: x?.formTitle ?? '',
+              collaboratorId: x?.collaboratorId ?? '',
+              collaboratorUsername: x?.collaboratorUsername ?? '',
+              answers: x?.answers,
+              createdAt,
+              submittedAt: x?.submittedAt,
+              deletedAt: x?.deletedAt
+            };
+          })
+          .filter(item => !item.deletedAt); // Filtra respostas deletadas
 
         items.sort((a, b) => (b.createdAt?.toMillis() ?? 0) - (a.createdAt?.toMillis() ?? 0));
         setResponses(items);
@@ -779,14 +825,54 @@ function loadImage(src: string): Promise<HTMLImageElement> {
                   <p className={styles.cardSubtitle}>{formatPTDate(d)} • {formatPTTime(d)}</p>
                 </div>
 
-                <button className={styles.cardButton} onClick={() => onOpen(r)}>
-                  {canEdit ? 'Editar' : 'Visualizar'}
-                </button>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <button className={styles.cardButton} onClick={() => onOpen(r)} style={{ flex: 1 }}>
+                    {canEdit ? 'Editar' : 'Visualizar'}
+                  </button>
+                  {canDelete && (
+                    <button 
+                      className={styles.cardButton} 
+                      onClick={() => openDeleteConfirmation(r)}
+                      disabled={deletingId === r.id}
+                      style={{ 
+                        background: '#ef4444',
+                        opacity: deletingId === r.id ? 0.5 : 1,
+                        cursor: deletingId === r.id ? 'not-allowed' : 'pointer',
+                        whiteSpace: 'nowrap',
+                        minWidth: 'fit-content'
+                      }}
+                      title="Mover para lixeira"
+                    >
+                      {deletingId === r.id ? 'Excluindo...' : 'MOVER PARA LIXEIRA'}
+                    </button>
+                  )}
+                </div>
               </div>
             );
           })}
         </div>
       )}
+      
+      {/* Modal de Confirmação de Exclusão */}
+      <ConfirmModal
+        isOpen={confirmModalOpen}
+        onCancel={() => {
+          setConfirmModalOpen(false);
+          setResponseToDelete(null);
+        }}
+        onConfirm={handleDeleteResponse}
+        title="Tem certeza que deseja excluir esta resposta?"
+        message={
+          responseToDelete
+            ? `Formulário: ${responseToDelete.formTitle || 'Sem título'}\n` +
+              `Data: ${formatDateTime(toJSDate(responseToDelete.createdAt))}\n\n` +
+              `A resposta ficará na lixeira por 30 dias antes da exclusão permanente.`
+            : ''
+        }
+        confirmText="OK"
+        cancelText="Cancelar"
+        isDanger={true}
+      />
     </div>
   );
 }

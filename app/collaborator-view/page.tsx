@@ -16,11 +16,12 @@ import {
   Timestamp,
 } from 'firebase/firestore';
 import styles from '../styles/CollaboratorView.module.css';
-import { FileText, LogOut, User2, CheckCircle2, Clock } from 'lucide-react';
+import { FileText, LogOut, User2, CheckCircle2, Clock, Trash2 } from 'lucide-react';
 import CollaboratorHistoryModal from '@/components/CollaboratorHistoryModal'; // Modal de histórico
 import FormResponse from '@/components/FormResponse';                // Modal para responder formulário
 import DepartmentLeaderDash from './DepartmentLeaderDashSimple';     // Dash do líder (simplified)
 import HistoryPanel, { type HistoryResp } from '@/components/HistoryPanel';
+import TrashPanel, { type TrashResp } from '@/components/TrashPanel';
 
 // TIPOS
 interface Collaborator {
@@ -34,6 +35,7 @@ interface Collaborator {
     canEditHistory?: boolean;
     canDeleteForms?: boolean;
     canManageUsers?: boolean;
+    canDeleteResponses?: boolean;
   };
   active?: boolean;
   isTemporaryPassword?: boolean;
@@ -103,7 +105,7 @@ export default function CollaboratorView() {
   const [companyName, setCompanyName] = useState('');
   const [departmentName, setDepartmentName] = useState('');
   const [formsToFill, setFormsToFill] = useState<Form[]>([]);
-  const [view, setView] = useState<'forms' | 'history' | 'leaderDash'>('forms');
+  const [view, setView] = useState<'forms' | 'history' | 'leaderDash' | 'trash'>('forms');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [modalOpen, setModalOpen] = useState(false);
@@ -469,6 +471,16 @@ const doneToday = totalForms - pendingToday;
               Dash do Líder
             </button>
           )}
+
+          {collaborator?.permissions?.canDeleteResponses && (
+            <button
+              className={`${styles.toggleButton} ${view === 'trash' ? styles.active : ''}`}
+              onClick={() => setView('trash')}
+            >
+              <Trash2 size={16} style={{ marginRight: 6 }} />
+              Lixeira
+            </button>
+          )}
         </div>
 
         {loading && <p className={styles.loadingText}>Carregando dados...</p>}
@@ -562,10 +574,19 @@ const respondedToday = used > 0;
   <HistoryPanel
     collaboratorId={collaborator.id}
     canEdit={!!collaborator?.permissions?.canEditHistory}
-    onOpen={handleHistoryOpen} // abre o modal que você já tem
+    canDelete={!!collaborator?.permissions?.canDeleteResponses}
+    onOpen={handleHistoryOpen}
   />
 )}
-        
+
+{view === 'trash' && collaborator?.permissions?.canDeleteResponses && (
+  <TrashPanel
+    collaboratorId={collaborator.id}
+    onOpen={(resp: TrashResp) => {
+      handleHistoryOpen(resp as any);
+    }}
+  />
+)}
         
         {/* DASH DO LÍDER */}
         {!loading && view === 'leaderDash' && collaborator?.permissions?.canManageUsers && (

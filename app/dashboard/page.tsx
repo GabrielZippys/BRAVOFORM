@@ -10,6 +10,7 @@ import { Company, Department, Form, FormResponse } from '@/types';
 import styles from '../styles/Dashboard.module.css';
 import AdminHistoryModal from '@/components/AdminHistoryModal'; // <<< SEU MODAL DE HISTÓRICO
 import ComprehensiveHistoryModal from '@/components/ComprehensiveHistoryModal'; // <<< NOVO MODAL COMPLETO
+import TrashModal from '@/components/TrashModal';
 
 // --- Utils ---
 function toDateCompat(val: any): Date | null {
@@ -130,6 +131,9 @@ export default function DashboardPage() {
 
     // Modal completo de histórico:
     const [comprehensiveHistoryOpen, setComprehensiveHistoryOpen] = useState(false);
+    
+    // Modal de lixeira:
+    const [trashModalOpen, setTrashModalOpen] = useState(false);
 
     // Carregar dados
     useEffect(() => {
@@ -289,6 +293,13 @@ export default function DashboardPage() {
                         onClick={() => setComprehensiveHistoryOpen(true)}
                     >
                         Histórico Completo
+                    </button>
+                    <button
+                        className={styles.comprehensiveHistoryButton}
+                        onClick={() => setTrashModalOpen(true)}
+                        style={{ background: '#ef4444' }}
+                    >
+                        🗑️ Lixeira
                     </button>
                     <div className={styles.timeFilters}>
                     {['day','week','month','year'].map(key => (
@@ -539,6 +550,12 @@ export default function DashboardPage() {
                     onResponsesUpdate={refreshResponses}
                 />
             )}
+
+            {/* MODAL DE LIXEIRA */}
+            <TrashModal
+                isOpen={trashModalOpen}
+                onClose={() => setTrashModalOpen(false)}
+            />
 
             {error && <div className={styles.errorAlert}>{error}</div>}
         </div>

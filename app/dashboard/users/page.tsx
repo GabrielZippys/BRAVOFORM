@@ -30,6 +30,7 @@ interface Collaborator {
     canEditHistory?: boolean;
     canDeleteForms?: boolean;
     canManageUsers?: boolean;
+    canDeleteResponses?: boolean;
   };
 }
 type ModalType = 'company' | 'department' | 'collaborator' | 'adminUser' | 'editCollaborator';
@@ -194,7 +195,8 @@ export default function UsersPage() {
         permissions: {
           canViewHistory: false,
           canEditHistory: false,
-          canManageUsers: false
+          canManageUsers: false,
+          canDeleteResponses: false
         },
         active: true,
         createdAt: serverTimestamp(),
@@ -218,7 +220,7 @@ export default function UsersPage() {
   };
 
   // --- NOVAS FUNÇÕES: permissões e líder ---
-  const handleTogglePermission = async (collaborator: Collaborator, permission: 'canViewHistory' | 'canEditHistory') => {
+  const handleTogglePermission = async (collaborator: Collaborator, permission: 'canViewHistory' | 'canEditHistory' | 'canDeleteResponses') => {
     if (!selectedDepartment) return;
     const collaboratorRef = doc(db, "collaborators", collaborator.id);
     try {
@@ -264,14 +266,15 @@ export default function UsersPage() {
       const currentValue = collaborator.permissions?.canManageUsers || false;
       const newLeaderValue = !currentValue;
       
-      // Se está ativando líder, ativa automaticamente Ver e Editar
+      // Se está ativando líder, ativa automaticamente Ver, Editar e Excluir
       if (newLeaderValue) {
         await updateDoc(collaboratorRef, { 
           'permissions.canManageUsers': true,
           'permissions.canViewHistory': true,
-          'permissions.canEditHistory': true
+          'permissions.canEditHistory': true,
+          'permissions.canDeleteResponses': true
         });
-        console.log(`✅ Líder ativado - Permissões Ver e Editar ativadas automaticamente`);
+        console.log(`✅ Líder ativado - Permissões Ver, Editar e Excluir ativadas automaticamente`);
       } else {
         // Se está desativando líder, apenas remove a permissão de líder
         await updateDoc(collaboratorRef, { 
@@ -391,6 +394,19 @@ export default function UsersPage() {
                           type="checkbox"
                           checked={!!c.permissions?.canEditHistory}
                           onChange={() => handleTogglePermission(c, 'canEditHistory')}
+                          disabled={!!c.permissions?.canManageUsers}
+                        />
+                        <span className={styles.slider}></span>
+                      </label>
+                    </div>
+                    <div className={`${styles.permissionItem} ${c.permissions?.canManageUsers ? styles.lockedByLeader : ''}`}>
+                      <span>Excluir Respostas</span>
+                      <label className={styles.switch}>
+                        <input
+                          id={`delete-toggle-${c.id}`}
+                          type="checkbox"
+                          checked={!!c.permissions?.canDeleteResponses}
+                          onChange={() => handleTogglePermission(c, 'canDeleteResponses')}
                           disabled={!!c.permissions?.canManageUsers}
                         />
                         <span className={styles.slider}></span>

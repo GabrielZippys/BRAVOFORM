@@ -114,6 +114,9 @@ export interface FormResponse {
   answers: Record<string, any>;
   submittedAt: Timestamp;
   status: 'pending' | 'approved' | 'rejected' | 'submitted';
+  deletedAt?: Timestamp | null;
+  deletedBy?: string;
+  deletedByUsername?: string;
 }
 
 // --- TIPOS DE ORGANIZAÇÃO ---
