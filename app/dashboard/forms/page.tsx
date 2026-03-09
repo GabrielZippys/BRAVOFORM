@@ -21,13 +21,13 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 
-import { Plus, Edit, Trash2, AlertTriangle, GripVertical } from 'lucide-react';
+import { Plus, Edit, Trash2, AlertTriangle, GripVertical, Pause, Play } from 'lucide-react';
 import EnhancedFormBuilderPage from '@/components/EnhancedFormBuilder';
 import styles from '../../styles/Forms.module.css';
 
 import { db, auth } from '../../../firebase/config';
 import { onAuthStateChanged, type User } from 'firebase/auth';
-import { collection, onSnapshot, query, where, doc, deleteDoc } from 'firebase/firestore';
+import { collection, onSnapshot, query, where, doc, deleteDoc, updateDoc } from 'firebase/firestore';
 import { type Form, type Company, type Department } from '@/types';
 
 // --- Card arrastável ---
@@ -35,10 +35,12 @@ const SortableFormCard = ({
   form,
   onEdit,
   onDelete,
+  onTogglePause,
 }: {
   form: Form;
   onEdit: (form: Form) => void;
   onDelete: (id: string) => void;
+  onTogglePause: (id: string, currentPausedState: boolean) => void;
 }) => {
   const { attributes, listeners, setNodeRef, transform, transition } = useSortable({
     id: form.id,
@@ -49,15 +51,47 @@ const SortableFormCard = ({
     transition,
   };
 
+  const isPaused = (form as any).paused || false;
+
   return (
-    <div ref={setNodeRef} style={style} className={styles.formCard}>
+    <div ref={setNodeRef} style={style} className={`${styles.formCard} ${isPaused ? styles.pausedCard : ''}`}>
       <div {...attributes} {...listeners} className={styles.dragHandle} title="Arrastar para reordenar">
         <GripVertical size={20} />
       </div>
 
-      <h3 className={styles.cardTitle}>{form.title}</h3>
+      <div style={{ flex: 1 }}>
+        <h3 className={styles.cardTitle}>
+          {form.title}
+          {isPaused && (
+            <span style={{
+              marginLeft: '0.5rem',
+              padding: '0.2rem 0.5rem',
+              background: 'rgba(251, 146, 60, 0.15)',
+              color: '#f97316',
+              borderRadius: '6px',
+              fontSize: '0.7rem',
+              fontWeight: 600,
+              border: '1px solid rgba(251, 146, 60, 0.3)'
+            }}>
+              PAUSADO
+            </span>
+          )}
+        </h3>
+      </div>
 
       <div className={styles.cardActions}>
+        <button 
+          onClick={() => onTogglePause(form.id, isPaused)} 
+          className={styles.actionButton}
+          title={isPaused ? "Reativar formulário" : "Pausar formulário"}
+          style={{
+            background: isPaused ? 'rgba(34, 197, 94, 0.1)' : 'rgba(251, 146, 60, 0.1)',
+            color: isPaused ? '#22c55e' : '#f97316'
+          }}
+        >
+          {isPaused ? <Play size={16} /> : <Pause size={16} />}
+        </button>
+
         <button onClick={() => onEdit(form)} className={styles.actionButton} title="Editar">
           <Edit size={16} />
         </button>
@@ -213,6 +247,18 @@ export default function FormsPage() {
     }
   };
 
+  const handleTogglePause = async (formId: string, currentPausedState: boolean) => {
+    try {
+      const formRef = doc(db, 'forms', formId);
+      await updateDoc(formRef, {
+        paused: !currentPausedState
+      });
+    } catch (error) {
+      console.error('Erro ao pausar/reativar formulário:', error);
+      alert('Erro ao atualizar o formulário. Tente novamente.');
+    }
+  };
+
   if (loading.auth) {
     return <p className={styles.emptyState}>A verificar autenticação...</p>;
   }
@@ -300,6 +346,7 @@ export default function FormsPage() {
                       window.open(url, '_blank');
                     }}
                     onDelete={handleDeleteForm}
+                    onTogglePause={handleTogglePause}
                   />
                 ))
               ) : (

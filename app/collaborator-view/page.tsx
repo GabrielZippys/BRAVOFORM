@@ -226,8 +226,12 @@ useEffect(() => {
   } as Form;
 });
 
-      // opcional: filtra qualquer doc sem id (defensivo)
-      setFormsToFill(mapped.filter(f => typeof f.id === 'string' && f.id.trim().length > 0));
+      // Filtra formulários sem id e formulários pausados
+      setFormsToFill(mapped.filter(f => {
+        const hasValidId = typeof f.id === 'string' && f.id.trim().length > 0;
+        const isPaused = (f as any).paused || false;
+        return hasValidId && !isPaused; // Não mostra formulários pausados
+      }));
       setLoading(false);
       
       
@@ -505,19 +509,19 @@ const respondedToday = used > 0;
                     <div key={form.id} className={styles.card}>
                       {/* badge no canto */}
                       <div className={`${styles.statusBadge} ${respondedToday ? styles.statusDone : styles.statusPending}`}
-  title={
-    limitOn
-      ? (reached
-          ? `Limite diário atingido (${used}/${limit})`
-          : `Respostas hoje: ${used}/${limit}`)
-      : (respondedToday ? 'Respondido hoje' : 'Pendente hoje')
-  }
->
-  {respondedToday ? <CheckCircle2 size={14} /> : <Clock size={14} />}
-  <span style={{ marginLeft: 6 }}>
-    {limitOn ? `${used}/${limit}` : (respondedToday ? 'Hoje' : 'Pendente')}
-  </span>
-</div>
+                        title={
+                          limitOn
+                            ? (reached
+                                ? `Limite diário atingido (${used}/${limit})`
+                                : `Respostas hoje: ${used}/${limit}`)
+                            : (respondedToday ? 'Respondido hoje' : 'Pendente hoje')
+                        }
+                      >
+                        {respondedToday ? <CheckCircle2 size={14} /> : <Clock size={14} />}
+                        <span style={{ marginLeft: 6 }}>
+                          {limitOn ? `${used}/${limit}` : (respondedToday ? 'Hoje' : 'Pendente')}
+                        </span>
+                      </div>
                       <div className={styles.cardIcon}>
                         <FileText size={32} />
                       </div>
@@ -534,17 +538,17 @@ const respondedToday = used > 0;
                         )}
                       </div>
                       <button
-  className={styles.cardButton}
-  onClick={() => handleResponder(form.id)}
-  disabled={reached}  // só desabilita quando limite ligado e atingido
-  title={
-    reached
-      ? 'Limite diário atingido'
-      : 'Responder'
-  }
->
-  {reached ? 'Limite atingido' : 'Responder'}
-</button>
+                        className={styles.cardButton}
+                        onClick={() => handleResponder(form.id)}
+                        disabled={reached}
+                        title={
+                          reached
+                            ? 'Limite diário atingido'
+                            : 'Responder'
+                        }
+                      >
+                        {reached ? 'Limite atingido' : 'Responder'}
+                      </button>
                     </div>
                   );
                 })}

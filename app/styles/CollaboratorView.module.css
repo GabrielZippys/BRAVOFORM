@@ -432,6 +432,17 @@
   box-shadow: 0 6px 22px #33c6fa1c;
 }
 
+.pausedCard {
+  opacity: 0.6;
+  background-color: rgba(251, 146, 60, 0.05);
+  border-color: rgba(251, 146, 60, 0.3);
+}
+
+.pausedCard:hover {
+  opacity: 0.75;
+  border-color: rgba(251, 146, 60, 0.5);
+}
+
 .cardBody {
   padding: clamp(1rem, 2.5vw, 1.5rem);
   flex-grow: 1;

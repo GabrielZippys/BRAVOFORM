@@ -245,3 +245,14 @@
 .dragHandle:active {
     cursor: grabbing;
 }
+
+/* Estilo para formulários pausados */
+.pausedCard {
+    opacity: 0.7;
+    background-color: rgba(251, 146, 60, 0.05);
+    border-color: rgba(251, 146, 60, 0.3);
+}
+
+.pausedCard:hover {
+    opacity: 0.85;
+}
