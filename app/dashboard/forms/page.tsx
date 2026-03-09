@@ -21,13 +21,15 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 
-import { Plus, Edit, Trash2, AlertTriangle, GripVertical, Pause, Play } from 'lucide-react';
+import { Plus, Edit, Trash2, AlertTriangle, GripVertical, Pause, Play, Archive } from 'lucide-react';
 import EnhancedFormBuilderPage from '@/components/EnhancedFormBuilder';
+import ConfirmModal from '@/components/ConfirmModal';
+import ArchivedFormsModal from '@/components/ArchivedFormsModal';
 import styles from '../../styles/Forms.module.css';
 
 import { db, auth } from '../../../firebase/config';
 import { onAuthStateChanged, type User } from 'firebase/auth';
-import { collection, onSnapshot, query, where, doc, deleteDoc, updateDoc } from 'firebase/firestore';
+import { collection, onSnapshot, query, where, doc, deleteDoc, updateDoc, Timestamp } from 'firebase/firestore';
 import { type Form, type Company, type Department } from '@/types';
 
 // --- Card arrastável ---
@@ -36,11 +38,13 @@ const SortableFormCard = ({
   onEdit,
   onDelete,
   onTogglePause,
+  onArchive,
 }: {
   form: Form;
   onEdit: (form: Form) => void;
   onDelete: (id: string) => void;
   onTogglePause: (id: string, currentPausedState: boolean) => void;
+  onArchive: (id: string, title: string) => void;
 }) => {
   const { attributes, listeners, setNodeRef, transform, transition } = useSortable({
     id: form.id,
@@ -97,6 +101,18 @@ const SortableFormCard = ({
         </button>
 
         <button
+          onClick={() => onArchive(form.id, form.title)}
+          className={styles.actionButton}
+          title="Arquivar formulário"
+          style={{
+            background: 'rgba(148, 163, 184, 0.1)',
+            color: '#64748b'
+          }}
+        >
+          <Archive size={16} />
+        </button>
+
+        <button
           onClick={() => onDelete(form.id)}
           className={`${styles.actionButton} ${styles.deleteButton}`}
           title="Apagar"
@@ -112,6 +128,7 @@ const SortableFormCard = ({
 export default function FormsPage() {
   const [isEditorOpen, setIsEditorOpen] = useState(false);
   const [editingForm, setEditingForm] = useState<Form | null>(null);
+  const [isArchivedModalOpen, setIsArchivedModalOpen] = useState(false);
 
   const [companies, setCompanies] = useState<Company[]>([]);
   const [departments, setDepartments] = useState<Department[]>([]);
@@ -128,6 +145,21 @@ export default function FormsPage() {
   const [selectedCompanyId, setSelectedCompanyId] = useState('');
   const [selectedDepartmentId, setSelectedDepartmentId] = useState('');
   const [currentUser, setCurrentUser] = useState<User | null>(null);
+
+  // Estados do modal de confirmação
+  const [confirmModal, setConfirmModal] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    onConfirm: () => void;
+    isDanger?: boolean;
+  }>({
+    isOpen: false,
+    title: '',
+    message: '',
+    onConfirm: () => {},
+    isDanger: false,
+  });
 
   // DnD sensors
   const sensors = useSensors(
@@ -215,7 +247,11 @@ export default function FormsPage() {
             const data = d.data() as any;
             return { ...data, id: d.id } as Form;
           })
-          .filter((f) => typeof f.id === 'string' && f.id.trim() !== '');
+          .filter((f) => {
+            const hasValidId = typeof f.id === 'string' && f.id.trim() !== '';
+            const isArchived = (f as any).archived || false;
+            return hasValidId && !isArchived; // Não mostra formulários arquivados
+          });
 
         // Remove duplicatas por segurança
         const dedup = Array.from(new Map(list.map((f) => [f.id, f])).values());
@@ -241,10 +277,22 @@ export default function FormsPage() {
     setIsEditorOpen(false);
     setEditingForm(null);
   };
-  const handleDeleteForm = async (formId: string) => {
-    if (window.confirm('Tem certeza que deseja apagar este formulário? Esta ação não pode ser desfeita.')) {
-      await deleteDoc(doc(db, 'forms', formId));
-    }
+  const handleDeleteForm = (formId: string) => {
+    setConfirmModal({
+      isOpen: true,
+      title: 'Apagar Formulário',
+      message: 'Tem certeza que deseja apagar este formulário?\n\nEsta ação não pode ser desfeita.',
+      isDanger: true,
+      onConfirm: async () => {
+        try {
+          await deleteDoc(doc(db, 'forms', formId));
+          setConfirmModal({ ...confirmModal, isOpen: false });
+        } catch (error) {
+          console.error('Erro ao apagar formulário:', error);
+          alert('Erro ao apagar o formulário. Tente novamente.');
+        }
+      },
+    });
   };
 
   const handleTogglePause = async (formId: string, currentPausedState: boolean) => {
@@ -259,6 +307,29 @@ export default function FormsPage() {
     }
   };
 
+  const handleArchiveForm = (formId: string, formTitle: string) => {
+    setConfirmModal({
+      isOpen: true,
+      title: 'Arquivar este formulário?',
+      message: `"${formTitle}"\n\nEle deixará de receber envios e será movido para a área de Arquivo.`,
+      isDanger: false,
+      onConfirm: async () => {
+        try {
+          const formRef = doc(db, 'forms', formId);
+          await updateDoc(formRef, {
+            archived: true,
+            archivedAt: Timestamp.now(),
+            archivedBy: currentUser?.email || currentUser?.uid || 'unknown'
+          });
+          setConfirmModal({ ...confirmModal, isOpen: false });
+        } catch (error) {
+          console.error('Erro ao arquivar formulário:', error);
+          alert('Erro ao arquivar o formulário. Tente novamente.');
+        }
+      },
+    });
+  };
+
   if (loading.auth) {
     return <p className={styles.emptyState}>A verificar autenticação...</p>;
   }
@@ -268,17 +339,33 @@ export default function FormsPage() {
       <header className={styles.header}>
         <h2 className={styles.title}>Gerenciar Formulários</h2>
 
-        <button
-          onClick={() => {
-            const url = `/forms/builder/novo?companyId=${selectedCompanyId}&departmentId=${selectedDepartmentId}`;
-            window.open(url, '_blank');
-          }}
-          className={styles.button}
-          disabled={!selectedCompanyId || !selectedDepartmentId}
-        >
-          <Plus size={16} />
-          <span>Novo Formulário</span>
-        </button>
+        <div style={{ display: 'flex', gap: '0.75rem' }}>
+          <button
+            onClick={() => setIsArchivedModalOpen(true)}
+            className={styles.button}
+            style={{
+              background: 'rgba(148, 163, 184, 0.1)',
+              color: '#64748b',
+              border: '1px solid rgba(148, 163, 184, 0.3)'
+            }}
+            title="Ver formulários arquivados"
+          >
+            <Archive size={16} />
+            <span>Arquivo</span>
+          </button>
+
+          <button
+            onClick={() => {
+              const url = `/forms/builder/novo?companyId=${selectedCompanyId}&departmentId=${selectedDepartmentId}`;
+              window.open(url, '_blank');
+            }}
+            className={styles.button}
+            disabled={!selectedCompanyId || !selectedDepartmentId}
+          >
+            <Plus size={16} />
+            <span>Novo Formulário</span>
+          </button>
+        </div>
       </header>
 
       <div className={styles.frame}>
@@ -347,6 +434,7 @@ export default function FormsPage() {
                     }}
                     onDelete={handleDeleteForm}
                     onTogglePause={handleTogglePause}
+                    onArchive={handleArchiveForm}
                   />
                 ))
               ) : (
@@ -372,6 +460,25 @@ export default function FormsPage() {
           )}
         </div>
       </div>
+
+      {/* Modal de Confirmação */}
+      <ConfirmModal
+        isOpen={confirmModal.isOpen}
+        title={confirmModal.title}
+        message={confirmModal.message}
+        onConfirm={confirmModal.onConfirm}
+        onCancel={() => setConfirmModal({ ...confirmModal, isOpen: false })}
+        isDanger={confirmModal.isDanger}
+      />
+
+      {/* Modal de Formulários Arquivados */}
+      <ArchivedFormsModal
+        isOpen={isArchivedModalOpen}
+        onClose={() => setIsArchivedModalOpen(false)}
+        departmentId={selectedDepartmentId}
+        currentUserEmail={currentUser?.email || undefined}
+        currentUserId={currentUser?.uid || undefined}
+      />
     </div>
   );
 }

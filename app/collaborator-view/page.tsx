@@ -226,11 +226,12 @@ useEffect(() => {
   } as Form;
 });
 
-      // Filtra formulários sem id e formulários pausados
+      // Filtra formulários sem id, pausados e arquivados
       setFormsToFill(mapped.filter(f => {
         const hasValidId = typeof f.id === 'string' && f.id.trim().length > 0;
         const isPaused = (f as any).paused || false;
-        return hasValidId && !isPaused; // Não mostra formulários pausados
+        const isArchived = (f as any).archived || false;
+        return hasValidId && !isPaused && !isArchived; // Não mostra formulários pausados ou arquivados
       }));
       setLoading(false);
       
