@@ -470,8 +470,11 @@ export default function DashboardPage() {
                 <div className={styles.listContainer}>
                     <h3 className={styles.listTitle}>Formulários Recentes</h3>
                     <div className={styles.formList}>
-                        {filteredForms.slice(0, 5).map(form => (
-                            <div key={form.id} className={styles.formItem}>
+                        {filteredForms
+                            .filter(f => f.id && f.id.trim() !== '') // Filtrar formulários sem ID
+                            .slice(0, 5)
+                            .map((form, index) => (
+                            <div key={form.id || `form-${index}`} className={styles.formItem}>
                                 <div>
                                     <h4 className={styles.formName}>{form.title}</h4>
                                     <p className={styles.formMeta}>
@@ -507,8 +510,8 @@ export default function DashboardPage() {
         return db.getTime() - da.getTime();
       })
       .slice(0, 5)
-      .map(response => (
-        <div key={response.id} className={styles.responseItem}>
+      .map((response, index) => (
+        <div key={response.id || `response-${index}`} className={styles.responseItem}>
           <div>
             <h4 className={styles.responseForm}>
               {response.formTitle || allForms.find(f => f.id === response.formId)?.title || 'Formulário Desconhecido'}

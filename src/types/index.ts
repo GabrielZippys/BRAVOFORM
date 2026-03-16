@@ -98,6 +98,11 @@ export interface Form {
     showProgress: boolean;
     confirmBeforeSubmit: boolean;
   };
+  // Workflow fields
+  isWorkflowEnabled?: boolean;
+  workflowStages?: WorkflowStage[];
+  defaultWorkflowId?: string;
+  workflowSettings?: WorkflowSettings;
 }
 
 // --- TIPO DE RESPOSTA DE FORMULÁRIO ---
@@ -117,6 +122,19 @@ export interface FormResponse {
   deletedAt?: Timestamp | null;
   deletedBy?: string;
   deletedByUsername?: string;
+  // Workflow fields
+  currentStageId?: string;
+  previousStageId?: string;
+  assignedTo?: string;
+  workflowHistory?: WorkflowHistoryEntry[];
+  stageMetadata?: {
+    [stageId: string]: {
+      enteredAt: Timestamp;
+      enteredBy: string;
+      duration?: number;
+      attachments?: string[];
+    };
+  };
 }
 
 // --- TIPOS DE ORGANIZAÇÃO ---
@@ -264,4 +282,112 @@ export interface OrderGridField extends FormField {
   additionalFields?: AdditionalFieldConfig[];
   advancedFeatures?: AdvancedFeatures;
   displayConfig: DisplayConfig;
+}
+
+// --- WORKFLOW SYSTEM INTERFACES ---
+
+// Tipos de etapas disponíveis
+export type StageType = 
+  | 'start'           // Início do processo
+  | 'approval'        // Aprovação/Validação
+  | 'review'          // Revisão/Análise
+  | 'execution'       // Execução/Trabalho
+  | 'waiting'         // Aguardando/Pendente
+  | 'decision'        // Decisão/Gateway
+  | 'notification'    // Notificação/Comunicação
+  | 'documentation'   // Documentação/Registro
+  | 'validation'      // Validação/Verificação
+  | 'completion'      // Finalização/Conclusão
+  | 'custom';         // Personalizada
+
+// Tipo de condição para roteamento
+export type RoutingConditionType = 'user' | 'company' | 'department' | 'custom';
+
+// Condição de roteamento para múltiplos caminhos
+export interface RoutingCondition {
+  id: string;
+  targetStageId: string; // ID da etapa de destino
+  type: RoutingConditionType;
+  label: string; // Nome da condição (ex: "Aprovação Gerencial")
+  criteria: {
+    userIds?: string[];
+    companyIds?: string[];
+    departmentIds?: string[];
+    customRule?: string; // Regra customizada em texto
+  };
+}
+
+// Configuração de timer para etapa de aguardo
+export interface StageTimer {
+  type: 'date' | 'hours' | 'days'; // Tipo de timer
+  value: number | string; // Valor (data específica ou número de horas/dias)
+  autoAdvance: boolean; // Avançar automaticamente quando timer expirar
+}
+
+// Ações possíveis na validação
+export type ValidationAction = 
+  | 'approve' // Aprovar e passar para próxima etapa
+  | 'reject' // Reprovar e voltar uma etapa
+  | 'destroy' // Destruir workflow e apagar dados
+  | 'approve_with_edit'; // Aprovar com edições e comentários
+
+// Configuração de validação para etapa de validação
+export interface ValidationConfig {
+  showPreviousStageData: boolean; // Mostrar resumo da etapa anterior
+  allowedActions: ValidationAction[]; // Ações permitidas nesta validação
+  requireCommentOnEdit: boolean; // Exigir comentário ao editar
+  requireCommentOnReject: boolean; // Exigir comentário ao reprovar
+  keepEditHistory: boolean; // Manter histórico de edições
+}
+
+// Configuração de uma etapa do workflow
+export interface WorkflowStage {
+  id: string;
+  name: string;
+  description?: string; // Descrição da etapa
+  stageType: StageType;
+  color: string;
+  icon?: string;
+  requireForms?: boolean; // Se exige formulários
+  formIds?: string[]; // IDs dos formulários obrigatórios
+  allowedRoles: string[];
+  allowedUsers: string[];
+  assignedUsers?: string[]; // IDs dos usuários atribuídos a esta etapa
+  requireComment: boolean;
+  requireAttachments: boolean;
+  autoNotifications: {
+    email: boolean;
+    whatsapp: boolean;
+    recipients: string[];
+    message?: string;
+    emailRecipients?: string[];
+    whatsappNumbers?: string[];
+  };
+  routingConditions?: RoutingCondition[]; // Condições para múltiplos caminhos
+  timer?: StageTimer; // Configuração de timer para etapas de aguardo
+  validationConfig?: ValidationConfig; // Configuração de validação para etapas de validação
+  order: number;
+  isFinalStage: boolean;
+  isInitialStage: boolean;
+}
+
+// Entrada no histórico de movimentações do workflow
+export interface WorkflowHistoryEntry {
+  id: string;
+  stageId: string;
+  previousStageId?: string;
+  changedBy: string;
+  changedByUsername: string;
+  changedAt: Timestamp;
+  comment?: string;
+  attachments: string[];
+  actionType: 'forward' | 'backward' | 'reassigned';
+  metadata?: Record<string, any>;
+}
+
+// Configurações gerais do workflow
+export interface WorkflowSettings {
+  allowStageReversion: boolean;
+  requireHistoryComment: boolean;
+  autoAssignNextStage: boolean;
 }

@@ -5,7 +5,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
 // CORREÇÃO: Importando todos os ícones necessários para o menu
-import { LayoutDashboard, FileText, Users, PieChart, PlugZap, DatabaseBackup, LogOut } from 'lucide-react'; 
+import { LayoutDashboard, FileText, Users, PieChart, PlugZap, DatabaseBackup, LogOut, Workflow } from 'lucide-react'; 
 // CORREÇÃO: Usando o alias '@/' para encontrar a configuração do Firebase de forma segura
 import { auth } from '../../firebase/config';
 import { signOut } from 'firebase/auth';
@@ -16,6 +16,7 @@ import styles from '../../app/styles/Sidebar.module.css';
 const navLinks = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/dashboard/forms', label: 'Formulários', icon: FileText },
+  { href: '/dashboard/bravoflow', label: 'BravoFlow', icon: Workflow },
   { href: '/dashboard/users', label: 'Deptos & Usuários', icon: Users },
   { href: '/dashboard/integrations', label: 'Integrações', icon: PlugZap },
   { href: '/dashboard/backups', label: 'Backups', icon: DatabaseBackup },

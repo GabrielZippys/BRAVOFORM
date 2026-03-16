@@ -1,0 +1,1038 @@
+.container {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10000;
+}
+
+.modal {
+  background: white;
+  border-radius: 1rem;
+  width: 90%;
+  max-width: 800px;
+  max-height: 90vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+}
+
+.header {
+  padding: 1.5rem;
+  border-bottom: 1px solid #E5E7EB;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  background: #F9FAFB;
+}
+
+.header h2 {
+  margin: 0 0 0.5rem 0;
+  color: #1F2937;
+  font-size: 1.5rem;
+  font-weight: 600;
+}
+
+.header p {
+  margin: 0;
+  color: #6B7280;
+  font-size: 0.9rem;
+}
+
+.closeButton {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #6B7280;
+  padding: 0.5rem;
+  border-radius: 0.5rem;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.closeButton:hover {
+  background: #E5E7EB;
+  color: #1F2937;
+}
+
+.content {
+  flex: 1;
+  overflow-y: auto;
+  background: white;
+}
+
+.overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10000;
+}
+
+.modalHeader {
+  padding: 1.5rem 2rem;
+  border-bottom: 1px solid #E5E7EB;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: #F9FAFB;
+}
+
+.modalHeader h2 {
+  margin: 0;
+  color: #1F2937;
+  font-size: 1.5rem;
+  font-weight: 600;
+}
+
+.modalHeader button {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #6B7280;
+  padding: 0.5rem;
+  border-radius: 0.5rem;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.modalHeader button:hover {
+  background: #E5E7EB;
+  color: #1F2937;
+}
+
+.modalContent {
+  padding: 1.5rem 2rem;
+  max-height: 60vh;
+  overflow-y: auto;
+}
+
+.userOption {
+  width: 100%;
+  padding: 1rem 1.5rem;
+  background: white;
+  border: 1px solid #E5E7EB;
+  border-radius: 0.5rem;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-align: left;
+  margin-bottom: 0.75rem;
+  font-size: 1rem;
+  color: #1F2937;
+  font-weight: 500;
+}
+
+.userOption:hover {
+  border-color: #3B82F6;
+  background: #EFF6FF;
+  transform: translateX(4px);
+  box-shadow: 0 2px 8px rgba(59, 130, 246, 0.15);
+}
+
+.userSelection {
+  padding: 0;
+}
+
+.userSelection h3 {
+  margin: 0;
+  padding: 1.5rem 2rem;
+  color: #1F2937;
+  font-size: 1.25rem;
+  font-weight: 600;
+  background: white;
+  border-bottom: 1px solid #E5E7EB;
+}
+
+.userList {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  padding: 1rem;
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.userButton {
+  padding: 1.25rem 1.5rem;
+  background: white;
+  border: 1px solid #E5E7EB;
+  border-radius: 0.5rem;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-align: left;
+  margin-bottom: 0.75rem;
+}
+
+.userButton:hover {
+  border-color: #3B82F6;
+  background: #EFF6FF;
+  transform: translateX(4px);
+  box-shadow: 0 2px 8px rgba(59, 130, 246, 0.15);
+}
+
+.userInfo h4 {
+  margin: 0 0 0.25rem 0;
+  color: #1F2937;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.userInfo p {
+  margin: 0;
+  color: #6B7280;
+  font-size: 0.875rem;
+}
+
+.workflowTest {
+  padding: 2rem;
+}
+
+.currentUser {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem;
+  background: #F3F4F6;
+  border-radius: 0.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.currentUser h3 {
+  margin: 0;
+  color: #1F2937;
+  font-size: 1.1rem;
+}
+
+.currentUser button {
+  padding: 0.5rem 1rem;
+  background: white;
+  border: 1px solid #D1D5DB;
+  border-radius: 0.5rem;
+  cursor: pointer;
+  color: #374151;
+  font-size: 0.9rem;
+  transition: all 0.2s;
+}
+
+.currentUser button:hover {
+  background: #F9FAFB;
+  border-color: #9CA3AF;
+}
+
+.stagesContainer {
+  margin-bottom: 1.5rem;
+}
+
+.stagesContainer h3 {
+  margin: 0 0 1rem 0;
+  color: #1F2937;
+  font-size: 1.1rem;
+}
+
+.stage {
+  padding: 1rem;
+  background: #F9FAFB;
+  border: 1px solid #E5E7EB;
+  border-radius: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.stage h4 {
+  margin: 0 0 0.5rem 0;
+  color: #1F2937;
+  font-size: 1rem;
+}
+
+.stage p {
+  margin: 0.25rem 0;
+  color: #6B7280;
+  font-size: 0.9rem;
+}
+
+.startButton {
+  width: 100%;
+  padding: 1rem;
+  background: #3B82F6;
+  color: white;
+  border: none;
+  border-radius: 0.5rem;
+  cursor: pointer;
+  font-size: 1rem;
+  font-weight: 600;
+  transition: all 0.2s;
+}
+
+.startButton:hover {
+  background: #2563EB;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.userSelectionModal {
+  background: white;
+  border-radius: 1rem;
+  width: 90%;
+  max-width: 600px;
+  max-height: 80vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.header {
+  padding: 1.5rem;
+  border-bottom: 1px solid #E5E7EB;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.header h2 {
+  margin: 0;
+  font-size: 1.5rem;
+  color: #111827;
+}
+
+.closeButton {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #6B7280;
+  padding: 0.5rem;
+  border-radius: 0.5rem;
+  transition: all 0.2s;
+}
+
+.closeButton:hover {
+  background: #F3F4F6;
+  color: #111827;
+}
+
+.content {
+  padding: 1.5rem;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.hint {
+  color: #6B7280;
+  font-size: 0.95rem;
+  margin-bottom: 1.5rem;
+}
+
+.emptyText {
+  text-align: center;
+  color: #9CA3AF;
+  padding: 2rem;
+}
+
+.userList {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.userCard {
+  padding: 1.5rem;
+  border: 2px solid #E5E7EB;
+  border-radius: 0.75rem;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.userCard:hover {
+  border-color: #3B82F6;
+  background: #F0F9FF;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.1);
+}
+
+.userInfo h3 {
+  margin: 0 0 0.5rem 0;
+  color: #111827;
+  font-size: 1.1rem;
+}
+
+.userInfo p {
+  margin: 0;
+  color: #6B7280;
+  font-size: 0.9rem;
+}
+
+.userStages {
+  background: #EFF6FF;
+  color: #1E40AF;
+  padding: 0.5rem 1rem;
+  border-radius: 0.5rem;
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+/* Modo de teste em tela cheia */
+.testModeContainer {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: #F9FAFB;
+  z-index: 9999;
+  overflow-y: auto;
+}
+
+.testHeader {
+  background: white;
+  padding: 1rem 2rem;
+  border-bottom: 1px solid #E5E7EB;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+.userBadge {
+  background: #EFF6FF;
+  color: #1E40AF;
+  padding: 0.75rem 1.5rem;
+  border-radius: 0.5rem;
+  font-size: 0.95rem;
+}
+
+.exitButton {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.5rem;
+  background: #EF4444;
+  color: white;
+  border: none;
+  border-radius: 0.5rem;
+  cursor: pointer;
+  font-weight: 600;
+  transition: all 0.2s;
+}
+
+.exitButton:hover {
+  background: #DC2626;
+}
+
+.collaboratorHome {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 3rem 2rem;
+}
+
+.collaboratorHome h1 {
+  margin: 0 0 2rem 0;
+  color: #111827;
+  font-size: 2rem;
+}
+
+.workflowCard {
+  background: white;
+  border: 2px solid #E5E7EB;
+  border-radius: 1rem;
+  padding: 2rem;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.workflowCard:hover {
+  border-color: #3B82F6;
+  box-shadow: 0 8px 24px rgba(59, 130, 246, 0.15);
+  transform: translateY(-4px);
+}
+
+.workflowHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.workflowHeader h2 {
+  margin: 0;
+  color: #111827;
+  font-size: 1.5rem;
+}
+
+.statusBadge {
+  background: #D1FAE5;
+  color: #065F46;
+  padding: 0.5rem 1rem;
+  border-radius: 0.5rem;
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.workflowDescription {
+  color: #6B7280;
+  margin: 0 0 1.5rem 0;
+  line-height: 1.6;
+}
+
+.workflowFooter {
+  color: #9CA3AF;
+  font-size: 0.9rem;
+}
+
+/* Modal de etapa */
+.stageModalOverlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10001;
+}
+
+.stageModal {
+  background: white;
+  border-radius: 1rem;
+  width: 90%;
+  max-width: 800px;
+  max-height: 90vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.stageHeader {
+  padding: 1.5rem 2rem;
+  border-bottom: 1px solid #E5E7EB;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: #F9FAFB;
+}
+
+.stageHeader h2 {
+  margin: 0;
+  color: #111827;
+  font-size: 1.5rem;
+}
+
+.stageContent {
+  padding: 2rem;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.stageInfo {
+  background: #F9FAFB;
+  padding: 1.5rem;
+  border-radius: 0.75rem;
+  margin-bottom: 2rem;
+}
+
+.stageInfo p {
+  margin: 0.5rem 0;
+  color: #374151;
+}
+
+.previousStages {
+  margin-bottom: 2rem;
+}
+
+.previousStages h3 {
+  margin: 0 0 1rem 0;
+  color: #111827;
+  font-size: 1.1rem;
+}
+
+.completedStage {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem;
+  background: #F0FDF4;
+  border-radius: 0.5rem;
+  margin-bottom: 0.5rem;
+  color: #065F46;
+}
+
+.stageForm {
+  background: white;
+  border: 1px solid #E5E7EB;
+  border-radius: 0.75rem;
+  padding: 1.5rem;
+}
+
+.stageForm h3 {
+  margin: 0 0 1rem 0;
+  color: #111827;
+}
+
+.formField {
+  margin-bottom: 1.5rem;
+}
+
+.formField label {
+  display: block;
+  margin-bottom: 0.5rem;
+  color: #374151;
+  font-weight: 600;
+}
+
+.formField textarea,
+.formField input {
+  width: 100%;
+  padding: 0.75rem;
+  border: 1px solid #D1D5DB;
+  border-radius: 0.5rem;
+  font-family: inherit;
+  font-size: 0.95rem;
+  color: #111827;
+  background: white;
+}
+
+.formField textarea:focus,
+.formField input:focus {
+  outline: none;
+  border-color: #3B82F6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.formField textarea::placeholder,
+.formField input::placeholder {
+  color: #9CA3AF;
+}
+
+.stageFooter {
+  padding: 1.5rem 2rem;
+  border-top: 1px solid #E5E7EB;
+  display: flex;
+  justify-content: flex-end;
+  gap: 1rem;
+  background: #F9FAFB;
+}
+
+.btnCancel {
+  padding: 0.75rem 1.5rem;
+  background: white;
+  color: #6B7280;
+  border: 1px solid #D1D5DB;
+  border-radius: 0.5rem;
+  cursor: pointer;
+  font-weight: 600;
+  transition: all 0.2s;
+}
+
+.btnCancel:hover {
+  background: #F3F4F6;
+  border-color: #9CA3AF;
+}
+
+.btnComplete {
+  padding: 0.75rem 1.5rem;
+  background: #10B981;
+  color: white;
+  border: none;
+  border-radius: 0.5rem;
+  cursor: pointer;
+  font-weight: 600;
+  transition: all 0.2s;
+}
+
+.btnComplete:hover {
+  background: #059669;
+}
+
+/* Barra de progresso */
+.progressBar {
+  margin-bottom: 2rem;
+}
+
+.progressInfo {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 0.5rem;
+  font-size: 0.9rem;
+  color: #6B7280;
+}
+
+.progressTrack {
+  height: 8px;
+  background: #E5E7EB;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.progressFill {
+  height: 100%;
+  background: #3B82F6;
+  border-radius: 4px;
+  transition: width 0.3s ease;
+}
+
+/* Campo atual */
+.currentField {
+  background: #F9FAFB;
+  border: 2px solid #E5E7EB;
+  border-radius: 0.75rem;
+  padding: 1.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.currentField h4 {
+  margin: 0 0 0.5rem 0;
+  color: #111827;
+  font-size: 1.1rem;
+}
+
+.formPlaceholder {
+  background: white;
+  border: 1px solid #D1D5DB;
+  border-radius: 0.5rem;
+  padding: 2rem;
+  text-align: center;
+}
+
+.formPlaceholder p:first-child {
+  margin: 0 0 0.5rem 0;
+  font-size: 1.2rem;
+  font-weight: 600;
+  color: #374151;
+}
+
+.btnOpenForm {
+  margin-top: 1rem;
+  padding: 0.75rem 1.5rem;
+  background: #3B82F6;
+  color: white;
+  border: none;
+  border-radius: 0.5rem;
+  cursor: pointer;
+  font-weight: 600;
+  transition: all 0.2s;
+}
+
+.btnOpenForm:hover {
+  background: #2563EB;
+}
+
+.btnFormOpened {
+  background: #10B981 !important;
+  cursor: default;
+}
+
+.btnFormOpened:hover {
+  background: #10B981 !important;
+}
+
+/* Campos completos */
+.completedFields {
+  margin-top: 1.5rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid #E5E7EB;
+}
+
+.completedFields h4 {
+  margin: 0 0 1rem 0;
+  color: #6B7280;
+  font-size: 0.9rem;
+}
+
+.completedField {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0;
+  color: #065F46;
+  font-size: 0.9rem;
+}
+
+/* Botões de navegação */
+.footerButtons {
+  display: flex;
+  gap: 1rem;
+}
+
+.btnBack {
+  padding: 0.75rem 1.5rem;
+  background: white;
+  color: #6B7280;
+  border: 1px solid #D1D5DB;
+  border-radius: 0.5rem;
+  cursor: pointer;
+  font-weight: 600;
+  transition: all 0.2s;
+}
+
+.btnBack:hover {
+  background: #F3F4F6;
+  border-color: #9CA3AF;
+}
+
+.btnNext {
+  padding: 0.75rem 1.5rem;
+  background: #3B82F6;
+  color: white;
+  border: none;
+  border-radius: 0.5rem;
+  cursor: pointer;
+  font-weight: 600;
+  transition: all 0.2s;
+}
+
+.btnNext:hover {
+  background: #2563EB;
+}
+
+/* Modal de Validação */
+.validationData {
+  background: white;
+  border: 1px solid #E5E7EB;
+  border-radius: 0.75rem;
+  padding: 1.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.validationData h3 {
+  margin: 0 0 1rem 0;
+  color: #1F2937;
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+.validationData h4 {
+  margin: 1.5rem 0 1rem 0;
+  color: #374151;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.validationData p {
+  margin: 0.5rem 0;
+  font-size: 0.9rem;
+  color: #6B7280;
+}
+
+.validationActions {
+  margin-top: 2rem;
+  padding: 1.5rem;
+  background: #F9FAFB;
+  border-radius: 0.75rem;
+}
+
+.validationActions h4 {
+  margin: 0 0 1.25rem 0;
+  color: #1F2937;
+  font-size: 1.05rem;
+  font-weight: 600;
+}
+
+.actionButtons {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.btnValidate {
+  padding: 1rem 1.5rem;
+  background: #10B981;
+  color: white;
+  border: none;
+  border-radius: 0.5rem;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 1rem;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
+.btnValidate:hover {
+  background: #059669;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+}
+
+.btnReject {
+  padding: 1rem 1.5rem;
+  background: #F59E0B;
+  color: white;
+  border: none;
+  border-radius: 0.5rem;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 1rem;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
+.btnReject:hover {
+  background: #D97706;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(245, 158, 11, 0.3);
+}
+
+.btnDestroy {
+  padding: 1rem 1.5rem;
+  background: #EF4444;
+  color: white;
+  border: none;
+  border-radius: 0.5rem;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 1rem;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
+.btnDestroy:hover {
+  background: #DC2626;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
+}
+
+/* Respostas do Usuário */
+.fieldResponse {
+  background: #F9FAFB;
+  border: 1px solid #E5E7EB;
+  border-radius: 0.75rem;
+  padding: 1.25rem;
+  margin-bottom: 1rem;
+  transition: all 0.2s;
+}
+
+.fieldResponse:hover {
+  border-color: #D1D5DB;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.fieldHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.75rem;
+}
+
+.fieldHeader strong {
+  color: #1F2937;
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+.btnEdit {
+  padding: 0.5rem 1rem;
+  background: #3B82F6;
+  color: white;
+  border: none;
+  border-radius: 0.375rem;
+  cursor: pointer;
+  font-size: 0.875rem;
+  font-weight: 500;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.btnEdit:hover {
+  background: #2563EB;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(59, 130, 246, 0.3);
+}
+
+.fieldValue {
+  padding: 0.75rem;
+  background: white;
+  border-radius: 0.5rem;
+  color: #374151;
+  font-size: 0.9rem;
+  border: 1px solid #E5E7EB;
+}
+
+.fieldValue p {
+  margin: 0;
+  line-height: 1.5;
+}
+
+.emptyValue {
+  color: #9CA3AF;
+  font-style: italic;
+  background: transparent;
+  border: 1px dashed #D1D5DB;
+}
+
+/* Mensagem para etapas sem campos */
+.noFieldsMessage {
+  text-align: center;
+  padding: 3rem 2rem;
+}
+
+.noFieldsMessage p {
+  margin: 0 0 2rem 0;
+  color: #6B7280;
+  font-size: 1rem;
+}
+
+.noFieldsMessage button {
+  width: 100%;
+  max-width: 300px;
+}
+
+/* Timer Container */
+.timerContainer {
+  background: #FEF3C7;
+  border: 2px solid #F59E0B;
+  border-radius: 0.75rem;
+  padding: 1.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.timerDisplay {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.timerIcon {
+  font-size: 2rem;
+}
+
+.timerInfo h4 {
+  margin: 0 0 0.5rem 0;
+  color: #92400E;
+  font-size: 1rem;
+}
+
+.timerValue {
+  font-size: 2rem;
+  font-weight: bold;
+  color: #DC2626;
+}

@@ -4,13 +4,13 @@ import React, { useState, useEffect } from 'react';
 import { onAuthStateChanged, type User } from 'firebase/auth';
 import { doc, getDoc, setDoc, collection, query, where, getDocs } from 'firebase/firestore';
 import { signInWithPopup, GoogleAuthProvider, OAuthProvider, type UserCredential, type AuthProvider, type AuthError } from 'firebase/auth';
-import { Sheet, FolderKanban, Cloud } from 'lucide-react';
+import { Database, MessageSquare, FolderOpen } from 'lucide-react';
 
 import { auth, db } from '../../../firebase/config';
 import styles from '../../styles/Integrations.module.css';
 
 // --- Tipos ---
-type IntegrationService = 'drive' | 'sheets' | 'oneDrive' | 'sql';
+type IntegrationService = 'sql' | 'twilio' | 'googleDrive';
 type SqlCredentials = {
     host: string;
     name: string;
@@ -18,10 +18,9 @@ type SqlCredentials = {
     pass: string;
 };
 type ConnectionsState = {
-    drive: boolean;
-    sheets: boolean;
-    oneDrive: boolean;
     sql: SqlCredentials | null;
+    twilio: { accountSid: string; authToken: string; whatsappFrom: string } | null;
+    googleDrive: boolean;
 };
 type LogEntry = { type: 'info' | 'success' | 'error'; text: string };
 
@@ -59,7 +58,12 @@ const IntegrationCard: React.FC<IntegrationCardProps> = ({ icon, title, descript
     <div className={styles.card}>
         <div className={styles.cardHeader}>
             <div className={styles.cardIcon}>{icon}</div>
-            <h3 className={styles.cardTitle}>{title}</h3>
+            <div style={{ flex: 1 }}>
+                <h3 className={styles.cardTitle}>{title}</h3>
+                <span className={`${styles.statusBadge} ${isConnected ? styles.statusOnline : styles.statusOffline}`}>
+                    {isConnected ? '● Online' : '● Offline'}
+                </span>
+            </div>
         </div>
         <p className={styles.cardDescription}>{description}</p>
         <button 
@@ -106,7 +110,9 @@ const EventLog: React.FC<EventLogProps> = ({ logs }) => (
 // --- Componente Principal ---
 export default function IntegrationsPage() {
     const [user, setUser] = useState<User | null>(null);
-    const [connections, setConnections] = useState<ConnectionsState>({ drive: false, sheets: false, oneDrive: false, sql: null });
+    const [connections, setConnections] = useState<ConnectionsState>({ sql: null, twilio: null, googleDrive: false });
+    const [showSqlModal, setShowSqlModal] = useState(false);
+    const [showTwilioModal, setShowTwilioModal] = useState(false);
     const [loading, setLoading] = useState(true);
     const [statusLog, setStatusLog] = useState<LogEntry[]>([]);
     
@@ -126,10 +132,9 @@ export default function IntegrationsPage() {
                     if (docSnap.exists()) {
                         const data = docSnap.data() as Partial<ConnectionsState>;
                         setConnections({
-                            drive: data.drive || false,
-                            sheets: data.sheets || false,
-                            oneDrive: data.oneDrive || false,
-                            sql: data.sql || null
+                            sql: data.sql || null,
+                            twilio: data.twilio || null,
+                            googleDrive: data.googleDrive || false
                         });
                         if (data.sql) {
                             setDbHost(data.sql.host);
@@ -221,37 +226,17 @@ export default function IntegrationsPage() {
         }
     };
 
-    const handleCloudConnect = async (service: 'drive' | 'sheets' | 'oneDrive') => {
+    const handleCloudConnect = async () => {
         if (!user) { addLog('error', "Usuário não autenticado."); return; }
-        let provider: GoogleAuthProvider | OAuthProvider;
-        let serviceName = '';
-        switch (service) {
-            case 'drive': 
-                serviceName = 'Google Drive'; 
-                provider = new GoogleAuthProvider(); 
-                provider.addScope('https://www.googleapis.com/auth/drive.file'); 
-                break;
-            case 'sheets': 
-                serviceName = 'Google Sheets'; 
-                provider = new GoogleAuthProvider(); 
-                provider.addScope('https://www.googleapis.com/auth/spreadsheets');
-                break;
-            case 'oneDrive': 
-                serviceName = 'OneDrive'; 
-                provider = new OAuthProvider('microsoft.com'); 
-                provider.addScope('Files.ReadWrite'); 
-                break;
-        }
-        addLog('info', `Iniciando autenticação com ${serviceName}...`);
+        const provider = new GoogleAuthProvider();
+        provider.addScope('https://www.googleapis.com/auth/drive.file');
+        
+        addLog('info', 'Iniciando autenticação com Google Drive...');
         try {
-            const result = await signInWithPopup(auth, provider);
-            const newConnections = { ...connections, [service]: true };
-            setConnections(newConnections);
-            await setDoc(doc(db, "integrations", user.uid), { [service]: true }, { merge: true });
-            addLog('success', `Autorização com ${serviceName} concedida e salva!`);
-            if (service === 'sheets') {
-                await exportAllDataToGoogleSheets(result);
-            }
+            await signInWithPopup(auth, provider);
+            await setDoc(doc(db, "integrations", user.uid), { googleDrive: true }, { merge: true });
+            setConnections(prev => ({ ...prev, googleDrive: true }));
+            addLog('success', 'Google Drive conectado com sucesso!');
         } catch (error: unknown) {
             if (error instanceof Error && 'code' in error) {
                 const firebaseError = error as { code: string; message: string };
@@ -310,44 +295,106 @@ export default function IntegrationsPage() {
     return (
         <div>
             <div className={styles.pageHeader}>
-                <h2 className={styles.title}>Bancos de Dados Adicionais</h2>
+                <h2 className={styles.title}>Integrações</h2>
             </div>
             <div className={styles.grid}>
                 <IntegrationCard 
-                    icon={<FolderKanban size={40} />}
+                    icon={<Database size={40} />}
+                    title="Banco SQL"
+                    description="Conecte seu banco de dados SQL para salvar respostas automaticamente."
+                    isConnected={!!connections.sql}
+                    onConnect={() => setShowSqlModal(true)}
+                    onDisconnect={handleSqlDisconnect}
+                />
+                <IntegrationCard 
+                    icon={<MessageSquare size={40} />}
+                    title="Twilio"
+                    description="Configure Twilio para enviar notificações por WhatsApp e SMS."
+                    isConnected={!!connections.twilio}
+                    onConnect={() => setShowTwilioModal(true)}
+                    onDisconnect={async () => {
+                        if (!user) return;
+                        await setDoc(doc(db, "integrations", user.uid), { twilio: null }, { merge: true });
+                        setConnections(prev => ({ ...prev, twilio: null }));
+                        addLog('success', 'Twilio desconectado.');
+                    }}
+                />
+                <IntegrationCard 
+                    icon={<FolderOpen size={40} />}
                     title="Google Drive"
-                    description="Salve respostas de formulários como arquivos individuais no seu Google Drive."
-                    isConnected={connections.drive}
-                    onConnect={() => handleCloudConnect('drive')}
-                    onDisconnect={() => handleCloudDisconnect('drive')}
-                />
-                <IntegrationCard 
-                    icon={<Sheet size={40} />}
-                    title="Google Sheets"
-                    description="Exporte todas as respostas para uma nova planilha."
-                    isConnected={connections.sheets}
-                    onConnect={() => handleCloudConnect('sheets')}
-                    onDisconnect={() => handleCloudDisconnect('sheets')}
-                />
-                <IntegrationCard 
-                    icon={<Cloud size={40} />}
-                    title="OneDrive"
-                    description="Sincronize documentos com o seu OneDrive (em breve)."
-                    isConnected={connections.oneDrive}
-                    onConnect={() => handleCloudConnect('oneDrive')}
-                    onDisconnect={() => handleCloudDisconnect('oneDrive')}
+                    description="Salve respostas de formulários como arquivos no Google Drive."
+                    isConnected={connections.googleDrive}
+                    onConnect={handleCloudConnect}
+                    onDisconnect={async () => {
+                        if (!user) return;
+                        await setDoc(doc(db, "integrations", user.uid), { googleDrive: false }, { merge: true });
+                        setConnections(prev => ({ ...prev, googleDrive: false }));
+                        addLog('success', 'Google Drive desconectado.');
+                    }}
                 />
             </div>
-            <SqlForm 
-                onSubmit={handleSaveSqlConnection}
-                onDisconnect={handleSqlDisconnect}
-                isConnected={!!connections.sql}
-                isConnecting={isDbConnecting}
-                dbHost={dbHost} setDbHost={setDbHost}
-                dbName={dbName} setDbName={setDbName}
-                dbUser={dbUser} setDbUser={setDbUser}
-                dbPass={dbPass} setDbPass={setDbPass}
-            />
+
+            {/* Modal SQL */}
+            {showSqlModal && (
+                <div className={styles.modalOverlay} onClick={() => setShowSqlModal(false)}>
+                    <div className={styles.modalContent} onClick={(e) => e.stopPropagation()}>
+                        <SqlForm 
+                            onSubmit={async (e) => {
+                                await handleSaveSqlConnection(e);
+                                setShowSqlModal(false);
+                            }}
+                            onDisconnect={handleSqlDisconnect}
+                            isConnected={!!connections.sql}
+                            isConnecting={isDbConnecting}
+                            dbHost={dbHost} setDbHost={setDbHost}
+                            dbName={dbName} setDbName={setDbName}
+                            dbUser={dbUser} setDbUser={setDbUser}
+                            dbPass={dbPass} setDbPass={setDbPass}
+                        />
+                        <button onClick={() => setShowSqlModal(false)} className={styles.modalClose}>Fechar</button>
+                    </div>
+                </div>
+            )}
+
+            {/* Modal Twilio */}
+            {showTwilioModal && (
+                <div className={styles.modalOverlay} onClick={() => setShowTwilioModal(false)}>
+                    <div className={styles.modalContent} onClick={(e) => e.stopPropagation()}>
+                        <h3 className={styles.sqlTitle}>Configurar Twilio</h3>
+                        <p className={styles.cardDescription} style={{textAlign: 'center', marginBottom: '2rem'}}>Configure suas credenciais do Twilio para enviar notificações por WhatsApp.</p>
+                        <form className={styles.sqlForm} onSubmit={async (e) => {
+                            e.preventDefault();
+                            if (!user) return;
+                            const formData = new FormData(e.currentTarget);
+                            const twilioConfig = {
+                                accountSid: formData.get('accountSid') as string,
+                                authToken: formData.get('authToken') as string,
+                                whatsappFrom: formData.get('whatsappFrom') as string,
+                            };
+                            await setDoc(doc(db, "integrations", user.uid), { twilio: twilioConfig }, { merge: true });
+                            setConnections(prev => ({ ...prev, twilio: twilioConfig }));
+                            addLog('success', 'Twilio configurado com sucesso!');
+                            setShowTwilioModal(false);
+                        }}>
+                            <div className={styles.inputGroup}>
+                                <label className={styles.sqlLabel}>Account SID</label>
+                                <input name="accountSid" type="text" className={styles.sqlInput} defaultValue={connections.twilio?.accountSid || ''} required />
+                            </div>
+                            <div className={styles.inputGroup}>
+                                <label className={styles.sqlLabel}>Auth Token</label>
+                                <input name="authToken" type="password" className={styles.sqlInput} defaultValue={connections.twilio?.authToken || ''} required />
+                            </div>
+                            <div className={styles.inputGroup}>
+                                <label className={styles.sqlLabel}>WhatsApp From (ex: whatsapp:+5511999999999)</label>
+                                <input name="whatsappFrom" type="text" className={styles.sqlInput} defaultValue={connections.twilio?.whatsappFrom || ''} required />
+                            </div>
+                            <button type="submit" className={`${styles.button} ${styles.connectButton} ${styles.sqlButton}`}>Salvar Configuração</button>
+                        </form>
+                        <button onClick={() => setShowTwilioModal(false)} className={styles.modalClose}>Fechar</button>
+                    </div>
+                </div>
+            )}
+
             <EventLog logs={statusLog} />
         </div>
     );

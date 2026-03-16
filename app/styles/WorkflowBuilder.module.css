@@ -1,0 +1,346 @@
+.container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  padding: 2rem;
+  background: #f9fafb;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2rem;
+  padding-bottom: 1rem;
+  border-bottom: 2px solid #e5e7eb;
+}
+
+.header h2 {
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: #111827;
+  margin: 0;
+}
+
+.actions {
+  display: flex;
+  gap: 0.75rem;
+}
+
+.actions button {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.625rem 1rem;
+  border: none;
+  border-radius: 0.5rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btnAdd {
+  background: #3B82F6;
+  color: white;
+}
+
+.btnAdd:hover:not(:disabled) {
+  background: #2563EB;
+}
+
+.btnSave {
+  background: #10B981;
+  color: white;
+}
+
+.btnSave:hover:not(:disabled) {
+  background: #059669;
+}
+
+.btnPreview {
+  background: #6B7280;
+  color: white;
+}
+
+.btnPreview:hover {
+  background: #4B5563;
+}
+
+.actions button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.emptyState {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 4rem 2rem;
+  text-align: center;
+  color: #6B7280;
+}
+
+.emptyState p {
+  margin: 0.5rem 0;
+  font-size: 1rem;
+}
+
+.content {
+  display: grid;
+  grid-template-columns: 350px 1fr;
+  gap: 2rem;
+  flex: 1;
+  overflow: hidden;
+}
+
+.stagesList {
+  background: white;
+  border-radius: 0.75rem;
+  padding: 1.5rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  overflow-y: auto;
+}
+
+.stagesList h3 {
+  margin: 0 0 1rem 0;
+  font-size: 1rem;
+  font-weight: 600;
+  color: #374151;
+}
+
+.stageCard {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 1rem;
+  margin-bottom: 0.75rem;
+  background: #F9FAFB;
+  border: 2px solid #E5E7EB;
+  border-radius: 0.5rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.stageCard:hover {
+  border-color: #3B82F6;
+  background: #EFF6FF;
+}
+
+.stageCard.selected {
+  border-color: #3B82F6;
+  background: #DBEAFE;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.dragHandle {
+  display: flex;
+  align-items: center;
+  color: #9CA3AF;
+  cursor: grab;
+}
+
+.dragHandle:active {
+  cursor: grabbing;
+}
+
+.stageColor {
+  width: 1rem;
+  height: 1rem;
+  border-radius: 0.25rem;
+  flex-shrink: 0;
+}
+
+.stageInfo {
+  flex: 1;
+}
+
+.stageInfo h4 {
+  margin: 0 0 0.25rem 0;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #111827;
+}
+
+.stageMeta {
+  display: flex;
+  gap: 0.5rem;
+  font-size: 0.75rem;
+  color: #6B7280;
+}
+
+.badge {
+  padding: 0.125rem 0.5rem;
+  background: #DBEAFE;
+  color: #1E40AF;
+  border-radius: 0.25rem;
+  font-weight: 500;
+}
+
+.deleteBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.5rem;
+  background: transparent;
+  border: none;
+  color: #EF4444;
+  cursor: pointer;
+  border-radius: 0.375rem;
+  transition: all 0.2s;
+}
+
+.deleteBtn:hover {
+  background: #FEE2E2;
+}
+
+.stageConfig {
+  background: white;
+  border-radius: 0.75rem;
+  padding: 1.5rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  overflow-y: auto;
+}
+
+.configHeader {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 1.5rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid #E5E7EB;
+}
+
+.configHeader h3 {
+  margin: 0;
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: #111827;
+}
+
+.configSection {
+  margin-bottom: 1.5rem;
+}
+
+.configSection label {
+  display: block;
+  margin-bottom: 0.5rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #374151;
+}
+
+.configSection input[type="text"] {
+  width: 100%;
+  padding: 0.625rem;
+  border: 1px solid #D1D5DB;
+  border-radius: 0.5rem;
+  font-size: 0.875rem;
+  transition: border-color 0.2s;
+}
+
+.configSection input[type="text"]:focus {
+  outline: none;
+  border-color: #3B82F6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.configSection input[type="checkbox"] {
+  margin-right: 0.5rem;
+}
+
+.colorPicker {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.colorPicker input[type="color"] {
+  width: 3rem;
+  height: 2.5rem;
+  border: 1px solid #D1D5DB;
+  border-radius: 0.5rem;
+  cursor: pointer;
+}
+
+.colorPicker span {
+  font-size: 0.875rem;
+  color: #6B7280;
+  font-family: monospace;
+}
+
+.configSection h4 {
+  margin: 0 0 0.75rem 0;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #111827;
+}
+
+.preview {
+  background: white;
+  border-radius: 0.75rem;
+  padding: 2rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.preview h3 {
+  margin: 0 0 2rem 0;
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: #111827;
+}
+
+.previewFlow {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+  padding: 2rem;
+  background: #F9FAFB;
+  border-radius: 0.5rem;
+}
+
+.previewStage {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  background: white;
+  border: 2px solid #E5E7EB;
+  border-radius: 0.5rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #111827;
+}
+
+.previewColor {
+  width: 0.75rem;
+  height: 0.75rem;
+  border-radius: 50%;
+}
+
+.previewArrow {
+  font-size: 1.5rem;
+  color: #9CA3AF;
+  font-weight: bold;
+}
+
+.finalBadge {
+  padding: 0.125rem 0.5rem;
+  background: #D1FAE5;
+  color: #065F46;
+  border-radius: 0.25rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+@media (max-width: 1024px) {
+  .content {
+    grid-template-columns: 1fr;
+  }
+
+  .stagesList {
+    max-height: 300px;
+  }
+}

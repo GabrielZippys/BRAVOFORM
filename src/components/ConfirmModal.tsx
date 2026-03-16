@@ -24,18 +24,22 @@ export default function ConfirmModal({
 }: ConfirmModalProps) {
   if (!isOpen) return null;
 
+  const isAlertMode = !cancelText;
+
   return (
-    <div className={styles.overlay} onClick={onCancel}>
+    <div className={styles.overlay} onClick={isAlertMode ? onConfirm : onCancel}>
       <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
         <h3 className={styles.title}>{title}</h3>
         <p className={styles.message}>{message}</p>
         <div className={styles.actions}>
-          <button
-            onClick={onCancel}
-            className={styles.cancelButton}
-          >
-            {cancelText}
-          </button>
+          {!isAlertMode && (
+            <button
+              onClick={onCancel}
+              className={styles.cancelButton}
+            >
+              {cancelText}
+            </button>
+          )}
           <button
             onClick={onConfirm}
             className={`${styles.confirmButton} ${isDanger ? styles.dangerButton : ''}`}
