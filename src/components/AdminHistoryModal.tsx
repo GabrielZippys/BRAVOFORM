@@ -87,8 +87,8 @@ export default function AdminHistoryModal({
   if (!open) return null;
 
   return (
-    <div className={styles.modalOverlay} onClick={onClose}>
-      <div className={styles.modalPanel} style={{maxWidth:1200, minWidth:520, height:'85vh', maxHeight: '94vh'}} onClick={e => e.stopPropagation()}>
+    <div className={styles.modalOverlay}>
+      <div className={styles.modalPanel} style={{maxWidth:1200, minWidth:520, height:'85vh', maxHeight: '94vh'}}>
         <div className={styles.modalHeader}>
           <h2>
             Histórico de <b>{collaboratorName}</b>

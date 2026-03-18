@@ -181,8 +181,8 @@ export default function ResponseDetailsModal({
   };
 
   return (
-    <div className={styles.modalOverlay} onClick={onClose}>
-      <div className={styles.modalPanel} onClick={e => e.stopPropagation()}>
+    <div className={styles.modalOverlay}>
+      <div className={styles.modalPanel}>
         <div className={styles.modalHeader}>
           <div className={styles.headerInfo}>
             <h2 className={styles.modalTitle}>

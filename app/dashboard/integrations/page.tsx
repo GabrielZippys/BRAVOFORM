@@ -357,8 +357,8 @@ export default function IntegrationsPage() {
 
             {/* Modal SQL */}
             {showSqlModal && (
-                <div className={styles.modalOverlay} onClick={() => setShowSqlModal(false)}>
-                    <div className={styles.modalContent} onClick={(e) => e.stopPropagation()}>
+                <div className={styles.modalOverlay}>
+                    <div className={styles.modalContent}>
                         <SqlForm 
                             onSubmit={async (e) => {
                                 await handleSaveSqlConnection(e);
@@ -379,8 +379,8 @@ export default function IntegrationsPage() {
 
             {/* Modal Twilio */}
             {showTwilioModal && (
-                <div className={styles.modalOverlay} onClick={() => setShowTwilioModal(false)}>
-                    <div className={styles.modalContent} onClick={(e) => e.stopPropagation()}>
+                <div className={styles.modalOverlay}>
+                    <div className={styles.modalContent}>
                         <h3 className={styles.sqlTitle}>Configurar Twilio</h3>
                         <p className={styles.cardDescription} style={{textAlign: 'center', marginBottom: '2rem'}}>Configure suas credenciais do Twilio para enviar notificações por WhatsApp.</p>
                         <form className={styles.sqlForm} onSubmit={async (e) => {

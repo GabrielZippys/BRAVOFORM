@@ -267,8 +267,8 @@ export default function ComprehensiveHistoryModal({
   if (!open) return null;
 
   return (
-    <div className={styles.modalOverlay} onClick={onClose}>
-      <div className={styles.modalPanel} onClick={e => e.stopPropagation()}>
+    <div className={styles.modalOverlay}>
+      <div className={styles.modalPanel}>
         <div className={styles.modalHeader}>
           <h2>Histórico Completo de Respostas</h2>
           <button className={styles.modalClose} onClick={onClose}>
