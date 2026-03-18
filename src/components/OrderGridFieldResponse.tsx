@@ -32,6 +32,7 @@ export default function OrderGridFieldResponse({
     quantidadeMax: number;
   }>>([]);
   const [loading, setLoading] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
   const [selectedProductId, setSelectedProductId] = useState('');
   const [quantity, setQuantity] = useState(1);
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
@@ -161,7 +162,17 @@ export default function OrderGridFieldResponse({
     setEditingItemId(null);
     setSelectedProductId('');
     setQuantity(1);
+    setSearchTerm('');
   };
+
+  // Filtrar produtos baseado no termo de busca
+  const filteredProducts = products.filter(product => {
+    if (!searchTerm) return true;
+    const search = searchTerm.toLowerCase();
+    const nome = product.nome.toLowerCase();
+    const codigo = (product.codigo || '').toLowerCase();
+    return nome.includes(search) || codigo.includes(search);
+  });
 
   if (!catalogId) {
     return <div style={{ color: '#ef4444', fontSize: 14 }}>Catálogo não configurado</div>;
@@ -183,7 +194,7 @@ export default function OrderGridFieldResponse({
         Preview: Formulário de inclusão de produto
       </h4>
 
-      {/* Dropdown de Produtos */}
+      {/* Campo de Busca e Seleção de Produtos */}
       <div style={{ marginBottom: '16px' }}>
         <label style={{ 
           display: 'block', 
@@ -194,9 +205,41 @@ export default function OrderGridFieldResponse({
         }}>
           Referência ou Nome do Produto {required && <span style={{ color: '#ef4444' }}>*</span>}
         </label>
+        <input
+          type="text"
+          value={searchTerm}
+          onChange={(e) => {
+            setSearchTerm(e.target.value);
+            setSelectedProductId('');
+          }}
+          placeholder={loading ? 'Carregando produtos...' : 'Digite para buscar...'}
+          disabled={disabled || loading}
+          list={`products-datalist-${catalogId}`}
+          style={{
+            width: '100%',
+            padding: '10px 12px',
+            border: '1px solid #d1d5db',
+            borderRadius: theme.borderRadius,
+            fontSize: '14px',
+            background: '#fff',
+            color: '#374151',
+            marginBottom: '8px',
+          }}
+        />
+        <datalist id={`products-datalist-${catalogId}`}>
+          {filteredProducts.map(product => (
+            <option key={product.id} value={product.codigo ? `${product.codigo} - ${product.nome}` : product.nome} />
+          ))}
+        </datalist>
         <select
           value={selectedProductId}
-          onChange={(e) => setSelectedProductId(e.target.value)}
+          onChange={(e) => {
+            setSelectedProductId(e.target.value);
+            const product = products.find(p => p.id === e.target.value);
+            if (product) {
+              setSearchTerm(product.codigo ? `${product.codigo} - ${product.nome}` : product.nome);
+            }
+          }}
           disabled={disabled || loading}
           style={{
             width: '100%',
@@ -210,9 +253,9 @@ export default function OrderGridFieldResponse({
           }}
         >
           <option value="">
-            {loading ? 'Carregando produtos...' : 'Selecione um produto'}
+            {loading ? 'Carregando...' : filteredProducts.length === 0 ? 'Nenhum produto encontrado' : 'Selecione um produto'}
           </option>
-          {products.map(product => (
+          {filteredProducts.map(product => (
             <option key={product.id} value={product.id}>
               {product.codigo ? `${product.codigo} - ${product.nome}` : product.nome}
             </option>
