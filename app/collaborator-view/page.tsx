@@ -286,17 +286,24 @@ useEffect(() => {
   useEffect(() => {
     if (!collaborator?.id) return;
 
+    console.log('🔍 Buscando workflows para colaborador:', collaborator.id);
+
     const qWorkflows = query(
       collection(db, 'workflow_instances'),
-      where('currentStage.assignedTo', '==', collaborator.id),
+      where('assignedTo', '==', collaborator.id),
       where('status', '==', 'in_progress')
     );
 
     const unsub = onSnapshot(qWorkflows, (snapshot) => {
-      const tasks = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      }));
+      console.log('📊 Workflows encontrados:', snapshot.docs.length);
+      const tasks = snapshot.docs.map(doc => {
+        const data = doc.data();
+        console.log('  - Workflow:', data.workflowName, '| Etapa:', data.currentStageId, '| Atribuído a:', data.assignedTo);
+        return {
+          id: doc.id,
+          ...data
+        };
+      });
       setWorkflowTasks(tasks);
     });
 
@@ -531,7 +538,9 @@ const doneToday = totalForms - pendingToday;
               <div className={styles.grid}>
                 {/* Cards de Workflow */}
                 {workflowTasks.map((task) => {
-                  const stageName = task.currentStage?.name || 'Etapa';
+                  // Buscar nome da etapa no histórico (última entrada)
+                  const lastHistory = task.stageHistory?.[task.stageHistory.length - 1];
+                  const stageName = lastHistory?.stageName || `Etapa ${(task.currentStageIndex || 0) + 1}`;
                   const workflowName = task.workflowName || 'Workflow';
                   
                   return (
@@ -556,11 +565,9 @@ const doneToday = totalForms - pendingToday;
                       <div className={styles.cardBody}>
                         <h2 className={styles.cardTitle}>{workflowName}</h2>
                         <p className={styles.cardSubtitle}>Etapa: {stageName}</p>
-                        {task.currentStage?.description && (
-                          <p className={styles.cardSubtitle} style={{ marginTop: 4 }}>
-                            {task.currentStage.description}
-                          </p>
-                        )}
+                        <p className={styles.cardSubtitle} style={{ marginTop: 4, fontSize: '12px', opacity: 0.8 }}>
+                          Atribuído a: {task.assignedToName || 'Você'}
+                        </p>
                       </div>
                       <button
                         className={styles.cardButton}
