@@ -6,6 +6,9 @@ import { Twilio } from "twilio";
 import { defineString } from "firebase-functions/params";
 import { Request, Response } from "express";
 
+// Importar triggers de workflow
+export * from "./workflowTriggers";
+
 admin.initializeApp();
 const db = admin.firestore();
 

@@ -1,0 +1,433 @@
+/*
+================================================================================
+|   ARQUIVO: app/styles/WorkflowInstanceDetailModal.module.css
+|   Modal de Detalhes de Instância de Workflow
+================================================================================
+*/
+
+.overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10000;
+  padding: 2rem;
+}
+
+.modal {
+  background: white;
+  border-radius: 1rem;
+  width: 100%;
+  max-width: 900px;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+}
+
+/* ── Header ── */
+.header {
+  padding: 1.5rem 2rem;
+  border-bottom: 1px solid #E5E7EB;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  background: #F9FAFB;
+}
+
+.header h2 {
+  margin: 0 0 0.25rem 0;
+  color: #1F2937;
+  font-size: 1.5rem;
+  font-weight: 600;
+}
+
+.instanceId {
+  margin: 0;
+  color: #6B7280;
+  font-size: 0.875rem;
+  font-family: monospace;
+}
+
+.headerActions {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.btnExport {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  background: #3B82F6;
+  color: white;
+  border: none;
+  border-radius: 0.5rem;
+  cursor: pointer;
+  font-size: 0.875rem;
+  font-weight: 500;
+  transition: all 0.2s;
+}
+
+.btnExport:hover {
+  background: #2563EB;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+}
+
+.closeButton {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #6B7280;
+  padding: 0.5rem;
+  border-radius: 0.5rem;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.closeButton:hover {
+  background: #E5E7EB;
+  color: #1F2937;
+}
+
+/* ── Content ── */
+.content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 2rem;
+}
+
+.loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 3rem;
+  color: #6B7280;
+  font-size: 1rem;
+}
+
+/* ── Sections ── */
+.section {
+  margin-bottom: 2rem;
+}
+
+.section:last-child {
+  margin-bottom: 0;
+}
+
+.section h3 {
+  margin: 0 0 1rem 0;
+  color: #1F2937;
+  font-size: 1.125rem;
+  font-weight: 600;
+}
+
+/* ── Info Grid ── */
+.infoGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 1rem;
+}
+
+.infoItem {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 1rem;
+  background: #F9FAFB;
+  border-radius: 0.5rem;
+  border: 1px solid #E5E7EB;
+}
+
+.infoItem svg {
+  flex-shrink: 0;
+  color: #6B7280;
+  margin-top: 0.25rem;
+}
+
+.infoItem div {
+  flex: 1;
+  min-width: 0;
+}
+
+.infoItem label {
+  display: block;
+  font-size: 0.75rem;
+  color: #6B7280;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 0.25rem;
+  font-weight: 600;
+}
+
+.infoItem span {
+  display: block;
+  color: #1F2937;
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+/* ── Status Badge ── */
+.statusBadge {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  background: white;
+  border-radius: 0.5rem;
+  border: 1px solid #E5E7EB;
+  font-weight: 600;
+  font-size: 0.875rem;
+}
+
+/* ── Timeline ── */
+.timeline {
+  position: relative;
+}
+
+.timelineItem {
+  position: relative;
+  display: flex;
+  gap: 1.5rem;
+  padding-bottom: 2rem;
+}
+
+.timelineItem.current .timelineContent {
+  background: #EFF6FF;
+  border-color: #3B82F6;
+}
+
+.timelineMarker {
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: white;
+  border-radius: 50%;
+  z-index: 2;
+}
+
+.timelineLine {
+  position: absolute;
+  left: 12px;
+  top: 24px;
+  bottom: 0;
+  width: 2px;
+  background: #E5E7EB;
+  z-index: 1;
+}
+
+.timelineContent {
+  flex: 1;
+  background: #F9FAFB;
+  border: 1px solid #E5E7EB;
+  border-radius: 0.75rem;
+  padding: 1.25rem;
+}
+
+.timelineHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.75rem;
+}
+
+.timelineHeader h4 {
+  margin: 0;
+  color: #1F2937;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.actionBadge {
+  padding: 0.25rem 0.75rem;
+  border-radius: 0.375rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.actionBadge.validated {
+  background: #D1FAE5;
+  color: #065F46;
+}
+
+.actionBadge.rejected {
+  background: #FEE2E2;
+  color: #991B1B;
+}
+
+.actionBadge.cancelled {
+  background: #F3F4F6;
+  color: #374151;
+}
+
+.timelineDetails {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin-bottom: 0.75rem;
+}
+
+.timelineDate,
+.timelineDuration,
+.timelineUser {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: #6B7280;
+  font-size: 0.875rem;
+}
+
+.timelineDate svg,
+.timelineDuration svg,
+.timelineUser svg {
+  flex-shrink: 0;
+}
+
+.timelineComment {
+  display: flex;
+  gap: 0.5rem;
+  padding: 0.75rem;
+  background: white;
+  border-radius: 0.5rem;
+  border: 1px solid #E5E7EB;
+  margin-top: 0.75rem;
+}
+
+.timelineComment svg {
+  flex-shrink: 0;
+  color: #6B7280;
+  margin-top: 0.25rem;
+}
+
+.timelineComment p {
+  margin: 0;
+  color: #374151;
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+
+.timelineAttachments {
+  display: flex;
+  gap: 0.5rem;
+  align-items: flex-start;
+  margin-top: 0.75rem;
+}
+
+.timelineAttachments svg {
+  flex-shrink: 0;
+  color: #6B7280;
+  margin-top: 0.25rem;
+}
+
+.attachmentList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.attachmentList a {
+  padding: 0.375rem 0.75rem;
+  background: white;
+  border: 1px solid #E5E7EB;
+  border-radius: 0.375rem;
+  color: #3B82F6;
+  text-decoration: none;
+  font-size: 0.875rem;
+  transition: all 0.2s;
+}
+
+.attachmentList a:hover {
+  background: #EFF6FF;
+  border-color: #3B82F6;
+}
+
+/* ── Field Data Grid ── */
+.fieldDataGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 1rem;
+}
+
+.fieldDataItem {
+  padding: 1rem;
+  background: #F9FAFB;
+  border: 1px solid #E5E7EB;
+  border-radius: 0.5rem;
+}
+
+.fieldDataItem label {
+  display: block;
+  font-size: 0.75rem;
+  color: #6B7280;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 0.5rem;
+  font-weight: 600;
+}
+
+.fieldDataItem span {
+  display: block;
+  color: #1F2937;
+  font-size: 0.875rem;
+  word-break: break-word;
+}
+
+/* ── Footer ── */
+.footer {
+  padding: 1.5rem 2rem;
+  border-top: 1px solid #E5E7EB;
+  display: flex;
+  justify-content: flex-end;
+  gap: 1rem;
+  background: #F9FAFB;
+}
+
+.btnClose {
+  padding: 0.75rem 1.5rem;
+  background: #6B7280;
+  color: white;
+  border: none;
+  border-radius: 0.5rem;
+  cursor: pointer;
+  font-size: 1rem;
+  font-weight: 500;
+  transition: all 0.2s;
+}
+
+.btnClose:hover {
+  background: #4B5563;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(107, 114, 128, 0.3);
+}
+
+/* ── Scrollbar ── */
+.content::-webkit-scrollbar {
+  width: 8px;
+}
+
+.content::-webkit-scrollbar-track {
+  background: #F3F4F6;
+}
+
+.content::-webkit-scrollbar-thumb {
+  background: #D1D5DB;
+  border-radius: 4px;
+}
+
+.content::-webkit-scrollbar-thumb:hover {
+  background: #9CA3AF;
+}

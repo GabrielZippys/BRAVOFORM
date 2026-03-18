@@ -388,6 +388,166 @@ npm run migrate:collaborator-ids
 - `FormBuilder.module.css` - Editor visual
 - `Login.module.css` - Autenticação
 - `entrada.module.css` - Página inicial
+- `WorkflowCanvas.module.css` - Editor de workflows
+- `WorkflowTestMode.module.css` - Modo de teste de workflows
+
+---
+
+## 🔄 **BravoFlow - Sistema de Workflow Visual** (Linhas 781-880)
+
+### **Visão Geral**
+
+O **BravoFlow** é um sistema de workflow visual independente implementado no BRAVOFORM que permite criar, configurar e testar fluxos de trabalho personalizados.
+
+**Status:** ✅ 75% Implementado (Fases 1-3 completas)
+
+### **Componentes Principais**
+
+#### **1. WorkflowCanvas** - `/src/components/WorkflowCanvas.tsx`
+- **Tecnologia**: ReactFlow para editor visual
+- **Funcionalidades**:
+  - ✅ Drag-and-drop de nós (etapas)
+  - ✅ Conexões visuais entre etapas
+  - ✅ Validação de conexões
+  - ✅ Painel de configuração lateral
+  - ✅ Roteamento condicional
+  - ✅ Botão "Testar Workflow"
+  - ✅ Salvar/Carregar workflows
+
+#### **2. StageNode** - `/src/components/StageNode.tsx`
+- Nó customizado para etapas do workflow
+- Exibe nome, tipo e ícone da etapa
+- Indicação visual de etapa inicial/final
+- Botões de editar e deletar
+
+#### **3. StageConfigPanel** - `/src/components/StageConfigPanel.tsx`
+- Painel lateral de configuração de etapas
+- **Configurações**:
+  - Nome e tipo da etapa
+  - Permissões por usuário (`allowedUsers`)
+  - Campos obrigatórios (comentários, anexos, formulários)
+  - Temporizador para etapas de espera
+  - Marcação de etapa inicial/final
+
+#### **4. WorkflowTestMode** - `/src/components/WorkflowTestMode.tsx`
+- Modal completo de simulação de workflow
+- **Funcionalidades**:
+  - ✅ Seleção de usuário para teste
+  - ✅ Progressão etapa por etapa
+  - ✅ Validação de permissões
+  - ✅ Sistema de campos obrigatórios
+  - ✅ Progressão campo a campo
+  - ✅ Modal de validação de etapa
+  - ✅ Timer para etapas de espera
+  - ✅ Suporte a etapas sem campos
+
+#### **5. CustomEdge** - `/src/components/CustomEdge.tsx`
+- Conexões customizadas entre etapas
+- Botão de configuração de roteamento
+- Indicação visual de múltiplas rotas
+
+#### **6. RoutingConditionModal** - `/src/components/RoutingConditionModal.tsx`
+- Configuração de condições de roteamento
+- Múltiplas rotas por conexão
+- Operadores de comparação
+- Rota padrão (fallback)
+
+### **Tipos TypeScript** - `/src/types/index.ts`
+
+```typescript
+// Linhas 270-290: Interfaces de Workflow
+export interface WorkflowStage {
+  id: string;
+  name: string;
+  stageType: 'documentation' | 'validation' | 'waiting';
+  allowedUsers: string[];        // IDs dos colaboradores
+  requireComment: boolean;
+  requireAttachments: boolean;
+  formIds?: string[];            // Formulários obrigatórios
+  timer?: Timer;                 // Para etapas de espera
+  isInitialStage?: boolean;
+  isFinalStage?: boolean;
+}
+
+export interface Timer {
+  value: number;
+  unit: 'seconds' | 'minutes' | 'hours' | 'days';
+}
+
+export interface RoutingCondition {
+  id: string;
+  field: string;
+  operator: 'equals' | 'notEquals' | 'contains' | 'greaterThan' | 'lessThan';
+  value: string;
+  targetStageId: string;
+}
+```
+
+### **Fluxo de Uso do BravoFlow**
+
+```
+1. ADMIN ACESSA /dashboard/bravoflow
+   ↓
+2. CRIA NOVO WORKFLOW ou EDITA EXISTENTE
+   ↓
+3. ADICIONA ETAPAS (Drag-and-drop)
+   ↓
+4. CONECTA ETAPAS (Desenha conexões)
+   ↓
+5. CONFIGURA CADA ETAPA
+   - Nome e tipo
+   - Usuários permitidos
+   - Campos obrigatórios
+   - Timer (se necessário)
+   ↓
+6. TESTA WORKFLOW
+   - Seleciona usuário
+   - Simula progressão
+   - Valida campos
+   - Verifica permissões
+   ↓
+7. SALVA WORKFLOW
+   - Persistência no Firestore (futuro)
+   - Deploy para produção
+```
+
+### **Recursos Implementados**
+
+**Editor Visual:**
+- ✅ Interface ReactFlow completa
+- ✅ Drag-and-drop de nós
+- ✅ Conexões visuais
+- ✅ Zoom e pan
+- ✅ Minimap
+- ✅ Controles de navegação
+
+**Configuração de Etapas:**
+- ✅ Permissões granulares por usuário
+- ✅ Campos obrigatórios (comentários, anexos, formulários)
+- ✅ Temporizadores para espera
+- ✅ Tipos de etapa (documentation, validation, waiting)
+
+**Modo de Teste:**
+- ✅ Simulação completa do workflow
+- ✅ Validação de permissões
+- ✅ Progressão campo a campo
+- ✅ Modal de validação de etapa
+- ✅ Timer automático
+- ✅ Suporte a etapas sem campos
+
+**UX/UI:**
+- ✅ Design moderno e responsivo
+- ✅ Feedback visual em todas as ações
+- ✅ Animações e transições suaves
+- ✅ Cores e espaçamentos consistentes
+
+### **Próximos Passos (Fase 4)**
+
+- ⏳ Persistência no Firestore
+- ⏳ Triggers para notificações
+- ⏳ Analytics e métricas
+- ⏳ Integração com sistema de formulários
+- ⏳ Testes de integração end-to-end
 
 ---
 
@@ -921,5 +1081,18 @@ O **BRAVOFORM** implementa um fluxo completo e robusto para gestão de formulár
 - **Análise avançada** com dashboards e KPIs
 - **Recursos especializados** como Grade de Pedidos e assinaturas
 - **Segurança multicamadas** com validação em todos os níveis
+- **✅ BravoFlow** - Sistema de workflow visual com editor ReactFlow
 
 A plataforma oferece um ciclo de vida completo desde a criação até a análise, mantendo performance e experiência do usuário como prioridades.
+
+### **✅ Novidade: BravoFlow**
+
+Com a implementação do **BravoFlow**, o BRAVOFORM agora oferece:
+- Editor visual de workflows com ReactFlow
+- Simulação completa de fluxos de trabalho
+- Permissões granulares por etapa
+- Validações e campos obrigatórios
+- Temporizadores automáticos
+- Sistema de teste integrado
+
+O BravoFlow transforma o BRAVOFORM de um sistema de formulários em uma plataforma completa de gestão de processos empresariais.

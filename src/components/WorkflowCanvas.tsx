@@ -17,14 +17,17 @@ import ReactFlow, {
   getBezierPath,
 } from 'reactflow';
 import 'reactflow/dist/style.css';
-import { Plus, Save, Settings, Trash2, GitBranch, Eye } from 'lucide-react';
-import type { WorkflowStage, RoutingCondition } from '@/types';
+import { Plus, Save, Settings, Trash2, GitBranch, Eye, Power, PowerOff } from 'lucide-react';
+import type { WorkflowStage, RoutingCondition, ActivationSettings, ActivationMode } from '@/types';
+import { WorkflowService } from '@/services/workflowService';
+import { useAuth } from '@/hooks/useAuth';
 import StageNode from './StageNode';
 import StageConfigPanel from './StageConfigPanel';
 import ConfirmModal from './ConfirmModal';
 import RoutingConditionModal from './RoutingConditionModal';
 import CustomEdge from './CustomEdge';
 import WorkflowTestMode from './WorkflowTestMode';
+import ActivationSettingsModal from './ActivationSettingsModal';
 import { useConfirm } from '@/hooks/useConfirm';
 import styles from '../../app/styles/WorkflowCanvas.module.css';
 
@@ -35,6 +38,9 @@ interface WorkflowCanvasProps {
   workflowDepartments?: string[];
   workflowName?: string;
   workflowDescription?: string;
+  workflowId?: string;  // ID do workflow se já existe
+  initialIsActive?: boolean;
+  initialActivationSettings?: ActivationSettings;
 }
 
 const nodeTypes = {
@@ -51,17 +57,34 @@ export default function WorkflowCanvas({
   workflowCompanies = [],
   workflowDepartments = [],
   workflowName = 'Workflow de Teste',
-  workflowDescription = 'Descrição do workflow'
+  workflowDescription = 'Descrição do workflow',
+  workflowId,
+  initialIsActive = true,
+  initialActivationSettings
 }: WorkflowCanvasProps) {
+  const { user } = useAuth();
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
   const [selectedNode, setSelectedNode] = useState<Node | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [isActive, setIsActive] = useState(initialIsActive);
+
+  // Atualizar isActive quando initialIsActive mudar (ao carregar workflow para edição)
+  useEffect(() => {
+    setIsActive(initialIsActive);
+  }, [initialIsActive]);
+  const [activationSettings, setActivationSettings] = useState<ActivationSettings>(
+    initialActivationSettings || {
+      mode: 'manual' as ActivationMode,
+      requestApprovalRequired: false
+    }
+  );
   const [isRoutingModalOpen, setIsRoutingModalOpen] = useState(false);
   const [selectedSourceStage, setSelectedSourceStage] = useState<string | null>(null);
   const [stageCounter, setStageCounter] = useState(1);
   const [isTestMode, setIsTestMode] = useState(false);
   const [showUserSelection, setShowUserSelection] = useState(false);
+  const [showActivationSettings, setShowActivationSettings] = useState(false);
   const { confirm, alert, confirmState } = useConfirm();
 
   // Debug showUserSelection
@@ -368,6 +391,11 @@ export default function WorkflowCanvas({
       return;
     }
 
+    if (!user) {
+      await alert('Erro', 'Usuário não autenticado.');
+      return;
+    }
+
     setIsSaving(true);
     try {
       const stages: WorkflowStage[] = nodes.map((node, index) => {
@@ -382,12 +410,47 @@ export default function WorkflowCanvas({
         };
       });
 
+      // Chamar callback onSave (a página pai é responsável por salvar no Firestore)
       await onSave(stages);
+      
+      await alert('Sucesso', workflowId ? 'Workflow atualizado com sucesso!' : 'Workflow criado com sucesso!');
     } catch (error) {
       console.error('Erro ao salvar workflow:', error);
       await alert('Erro', 'Erro ao salvar workflow. Tente novamente.');
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  const handleToggleActive = async () => {
+    const newStatus = !isActive;
+    setIsActive(newStatus);
+    
+    // Se já existe um workflow salvo, atualizar no Firestore
+    if (workflowId) {
+      try {
+        await WorkflowService.toggleWorkflowActive(workflowId, newStatus);
+        await alert('Sucesso', `Workflow ${newStatus ? 'ativado' : 'desativado'} com sucesso!`);
+      } catch (error) {
+        console.error('Erro ao alterar status:', error);
+        setIsActive(!newStatus); // Reverter em caso de erro
+        await alert('Erro', 'Erro ao alterar status do workflow.');
+      }
+    }
+  };
+
+  const handleSaveActivationSettings = async (newSettings: ActivationSettings) => {
+    setActivationSettings(newSettings);
+    
+    // Se já existe um workflow salvo, atualizar no Firestore
+    if (workflowId) {
+      try {
+        await WorkflowService.updateActivationSettings(workflowId, newSettings);
+        await alert('Sucesso', 'Configurações de ativação atualizadas com sucesso!');
+      } catch (error) {
+        console.error('Erro ao atualizar configurações:', error);
+        await alert('Erro', 'Erro ao atualizar configurações de ativação.');
+      }
     }
   };
 
@@ -435,6 +498,22 @@ export default function WorkflowCanvas({
             >
               <Save size={20} />
               {isSaving ? 'Salvando...' : 'Salvar Workflow'}
+            </button>
+            <button 
+              onClick={handleToggleActive}
+              className={isActive ? styles.btnActive : styles.btnInactive}
+              title={isActive ? 'Desativar Workflow' : 'Ativar Workflow'}
+            >
+              {isActive ? <Power size={20} /> : <PowerOff size={20} />}
+              {isActive ? 'Ativo' : 'Inativo'}
+            </button>
+            <button 
+              onClick={() => setShowActivationSettings(true)}
+              className={styles.btnSettings}
+              title="Configurações de Ativação"
+            >
+              <Settings size={20} />
+              Configurações
             </button>
             <button 
               onClick={handleTestWorkflow} 
@@ -507,6 +586,14 @@ export default function WorkflowCanvas({
           workflowName={workflowName}
           workflowDescription={workflowDescription}
           onClose={() => setShowUserSelection(false)}
+        />
+      )}
+
+      {showActivationSettings && (
+        <ActivationSettingsModal
+          settings={activationSettings}
+          onSave={handleSaveActivationSettings}
+          onClose={() => setShowActivationSettings(false)}
         />
       )}
     </div>

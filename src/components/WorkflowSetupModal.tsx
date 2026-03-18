@@ -151,7 +151,7 @@ export default function WorkflowSetupModal({
         description: description.trim(),
         companies: selectedCompanies,
         departments: selectedDepartments
-      });
+      } as any);
 
       // Resetar formulário apenas se não for modo de edição
       if (!isEditMode) {

@@ -1,107 +1,157 @@
 /*
 ================================================================================
-|
 |   ARQUIVO: app/styles/Sidebar.module.css
-|   Estilos para a Barra Lateral com o tema de Rapture
-|
+|   Sidebar – Design moderno e profissional
 ================================================================================
 */
 
 .sidebar {
-    width: 256px;
-    background: linear-gradient(to right, var(--secondary-bg) 0%, var(--primary-bg) 100%);
-    border-right: 2px solid;
-    border-image: linear-gradient(to top, var(--accent-brass), var(--accent-gold)) 1;
+    width: 260px;
+    background: #1a1d23;
+    border-right: 1px solid rgba(255, 255, 255, 0.06);
     display: flex;
     flex-direction: column;
     flex-shrink: 0;
-    box-shadow: 4px 0 15px rgba(0,0,0,0.5);
     z-index: 10;
+    overflow: hidden;
 }
 
+/* ── Header / Logo ── */
 .sidebarHeader {
-    height: 4.5rem;
+    height: 4rem;
     display: flex;
     align-items: center;
     justify-content: center;
-    border-bottom: 1px solid var(--accent-brass);
     flex-shrink: 0;
-    padding: 0 1rem;
-     background-color: #212529; 
+    padding: 0 1.25rem;
+    background: #15171c;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
 }
 
 .sidebarTitle {
-    font-family: var(--font-display);
-    font-size: 1.5rem;
-    color: var(--accent-gold);
-    text-shadow: 1px 1px 3px #ffffff;
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: #ffffff;
+    letter-spacing: 0.08em;
 }
 
+/* ── Seção de Label ── */
+.navSection {
+    padding: 1.25rem 1.25rem 0.5rem;
+    font-size: 0.65rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: rgba(255, 255, 255, 0.35);
+}
+
+/* ── Navegação ── */
 .nav {
     flex-grow: 1;
-    padding: 1rem 0.5rem;
+    padding: 0.75rem 0.75rem;
     display: flex;
     flex-direction: column;
-    gap: 0.5rem;
+    gap: 2px;
+    overflow-y: auto;
 }
 
 .navLink {
     display: flex;
     align-items: center;
-    padding: 0.75rem 1.5rem;
-    border-radius: 2px;
-    color: var(--accent-brass);
-    transition: all 0.2s ease-in-out;
+    gap: 0.75rem;
+    padding: 0.625rem 0.875rem;
+    border-radius: 0.5rem;
+    color: rgba(255, 255, 255, 0.75);
+    transition: all 0.15s ease;
     text-decoration: none;
-    border-left: 4px solid transparent;
+    font-size: 0.875rem;
     font-weight: 500;
+    position: relative;
 }
 
 .navLink svg {
-    margin-right: 1rem;
-    transition: all 0.2s ease-in-out;
-    color: var(--accent-brass);
+    flex-shrink: 0;
+    width: 18px;
+    height: 18px;
+    transition: all 0.15s ease;
+    color: rgba(255, 255, 255, 0.6);
 }
 
 .navLink:hover {
-    background-color: rgba(27, 27, 26, 0.1);
-    color: var(--accent-gold);
-    border-left-color: var(--accent-gold);
+    background: rgba(255, 255, 255, 0.06);
+    color: rgba(255, 255, 255, 0.9);
 }
 
 .navLink:hover svg {
-    color: var(--accent-gold);
-    transform: scale(1.1);
+    color: rgba(255, 255, 255, 0.8);
 }
 
+/* ── Link ativo ── */
 .navLinkActive {
-    background-color: rgba(0, 0, 0, 0.2);
-    color: var(--text-ivory);
-    border-left-color: var(--accent-gold);
-    box-shadow: inset 3px 0 5px rgba(0,0,0,0.2);
+    background: linear-gradient(135deg, rgba(59, 130, 246, 0.15), rgba(99, 102, 241, 0.1));
+    color: #ffffff;
+}
+
+.navLinkActive::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 3px;
+    height: 60%;
+    background: linear-gradient(180deg, #3B82F6, #6366F1);
+    border-radius: 0 4px 4px 0;
 }
 
 .navLinkActive svg {
-    color: var(--text-ivory);
+    color: #60A5FA;
 }
 
+.navLinkActive:hover {
+    background: linear-gradient(135deg, rgba(59, 130, 246, 0.2), rgba(99, 102, 241, 0.15));
+}
+
+/* ── Divider ── */
+.navDivider {
+    height: 1px;
+    background: rgba(255, 255, 255, 0.06);
+    margin: 0.5rem 0.875rem;
+}
+
+/* ── Footer ── */
 .sidebarFooter {
-    padding: 1rem;
-    border-top: 1px solid var(--accent-brass);
-    background-color: rgba(0,0,0,0.2);
+    padding: 0.75rem 1.25rem;
+    border-top: 1px solid rgba(255, 255, 255, 0.06);
+    background: rgba(0, 0, 0, 0.15);
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
-/* Estilo para o botão de logout no rodapé */
-.sidebarFooter .navLink {
-    justify-content: flex-start;
-    width: 100%;
-    border: 1px solid var(--accent-brass);
+.sidebarFooter p {
+    margin: 0;
+    font-size: 0.625rem;
+    color: rgba(255, 255, 255, 0.2);
+    letter-spacing: 0.03em;
+    text-align: center;
+    line-height: 1.4;
 }
-.sidebarFooter .navLink:hover {
-    background-color: var(--error-red);
-    color: var(--text-ivory);
-    border-color: var(--error-red);
+
+/* ── Scrollbar personalizada ── */
+.nav::-webkit-scrollbar {
+    width: 4px;
 }
-.sidebarFooter .navLink:hover svg {
-    color: var(--text-ivory);
+
+.nav::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.nav::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 4px;
+}
+
+.nav::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.2);
 }

@@ -391,3 +391,70 @@ export interface WorkflowSettings {
   requireHistoryComment: boolean;
   autoAssignNextStage: boolean;
 }
+
+// --- PERSISTÊNCIA E CONFIGURAÇÕES ---
+
+// Modos de ativação do workflow
+export type ActivationMode = 'manual' | 'automatic' | 'on_request';
+
+// Configurações de agendamento automático
+export interface AutomaticSchedule {
+  time: string;           // Horário no formato "HH:mm" (ex: "09:00")
+  daysOfWeek: number[];   // Dias da semana (0=Domingo, 1=Segunda, ..., 6=Sábado)
+  timezone: string;       // Timezone (ex: "America/Sao_Paulo")
+}
+
+// Configurações de ativação do workflow
+export interface ActivationSettings {
+  mode: ActivationMode;
+  automaticSchedule?: AutomaticSchedule;
+  requestApprovalRequired?: boolean; // Se requisições precisam de aprovação
+}
+
+// Documento de workflow no Firestore
+export interface WorkflowDocument {
+  id: string;
+  name: string;
+  description: string;
+  stages: WorkflowStage[];
+  companies: string[];        // IDs das empresas que podem usar
+  departments: string[];      // IDs dos departamentos que podem usar
+  activationSettings: ActivationSettings;
+  isActive: boolean;          // Se o workflow está ativo
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
+  createdBy: string;          // UID do admin que criou
+  createdByName?: string;     // Nome do admin (cache)
+}
+
+// Instância de execução de workflow
+export interface WorkflowInstance {
+  id: string;
+  workflowId: string;         // Referência ao workflow
+  workflowName: string;       // Cache do nome
+  currentStageId: string;     // Etapa atual
+  currentStageIndex: number;
+  assignedTo: string;         // ID do colaborador atual
+  assignedToName: string;     // Nome do colaborador (cache)
+  status: 'in_progress' | 'completed' | 'cancelled' | 'rejected';
+  startedAt: Timestamp;
+  completedAt?: Timestamp;
+  stageHistory: StageHistoryEntry[];
+  fieldData: Record<string, any>; // Dados preenchidos em cada etapa
+  companyId: string;
+  departmentId: string;
+}
+
+// Entrada no histórico de etapas da instância
+export interface StageHistoryEntry {
+  stageId: string;
+  stageName: string;
+  enteredAt: Timestamp;
+  completedAt?: Timestamp;
+  completedBy?: string;
+  completedByName?: string;
+  action: 'validated' | 'rejected' | 'cancelled';
+  comment?: string;
+  attachments?: string[];
+  duration?: number;          // Duração em milissegundos
+}

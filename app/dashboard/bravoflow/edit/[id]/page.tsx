@@ -141,6 +141,8 @@ export default function EditWorkflowPage() {
           workflowDepartments={workflow.departments || []}
           workflowName={workflowName}
           workflowDescription={workflowDescription}
+          workflowId={workflow.id}
+          initialIsActive={workflow.isActive}
         />
       </div>
 

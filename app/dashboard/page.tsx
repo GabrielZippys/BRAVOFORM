@@ -3,14 +3,11 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { FileText, Users, Target, Clock, TrendingUp } from 'lucide-react'; 
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line } from 'recharts';
-import { collection, getDocs, collectionGroup, query } from 'firebase/firestore';
+import { collection, getDocs, collectionGroup, query, limit } from 'firebase/firestore';
 import { db } from '../../firebase/config';
 import { useAuth } from '@/hooks/useAuth';
 import { Company, Department, Form, FormResponse } from '@/types';
 import styles from '../styles/Dashboard.module.css';
-import AdminHistoryModal from '@/components/AdminHistoryModal'; // <<< SEU MODAL DE HISTÓRICO
-import ComprehensiveHistoryModal from '@/components/ComprehensiveHistoryModal'; // <<< NOVO MODAL COMPLETO
-import TrashModal from '@/components/TrashModal';
 
 // --- Utils ---
 function toDateCompat(val: any): Date | null {
@@ -64,48 +61,6 @@ function TopUsers({ responses }: { responses: FormResponse[] }) {
     );
 }
 
-// --- Performance por formulário ---
-const PerformanceMetrics = ({ forms, responses }: { forms: Form[], responses: FormResponse[] }) => {
-    const formPerformance = useMemo(() => {
-        return forms.map(form => {
-            const formResponses = responses.filter(r => r.formId === form.id);
-            const avgTime = formResponses.length > 0 ?
-                formResponses.reduce((acc, r) => {
-                    const created = toDateCompat(r.createdAt);
-                    const submitted = toDateCompat(r.submittedAt);
-                    if (created && submitted) {
-                        return acc + (submitted.getTime() - created.getTime()) / (1000 * 60); // minutos
-                    }
-                    return acc;
-                }, 0) / formResponses.length : 0;
-            return {
-                name: form.title.length > 20 ? form.title.substring(0, 20) + '...' : form.title,
-                responses: formResponses.length,
-                avgTime: Math.round(avgTime)
-            };
-        }).sort((a, b) => b.responses - a.responses).slice(0, 5);
-    }, [forms, responses]);
-    return (
-        <div className={styles.chartContainer}>
-            <h3 className={styles.chartTitle}>Performance dos Formulários</h3>
-            <ResponsiveContainer width="100%" height={260}>
-                <BarChart data={formPerformance}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#E8EAD6" />
-                    <XAxis dataKey="name" stroke="#B18F42" />
-                    <YAxis stroke="#B18F42" />
-                    <Tooltip
-                        formatter={(value, name) => [
-                            name === 'responses' ? `${value} respostas` : `${value} min`,
-                            name === 'responses' ? 'Respostas' : 'Tempo Médio'
-                        ]}
-                    />
-                    <Bar dataKey="responses" fill="#B18F42" radius={[4,4,0,0]} />
-                    <Bar dataKey="avgTime" fill="#C5A05C" radius={[4,4,0,0]} />
-                </BarChart>
-            </ResponsiveContainer>
-        </div>
-    );
-};
 
 export default function DashboardPage() {
     const { user } = useAuth();
@@ -129,11 +84,6 @@ export default function DashboardPage() {
     } | null;
     const [modalOpen, setModalOpen] = useState<ModalColabType>(null);
 
-    // Modal completo de histórico:
-    const [comprehensiveHistoryOpen, setComprehensiveHistoryOpen] = useState(false);
-    
-    // Modal de lixeira:
-    const [trashModalOpen, setTrashModalOpen] = useState(false);
 
     // Carregar dados
     useEffect(() => {
@@ -163,21 +113,23 @@ export default function DashboardPage() {
     useEffect(() => {
         if (!user) return;
         setLoading(l => ({ ...l, responses: true }));
-        getDocs(query(collectionGroup(db, "responses"))).then(qs => {
-            setAllResponses(qs.docs.map(doc => ({ id: doc.id, ...doc.data() } as FormResponse)));
+        getDocs(query(collectionGroup(db, "responses"), limit(1000))).then(qs => {
+            const responses = qs.docs
+                .filter(doc => !doc.data().deletedAt) // Filtrar apenas não deletados
+                .map(doc => ({ id: doc.id, ...doc.data() } as FormResponse));
+            
+            // Ordenar por data mais recente primeiro
+            responses.sort((a, b) => {
+                const dateA = (a as any).submittedAt?.toMillis?.() || (a as any).createdAt?.toMillis?.() || 0;
+                const dateB = (b as any).submittedAt?.toMillis?.() || (b as any).createdAt?.toMillis?.() || 0;
+                return dateB - dateA;
+            });
+            
+            setAllResponses(responses);
             setLoading(l => ({ ...l, responses: false }));
         });
     }, [user]);
 
-    // Função para recarregar respostas após exclusão
-    const refreshResponses = () => {
-        if (!user) return;
-        setLoading(l => ({ ...l, responses: true }));
-        getDocs(query(collectionGroup(db, "responses"))).then(qs => {
-            setAllResponses(qs.docs.map(doc => ({ id: doc.id, ...doc.data() } as FormResponse)));
-            setLoading(l => ({ ...l, responses: false }));
-        });
-    };
 
     // Filtros
     const filteredResponses = useMemo(() => allResponses.filter(r => (
@@ -210,19 +162,6 @@ export default function DashboardPage() {
         const taxa = Math.min((filteredByTime.length / maxEsperado) * 100, 100);
         return taxa.toFixed(1) + '%';
     }, [filteredByTime.length, filteredForms.length, uniqueUsers.length]);
-    const avgResponseTime = useMemo(() => {
-        const times = filteredByTime
-            .map(r => {
-                const created = toDateCompat(r.createdAt);
-                const submitted = toDateCompat(r.submittedAt);
-                if (created && submitted) {
-                    return (submitted.getTime() - created.getTime()) / (1000 * 60); // minutos
-                }
-                return null;
-            })
-            .filter(t => t !== null) as number[];
-        return times.length > 0 ? Math.round(times.reduce((a, b) => a + b, 0) / times.length) : 0;
-    }, [filteredByTime]);
     const previousPeriodResponses = useMemo(() => {
         const previousStart = new Date(now);
         const previousEnd = new Date(now);
@@ -288,19 +227,6 @@ export default function DashboardPage() {
             <div className={styles.header}>
                 <h1 className={styles.title}>Dashboard Administrativo</h1>
                 <div className={styles.headerActions}>
-                    <button
-                        className={styles.comprehensiveHistoryButton}
-                        onClick={() => setComprehensiveHistoryOpen(true)}
-                    >
-                        Histórico Completo
-                    </button>
-                    <button
-                        className={styles.comprehensiveHistoryButton}
-                        onClick={() => setTrashModalOpen(true)}
-                        style={{ background: '#ef4444' }}
-                    >
-                        🗑️ Lixeira
-                    </button>
                     <div className={styles.timeFilters}>
                     {['day','week','month','year'].map(key => (
                         <button
@@ -341,13 +267,6 @@ export default function DashboardPage() {
                     icon={icons.rate} 
                     highlight 
                     isLoading={loading.forms || loading.responses}
-                />
-                <EnhancedStatCard 
-                    title="Tempo Médio" 
-                    value={`${avgResponseTime} min`} 
-                    icon={icons.time} 
-                    isLoading={loading.responses}
-                    subtitle="Por resposta"
                 />
                 <EnhancedStatCard 
                     title="Engajamento" 
@@ -394,7 +313,7 @@ export default function DashboardPage() {
             <div className={styles.chartsSection}>
                 <div className={styles.chartContainer}>
                     <h3 className={styles.chartTitle}>Respostas por Dia (últimos 7 dias)</h3>
-                    <ResponsiveContainer width="100%" height={260}>
+                    <ResponsiveContainer width="100%" height={300}>
                         <LineChart data={(() => {
                             const dayMap: Record<string, number> = {};
                             const last7Days = Array.from({length: 7}, (_, i) => {
@@ -428,41 +347,8 @@ export default function DashboardPage() {
                         </LineChart>
                     </ResponsiveContainer>
                 </div>
-                <PerformanceMetrics forms={filteredForms} responses={filteredResponses} />
-            </div>
-
-            <div className={styles.chartsSection}>
                 <div className={styles.chartContainer}>
                     <TopUsers responses={filteredResponses} />
-                </div>
-                <div className={styles.chartContainer}>
-                    <h3 className={styles.chartTitle}>Distribuição por Departamento</h3>
-                    <ResponsiveContainer width="100%" height={260}>
-                        <PieChart>
-                            <Pie
-                                data={(() => {
-                                    const deptMap: Record<string, number> = {};
-                                    filteredResponses.forEach(r => {
-                                        const dept = departments.find(d => d.id === r.departmentId)?.name || 'Outros';
-                                        deptMap[dept] = (deptMap[dept] || 0) + 1;
-                                    });
-                                    return Object.entries(deptMap).map(([name, value]) => ({ name, value }));
-                                })()}
-                                cx="50%"
-                                cy="50%"
-                                labelLine={false}
-  label={({ name, percent }) => `${name} ${((percent ?? 0) * 100).toFixed(0)}%`}
-                                outerRadius={80}
-                                fill="#8884d8"
-                                dataKey="value"
-                            >
-                                {['#B18F42', '#C5A05C', '#E8EAD6', '#07485B', '#8B7355'].map((color, index) => (
-                                    <Cell key={`cell-${index}`} fill={color} />
-                                ))}
-                            </Pie>
-                            <Tooltip />
-                        </PieChart>
-                    </ResponsiveContainer>
                 </div>
             </div>
 
@@ -541,24 +427,6 @@ export default function DashboardPage() {
 
             </div>
 
-            {/* NOVO MODAL DE HISTÓRICO COMPLETO */}
-            {comprehensiveHistoryOpen && (
-                <ComprehensiveHistoryModal
-                    open={comprehensiveHistoryOpen}
-                    onClose={() => setComprehensiveHistoryOpen(false)}
-                    responses={filteredResponses}
-                    forms={allForms}
-                    companies={companies}
-                    departments={departments}
-                    onResponsesUpdate={refreshResponses}
-                />
-            )}
-
-            {/* MODAL DE LIXEIRA */}
-            <TrashModal
-                isOpen={trashModalOpen}
-                onClose={() => setTrashModalOpen(false)}
-            />
 
             {error && <div className={styles.errorAlert}>{error}</div>}
         </div>

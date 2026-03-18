@@ -1,10 +1,12 @@
- 🔄 **FEATURE: Sistema de Workflow - BRAVOFORM**
+ 🔄 **FEATURE: BravoFlow - Sistema de Workflow Visual**
 
  📋 **Visão Geral da Feature** (Linhas 1-20)
 
-O **Sistema de Workflow** transforma o BRAVOFORM de um simples coletor de dados para um verdadeiro Sistema de Gestão de Processos. Esta feature permite que administradores criem fluxos de trabalho personalizados para cada formulário, enquanto colaboradores podem acompanhar e interagir com as etapas em tempo real.
+**STATUS: ✅ IMPLEMENTADO (75% Completo)**
 
-**Objetivo Principal:** Implementar um sistema de etapas customizáveis que adiciona dinamismo e controle ao processo de gerenciamento de respostas.
+O **BravoFlow** é um sistema de workflow visual independente implementado no BRAVOFORM. Permite que administradores criem fluxos de trabalho personalizados com interface drag-and-drop usando ReactFlow, definam etapas customizadas, configurem permissões granulares e testem workflows em tempo real.
+
+**Objetivo Principal:** ✅ Sistema de etapas customizáveis com editor visual, validações, temporizadores e modo de teste completo.
 
 ---
 
@@ -12,7 +14,7 @@ O **Sistema de Workflow** transforma o BRAVOFORM de um simples coletor de dados 
 
  **🔄 A Mudança Fundamental: De Formulário Estático para Ticket Dinâmico**
 
-**HOJE (Sistema Atual):**
+**ANTES (Sistema de Formulários):**
 ```
 Formulário Criado → Preenchido → Salvo com Status Fixo → FIM
 ❌ Sem visibilidade do processo
@@ -21,14 +23,16 @@ Formulário Criado → Preenchido → Salvo com Status Fixo → FIM
 ❌ Sem controle de etapas
 ```
 
-**AMANHÃ (Com Workflow):**
+**AGORA (BravoFlow Implementado):**
 ```
-Formulário Criado → Vira TICKET → Viaja por ETAPAS → Histórico Completo → FIM
-✅ Visibilidade total do processo
-✅ Etapas customizáveis por negócio
-✅ Histórico detalhado com audit trail
-✅ Controle granular por etapa
-✅ Automações e notificações
+Workflow Criado → Editor Visual → Etapas Configuradas → Modo de Teste → Deploy
+✅ Editor visual com ReactFlow
+✅ Etapas customizáveis com drag-and-drop
+✅ Permissões granulares por usuário
+✅ Campos obrigatórios (comentários, anexos, formulários)
+✅ Temporizadores para etapas de espera
+✅ Modo de teste completo
+✅ Validação e progressão de etapas
 ```
 
  **🎯 O Conceito Central: "Tickets" em uma Esteira de Processos**
@@ -43,224 +47,261 @@ Cada resposta de formulário se transforma em um **"Ticket"** (ou Cartão) que:
 
 ---
 
- 🛠️ **Possibilidades para o Admin: O Arquiteto de Processos** (Linhas 81-200)
+ 🛠️ **✅ IMPLEMENTADO: Funcionalidades do Admin** (Linhas 81-200)
 
- **🎨 1. Criação de Etapas Personalizadas - O "Desenho" do Processo**
+ **✅ 1. WorkflowCanvas - Editor Visual de Workflows**
 
-O Administrador se torna um arquiteto de processos, podendo criar fluxos completamente adaptados ao negócio:
+**Componente:** `/src/components/WorkflowCanvas.tsx`
 
- **Exemplo Prático: Ordem de Serviço (OS)**
-```
-📝 Nova Solicitação → 🔍 Em Análise → ⏳ Aguardando Peça → 
-🔧 Em Execução → ✅ Aguardando Aprovação → 🎉 Finalizada
-```
+Editor visual completo usando ReactFlow com:
 
- **Exemplo Prático: Processo de Compra**
-```
-📋 Solicitação → 📊 Análise de Orçamento → 💰 Aprovação Financeira → 
-📦 Compra → 🚐 Recebimento → ✅ Baixa no Estoque
-```
+**Funcionalidades Implementadas:**
+- ✅ Drag-and-drop de nós (etapas)
+- ✅ Conexões visuais entre etapas
+- ✅ Painel de configuração lateral
+- ✅ Validação de conexões
+- ✅ Roteamento condicional
+- ✅ Botão "Testar Workflow"
+- ✅ Salvar/Carregar workflows
 
- **Exemplo Prático: RH - Admissão**
-```
-📄 Candidatura → 🔎 Triagem Inicial → 👨‍💼 Entrevista Técnica → 
-🗣️ Entrevista RH → 📋 Aprovação Diretoria → 📋 Contratação
-```
-
- **🔐 2. Regras de Transição: O Controle de "Quem Pode Fazer o Quê"**
-
-Sistema de permissões granular usando a estrutura já existente:
-
- **Controle por Departamento:**
-- **Manutenção**: Pode mover para "Em Execução"
-- **Financeiro**: Pode mover para "Aprovado"
-- **Diretoria**: Pode mover para "Finalizada"
-- **TI**: Pode mover apenas tickets de tecnologia
-
- **Controle por Usuário Específico:**
-- **Gerente João**: Acesso total ao fluxo de compras
-- **Técnico Carlos**: Apenas às etapas técnicas
-- **Analista Maria**: Apenas à triagem e análise
-
- **Controle por Condições:**
-- **Se valor > R$ 1.000**: Exige aprovação da diretoria
-- **Se urgente = SIM**: Pula etapa de análise
-- **Se cliente VIP**: Prioridade automática
-
- **🔒 3. Ações Obrigatórias: As "Travas de Segurança" do Processo**
-
-Para evitar que processos sejam finalizados sem solução adequada:
-
- **Validações por Etapa:**
-```
-📝 Nova Solicitação → [OK] Preenchimento padrão
-🔍 Em Análise → [OBRIGATÓRIO] Campo "Diagnóstico"
-⏳ Aguardando Peça → [OBRIGATÓRIO] Anexo "Cotação"
-🔧 Em Execução → [OBRIGATÓRIO] Foto "Antes/Depois"
-✅ Finalizada → [OBRIGATÓRIO] Campo "Solução Aplicada"
+**Tipos de Etapas Suportados:**
+```typescript
+- 'documentation' - Etapa de documentação
+- 'validation' - Etapa de validação (sem campos)
+- 'waiting' - Etapa de espera com timer
 ```
 
- **Tipos de Validações:**
-- **Campos Obrigatórios**: Preenchimento específico por etapa
-- **Anexos Obrigatórios**: Upload de documentos/fotos
-- **Assinaturas Digitais**: Validação com certificado
-- **Comentários Justificados**: Explicação obrigatória
+ **✅ 2. StageConfigPanel - Configuração de Etapas**
 
- **🤖 4. Automações por Etapa: O "Cérebro" Automático do Sistema**
+**Componente:** `/src/components/StageConfigPanel.tsx`
 
- **Notificações Inteligentes:**
+**Configurações Implementadas:**
+
+**Permissões por Usuário:**
+```typescript
+interface WorkflowStage {
+  allowedUsers: string[];  // IDs dos colaboradores permitidos
+}
 ```
-📝 Nova Solicitação → 📧 Email para solicitante + 📱 SMS para responsável
-🔍 Em Análise → 📧 Notificação para departamento
-⏳ Aguardando Peça → 📧 Alerta para compras
-✅ Finalizada → 📧 Confirmação para cliente + 📧 Pesquisa de satisfação
-```
+- ✅ Seleção múltipla de usuários
+- ✅ Validação no modo de teste
+- ✅ Apenas usuários permitidos podem avançar
 
- **Ações Automáticas:**
-- **SLA Expirado**: Muda automaticamente para "Atrasado"
-- **Urgência Detectada**: Sobe prioridade e notifica gerente
-- **Inatividade**: Lembre automático após X dias
-- **Atribuição**: Designa para usuário disponível
+**Campos Obrigatórios:**
+- ✅ `requireComment: boolean` - Comentário obrigatório
+- ✅ `requireAttachments: boolean` - Anexo obrigatório
+- ✅ `formIds: string[]` - Formulários obrigatórios
 
- **⏰ 5. Prazos (SLA): O "Relógio" do Processo**
-
- **Configuração de Prazos por Etapa:**
-```
-📝 Nova Solicitação → 1h para primeira ação
-🔍 Em Análise → 24h para diagnóstico
-⏳ Aguardando Peça → 72h para recebimento
-🔧 Em Execução → 48h para conclusão
-✅ Finalizada → Imediato
+**Temporizador (Etapas de Espera):**
+```typescript
+interface Timer {
+  value: number;      // Tempo em segundos
+  unit: 'seconds' | 'minutes' | 'hours' | 'days';
+}
 ```
 
- **Tipos de SLA:**
-- **SLA por Etapa**: Tempo máximo em cada fase
-- **SLA Global**: Tempo total do processo
-- **SLA por Prioridade**: Urgente vs Normal
-- **Horário Comercial**: Considera apenas dias úteis
+ **✅ 3. Sistema de Validação de Campos**
+
+**Implementado em:** `WorkflowTestMode.tsx`
+
+**Validações por Etapa:**
+```typescript
+interface StageField {
+  id: string;
+  type: 'comment' | 'attachment' | 'form';
+  label: string;
+  required: boolean;
+  formId?: string;
+}
+```
+
+**Fluxo de Validação:**
+1. ✅ Sistema identifica campos obrigatórios da etapa
+2. ✅ Apresenta campos um por vez
+3. ✅ Barra de progresso visual
+4. ✅ Botões "Voltar" e "Próximo"
+5. ✅ Modal de validação ao completar todos os campos
+6. ✅ Opções: Validar e Avançar, Rejeitar e Refazer, Destruir
+
+ **⏳ 4. Sistema de Temporizadores**
+
+**Implementado em:** `WorkflowTestMode.tsx`
+
+**Funcionalidades:**
+```typescript
+// Timer automático para etapas de espera
+const [timerSeconds, setTimerSeconds] = useState(0);
+const [isTimerActive, setIsTimerActive] = useState(false);
+```
+
+**Features Implementadas:**
+- ✅ Contagem regressiva visual
+- ✅ Barra de progresso do tempo
+- ✅ Formatação de tempo (minutos e segundos)
+- ✅ Avanço automático ao fim do timer
+- ✅ Ícone de relógio animado
+
+**Exemplo de Uso:**
+```
+Etapa: "Aguardando Aprovação"
+Timer: 2 minutos
+Resultado: Avança automaticamente após 2 minutos
+```
+
+ **✅ 5. Roteamento Condicional**
+
+**Componente:** `/src/components/RoutingConditionModal.tsx`
+
+**Interface de Condições:**
+```typescript
+interface RoutingCondition {
+  id: string;
+  field: string;      // Campo a verificar
+  operator: string;   // Operador de comparação
+  value: string;      // Valor de comparação
+  targetStageId: string; // Etapa destino
+}
+```
+
+**Funcionalidades:**
+- ✅ Configuração de múltiplas rotas por conexão
+- ✅ Operadores: equals, notEquals, contains, etc
+- ✅ Rota padrão (fallback)
+- ✅ Interface visual de configuração
+
+**Status:** Implementado mas não testado no modo de teste
 
 ---
 
- 👷‍♂️ **Possibilidades para o Colaborador: O Operador Eficiente** (Linhas 201-350)
+ 👷‍♂️ **✅ IMPLEMENTADO: WorkflowTestMode - Simulação Completa** (Linhas 201-350)
 
- **📊 1. Visão em Quadro Kanban: O "Comando Central" do Processo**
+ **✅ 1. Seleção de Usuário e Início do Teste**
 
-Interface visual e intuitiva similar ao Trello/Asana:
+**Componente:** `WorkflowTestMode.tsx`
 
- **Layout Principal:**
-```
-┌─────────────┬─────────────┬─────────────┬─────────────┐
-│ 📝 Nova     │ 🔍 Análise  │ ⏳ Peça    │ 🔧 Execução│
-├─────────────┼─────────────┼─────────────┼─────────────┤
-│ [Ticket 1]  │ [Ticket 3]  │ [Ticket 2]  │ [Ticket 5]  │
-│ [Ticket 4]  │ [Ticket 7]  │             │ [Ticket 6]  │
-│             │             │             │             │
-└─────────────┴─────────────┴─────────────┴─────────────┘
-```
-
- **Recursos do Kanban:**
-- **Drag & Drop**: Arrastar tickets entre colunas
-- **Filtros Dinâmicos**: Por cliente, prioridade, data
-- **Busca Instantânea**: Encontrar tickets rapidamente
-- **Contadores**: Quantidade de tickets por etapa
-- **Cores por Prioridade**: Visualização rápida
-
- **📋 2. Lista Inteligente: A "Planilha" Dinâmica**
-
-Para quem prefere formato tabular:
-
- **Colunas Inteligentes:**
-```
-ID | Título | Cliente | Etapa Atual | Responsável | Prazo SLA | Prioridade | Ações
-001 | OS-001 | Empresa A | 🔍 Análise | João | 2h restantes | 🔴 Alta | [Ver] [Mover]
-002 | OS-002 | Empresa B | ⏳ Peça | Maria | 1d restante | 🟡 Média | [Ver] [Mover]
-003 | OS-003 | Empresa C | 🔧 Execução | Carlos | 6h restantes | 🔴 Alta | [Ver] [Mover]
+**Fluxo Implementado:**
+```typescript
+1. Botão "Testar Workflow" no WorkflowCanvas
+2. Modal de seleção de usuário
+3. Lista de usuários disponíveis (com permissão em alguma etapa)
+4. Seleção do usuário
+5. Visualização das etapas do workflow
+6. Botão "Iniciar Teste"
 ```
 
- **Funcionalidades da Lista:**
-- **Ordenação Múltipla**: Por data, prioridade, cliente
-- **Filtros Combinados**: Etapa + Responsável + Período
-- **Exportação**: Excel/PDF com filtros aplicados
-- **Ações em Lote**: Mover múltiplos tickets
+**Features:**
+- ✅ Carregamento de colaboradores do Firestore
+- ✅ Filtro de usuários com permissão
+- ✅ Interface limpa e intuitiva
+- ✅ Botão "Trocar usuário" durante o teste
 
- **⏱️ 3. Timeline Transparente: O "Diário de Bordo" do Processo**
+ **✅ 2. Progressão de Etapas**
 
-Histórico completo e visual do percurso do ticket:
-
- **Visualização Timeline:**
-```
-📝 Criado por João
-   ⬇️ 10:30 - Segunda-feira
-🔍 Movido para "Em Análise" por Maria
-   ⬇️ 14:45 - Segunda-feira
-   💬 "Cliente informou que equipamento não liga"
-⏳ Movido para "Aguardando Peça" por João
-   ⬇️ 09:15 - Terça-feira
-   📎 Anexo: Cotação fornecedor.pdf
-🔧 Movido para "Em Execução" por Carlos
-   ⬇️ 16:30 - Quarta-feira
-   📎 Anexo: Foto antes do conserto.jpg
-✅ Finalizado por Carlos
-   ⬇️ 11:20 - Quinta-feira
-   💬 "Equipamento reparado e testado"
-   📎 Anexo: Foto depois do conserto.jpg
+**Lógica Implementada:**
+```typescript
+const getUserStages = () => {
+  if (!selectedUser) return [];
+  
+  const currentStage = stages[currentStageIndex];
+  if (!currentStage.allowedUsers.includes(selectedUser.id)) {
+    return []; // Usuário não tem acesso
+  }
+  
+  return [currentStage]; // Mostra apenas etapa atual
+};
 ```
 
- **Elementos da Timeline:**
-- **Movimentações**: Quem moveu, quando, para onde
-- **Comentários**: Notas internas por etapa
-- **Anexos**: Documentos específicos de cada ação
-- **Tempo Decorrido**: Duração em cada etapa
-- **Indicadores Visuais**: Ícones e cores por tipo de ação
+**Features:**
+- ✅ Validação de permissão por etapa
+- ✅ Exibição de etapas anteriores como concluídas
+- ✅ Avanço sequencial entre etapas
+- ✅ Histórico visual de progresso
 
- **💬 4. Comentários e Notas Internas: O "Chat" do Processo**
+ **✅ 3. Sistema de Campos Obrigatórios**
 
-Sistema de comunicação interno dentro de cada ticket:
-
- **Tipos de Comentários:**
-- **📝 Notas Gerais**: Informações gerais sobre o processo
-- **🔧 Técnicas**: Detalhes técnicos da execução
-- **📞 Comunicação com Cliente**: Registro de contatos externos
-- **⚠️ Alertas**: Problemas ou bloqueios encontrados
-- **✅ Soluções**: Registro de resoluções aplicadas
-
- **Funcionalidades do Chat Interno:**
-- **@Menções**: Notificar usuários específicos
-- **Formatação**: Negrito, listas, links
-- **Anexos**: Imagens, documentos, áudios
-- **Edição**: Editar comentários anteriores
-- **Busca**: Encontrar comentários específicos
-
- **🎯 5. Botões de Ação Dinâmicos: A "Interface Inteligente"**
-
-Botões que mudam conforme o contexto e permissões:
-
- **Botões Contextuais:**
-```
-ETAPA ATUAL: 🔍 Em Análise
-┌─────────────────────────────────────┐
-│ [📝 Editar Diagnóstico]             │
-│ [⏳ Mover para Aguardando Peça]     │
-│ [🔙 Devolver para Nova Solicitação]│
-│ [💬 Adicionar Comentário]          │
-│ [📎 Anexar Documentos]              │
-└─────────────────────────────────────┘
-
-ETAPA ATUAL: 🔧 Em Execução
-┌─────────────────────────────────────┐
-│ [📝 Registrar Progresso]            │
-│ [✅ Mover para Finalizada]          │
-│ [⚠️ Reportar Problema]              │
-│ [📎 Anexar Fotos do Serviço]        │
-│ [💬 Adicionar Comentário]          │
-└─────────────────────────────────────┘
+**Implementação:**
+```typescript
+const getStageFields = (): StageField[] => {
+  const stage = getCurrentUserStage();
+  const fields: StageField[] = [];
+  
+  if (stage.requireComment) {
+    fields.push({ id: 'comment', type: 'comment', ... });
+  }
+  
+  if (stage.requireAttachments) {
+    fields.push({ id: 'attachment', type: 'attachment', ... });
+  }
+  
+  if (stage.formIds && stage.formIds.length > 0) {
+    stage.formIds.forEach((formId, index) => {
+      fields.push({ id: `form-${formId}-${index}`, ... });
+    });
+  }
+  
+  return fields;
+};
 ```
 
- **Validações em Tempo Real:**
-- **Campos Obrigatórios**: Indicadores visuais
-- **Permissões**: Botões desabilitados se não permitido
-- **SLA**: Alertas visuais de prazo próximo
-- **Dependências**: Botões que habilitam outros
+**Progressão Campo a Campo:**
+- ✅ Exibe um campo por vez
+- ✅ Barra de progresso (X de Y campos)
+- ✅ Botões "Voltar" e "Próximo"
+- ✅ Validação antes de avançar
+- ✅ Armazenamento de dados preenchidos
+
+ **✅ 4. Modal de Validação de Etapa**
+
+**Exibido ao completar todos os campos:**
+```typescript
+const handleCompleteField = () => {
+  if (currentFieldIndex < fields.length - 1) {
+    setCurrentFieldIndex(currentFieldIndex + 1);
+  } else {
+    setShowValidationModal(true); // Mostra modal
+  }
+};
+```
+
+**Conteúdo do Modal:**
+- ✅ Título: "Validação da Etapa"
+- ✅ Exibição de todos os dados preenchidos
+- ✅ Botão "Editar" para cada campo
+- ✅ Três opções de ação:
+  - ✅ Validar e Avançar (verde)
+  - ✅ Rejeitar e Refazer (laranja)
+  - ✅ Destruir Workflow (vermelho)
+
+**Funcionalidade de Edição:**
+- ✅ Volta para o campo específico
+- ✅ Mantém dados já preenchidos
+- ✅ Permite correção antes de validar
+
+ **✅ 5. Suporte a Etapas Sem Campos**
+
+**Problema Resolvido:**
+Etapas de tipo "validation" não têm campos obrigatórios.
+
+**Solução Implementada:**
+```typescript
+if (fields.length === 0) {
+  return (
+    <div className={styles.noFieldsMessage}>
+      <p>Esta etapa não requer preenchimento de campos.</p>
+      <button onClick={handleCompleteStage}>
+        Concluir Etapa
+      </button>
+    </div>
+  );
+}
+```
+
+**Features:**
+- ✅ Detecta etapas sem campos
+- ✅ Exibe mensagem informativa
+- ✅ Botão direto para concluir
+- ✅ Esconde navegação de campos
+- ✅ UX limpo e intuitivo
 
 ---
 

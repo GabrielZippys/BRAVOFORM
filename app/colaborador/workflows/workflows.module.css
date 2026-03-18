@@ -1,0 +1,289 @@
+/*
+================================================================================
+|   ARQUIVO: app/colaborador/workflows/workflows.module.css
+|   Página de Workflows do Colaborador
+================================================================================
+*/
+
+.container {
+  min-height: 100vh;
+  background: #F9FAFB;
+  padding: 2rem;
+}
+
+.loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 50vh;
+  gap: 1rem;
+}
+
+.spinner {
+  width: 48px;
+  height: 48px;
+  border: 4px solid #E5E7EB;
+  border-top-color: #3B82F6;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.loading p {
+  color: #6B7280;
+  font-size: 1rem;
+}
+
+/* ── Header ── */
+.header {
+  margin-bottom: 2rem;
+}
+
+.header h1 {
+  margin: 0 0 0.5rem 0;
+  color: #1F2937;
+  font-size: 2rem;
+  font-weight: 700;
+}
+
+.header p {
+  margin: 0;
+  color: #6B7280;
+  font-size: 1rem;
+}
+
+/* ── Sections ── */
+.section {
+  margin-bottom: 3rem;
+}
+
+.section h2 {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin: 0 0 1.5rem 0;
+  color: #1F2937;
+  font-size: 1.5rem;
+  font-weight: 600;
+}
+
+.section h2 svg {
+  color: #3B82F6;
+}
+
+/* ── Grid ── */
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+  gap: 1.5rem;
+}
+
+/* ── Cards ── */
+.card {
+  background: white;
+  border-radius: 1rem;
+  border: 1px solid #E5E7EB;
+  overflow: hidden;
+  transition: all 0.2s;
+  display: flex;
+  flex-direction: column;
+}
+
+.card:hover {
+  border-color: #3B82F6;
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.15);
+  transform: translateY(-2px);
+}
+
+.cardHeader {
+  padding: 1.5rem;
+  border-bottom: 1px solid #E5E7EB;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+}
+
+.cardHeader h3 {
+  margin: 0;
+  color: #1F2937;
+  font-size: 1.125rem;
+  font-weight: 600;
+  flex: 1;
+}
+
+.badgeInProgress {
+  padding: 0.375rem 0.75rem;
+  background: #FEF3C7;
+  color: #92400E;
+  border-radius: 0.5rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  white-space: nowrap;
+}
+
+.badgeAvailable {
+  padding: 0.375rem 0.75rem;
+  background: #D1FAE5;
+  color: #065F46;
+  border-radius: 0.5rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  white-space: nowrap;
+}
+
+.cardContent {
+  padding: 1.5rem;
+  flex: 1;
+}
+
+.description {
+  margin: 0 0 1rem 0;
+  color: #6B7280;
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+
+.infoRow {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+  color: #6B7280;
+  font-size: 0.875rem;
+}
+
+.infoRow svg {
+  flex-shrink: 0;
+  color: #9CA3AF;
+}
+
+.infoRow:last-child {
+  margin-bottom: 0;
+}
+
+/* ── Progress ── */
+.progress {
+  margin-top: 1rem;
+}
+
+.progressBar {
+  width: 100%;
+  height: 8px;
+  background: #E5E7EB;
+  border-radius: 4px;
+  overflow: hidden;
+  margin-bottom: 0.5rem;
+}
+
+.progressFill {
+  height: 100%;
+  background: linear-gradient(90deg, #3B82F6, #6366F1);
+  border-radius: 4px;
+  transition: width 0.3s ease;
+}
+
+.progressText {
+  display: block;
+  color: #6B7280;
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+/* ── Card Footer ── */
+.cardFooter {
+  padding: 1.5rem;
+  border-top: 1px solid #E5E7EB;
+  background: #F9FAFB;
+}
+
+.btnStart,
+.btnContinue {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.5rem;
+  border: none;
+  border-radius: 0.5rem;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btnStart {
+  background: #3B82F6;
+  color: white;
+}
+
+.btnStart:hover {
+  background: #2563EB;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+}
+
+.btnContinue {
+  background: #10B981;
+  color: white;
+}
+
+.btnContinue:hover {
+  background: #059669;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+}
+
+/* ── Empty State ── */
+.emptyState {
+  text-align: center;
+  padding: 4rem 2rem;
+  background: white;
+  border-radius: 1rem;
+  border: 2px dashed #E5E7EB;
+}
+
+.emptyState svg {
+  margin-bottom: 1rem;
+}
+
+.emptyState h3 {
+  margin: 0 0 0.5rem 0;
+  color: #1F2937;
+  font-size: 1.25rem;
+  font-weight: 600;
+}
+
+.emptyState p {
+  margin: 0;
+  color: #6B7280;
+  font-size: 1rem;
+}
+
+/* ── Responsive ── */
+@media (max-width: 768px) {
+  .container {
+    padding: 1rem;
+  }
+
+  .grid {
+    grid-template-columns: 1fr;
+  }
+
+  .header h1 {
+    font-size: 1.5rem;
+  }
+
+  .section h2 {
+    font-size: 1.25rem;
+  }
+}

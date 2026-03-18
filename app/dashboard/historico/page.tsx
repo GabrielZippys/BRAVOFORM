@@ -1,0 +1,872 @@
+'use client';
+
+import React, { useState, useEffect } from 'react';
+import { collection, getDocs, query, where, orderBy, Timestamp, collectionGroup, doc, getDoc, limit } from 'firebase/firestore';
+import { db } from '../../../firebase/config';
+import { Search, Filter, Download, Eye, Calendar, User, CheckCircle, XCircle, Clock, Trash2, FileText } from 'lucide-react';
+import type { WorkflowInstance, WorkflowDocument, FormResponse, Form, Company, Department } from '@/types';
+import ComprehensiveHistoryModal from '@/components/ComprehensiveHistoryModal';
+import ResponseDetailsModal from '@/components/ResponseDetailsModal';
+import WorkflowInstanceDetailModal from '@/components/WorkflowInstanceDetailModal';
+import styles from './historico.module.css';
+
+type TabType = 'forms' | 'workflows' | 'trash';
+
+export default function HistoricoPage() {
+  const [activeTab, setActiveTab] = useState<TabType>('forms');
+  const [instances, setInstances] = useState<WorkflowInstance[]>([]);
+  const [workflows, setWorkflows] = useState<WorkflowDocument[]>([]);
+  const [formResponses, setFormResponses] = useState<FormResponse[]>([]);
+  const [forms, setForms] = useState<Form[]>([]);
+  const [companies, setCompanies] = useState<Company[]>([]);
+  const [departments, setDepartments] = useState<Department[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedWorkflow, setSelectedWorkflow] = useState<string>('all');
+  const [selectedStatus, setSelectedStatus] = useState<string>('all');
+  const [selectedInstance, setSelectedInstance] = useState<WorkflowInstance | null>(null);
+  const [selectedResponse, setSelectedResponse] = useState<FormResponse | null>(null);
+  const [selectedResponseForm, setSelectedResponseForm] = useState<Form | null>(null);
+  const [showHistoryModal, setShowHistoryModal] = useState(false);
+  
+  // Filtros para formulários
+  const [formFilter, setFormFilter] = useState<string>('all');
+  const [companyFilter, setCompanyFilter] = useState<string>('all');
+  const [departmentFilter, setDepartmentFilter] = useState<string>('all');
+  const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [userFilter, setUserFilter] = useState<string>('all');
+  const [dateRangeFilter, setDateRangeFilter] = useState<string>('all');
+  const [searchFormTerm, setSearchFormTerm] = useState('');
+  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
+  
+  // Estado para lixeira
+  const [deletedItems, setDeletedItems] = useState<FormResponse[]>([]);
+
+  useEffect(() => {
+    loadData();
+  }, []);
+
+  // Carregar formulário quando selecionar uma resposta
+  useEffect(() => {
+    const loadFormForResponse = async () => {
+      if (!selectedResponse) {
+        setSelectedResponseForm(null);
+        return;
+      }
+
+      // Primeiro tentar encontrar na lista já carregada
+      const existingForm = forms.find(f => f.id === selectedResponse.formId);
+      if (existingForm) {
+        setSelectedResponseForm(existingForm);
+        return;
+      }
+
+      // Se não encontrou, buscar diretamente do Firestore
+      try {
+        console.log('Buscando formulário do Firestore:', selectedResponse.formId);
+        const formDoc = await getDoc(doc(db, 'forms', selectedResponse.formId));
+        if (formDoc.exists()) {
+          const formData = {
+            id: formDoc.id,
+            ...formDoc.data()
+          } as Form;
+          console.log('Formulário encontrado:', formData);
+          setSelectedResponseForm(formData);
+        } else {
+          console.log('Formulário não existe no Firestore');
+          setSelectedResponseForm(null);
+        }
+      } catch (error) {
+        console.error('Erro ao carregar formulário:', error);
+        setSelectedResponseForm(null);
+      }
+    };
+
+    loadFormForResponse();
+  }, [selectedResponse, forms]);
+
+  const loadData = async () => {
+    setLoading(true);
+    try {
+      // Carregar dados básicos primeiro (rápido)
+      const [
+        workflowsSnapshot,
+        instancesSnapshot,
+        formsSnapshot,
+        companiesSnapshot,
+        departmentsSnapshot
+      ] = await Promise.all([
+        getDocs(collection(db, 'workflows')),
+        getDocs(collection(db, 'workflow_instances')).catch(() => ({ docs: [] })),
+        getDocs(collection(db, 'forms')),
+        getDocs(collection(db, 'companies')),
+        getDocs(collection(db, 'departments'))
+      ]);
+
+      // Processar workflows
+      const workflowsData = workflowsSnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      } as WorkflowDocument));
+      setWorkflows(workflowsData);
+
+      // Processar instâncias de workflows
+      const instancesData = instancesSnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      } as WorkflowInstance));
+      instancesData.sort((a, b) => {
+        const dateA = a.startedAt?.toMillis?.() || 0;
+        const dateB = b.startedAt?.toMillis?.() || 0;
+        return dateB - dateA;
+      });
+      setInstances(instancesData);
+
+      // Processar formulários
+      const formsData = formsSnapshot.docs.map(doc => ({
+        ...doc.data(),
+        id: doc.id
+      } as Form));
+      setForms(formsData);
+
+      // Processar empresas
+      const companiesData = companiesSnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      } as Company));
+      setCompanies(companiesData);
+
+      // Processar departamentos
+      const departmentsData = departmentsSnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      } as Department));
+      setDepartments(departmentsData);
+
+      // Carregar respostas com limite para melhor performance
+      const responsesSnapshot = await getDocs(
+        query(
+          collectionGroup(db, 'responses'),
+          limit(1000) // Limitar a 1000 respostas mais recentes
+        )
+      );
+      
+      const allDocs = responsesSnapshot.docs;
+      
+      const allResponses = allDocs
+        .filter(doc => !doc.data().deletedAt)
+        .map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        } as FormResponse));
+      
+      allResponses.sort((a, b) => {
+        const dateA = a.submittedAt?.toMillis?.() || a.createdAt?.toMillis?.() || 0;
+        const dateB = b.submittedAt?.toMillis?.() || b.createdAt?.toMillis?.() || 0;
+        return dateB - dateA;
+      });
+      setFormResponses(allResponses);
+
+      // Processar lixeira
+      const trashData = allDocs
+        .filter(doc => doc.data().deletedAt != null)
+        .map(doc => {
+          const data = doc.data();
+          return {
+            id: doc.id,
+            path: doc.ref.path,
+            formId: data.formId || '',
+            formTitle: data.formTitle || '',
+            collaboratorId: data.collaboratorId || '',
+            collaboratorUsername: data.collaboratorUsername || '',
+            companyId: data.companyId || '',
+            departmentId: data.departmentId || '',
+            status: data.status || 'deleted',
+            answers: data.answers,
+            createdAt: data.createdAt,
+            submittedAt: data.submittedAt,
+            deletedAt: data.deletedAt,
+            deletedBy: data.deletedBy,
+            deletedByUsername: data.deletedByUsername
+          } as FormResponse;
+        });
+      
+      trashData.sort((a, b) => {
+        const aTime = a.deletedAt?.toMillis ? a.deletedAt.toMillis() : 0;
+        const bTime = b.deletedAt?.toMillis ? b.deletedAt.toMillis() : 0;
+        return bTime - aTime;
+      });
+      setDeletedItems(trashData);
+
+    } catch (error) {
+      console.error('Erro ao carregar dados:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const filteredInstances = instances.filter(instance => {
+    const matchesSearch = 
+      instance.workflowName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      instance.assignedToName.toLowerCase().includes(searchTerm.toLowerCase());
+    
+    const matchesWorkflow = selectedWorkflow === 'all' || instance.workflowId === selectedWorkflow;
+    const matchesStatus = selectedStatus === 'all' || instance.status === selectedStatus;
+
+    return matchesSearch && matchesWorkflow && matchesStatus;
+  });
+
+  const getStatusIcon = (status: string) => {
+    switch (status) {
+      case 'completed':
+        return <CheckCircle size={18} className={styles.iconCompleted} />;
+      case 'in_progress':
+        return <Clock size={18} className={styles.iconInProgress} />;
+      case 'cancelled':
+      case 'rejected':
+        return <XCircle size={18} className={styles.iconRejected} />;
+      default:
+        return <Clock size={18} />;
+    }
+  };
+
+  const getStatusLabel = (status: string) => {
+    const labels: Record<string, string> = {
+      in_progress: 'Em Andamento',
+      completed: 'Concluído',
+      cancelled: 'Cancelado',
+      rejected: 'Rejeitado'
+    };
+    return labels[status] || status;
+  };
+
+  const formatDate = (timestamp: any) => {
+    if (!timestamp) return '-';
+    const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
+    return date.toLocaleDateString('pt-BR');
+  };
+
+  const getDaysRemaining = (deletedAt: any): number => {
+    if (!deletedAt) return 0;
+    
+    const deletedDate = deletedAt.toDate ? deletedAt.toDate() : new Date(deletedAt);
+    const now = new Date();
+    now.setHours(0, 0, 0, 0);
+    
+    const deleteDate = new Date(deletedDate);
+    deleteDate.setHours(0, 0, 0, 0);
+    deleteDate.setDate(deleteDate.getDate() + 30);
+    
+    const diffTime = deleteDate.getTime() - now.getTime();
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    return Math.max(0, diffDays);
+  };
+
+  // Departamentos disponíveis baseados na empresa
+  const availableDepartments = React.useMemo(() => {
+    if (companyFilter === 'all') return departments;
+    return departments.filter(d => d.companyId === companyFilter);
+  }, [departments, companyFilter]);
+
+  // Respostas filtradas por empresa
+  const companyFilteredResponses = React.useMemo(() => {
+    if (companyFilter === 'all') return formResponses;
+    return formResponses.filter(r => r.companyId === companyFilter);
+  }, [formResponses, companyFilter]);
+
+  // Respostas filtradas por empresa E departamento
+  const departmentFilteredResponses = React.useMemo(() => {
+    let filtered = companyFilteredResponses;
+    if (departmentFilter !== 'all') {
+      filtered = filtered.filter(r => r.departmentId === departmentFilter);
+    }
+    return filtered;
+  }, [companyFilteredResponses, departmentFilter]);
+
+  // Formulários disponíveis baseados na empresa e departamento
+  const availableForms = React.useMemo(() => {
+    const formIds = [...new Set(departmentFilteredResponses.map(r => r.formId))];
+    return forms.filter(f => formIds.includes(f.id));
+  }, [departmentFilteredResponses, forms]);
+
+  // Usuários disponíveis baseados na empresa e departamento
+  const availableUsers = React.useMemo(() => {
+    return [...new Set(departmentFilteredResponses.map(r => r.collaboratorUsername).filter(Boolean))];
+  }, [departmentFilteredResponses]);
+
+  // Filtros para respostas de formulários
+  const filteredFormResponses = React.useMemo(() => {
+    let filtered = [...formResponses];
+
+    // Filtro por formulário
+    if (formFilter !== 'all') {
+      filtered = filtered.filter(r => r.formId === formFilter);
+    }
+
+    // Filtro por empresa
+    if (companyFilter !== 'all') {
+      filtered = filtered.filter(r => r.companyId === companyFilter);
+    }
+
+    // Filtro por departamento
+    if (departmentFilter !== 'all') {
+      filtered = filtered.filter(r => r.departmentId === departmentFilter);
+    }
+
+    // Filtro por status
+    if (statusFilter !== 'all') {
+      filtered = filtered.filter(r => r.status === statusFilter);
+    }
+
+    // Filtro por usuário
+    if (userFilter !== 'all') {
+      filtered = filtered.filter(r => r.collaboratorUsername === userFilter);
+    }
+
+    // Filtro por período
+    if (dateRangeFilter !== 'all') {
+      filtered = filtered.filter(r => {
+        const date = r.submittedAt?.toDate ? r.submittedAt.toDate() : (r.createdAt?.toDate ? r.createdAt.toDate() : null);
+        if (!date) return false;
+
+        const now = new Date();
+        switch (dateRangeFilter) {
+          case 'today':
+            return date.getDate() === now.getDate() && 
+                   date.getMonth() === now.getMonth() && 
+                   date.getFullYear() === now.getFullYear();
+          case 'week':
+            const weekAgo = new Date();
+            weekAgo.setDate(weekAgo.getDate() - 7);
+            return date >= weekAgo;
+          case 'month':
+            return date.getMonth() === now.getMonth() && 
+                   date.getFullYear() === now.getFullYear();
+          case 'year':
+            return date.getFullYear() === now.getFullYear();
+          default:
+            return true;
+        }
+      });
+    }
+
+    // Filtro por busca
+    if (searchFormTerm) {
+      const searchLower = searchFormTerm.toLowerCase();
+      filtered = filtered.filter(r => 
+        r.formTitle?.toLowerCase().includes(searchLower) ||
+        r.collaboratorUsername?.toLowerCase().includes(searchLower)
+      );
+    }
+
+    return filtered;
+  }, [formResponses, formFilter, companyFilter, departmentFilter, statusFilter, userFilter, dateRangeFilter, searchFormTerm]);
+
+  const calculateDuration = (instance: WorkflowInstance) => {
+    if (!instance.startedAt) return '-';
+    
+    const start = instance.startedAt.toDate ? instance.startedAt.toDate() : new Date(instance.startedAt as any);
+    const end = instance.completedAt 
+      ? (instance.completedAt.toDate ? instance.completedAt.toDate() : new Date(instance.completedAt as any))
+      : new Date();
+    
+    const diffMs = end.getTime() - start.getTime();
+    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+    const diffMinutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+    
+    if (diffHours > 24) {
+      const days = Math.floor(diffHours / 24);
+      return `${days}d ${diffHours % 24}h`;
+    }
+    return `${diffHours}h ${diffMinutes}m`;
+  };
+
+  return (
+    <div className={styles.container}>
+      <div className={styles.header}>
+        <div className={styles.headerContent}>
+          <h1>Histórico</h1>
+          <p>Visualize e acompanhe formulários e workflows</p>
+        </div>
+      </div>
+
+      <div className={styles.tabs}>
+        <button
+          className={`${styles.tab} ${activeTab === 'forms' ? styles.tabActive : ''}`}
+          onClick={() => setActiveTab('forms')}
+        >
+          <FileText size={20} />
+          Histórico Completo
+        </button>
+        <button
+          className={`${styles.tab} ${activeTab === 'workflows' ? styles.tabActive : ''}`}
+          onClick={() => setActiveTab('workflows')}
+        >
+          <Calendar size={20} />
+          Workflows
+        </button>
+        <button
+          className={`${styles.tab} ${activeTab === 'trash' ? styles.tabActive : ''}`}
+          onClick={() => setActiveTab('trash')}
+        >
+          <Trash2 size={20} />
+          Lixeira
+        </button>
+      </div>
+
+      <div className={styles.content}>
+        {activeTab === 'trash' ? (
+          <>
+            {loading ? (
+              <div className={styles.loading}>
+                <div className={styles.spinner}></div>
+                <p>Carregando lixeira...</p>
+              </div>
+            ) : deletedItems.length === 0 ? (
+              <div className={styles.emptyForms}>
+                <Trash2 size={48} />
+                <h3>Lixeira</h3>
+                <p>Nenhum item excluído</p>
+              </div>
+            ) : (
+              <div className={styles.responsesSection}>
+                <div className={styles.responsesInfo}>
+                  <h3>Itens Excluídos</h3>
+                  <span className={styles.badge}>{deletedItems.length} itens</span>
+                </div>
+                
+                <div className={styles.responsesTable}>
+                  <div className={styles.tableHeader}>
+                    <span>Formulário</span>
+                    <span>Usuário</span>
+                    <span>Empresa</span>
+                    <span>Data de Exclusão</span>
+                    <span>Ações</span>
+                  </div>
+                  
+                  {deletedItems.slice(0, 20).map(item => {
+                    const form = forms.find(f => f.id === item.formId);
+                    const company = companies.find(c => c.id === item.companyId);
+                    const daysRemaining = getDaysRemaining(item.deletedAt);
+                    
+                    return (
+                      <div 
+                        key={item.id} 
+                        className={styles.tableRow}
+                        onClick={() => setSelectedResponse(item)}
+                        style={{ cursor: 'pointer' }}
+                      >
+                        <div className={styles.formInfo}>
+                          <FileText size={16} />
+                          {item.formTitle || form?.title || 'Formulário'}
+                        </div>
+                        <div className={styles.userInfo}>
+                          <User size={16} />
+                          {item.collaboratorUsername || 'Usuário'}
+                        </div>
+                        <div className={styles.companyInfo}>
+                          {company?.name || 'Empresa'}
+                        </div>
+                        <div className={styles.dateInfo}>
+                          <div>{formatDate(item.deletedAt || item.submittedAt || item.createdAt)}</div>
+                          <div className={styles.daysRemaining}>
+                            ⏱️ {daysRemaining} dias
+                          </div>
+                        </div>
+                        <div className={styles.actionsCell}>
+                          <button
+                            className={styles.btnRestore}
+                            title="Restaurar"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              // Função de restaurar será implementada
+                            }}
+                          >
+                            Restaurar
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                  
+                  {deletedItems.length > 20 && (
+                    <div className={styles.moreResults}>
+                      E mais {deletedItems.length - 20} itens...
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+          </>
+        ) : activeTab === 'workflows' ? (
+          <>
+            {/* Filtros para Workflows */}
+            <div className={styles.filters}>
+              <div className={styles.searchBox}>
+                <Search size={20} />
+                <input
+                  type="text"
+                  placeholder="Buscar por workflow ou colaborador..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className={styles.searchInput}
+                />
+              </div>
+
+              <div className={styles.filterGroup}>
+                <select
+                  value={selectedWorkflow}
+                  onChange={(e) => setSelectedWorkflow(e.target.value)}
+                  className={styles.select}
+                >
+                  <option value="all">Todos os Workflows</option>
+                  {workflows.map(workflow => (
+                    <option key={workflow.id} value={workflow.id}>
+                      {workflow.name}
+                    </option>
+                  ))}
+                </select>
+
+                <select
+                  value={selectedStatus}
+                  onChange={(e) => setSelectedStatus(e.target.value)}
+                  className={styles.select}
+                >
+                  <option value="all">Todos os Status</option>
+                  <option value="in_progress">Em Andamento</option>
+                  <option value="completed">Concluído</option>
+                  <option value="cancelled">Cancelado</option>
+                  <option value="rejected">Rejeitado</option>
+                </select>
+              </div>
+            </div>
+
+            {/* Estatísticas de Workflows */}
+            <div className={styles.stats}>
+          <div className={styles.statCard}>
+            <div className={styles.statIcon} style={{ background: '#EFF6FF', color: '#3B82F6' }}>
+              <Clock size={24} />
+            </div>
+            <div className={styles.statInfo}>
+              <span className={styles.statValue}>
+                {instances.filter(i => i.status === 'in_progress').length}
+              </span>
+              <span className={styles.statLabel}>Em Andamento</span>
+            </div>
+          </div>
+
+          <div className={styles.statCard}>
+            <div className={styles.statIcon} style={{ background: '#F0FDF4', color: '#10B981' }}>
+              <CheckCircle size={24} />
+            </div>
+            <div className={styles.statInfo}>
+              <span className={styles.statValue}>
+                {instances.filter(i => i.status === 'completed').length}
+              </span>
+              <span className={styles.statLabel}>Concluídos</span>
+            </div>
+          </div>
+
+          <div className={styles.statCard}>
+            <div className={styles.statIcon} style={{ background: '#FEF3C7', color: '#F59E0B' }}>
+              <User size={24} />
+            </div>
+            <div className={styles.statInfo}>
+              <span className={styles.statValue}>
+                {new Set(instances.map(i => i.assignedTo)).size}
+              </span>
+              <span className={styles.statLabel}>Colaboradores</span>
+            </div>
+          </div>
+
+          <div className={styles.statCard}>
+            <div className={styles.statIcon} style={{ background: '#FEE2E2', color: '#EF4444' }}>
+              <XCircle size={24} />
+            </div>
+            <div className={styles.statInfo}>
+              <span className={styles.statValue}>
+                {instances.filter(i => i.status === 'cancelled' || i.status === 'rejected').length}
+              </span>
+              <span className={styles.statLabel}>Cancelados/Rejeitados</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Tabela */}
+        <div className={styles.tableContainer}>
+          {loading ? (
+            <div className={styles.loading}>
+              <div className={styles.spinner}></div>
+              <p>Carregando respostas...</p>
+              <p style={{ fontSize: '0.875rem', color: '#666', marginTop: '0.5rem' }}>
+                Buscando até 1000 respostas mais recentes
+              </p>
+            </div>
+          ) : filteredInstances.length === 0 ? (
+            <div className={styles.empty}>
+              <Calendar size={48} />
+              <h3>Nenhuma execução encontrada</h3>
+              <p>
+                {instances.length === 0
+                  ? 'Ainda não há workflows executados'
+                  : 'Nenhum resultado corresponde aos filtros aplicados'}
+              </p>
+            </div>
+          ) : (
+            <table className={styles.table}>
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>Workflow</th>
+                  <th>Colaborador</th>
+                  <th>Etapa Atual</th>
+                  <th>Status</th>
+                  <th>Iniciado em</th>
+                  <th>Duração</th>
+                  <th>Ações</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredInstances.map(instance => (
+                  <tr key={instance.id}>
+                    <td className={styles.idCell}>#{instance.id.substring(0, 8)}</td>
+                    <td className={styles.workflowCell}>{instance.workflowName}</td>
+                    <td className={styles.userCell}>
+                      <User size={16} />
+                      {instance.assignedToName}
+                    </td>
+                    <td className={styles.stageCell}>
+                      Etapa {instance.currentStageIndex + 1}
+                    </td>
+                    <td className={styles.statusCell}>
+                      <span className={`${styles.statusBadge} ${styles[instance.status]}`}>
+                        {getStatusIcon(instance.status)}
+                        {getStatusLabel(instance.status)}
+                      </span>
+                    </td>
+                    <td className={styles.dateCell}>{formatDate(instance.startedAt)}</td>
+                    <td className={styles.durationCell}>{calculateDuration(instance)}</td>
+                    <td className={styles.actionsCell}>
+                      <button
+                        onClick={() => setSelectedInstance(instance)}
+                        className={styles.btnView}
+                        title="Ver Detalhes"
+                      >
+                        <Eye size={18} />
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+          </>
+        ) : (
+          <>
+            {/* Aba de Histórico Completo (Formulários) */}
+            {loading ? (
+              <div className={styles.loading}>
+                <div className={styles.spinner}></div>
+                <p>Carregando respostas...</p>
+              </div>
+            ) : formResponses.length === 0 ? (
+              <div className={styles.emptyForms}>
+                <Calendar size={48} />
+                <h3>Histórico de Formulários</h3>
+                <p>Nenhuma resposta de formulário encontrada</p>
+              </div>
+            ) : (
+              <div className={styles.responsesSection}>
+                {/* Filtros */}
+                <div className={styles.filtersSection}>
+                  <div className={styles.filtersHeader}>
+                    <div className={styles.searchContainer}>
+                      <Search size={20} className={styles.searchIcon} />
+                      <input
+                        type="text"
+                        placeholder="Buscar por formulário, usuário ou resposta..."
+                        value={searchFormTerm}
+                        onChange={(e) => setSearchFormTerm(e.target.value)}
+                        className={styles.searchInput}
+                      />
+                    </div>
+                    <button
+                      className={styles.advancedFiltersToggle}
+                      onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
+                    >
+                      <Filter size={20} />
+                      {showAdvancedFilters ? 'Ocultar Filtros' : 'Filtros Avançados'}
+                    </button>
+                  </div>
+
+                  {showAdvancedFilters && (
+                    <div className={styles.advancedFilters}>
+                      <div className={styles.filterRow}>
+                        <div className={styles.filterGroup}>
+                          <label>EMPRESA</label>
+                          <select value={companyFilter} onChange={e => { 
+                            setCompanyFilter(e.target.value); 
+                            setDepartmentFilter('all');
+                            setFormFilter('all');
+                            setUserFilter('all');
+                          }}>
+                            <option value="all">Todas as empresas</option>
+                            {companies.map(c => (
+                              <option key={c.id} value={c.id}>{c.name}</option>
+                            ))}
+                          </select>
+                        </div>
+
+                        <div className={styles.filterGroup}>
+                          <label>DEPARTAMENTO</label>
+                          <select 
+                            value={departmentFilter} 
+                            onChange={e => { 
+                              setDepartmentFilter(e.target.value);
+                              setFormFilter('all');
+                              setUserFilter('all');
+                            }}
+                            disabled={availableDepartments.length === 0}
+                          >
+                            <option value="all">Todos os departamentos</option>
+                            {availableDepartments.map(d => (
+                              <option key={d.id} value={d.id}>{d.name}</option>
+                            ))}
+                          </select>
+                        </div>
+
+                        <div className={styles.filterGroup}>
+                          <label>FORMULÁRIO</label>
+                          <select value={formFilter} onChange={e => setFormFilter(e.target.value)}>
+                            <option value="all">Todos os formulários</option>
+                            {availableForms.map(f => (
+                              <option key={f.id} value={f.id}>{f.title}</option>
+                            ))}
+                          </select>
+                        </div>
+                      </div>
+
+                      <div className={styles.filterRow}>
+                        <div className={styles.filterGroup}>
+                          <label>USUÁRIO</label>
+                          <select value={userFilter} onChange={e => setUserFilter(e.target.value)}>
+                            <option value="all">Todos os usuários</option>
+                            {availableUsers.map(username => (
+                              <option key={username} value={username}>{username}</option>
+                            ))}
+                          </select>
+                        </div>
+
+                        <div className={styles.filterGroup}>
+                          <label>STATUS</label>
+                          <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)}>
+                            <option value="all">Todos os status</option>
+                            <option value="pending">Pendente</option>
+                            <option value="submitted">Enviado</option>
+                            <option value="approved">Aprovado</option>
+                            <option value="rejected">Rejeitado</option>
+                          </select>
+                        </div>
+
+                        <div className={styles.filterGroup}>
+                          <label>PERÍODO</label>
+                          <select value={dateRangeFilter} onChange={e => setDateRangeFilter(e.target.value)}>
+                            <option value="all">Todo o período</option>
+                            <option value="today">Hoje</option>
+                            <option value="week">Últimos 7 dias</option>
+                            <option value="month">Este mês</option>
+                            <option value="year">Este ano</option>
+                          </select>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                <div className={styles.responsesInfo}>
+                  <h3>Respostas de Formulários</h3>
+                  <span className={styles.badge}>{filteredFormResponses.length} respostas</span>
+                </div>
+                
+                <div className={styles.responsesTable}>
+                  <div className={styles.tableHeader}>
+                    <span>Formulário</span>
+                    <span>Usuário</span>
+                    <span>Empresa</span>
+                    <span>Data</span>
+                    <span>Status</span>
+                  </div>
+                  
+                  {filteredFormResponses.slice(0, 20).map(response => {
+                    const form = forms.find(f => f.id === response.formId);
+                    const company = companies.find(c => c.id === response.companyId);
+                    const department = departments.find(d => d.id === response.departmentId);
+                    
+                    return (
+                      <div 
+                        key={response.id} 
+                        className={styles.tableRow}
+                        onClick={() => setSelectedResponse(response)}
+                      >
+                        <div className={styles.formInfo}>
+                          <FileText size={16} />
+                          {response.formTitle || form?.title || 'Formulário'}
+                        </div>
+                        <div className={styles.userInfo}>
+                          <User size={16} />
+                          {response.collaboratorUsername || 'Usuário'}
+                        </div>
+                        <div className={styles.companyInfo}>
+                          {company?.name || 'Empresa'}
+                        </div>
+                        <div className={styles.dateInfo}>
+                          {formatDate(response.submittedAt || response.createdAt)}
+                        </div>
+                        <div className={styles.statusInfo}>
+                          {response.status === 'approved' && <CheckCircle size={16} className={styles.approved} />}
+                          {response.status === 'rejected' && <XCircle size={16} className={styles.rejected} />}
+                          {response.status === 'submitted' && <Clock size={16} className={styles.submitted} />}
+                          {response.status === 'pending' && <Clock size={16} className={styles.pending} />}
+                          <span>{response.status || 'Enviado'}</span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                  
+                  {filteredFormResponses.length > 20 && (
+                    <div className={styles.moreResults}>
+                      E mais {filteredFormResponses.length - 20} respostas...
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+          </>
+        )}
+      </div>
+
+      {/* Modal de Detalhes de Workflow */}
+      {selectedInstance && (
+        <WorkflowInstanceDetailModal
+          instance={selectedInstance}
+          onClose={() => setSelectedInstance(null)}
+        />
+      )}
+
+      {/* Modal de Detalhes de Resposta */}
+      <ResponseDetailsModal
+        open={!!selectedResponse}
+        onClose={() => {
+          setSelectedResponse(null);
+          setSelectedResponseForm(null);
+        }}
+        response={selectedResponse}
+        form={selectedResponseForm}
+        company={selectedResponse ? companies.find(c => c.id === selectedResponse.companyId) || null : null}
+        department={selectedResponse ? departments.find(d => d.id === selectedResponse.departmentId) || null : null}
+      />
+
+    </div>
+  );
+}

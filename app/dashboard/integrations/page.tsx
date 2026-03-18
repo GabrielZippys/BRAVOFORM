@@ -115,6 +115,7 @@ export default function IntegrationsPage() {
     const [showTwilioModal, setShowTwilioModal] = useState(false);
     const [loading, setLoading] = useState(true);
     const [statusLog, setStatusLog] = useState<LogEntry[]>([]);
+    const [activeTab, setActiveTab] = useState<'integrations' | 'tutorial'>('integrations');
     
     const [dbHost, setDbHost] = useState('');
     const [dbName, setDbName] = useState('');
@@ -297,6 +298,26 @@ export default function IntegrationsPage() {
             <div className={styles.pageHeader}>
                 <h2 className={styles.title}>Integrações</h2>
             </div>
+
+            {/* Abas de Navegação */}
+            <div className={styles.tabs}>
+                <button 
+                    className={`${styles.tab} ${activeTab === 'integrations' ? styles.tabActive : ''}`}
+                    onClick={() => setActiveTab('integrations')}
+                >
+                    Integrações
+                </button>
+                <button 
+                    className={`${styles.tab} ${activeTab === 'tutorial' ? styles.tabActive : ''}`}
+                    onClick={() => setActiveTab('tutorial')}
+                >
+                    Tutorial Twilio
+                </button>
+            </div>
+
+            {/* Conteúdo das Abas */}
+            {activeTab === 'integrations' ? (
+            <>
             <div className={styles.grid}>
                 <IntegrationCard 
                     icon={<Database size={40} />}
@@ -396,6 +417,66 @@ export default function IntegrationsPage() {
             )}
 
             <EventLog logs={statusLog} />
+            </>
+            ) : (
+            /* Tutorial Twilio */
+            <div className={styles.tutorialContainer}>
+                <div className={styles.tutorialCard}>
+                    <h3 className={styles.tutorialTitle}>Como Configurar o Twilio</h3>
+                    
+                    <div className={styles.tutorialStep}>
+                        <div className={styles.stepNumber}>1</div>
+                        <div className={styles.stepContent}>
+                            <h4>Crie uma conta no Twilio</h4>
+                            <p>Acesse <a href="https://www.twilio.com/try-twilio" target="_blank" rel="noopener noreferrer">twilio.com/try-twilio</a> e crie sua conta gratuita.</p>
+                        </div>
+                    </div>
+
+                    <div className={styles.tutorialStep}>
+                        <div className={styles.stepNumber}>2</div>
+                        <div className={styles.stepContent}>
+                            <h4>Obtenha suas credenciais</h4>
+                            <p>No painel do Twilio, encontre:</p>
+                            <ul>
+                                <li><strong>Account SID:</strong> Identificador único da sua conta</li>
+                                <li><strong>Auth Token:</strong> Token de autenticação (mantenha em segredo)</li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <div className={styles.tutorialStep}>
+                        <div className={styles.stepNumber}>3</div>
+                        <div className={styles.stepContent}>
+                            <h4>Configure o WhatsApp Sandbox</h4>
+                            <p>No menu lateral, vá em: <strong>Messaging → Try it out → Send a WhatsApp message</strong></p>
+                            <p>Siga as instruções para conectar seu número de teste.</p>
+                        </div>
+                    </div>
+
+                    <div className={styles.tutorialStep}>
+                        <div className={styles.stepNumber}>4</div>
+                        <div className={styles.stepContent}>
+                            <h4>Obtenha o número WhatsApp</h4>
+                            <p>Copie o número no formato: <code>whatsapp:+14155238886</code></p>
+                            <p>Este será seu <strong>WhatsApp From</strong></p>
+                        </div>
+                    </div>
+
+                    <div className={styles.tutorialStep}>
+                        <div className={styles.stepNumber}>5</div>
+                        <div className={styles.stepContent}>
+                            <h4>Configure no BRAVOFORM</h4>
+                            <p>Volte para a aba <strong>Integrações</strong> e clique em <strong>Conectar</strong> no card do Twilio.</p>
+                            <p>Preencha os campos com as credenciais obtidas.</p>
+                        </div>
+                    </div>
+
+                    <div className={styles.tutorialNote}>
+                        <strong>💡 Dica:</strong> Para usar em produção, você precisará de um número Twilio verificado e aprovação do WhatsApp Business API.
+                    </div>
+                </div>
+            </div>
+            )}
         </div>
     );
 }

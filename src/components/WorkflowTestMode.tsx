@@ -221,13 +221,25 @@ export default function WorkflowTestMode({
     
     const fields = getStageFields();
     const isLastField = currentFieldIndex === fields.length - 1;
+    const currentStage = getCurrentUserStage();
+    const isFinalStage = currentStage?.isFinalStage;
     
-    console.log('Current field index:', currentFieldIndex, 'Fields length:', fields.length, 'Is last field:', isLastField);
+    console.log('Current field index:', currentFieldIndex, 'Fields length:', fields.length, 'Is last field:', isLastField, 'Is final stage:', isFinalStage);
     
     if (isLastField) {
-      console.log('All fields completed, showing validation modal');
-      // Todos os campos completos, mostrar modal de validação
-      setShowValidationModal(true);
+      if (isFinalStage) {
+        // Etapa final: mostrar mensagem de conclusão e fechar
+        console.log('Final stage completed, showing completion message');
+        setCompletedFields([...completedFields, currentField.id]);
+        // Aguardar um momento para mostrar a mensagem antes de fechar
+        setTimeout(() => {
+          setShowStageModal(false);
+        }, 2000);
+      } else {
+        // Etapa intermediária: mostrar modal de validação
+        console.log('All fields completed, showing validation modal');
+        setShowValidationModal(true);
+      }
     } else {
       console.log('Moving to next field');
       setCompletedFields([...completedFields, currentField.id]);
@@ -294,6 +306,15 @@ export default function WorkflowTestMode({
     if (!currentUser) {
       console.log('No current user available, returning');
       return; // Verificação de segurança
+    }
+    
+    const currentStage = getCurrentUserStage();
+    
+    // Se for etapa final, apenas fechar o modal
+    if (currentStage?.isFinalStage) {
+      console.log('Final stage completed, workflow finished');
+      setShowStageModal(false);
+      return;
     }
     
     console.log('Current stage index:', currentStageIndex);
@@ -497,6 +518,22 @@ export default function WorkflowTestMode({
               {(() => {
                 const fields = getStageFields();
                 const currentField = getCurrentField();
+                const currentStage = getCurrentUserStage();
+                const allFieldsCompleted = currentFieldIndex === fields.length - 1 && completedFields.includes(currentField?.id || '');
+                
+                // Mostrar mensagem de conclusão para etapas finais
+                if (currentStage?.isFinalStage && allFieldsCompleted) {
+                  return (
+                    <div className={styles.completionMessage}>
+                      <div className={styles.completionIcon}>
+                        <CheckCircle size={64} color="#10B981" />
+                      </div>
+                      <h3>Processo Concluído!</h3>
+                      <p>Obrigado pela sua participação. O workflow foi finalizado com sucesso.</p>
+                      <p className={styles.completionNote}>Esta janela será fechada automaticamente...</p>
+                    </div>
+                  );
+                }
                 
                 // Se não há campos (etapa validation, por exemplo), mostrar apenas botão de concluir
                 if (fields.length === 0) {

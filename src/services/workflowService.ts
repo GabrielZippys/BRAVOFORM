@@ -7,14 +7,22 @@ import {
   query, 
   where, 
   getDocs,
-  serverTimestamp 
+  serverTimestamp,
+  addDoc,
+  setDoc,
+  deleteDoc,
+  Timestamp
 } from 'firebase/firestore';
 import type { 
   Form, 
   FormResponse, 
   WorkflowStage, 
   WorkflowHistoryEntry,
-  Collaborator 
+  Collaborator,
+  WorkflowDocument,
+  ActivationSettings,
+  WorkflowInstance,
+  StageHistoryEntry
 } from '../types';
 
 /**
@@ -285,5 +293,131 @@ export class WorkflowService {
 
     // Verificar se o usuário está na lista de permitidos
     return stage.allowedUsers.includes(userId);
+  }
+
+  // --- FUNÇÕES DE PERSISTÊNCIA DE WORKFLOWS ---
+
+  /**
+   * Salva um novo workflow no Firestore
+   * @param workflow - Dados do workflow a ser salvo
+   * @param userId - ID do usuário que está criando
+   * @param userName - Nome do usuário para cache
+   */
+  static async saveWorkflow(
+    workflow: Omit<WorkflowDocument, 'id' | 'createdAt' | 'updatedAt' | 'createdBy' | 'createdByName'>,
+    userId: string,
+    userName: string
+  ): Promise<string> {
+    const workflowData: Omit<WorkflowDocument, 'id'> = {
+      ...workflow,
+      createdAt: serverTimestamp() as Timestamp,
+      updatedAt: serverTimestamp() as Timestamp,
+      createdBy: userId,
+      createdByName: userName
+    };
+
+    const docRef = await addDoc(collection(db, 'workflows'), workflowData);
+    return docRef.id;
+  }
+
+  /**
+   * Atualiza um workflow existente no Firestore
+   * @param workflowId - ID do workflow a ser atualizado
+   * @param updates - Dados a serem atualizados
+   */
+  static async updateWorkflow(
+    workflowId: string,
+    updates: Partial<Omit<WorkflowDocument, 'id' | 'createdAt' | 'createdBy' | 'createdByName'>>
+  ): Promise<void> {
+    const workflowRef = doc(db, 'workflows', workflowId);
+    await updateDoc(workflowRef, {
+      ...updates,
+      updatedAt: serverTimestamp()
+    });
+  }
+
+  /**
+   * Carrega um workflow do Firestore
+   * @param workflowId - ID do workflow a ser carregado
+   */
+  static async loadWorkflow(workflowId: string): Promise<WorkflowDocument | null> {
+    const workflowRef = doc(db, 'workflows', workflowId);
+    const workflowDoc = await getDoc(workflowRef);
+    
+    if (!workflowDoc.exists()) {
+      return null;
+    }
+
+    return {
+      id: workflowDoc.id,
+      ...workflowDoc.data()
+    } as WorkflowDocument;
+  }
+
+  /**
+   * Lista todos os workflows
+   * @param filters - Filtros opcionais
+   */
+  static async listWorkflows(filters?: {
+    isActive?: boolean;
+    companyId?: string;
+    departmentId?: string;
+  }): Promise<WorkflowDocument[]> {
+    let q = collection(db, 'workflows');
+    const constraints = [];
+
+    if (filters?.isActive !== undefined) {
+      constraints.push(where('isActive', '==', filters.isActive));
+    }
+
+    if (filters?.companyId) {
+      constraints.push(where('companies', 'array-contains', filters.companyId));
+    }
+
+    if (filters?.departmentId) {
+      constraints.push(where('departments', 'array-contains', filters.departmentId));
+    }
+
+    const workflowsQuery = constraints.length > 0 
+      ? query(q as any, ...constraints)
+      : q;
+
+    const workflowsSnapshot = await getDocs(workflowsQuery);
+    return workflowsSnapshot.docs.map(doc => 
+      Object.assign({ id: doc.id }, doc.data()) as WorkflowDocument
+    );
+  }
+
+  /**
+   * Deleta um workflow do Firestore
+   * @param workflowId - ID do workflow a ser deletado
+   */
+  static async deleteWorkflow(workflowId: string): Promise<void> {
+    const workflowRef = doc(db, 'workflows', workflowId);
+    await deleteDoc(workflowRef);
+  }
+
+  /**
+   * Ativa ou desativa um workflow
+   * @param workflowId - ID do workflow
+   * @param isActive - Novo status
+   */
+  static async toggleWorkflowActive(
+    workflowId: string,
+    isActive: boolean
+  ): Promise<void> {
+    await this.updateWorkflow(workflowId, { isActive });
+  }
+
+  /**
+   * Atualiza as configurações de ativação de um workflow
+   * @param workflowId - ID do workflow
+   * @param activationSettings - Novas configurações
+   */
+  static async updateActivationSettings(
+    workflowId: string,
+    activationSettings: ActivationSettings
+  ): Promise<void> {
+    await this.updateWorkflow(workflowId, { activationSettings });
   }
 }

@@ -233,16 +233,8 @@ export default function ResponseDetailsModal({
               <div className={styles.infoItem}>
                 <Calendar size={16} className={styles.infoIcon} />
                 <div>
-                  <label>Data de Criação</label>
-                  <span>{toDateCompat(response.createdAt)}</span>
-                </div>
-              </div>
-              
-              <div className={styles.infoItem}>
-                <Calendar size={16} className={styles.infoIcon} />
-                <div>
                   <label>Data de Envio</label>
-                  <span>{toDateCompat(response.submittedAt)}</span>
+                  <span>{toDateCompat(response.submittedAt || response.createdAt)}</span>
                 </div>
               </div>
             </div>
@@ -251,83 +243,181 @@ export default function ResponseDetailsModal({
           {/* Respostas do Formulário */}
           <div className={styles.answersSection}>
             <h3 className={styles.sectionTitle}>Respostas do Formulário</h3>
-            <div className={styles.answersList}>
-              {form?.fields ? form.fields.map((field: any) => {
-                const answer = response.answers?.[field.id];
-                return (
-                  <div key={field.id} className={styles.answerItem}>
-                    <div className={styles.questionHeader}>
-                      <label className={styles.questionLabel}>{field.label}</label>
-                      {field.required && <span className={styles.requiredBadge}>Obrigatório</span>}
-                    </div>
-                    <div className={styles.questionAnswer}>
-                      {renderAnswer(field, answer)}
-                    </div>
-                  </div>
-                );
-              }) : (
-                <div className={styles.noFieldsMessage}>
-                  {(() => {
-                    // If we have fieldMetadata, use answers object (with IDs) + metadata (with labels)
-                    // Otherwise, use direct fields (saved by label)
-                    const hasMetadata = !!(response as any).fieldMetadata;
-                    
-                    let fieldsToShow: [string, any][];
-                    
-                    if (hasMetadata) {
-                      // Use answers object when we have metadata
-                      fieldsToShow = Object.entries(response.answers || {});
-                    } else {
-                      // Use direct fields (by label) when no metadata
-                      fieldsToShow = Object.entries(response as any)
-                        .filter(([key]) => 
-                          !['id', 'formId', 'formTitle', 'collaboratorId', 'collaboratorUsername', 
-                            'companyId', 'departmentId', 'department', 'status', 'createdAt', 
-                            'submittedAt', 'updatedAt', 'answers', 'fieldMetadata'].includes(key)
-                        )
-                        .filter(([_, value]) => value !== '' && value !== null && value !== undefined);
-                    }
-                    
-                    if (fieldsToShow.length === 0) {
-                      return <p style={{ textAlign: 'center', color: '#999', padding: '2rem' }}>Nenhuma resposta encontrada.</p>;
-                    }
-                    
-                    return fieldsToShow.map(([key, value]) => {
-                      // Handle different value types
-                      let content;
+            {form?.fields ? (
+              <div className={styles.respostaGridWrapper}>
+                <table className={styles.respostaGrid}>
+                  <thead>
+                    <tr>
+                      <th>Pergunta</th>
+                      <th>Resposta</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {form.fields.map((field: any) => {
+                      const answer = response.answers?.[field.id];
                       
-                      // Try to get metadata for this field
-                      const metadata = (response as any).fieldMetadata?.[key];
+                      // Grade de Pedidos
+                      if (field.type === 'Grade de Pedidos' && Array.isArray(answer)) {
+                        return (
+                          <tr key={field.id}>
+                            <td colSpan={2} className={styles.tabelaField}>
+                              <div className={styles.fieldLabel}>{field.label}</div>
+                              {answer.length === 0 ? (
+                                <span className={styles.emptyValue}>Nenhum item adicionado</span>
+                              ) : (
+                                <div className={styles.tableWrapper}>
+                                  <table className={styles.innerTable}>
+                                    <thead>
+                                      <tr>
+                                        <th>Produto</th>
+                                        <th>Código</th>
+                                        <th style={{ textAlign: 'right' }}>Quantidade</th>
+                                        <th>Unidade</th>
+                                      </tr>
+                                    </thead>
+                                    <tbody>
+                                      {answer.map((item: any, idx: number) => (
+                                        <tr key={item.id || idx}>
+                                          <td>{item.nome || '-'}</td>
+                                          <td>{item.codigo || '-'}</td>
+                                          <td style={{ textAlign: 'right' }}>{item.quantidade || 0}</td>
+                                          <td>{item.unidade || 'UN'}</td>
+                                        </tr>
+                                      ))}
+                                    </tbody>
+                                  </table>
+                                </div>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      }
                       
-                      // Check if this is a table field
-                      const isTable = typeof value === 'object' && value !== null && !Array.isArray(value);
-                      const hasTableMetadata = metadata?.type === 'Tabela' && Array.isArray(metadata?.rows) && Array.isArray(metadata?.columns);
+                      // Tabela
+                      if (field.type === 'Tabela' && typeof answer === 'object' && answer !== null) {
+                        return (
+                          <tr key={field.id}>
+                            <td colSpan={2} className={styles.tabelaField}>
+                              <div className={styles.fieldLabel}>{field.label}</div>
+                              <div className={styles.tableWrapper}>
+                                <table className={styles.innerTable}>
+                                  <thead>
+                                    <tr>
+                                      <th>Linha</th>
+                                      {field.columns?.map((col: any) => (
+                                        <th key={col.id}>{col.label}</th>
+                                      ))}
+                                    </tr>
+                                  </thead>
+                                  <tbody>
+                                    {field.rows?.map((row: any) => (
+                                      <tr key={row.id}>
+                                        <td>{row.label}</td>
+                                        {field.columns?.map((col: any) => (
+                                          <td key={col.id}>{answer?.[row.id]?.[col.id] ?? '-'}</td>
+                                        ))}
+                                      </tr>
+                                    ))}
+                                  </tbody>
+                                </table>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      }
                       
-                      console.log('Field:', key, 'IsTable:', isTable, 'HasMetadata:', hasTableMetadata, 'Metadata:', metadata);
+                      // Imagem/Assinatura (base64)
+                      if (typeof answer === 'string' && answer.startsWith('data:image')) {
+                        return (
+                          <tr key={field.id}>
+                            <td className={styles.fieldLabel}>{field.label}</td>
+                            <td>
+                              <img
+                                src={answer}
+                                alt="imagem/assinatura"
+                                style={{
+                                  maxWidth: 160,
+                                  maxHeight: 60,
+                                  borderRadius: 7,
+                                  border: '1.2px solid #ececec',
+                                  boxShadow: '0 1px 6px #cfc6b9a1',
+                                  background: '#faf9f6'
+                                }}
+                              />
+                            </td>
+                          </tr>
+                        );
+                      }
                       
-                      if (typeof value === 'object' && value !== null) {
-                        if (Array.isArray(value)) {
-                          // Check if it's a Grade de Pedidos (array of order items)
-                          const isOrderGrid = metadata?.type === 'Grade de Pedidos' || 
-                                             (value.length > 0 && value[0]?.nome && value[0]?.quantidade);
-                          
-                          if (isOrderGrid) {
-                            // Render as order grid table
-                            content = value.length === 0 ? (
-                              <span className={styles.emptyValue}>Nenhum item adicionado</span>
+                      // Array de imagens
+                      if (Array.isArray(answer) && answer.length > 0 && answer[0]?.type?.startsWith('image')) {
+                        return (
+                          <tr key={field.id}>
+                            <td className={styles.fieldLabel}>{field.label}</td>
+                            <td>
+                              {answer.map((img: any, idx: number) => (
+                                <img
+                                  key={idx}
+                                  src={img.url || img.data}
+                                  alt={`imagem-${idx}`}
+                                  style={{
+                                    maxWidth: 120,
+                                    maxHeight: 80,
+                                    marginRight: 8,
+                                    borderRadius: 6,
+                                    border: '1px solid #ddd'
+                                  }}
+                                />
+                              ))}
+                            </td>
+                          </tr>
+                        );
+                      }
+                      
+                      // Resposta padrão
+                      return (
+                        <tr key={field.id}>
+                          <td className={styles.fieldLabel}>{field.label}</td>
+                          <td className={styles.fieldValue}>
+                            {answer === undefined || answer === null || answer === '' ? (
+                              <span className={styles.emptyValue}>-</span>
+                            ) : Array.isArray(answer) ? (
+                              answer.join(', ')
+                            ) : typeof answer === 'object' ? (
+                              JSON.stringify(answer)
                             ) : (
-                              <div className={styles.tableContainer}>
-                                <table className={styles.table}>
+                              String(answer)
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            ) : response.answers && Object.keys(response.answers).length > 0 ? (
+              <div className={styles.respostaGridWrapper}>
+                <table className={styles.respostaGrid}>
+                  <tbody>
+                    {Object.entries(response.answers).map(([key, answer]: [string, any]) => {
+                      // Grade de Pedidos (detectar pelo formato do array)
+                      if (Array.isArray(answer) && answer.length > 0 && answer[0]?.nome !== undefined) {
+                        return (
+                          <tr key={key}>
+                            <td colSpan={2} className={styles.tabelaField}>
+                              <div className={styles.fieldLabel}>Grade de Pedidos</div>
+                              <div className={styles.tableWrapper}>
+                                <table className={styles.innerTable}>
                                   <thead>
                                     <tr>
                                       <th>Produto</th>
                                       <th>Código</th>
-                                      <th>Quantidade</th>
+                                      <th style={{ textAlign: 'right' }}>Quantidade</th>
                                       <th>Unidade</th>
                                     </tr>
                                   </thead>
                                   <tbody>
-                                    {value.map((item: any, idx: number) => (
+                                    {answer.map((item: any, idx: number) => (
                                       <tr key={item.id || idx}>
                                         <td>{item.nome || '-'}</td>
                                         <td>{item.codigo || '-'}</td>
@@ -336,103 +426,82 @@ export default function ResponseDetailsModal({
                                       </tr>
                                     ))}
                                   </tbody>
-                                  <tfoot>
-                                    <tr style={{ fontWeight: 700, background: '#f3f4f6' }}>
-                                      <td colSpan={2} style={{ textAlign: 'left' }}>Total de Produtos: {value.length}</td>
-                                      <td style={{ textAlign: 'right' }}>Total: {value.reduce((sum: number, item: any) => sum + (parseFloat(item.quantidade) || 0), 0)}</td>
-                                      <td></td>
-                                    </tr>
-                                  </tfoot>
                                 </table>
                               </div>
-                            );
-                          } else {
-                            // Array - show as comma-separated list
-                            content = <span className={styles.answerText}>{value.join(', ')}</span>;
-                          }
-                        } else if (hasTableMetadata) {
-                          // Table with metadata - render as proper HTML table
-                          console.log('✅ Rendering table with metadata for:', key, metadata);
-                          content = (
-                            <div className={styles.tableContainer}>
-                              <table className={styles.table}>
-                                <thead>
-                                  <tr>
-                                    <th>Linha</th>
-                                    {metadata.columns.map((col: any) => (
-                                      <th key={col.id}>{col.label}</th>
-                                    ))}
-                                  </tr>
-                                </thead>
-                                <tbody>
-                                  {metadata.rows.map((row: any) => (
-                                    <tr key={row.id}>
-                                      <td>{row.label}</td>
-                                      {metadata.columns.map((col: any) => (
-                                        <td key={col.id}>{value?.[row.id]?.[col.id] ?? '-'}</td>
-                                      ))}
-                                    </tr>
-                                  ))}
-                                </tbody>
-                              </table>
-                            </div>
-                          );
-                        } else {
-                          // Object without metadata - show as cards
-                          content = (
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                              {Object.entries(value).map(([rowKey, rowValue]: [string, any]) => {
-                                if (typeof rowValue === 'object' && rowValue !== null) {
-                                  return (
-                                    <div key={rowKey} style={{ 
-                                      padding: '0.75rem', 
-                                      background: '#f8f9fa', 
-                                      borderRadius: '6px',
-                                      border: '1px solid #e0e0e0'
-                                    }}>
-                                      <strong style={{ display: 'block', marginBottom: '0.5rem', color: '#333' }}>
-                                        {rowKey}
-                                      </strong>
-                                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', fontSize: '0.9rem' }}>
-                                        {Object.entries(rowValue).map(([colKey, colValue]) => (
-                                          <div key={colKey} style={{ display: 'flex', gap: '0.5rem' }}>
-                                            <span style={{ color: '#666', minWidth: '150px' }}>{colKey}:</span>
-                                            <span style={{ color: '#333', fontWeight: 500 }}>{String(colValue)}</span>
-                                          </div>
-                                        ))}
-                                      </div>
-                                    </div>
-                                  );
-                                }
-                                return (
-                                  <div key={rowKey} style={{ padding: '0.5rem', background: '#f8f9fa', borderRadius: '4px' }}>
-                                    <strong>{rowKey}:</strong> {String(rowValue)}
-                                  </div>
-                                );
-                              })}
-                            </div>
-                          );
-                        }
-                      } else {
-                        // Simple value
-                        content = <span className={styles.answerText}>{String(value)}</span>;
+                            </td>
+                          </tr>
+                        );
                       }
                       
+                      // Imagem/Assinatura (base64)
+                      if (typeof answer === 'string' && answer.startsWith('data:image')) {
+                        return (
+                          <tr key={key}>
+                            <td className={styles.fieldLabel}>{key}</td>
+                            <td>
+                              <img
+                                src={answer}
+                                alt="imagem/assinatura"
+                                style={{
+                                  maxWidth: 160,
+                                  maxHeight: 60,
+                                  borderRadius: 7,
+                                  border: '1.2px solid #ececec'
+                                }}
+                              />
+                            </td>
+                          </tr>
+                        );
+                      }
+                      
+                      // Array simples
+                      if (Array.isArray(answer)) {
+                        return (
+                          <tr key={key}>
+                            <td className={styles.fieldLabel}>{key}</td>
+                            <td className={styles.fieldValue}>{answer.join(', ')}</td>
+                          </tr>
+                        );
+                      }
+                      
+                      // Objeto
+                      if (typeof answer === 'object' && answer !== null) {
+                        return (
+                          <tr key={key}>
+                            <td className={styles.fieldLabel}>{key}</td>
+                            <td className={styles.fieldValue}>
+                              <pre style={{ margin: 0, whiteSpace: 'pre-wrap', fontSize: '0.875rem' }}>
+                                {JSON.stringify(answer, null, 2)}
+                              </pre>
+                            </td>
+                          </tr>
+                        );
+                      }
+                      
+                      // Valor simples
                       return (
-                        <div key={key} className={styles.answerItem}>
-                          <div className={styles.questionHeader}>
-                            <label className={styles.questionLabel}>{metadata?.label || key}</label>
-                          </div>
-                          <div className={styles.questionAnswer}>
-                            {content}
-                          </div>
-                        </div>
+                        <tr key={key}>
+                          <td className={styles.fieldLabel}>{key}</td>
+                          <td className={styles.fieldValue}>
+                            {answer === undefined || answer === null || answer === '' ? (
+                              <span className={styles.emptyValue}>-</span>
+                            ) : (
+                              String(answer)
+                            )}
+                          </td>
+                        </tr>
                       );
-                    });
-                  })()}
-                </div>
-              )}
-            </div>
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <div className={styles.noFieldsMessage}>
+                <p style={{ textAlign: 'center', color: '#999', padding: '2rem' }}>
+                  Nenhuma resposta disponível.
+                </p>
+              </div>
+            )}
           </div>
         </div>
       </div>

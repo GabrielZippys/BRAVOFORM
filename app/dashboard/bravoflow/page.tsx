@@ -238,6 +238,45 @@ export default function BravoFlowPage() {
                 <p className={styles.cardDescription}>{workflow.description}</p>
               )}
 
+              {/* Resumo de Ativação */}
+              {(workflow as any).activationSettings && (
+                <div style={{ 
+                  marginTop: '0.75rem', 
+                  padding: '0.75rem', 
+                  background: '#F9FAFB', 
+                  borderRadius: '0.5rem',
+                  fontSize: '0.875rem',
+                  color: '#6B7280'
+                }}>
+                  {(workflow as any).activationSettings.mode === 'automatic' && (
+                    <>
+                      <div style={{ fontWeight: 500, color: '#3B82F6', marginBottom: '0.25rem' }}>
+                        🕐 Automático
+                      </div>
+                      <div>
+                        {(workflow as any).activationSettings.automaticSchedule?.time || '09:00'} • {
+                          ((workflow as any).activationSettings.automaticSchedule?.daysOfWeek || []).length === 7 
+                            ? 'Todos os dias'
+                            : ((workflow as any).activationSettings.automaticSchedule?.daysOfWeek || []).length === 5
+                            ? 'Dias úteis'
+                            : `${((workflow as any).activationSettings.automaticSchedule?.daysOfWeek || []).length} dias/semana`
+                        }
+                      </div>
+                    </>
+                  )}
+                  {(workflow as any).activationSettings.mode === 'manual' && (
+                    <div style={{ fontWeight: 500, color: '#6B7280' }}>
+                      👤 Criação Manual
+                    </div>
+                  )}
+                  {(workflow as any).activationSettings.mode === 'on_request' && (
+                    <div style={{ fontWeight: 500, color: '#F59E0B' }}>
+                      📋 Por Requisição
+                    </div>
+                  )}
+                </div>
+              )}
+
               <div className={styles.cardFooter}>
                 <span className={styles.stageCount}>
                   {workflow.stages.length} etapa{workflow.stages.length !== 1 ? 's' : ''}

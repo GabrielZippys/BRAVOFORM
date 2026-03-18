@@ -12,6 +12,8 @@ interface WorkflowBuilderProps {
   workflowDepartments?: string[];
   workflowName?: string;
   workflowDescription?: string;
+  workflowId?: string;
+  initialIsActive?: boolean;
 }
 
 export default function WorkflowBuilder({ 
@@ -21,7 +23,9 @@ export default function WorkflowBuilder({
   workflowCompanies = [],
   workflowDepartments = [],
   workflowName = 'Workflow de Teste',
-  workflowDescription = 'Descrição do workflow'
+  workflowDescription = 'Descrição do workflow',
+  workflowId,
+  initialIsActive = true
 }: WorkflowBuilderProps) {
   return (
     <WorkflowCanvas 
@@ -31,6 +35,8 @@ export default function WorkflowBuilder({
       workflowDepartments={workflowDepartments}
       workflowName={workflowName}
       workflowDescription={workflowDescription}
+      workflowId={workflowId}
+      initialIsActive={initialIsActive}
     />
   );
 }

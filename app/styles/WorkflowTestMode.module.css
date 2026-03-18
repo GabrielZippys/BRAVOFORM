@@ -1036,3 +1036,56 @@
   font-weight: bold;
   color: #DC2626;
 }
+
+/* Mensagem de Conclusão */
+.completionMessage {
+  text-align: center;
+  padding: 3rem 2rem;
+  animation: fadeIn 0.5s ease-in;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.completionIcon {
+  margin-bottom: 1.5rem;
+  animation: scaleIn 0.6s ease-out;
+}
+
+@keyframes scaleIn {
+  from {
+    transform: scale(0);
+  }
+  to {
+    transform: scale(1);
+  }
+}
+
+.completionMessage h3 {
+  margin: 0 0 1rem 0;
+  color: #10B981;
+  font-size: 1.75rem;
+  font-weight: 700;
+}
+
+.completionMessage p {
+  margin: 0 0 0.75rem 0;
+  color: #374151;
+  font-size: 1.1rem;
+  line-height: 1.6;
+}
+
+.completionNote {
+  color: #6B7280 !important;
+  font-size: 0.9rem !important;
+  font-style: italic;
+  margin-top: 1.5rem !important;
+}
