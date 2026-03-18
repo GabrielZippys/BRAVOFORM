@@ -443,8 +443,20 @@ function OrderGridPreview({ catalogId, theme, required }: { catalogId?: string; 
           type="text"
           value={searchTerm}
           onChange={(e) => {
-            setSearchTerm(e.target.value);
-            setSelectedProductId('');
+            const value = e.target.value;
+            setSearchTerm(value);
+            
+            // Tentar encontrar produto correspondente
+            const matchedProduct = products.find(p => {
+              const productDisplay = p.codigo ? `${p.codigo} - ${p.nome}` : p.nome;
+              return productDisplay === value;
+            });
+            
+            if (matchedProduct) {
+              setSelectedProductId(matchedProduct.id);
+            } else {
+              setSelectedProductId('');
+            }
           }}
           placeholder={loading ? 'Carregando produtos...' : 'Digite para buscar...'}
           disabled={loading}
@@ -457,7 +469,6 @@ function OrderGridPreview({ catalogId, theme, required }: { catalogId?: string; 
             fontSize: '14px',
             background: '#fff',
             color: '#374151',
-            marginBottom: '8px',
           }}
         />
         <datalist id={`products-datalist-${catalogId}`}>
@@ -465,35 +476,6 @@ function OrderGridPreview({ catalogId, theme, required }: { catalogId?: string; 
             <option key={product.id} value={product.codigo ? `${product.codigo} - ${product.nome}` : product.nome} />
           ))}
         </datalist>
-        <select
-          value={selectedProductId}
-          onChange={(e) => {
-            setSelectedProductId(e.target.value);
-            const product = products.find(p => p.id === e.target.value);
-            if (product) {
-              setSearchTerm(product.codigo ? `${product.codigo} - ${product.nome}` : product.nome);
-            }
-          }}
-          style={{
-            width: '100%',
-            padding: '10px 12px',
-            border: '1px solid #d1d5db',
-            borderRadius: theme.borderRadius,
-            fontSize: '14px',
-            background: '#fff',
-            color: '#374151',
-            cursor: 'pointer',
-          }}
-        >
-          <option value="">
-            {loading ? 'Carregando...' : filteredProducts.length === 0 ? 'Nenhum produto encontrado' : 'Selecione um produto'}
-          </option>
-          {filteredProducts.map(product => (
-            <option key={product.id} value={product.id}>
-              {product.codigo ? `${product.codigo} - ${product.nome}` : product.nome}
-            </option>
-          ))}
-        </select>
       </div>
 
       {/* Campo de Quantidade */}
