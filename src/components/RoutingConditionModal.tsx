@@ -510,7 +510,6 @@ export default function RoutingConditionModal({
             justifyContent: 'center',
             zIndex: 10000,
           }}
-          onClick={() => setShowErrorModal(false)}
         >
           <div 
             style={{
@@ -521,7 +520,6 @@ export default function RoutingConditionModal({
               width: '90%',
               boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.3)',
             }}
-            onClick={(e) => e.stopPropagation()}
           >
             <div style={{ display: 'flex', alignItems: 'flex-start', gap: '1rem', marginBottom: '1.5rem' }}>
               <AlertCircle size={32} color="#EF4444" style={{ flexShrink: 0 }} />

@@ -500,8 +500,8 @@ const ProductCatalogManager: React.FC<ProductCatalogManagerProps> = ({ companyId
   });
 
   return (
-    <div style={modalStyle} onClick={onClose}>
-      <div style={contentStyle} onClick={(e) => e.stopPropagation()}>
+    <div style={modalStyle}>
+      <div style={contentStyle}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
           <div>
             <h2 style={{ margin: 0, fontSize: '20px', color: '#fff' }}>

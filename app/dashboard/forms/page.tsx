@@ -499,7 +499,7 @@ export default function FormsPage() {
 
       {/* Painel deslizante do editor (se precisar usar embutido) */}
       <div className={`${styles.editorPanel} ${isEditorOpen ? styles.isOpen : ''}`}>
-        <div className={styles.editorPanelOverlay} onClick={handleCloseEditor}></div>
+        <div className={styles.editorPanelOverlay}></div>
         <div className={styles.editorPanelContent}>
           {isEditorOpen && (
             <EnhancedFormBuilderPage
