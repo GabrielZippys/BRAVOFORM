@@ -105,6 +105,7 @@ export default function CollaboratorView() {
   const [companyName, setCompanyName] = useState('');
   const [departmentName, setDepartmentName] = useState('');
   const [formsToFill, setFormsToFill] = useState<Form[]>([]);
+  const [workflowTasks, setWorkflowTasks] = useState<any[]>([]);
   const [view, setView] = useState<'forms' | 'history' | 'leaderDash' | 'trash'>('forms');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -281,6 +282,26 @@ useEffect(() => {
   return () => unsub();
 }, [collaborator?.id]);
 
+  // Buscar workflow_instances atribuídas ao colaborador
+  useEffect(() => {
+    if (!collaborator?.id) return;
+
+    const qWorkflows = query(
+      collection(db, 'workflow_instances'),
+      where('currentStage.assignedTo', '==', collaborator.id),
+      where('status', '==', 'in_progress')
+    );
+
+    const unsub = onSnapshot(qWorkflows, (snapshot) => {
+      const tasks = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }));
+      setWorkflowTasks(tasks);
+    });
+
+    return () => unsub();
+  }, [collaborator?.id]);
 
   const handleLogout = () => {
     sessionStorage.removeItem('collaborator_data');
@@ -508,6 +529,53 @@ const doneToday = totalForms - pendingToday;
               </div>
 
               <div className={styles.grid}>
+                {/* Cards de Workflow */}
+                {workflowTasks.map((task) => {
+                  const stageName = task.currentStage?.name || 'Etapa';
+                  const workflowName = task.workflowName || 'Workflow';
+                  
+                  return (
+                    <div key={task.id} className={styles.card} style={{ borderLeft: '4px solid #8b5cf6' }}>
+                      <div className={`${styles.statusBadge} ${styles.statusPending}`}
+                        style={{ background: '#8b5cf6' }}
+                        title="Workflow pendente"
+                      >
+                        <Clock size={14} />
+                        <span style={{ marginLeft: 6 }}>Workflow</span>
+                      </div>
+                      <div className={styles.cardIcon} style={{ color: '#8b5cf6' }}>
+                        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
+                          <polyline points="7.5 4.21 12 6.81 16.5 4.21"></polyline>
+                          <polyline points="7.5 19.79 7.5 14.6 3 12"></polyline>
+                          <polyline points="21 12 16.5 14.6 16.5 19.79"></polyline>
+                          <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
+                          <line x1="12" y1="22.08" x2="12" y2="12"></line>
+                        </svg>
+                      </div>
+                      <div className={styles.cardBody}>
+                        <h2 className={styles.cardTitle}>{workflowName}</h2>
+                        <p className={styles.cardSubtitle}>Etapa: {stageName}</p>
+                        {task.currentStage?.description && (
+                          <p className={styles.cardSubtitle} style={{ marginTop: 4 }}>
+                            {task.currentStage.description}
+                          </p>
+                        )}
+                      </div>
+                      <button
+                        className={styles.cardButton}
+                        style={{ background: '#8b5cf6' }}
+                        onClick={() => {
+                          window.open(`/colaborador/workflows/${task.id}`, '_blank');
+                        }}
+                      >
+                        Executar Etapa
+                      </button>
+                    </div>
+                  );
+                })}
+
+                {/* Cards de Formulários */}
                 {formsToFill.map((form) => {
                   const used = todayCountByForm[form.id] ?? 0;
 const limitOn = !!form.settings?.dailyLimitEnabled;
