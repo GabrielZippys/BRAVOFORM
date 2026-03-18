@@ -8,6 +8,7 @@ import { db } from '../../firebase/config';
 import {
   doc,
   getDoc,
+  getDocs,
   collection,
   query,
   where,
@@ -22,6 +23,7 @@ import FormResponse from '@/components/FormResponse';                // Modal pa
 import DepartmentLeaderDash from './DepartmentLeaderDashSimple';     // Dash do líder (simplified)
 import HistoryPanel, { type HistoryResp } from '@/components/HistoryPanel';
 import TrashPanel, { type TrashResp } from '@/components/TrashPanel';
+import WorkflowExecutionModal from '@/components/WorkflowExecutionModal';
 
 // TIPOS
 interface Collaborator {
@@ -106,6 +108,7 @@ export default function CollaboratorView() {
   const [departmentName, setDepartmentName] = useState('');
   const [formsToFill, setFormsToFill] = useState<Form[]>([]);
   const [workflowTasks, setWorkflowTasks] = useState<any[]>([]);
+  const [selectedWorkflowTask, setSelectedWorkflowTask] = useState<any | null>(null);
   const [view, setView] = useState<'forms' | 'history' | 'leaderDash' | 'trash'>('forms');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -282,12 +285,14 @@ useEffect(() => {
   return () => unsub();
 }, [collaborator?.id]);
 
-  // Buscar workflow_instances atribuídas ao colaborador
+  // Buscar workflow_instances atribuídas ao colaborador atual
+  // Cada colaborador só vê workflows onde ele é o assignedTo da etapa atual
   useEffect(() => {
-    if (!collaborator?.id) return;
+    if (!collaborator?.id) {
+      return;
+    }
 
-    console.log('🔍 Buscando workflows para colaborador:', collaborator.id);
-
+    // Query: busca workflows onde o colaborador atual é o responsável pela etapa atual
     const qWorkflows = query(
       collection(db, 'workflow_instances'),
       where('assignedTo', '==', collaborator.id),
@@ -295,15 +300,10 @@ useEffect(() => {
     );
 
     const unsub = onSnapshot(qWorkflows, (snapshot) => {
-      console.log('📊 Workflows encontrados:', snapshot.docs.length);
-      const tasks = snapshot.docs.map(doc => {
-        const data = doc.data();
-        console.log('  - Workflow:', data.workflowName, '| Etapa:', data.currentStageId, '| Atribuído a:', data.assignedTo);
-        return {
-          id: doc.id,
-          ...data
-        };
-      });
+      const tasks = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }));
       setWorkflowTasks(tasks);
     });
 
@@ -573,7 +573,7 @@ const doneToday = totalForms - pendingToday;
                         className={styles.cardButton}
                         style={{ background: '#8b5cf6' }}
                         onClick={() => {
-                          window.open(`/colaborador/workflows/${task.id}`, '_blank');
+                          setSelectedWorkflowTask(task);
                         }}
                       >
                         Executar Etapa
@@ -690,6 +690,21 @@ const respondedToday = used > 0;
           collaborator={collaborator!}
           onClose={closeFormResponse}
           canEdit={true}
+        />
+      )}
+
+      {/* MODAL DE EXECUÇÃO DE WORKFLOW */}
+      {selectedWorkflowTask && collaborator && (
+        <WorkflowExecutionModal
+          instanceId={selectedWorkflowTask.id}
+          userId={collaborator.id}
+          userName={collaborator.username}
+          onClose={() => setSelectedWorkflowTask(null)}
+          onComplete={() => {
+            setSelectedWorkflowTask(null);
+            // Recarregar workflows para atualizar status
+            window.location.reload();
+          }}
         />
       )}
     </main>

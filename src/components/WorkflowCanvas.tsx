@@ -26,7 +26,6 @@ import StageConfigPanel from './StageConfigPanel';
 import ConfirmModal from './ConfirmModal';
 import RoutingConditionModal from './RoutingConditionModal';
 import CustomEdge from './CustomEdge';
-import WorkflowTestMode from './WorkflowTestMode';
 import ActivationSettingsModal from './ActivationSettingsModal';
 import { useConfirm } from '@/hooks/useConfirm';
 import styles from '../../app/styles/WorkflowCanvas.module.css';
@@ -82,15 +81,8 @@ export default function WorkflowCanvas({
   const [isRoutingModalOpen, setIsRoutingModalOpen] = useState(false);
   const [selectedSourceStage, setSelectedSourceStage] = useState<string | null>(null);
   const [stageCounter, setStageCounter] = useState(1);
-  const [isTestMode, setIsTestMode] = useState(false);
-  const [showUserSelection, setShowUserSelection] = useState(false);
   const [showActivationSettings, setShowActivationSettings] = useState(false);
   const { confirm, alert, confirmState } = useConfirm();
-
-  // Debug showUserSelection
-  useEffect(() => {
-    console.log('showUserSelection changed:', showUserSelection);
-  }, [showUserSelection]);
 
   // Inicializar com stages existentes
   useEffect(() => {
@@ -454,18 +446,6 @@ export default function WorkflowCanvas({
     }
   };
 
-  const handleTestWorkflow = async () => {
-    console.log('handleTestWorkflow called');
-    console.log('nodes.length:', nodes.length);
-    
-    if (nodes.length === 0) {
-      await alert('Workflow Vazio', 'Adicione pelo menos uma etapa antes de testar o workflow.');
-      return;
-    }
-    
-    console.log('Setting showUserSelection to true');
-    setShowUserSelection(true);
-  };
 
   return (
     <div className={styles.container}>
@@ -514,14 +494,6 @@ export default function WorkflowCanvas({
             >
               <Settings size={20} />
               Configurações
-            </button>
-            <button 
-              onClick={handleTestWorkflow} 
-              disabled={nodes.length === 0}
-              className={styles.btnTest}
-            >
-              <Eye size={20} />
-              Testar Workflow
             </button>
           </Panel>
 
@@ -580,14 +552,6 @@ export default function WorkflowCanvas({
         isDanger={confirmState.isDanger}
       />
 
-      {showUserSelection && (
-        <WorkflowTestMode
-          stages={nodes.map(node => node.data.stage)}
-          workflowName={workflowName}
-          workflowDescription={workflowDescription}
-          onClose={() => setShowUserSelection(false)}
-        />
-      )}
 
       {showActivationSettings && (
         <ActivationSettingsModal

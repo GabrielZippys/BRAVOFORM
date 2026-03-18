@@ -146,7 +146,11 @@ export default function StageConfigPanel({
     const newUsers = stage.allowedUsers.includes(userId)
       ? stage.allowedUsers.filter(id => id !== userId)
       : [...stage.allowedUsers, userId];
-    onUpdate({ allowedUsers: newUsers });
+    // Salvar em ambos os campos para compatibilidade
+    onUpdate({ 
+      allowedUsers: newUsers,
+      assignedUsers: newUsers 
+    });
   };
 
   const handleFormToggle = (formId: string) => {

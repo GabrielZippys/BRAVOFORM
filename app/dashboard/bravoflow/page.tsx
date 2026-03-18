@@ -8,6 +8,7 @@ import { db } from '../../../firebase/config';
 import { useAuth } from '@/hooks/useAuth';
 import type { WorkflowStage } from '@/types';
 import WorkflowSetupModal from '@/components/WorkflowSetupModal';
+import { WorkflowInstanceService } from '@/services/workflowInstanceService';
 import styles from '../../styles/BravoFlow.module.css';
 
 interface WorkflowTemplate {
@@ -157,28 +158,25 @@ export default function BravoFlowPage() {
   return (
     <div className={styles.container}>
       <div className={styles.header}>
-        <div>
-          <h1>BravoFlow</h1>
-          <p>Gerencie seus fluxos de trabalho personalizados</p>
-        </div>
+        <h1>BravoFlow</h1>
         <button onClick={handleCreateNew} className={styles.btnCreate}>
           <Plus size={20} />
-          Criar Novo Workflow
+          Novo Workflow
         </button>
       </div>
 
       {workflows.length === 0 ? (
-        <div className={styles.emptyState}>
-          <div className={styles.emptyIcon}>📊</div>
-          <h2>Nenhum workflow criado ainda</h2>
-          <p>Crie seu primeiro workflow para começar a gerenciar processos de forma visual e eficiente.</p>
-          <button onClick={handleCreateNew} className={styles.btnCreateEmpty}>
-            <Plus size={20} />
-            Criar Primeiro Workflow
-          </button>
-        </div>
-      ) : (
-        <div className={styles.grid}>
+          <div className={styles.emptyState}>
+            <div className={styles.emptyIcon}>📊</div>
+            <h2>Nenhum workflow criado ainda</h2>
+            <p>Crie seu primeiro workflow para começar a gerenciar processos de forma visual e eficiente.</p>
+            <button onClick={handleCreateNew} className={styles.btnCreateEmpty}>
+              <Plus size={20} />
+              Criar Primeiro Workflow
+            </button>
+          </div>
+        ) : (
+          <div className={styles.grid}>
           {workflows
             .filter(w => w.id && w.id.trim() !== '') // Filtrar workflows sem ID
             .map((workflow, index) => (
@@ -193,7 +191,7 @@ export default function BravoFlowPage() {
                 <div className={styles.cardActions}>
                   <button
                     onClick={(e) => handleToggleActive(e, workflow.id, workflow.isActive)}
-                    className={styles.btnIcon}
+                    className={styles.actionButton}
                     title={workflow.isActive ? 'Desativar Workflow' : 'Ativar Workflow'}
                     style={{
                       background: workflow.isActive ? '#10B981' : '#6B7280',
@@ -206,18 +204,15 @@ export default function BravoFlowPage() {
                   </button>
                   <button
                     onClick={(e) => handleEdit(e, workflow)}
-                    className={styles.btnIcon}
-                    title="Editar Workflow"
+                    className={styles.actionButton}
+                    title="Editar configurações"
                   >
                     <Edit size={18} />
                   </button>
                   <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleDuplicate(workflow);
-                    }}
-                    className={styles.btnIcon}
-                    title="Duplicar"
+                    onClick={(e) => handleDuplicate(workflow)}
+                    className={styles.actionButton}
+                    title="Duplicar workflow"
                   >
                     <Copy size={18} />
                   </button>
@@ -226,7 +221,7 @@ export default function BravoFlowPage() {
                       e.stopPropagation();
                       handleDelete(workflow.id);
                     }}
-                    className={`${styles.btnIcon} ${styles.btnDelete}`}
+                    className={styles.actionButton}
                     title="Excluir"
                   >
                     <Trash2 size={18} />

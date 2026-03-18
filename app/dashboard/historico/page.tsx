@@ -41,6 +41,9 @@ export default function HistoricoPage() {
   
   // Estado para lixeira
   const [deletedItems, setDeletedItems] = useState<FormResponse[]>([]);
+  
+  // Estado para modal de confirmação de exclusão
+  const [deleteModal, setDeleteModal] = useState<{ show: boolean; instanceId: string; workflowName: string }>({ show: false, instanceId: '', workflowName: '' });
 
   useEffect(() => {
     loadData();
@@ -260,6 +263,21 @@ export default function HistoricoPage() {
     const diffTime = deleteDate.getTime() - now.getTime();
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
     return Math.max(0, diffDays);
+  };
+
+  const handleDeleteInstance = (instanceId: string, workflowName: string) => {
+    setDeleteModal({ show: true, instanceId, workflowName });
+  };
+
+  const confirmDeleteInstance = async () => {
+    try {
+      const { deleteDoc } = await import('firebase/firestore');
+      await deleteDoc(doc(db, 'workflow_instances', deleteModal.instanceId));
+      setInstances(instances.filter(i => i.id !== deleteModal.instanceId));
+      setDeleteModal({ show: false, instanceId: '', workflowName: '' });
+    } catch (error) {
+      console.error('Erro ao excluir instância:', error);
+    }
   };
 
   // Departamentos disponíveis baseados na empresa
@@ -654,6 +672,14 @@ export default function HistoricoPage() {
                       >
                         <Eye size={18} />
                       </button>
+                      <button
+                        onClick={() => handleDeleteInstance(instance.id, instance.workflowName)}
+                        className={styles.btnDelete}
+                        title="Excluir"
+                        style={{ marginLeft: '8px', background: '#ef4444', color: '#fff', border: 'none', borderRadius: '6px', padding: '6px 10px', cursor: 'pointer' }}
+                      >
+                        <Trash2 size={18} />
+                      </button>
                     </td>
                   </tr>
                 ))}
@@ -866,6 +892,71 @@ export default function HistoricoPage() {
         company={selectedResponse ? companies.find(c => c.id === selectedResponse.companyId) || null : null}
         department={selectedResponse ? departments.find(d => d.id === selectedResponse.departmentId) || null : null}
       />
+
+      {/* Modal de Confirmação de Exclusão */}
+      {deleteModal.show && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'rgba(0, 0, 0, 0.7)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 9999
+        }}>
+          <div style={{
+            background: '#1e293b',
+            borderRadius: '12px',
+            padding: '24px',
+            maxWidth: '400px',
+            width: '90%',
+            border: '2px solid #ef4444'
+          }}>
+            <h3 style={{ margin: '0 0 16px 0', color: '#fff', fontSize: '18px' }}>
+              Confirmar Exclusão
+            </h3>
+            <p style={{ margin: '0 0 24px 0', color: '#94a3b8', fontSize: '14px' }}>
+              Deseja realmente excluir a instância do workflow <strong style={{ color: '#fff' }}>"{deleteModal.workflowName}"</strong>?
+              <br /><br />
+              <span style={{ color: '#ef4444' }}>Esta ação não pode ser desfeita.</span>
+            </p>
+            <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
+              <button
+                onClick={() => setDeleteModal({ show: false, instanceId: '', workflowName: '' })}
+                style={{
+                  padding: '10px 20px',
+                  background: '#475569',
+                  border: 'none',
+                  borderRadius: '6px',
+                  color: '#fff',
+                  cursor: 'pointer',
+                  fontSize: '14px'
+                }}
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={confirmDeleteInstance}
+                style={{
+                  padding: '10px 20px',
+                  background: '#ef4444',
+                  border: 'none',
+                  borderRadius: '6px',
+                  color: '#fff',
+                  cursor: 'pointer',
+                  fontSize: '14px',
+                  fontWeight: 500
+                }}
+              >
+                Excluir
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
   );

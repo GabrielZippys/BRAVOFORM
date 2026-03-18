@@ -63,19 +63,32 @@ export class WorkflowInstanceService {
     // Primeira etapa
     const firstStage = workflow.stages[0];
 
+    // Usar assignedUsers da primeira etapa se disponível, senão usar o parâmetro
+    let finalAssignedTo = assignedTo;
+    let finalAssignedToName = assignedToName;
+    
+    if (firstStage.assignedUsers && firstStage.assignedUsers.length > 0) {
+      finalAssignedTo = firstStage.assignedUsers[0];
+      
+      // Buscar nome do colaborador
+      const collaboratorsSnapshot = await getDocs(collection(db, 'collaborators'));
+      const collaborator = collaboratorsSnapshot.docs.find(d => d.id === finalAssignedTo);
+      finalAssignedToName = collaborator?.data().username || 'Colaborador';
+    }
+
     const instance: Omit<WorkflowInstance, 'id'> = {
       workflowId,
       workflowName: workflow.name,
       currentStageId: firstStage.id,
       currentStageIndex: 0,
-      assignedTo,
-      assignedToName,
+      assignedTo: finalAssignedTo,
+      assignedToName: finalAssignedToName,
       status: 'in_progress',
       startedAt: serverTimestamp() as Timestamp,
       stageHistory: [{
         stageId: firstStage.id,
         stageName: firstStage.name,
-        enteredAt: serverTimestamp() as Timestamp,
+        enteredAt: Timestamp.now(), // Usar Timestamp.now() ao invés de serverTimestamp() em arrays
         action: 'validated'
       }],
       fieldData: {},
@@ -145,7 +158,7 @@ export class WorkflowInstanceService {
     const updatedHistory = [...instance.stageHistory];
     updatedHistory[updatedHistory.length - 1] = {
       ...lastHistoryEntry,
-      completedAt: serverTimestamp() as Timestamp,
+      completedAt: Timestamp.now(),
       completedBy: userId,
       completedByName: userName,
       action,
@@ -176,7 +189,7 @@ export class WorkflowInstanceService {
         updatedHistory.push({
           stageId: previousStage.id,
           stageName: previousStage.name,
-          enteredAt: serverTimestamp() as Timestamp,
+          enteredAt: Timestamp.now(),
           action: 'validated'
         });
 
@@ -222,13 +235,30 @@ export class WorkflowInstanceService {
         updatedHistory.push({
           stageId: nextStage.id,
           stageName: nextStage.name,
-          enteredAt: serverTimestamp() as Timestamp,
+          enteredAt: Timestamp.now(),
           action: 'validated'
         });
+
+        // Atribuir ao primeiro usuário da próxima etapa
+        let nextAssignedTo = instance.assignedTo;
+        let nextAssignedToName = instance.assignedToName;
+        
+        if (nextStage.assignedUsers && nextStage.assignedUsers.length > 0) {
+          nextAssignedTo = nextStage.assignedUsers[0];
+          
+          // Buscar nome do colaborador
+          const { getDocs, collection } = await import('firebase/firestore');
+          const { db } = await import('../../firebase/config');
+          const collaboratorsSnapshot = await getDocs(collection(db, 'collaborators'));
+          const collaborator = collaboratorsSnapshot.docs.find(d => d.id === nextAssignedTo);
+          nextAssignedToName = collaborator?.data().username || 'Colaborador';
+        }
 
         await updateDoc(instanceRef, {
           currentStageId: nextStage.id,
           currentStageIndex: nextStageIndex,
+          assignedTo: nextAssignedTo,
+          assignedToName: nextAssignedToName,
           stageHistory: updatedHistory,
           fieldData: updatedFieldData
         });
