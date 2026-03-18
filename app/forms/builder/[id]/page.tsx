@@ -301,6 +301,8 @@ function OrderGridPreview({ catalogId, theme, required }: { catalogId?: string; 
           quantidadeMin: doc.data().quantidadeMin || 1,
           quantidadeMax: doc.data().quantidadeMax || 999,
         }));
+        // Ordenar alfabeticamente por nome
+        productsData.sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
         setProducts(productsData);
       } catch (error) {
         console.error('Erro ao carregar produtos:', error);
