@@ -774,7 +774,7 @@
 
 .tableHeader {
   display: grid;
-  grid-template-columns: 2fr 1.5fr 1.5fr 1.5fr 1fr;
+  grid-template-columns: 2fr 1.5fr 1.5fr 1.5fr 1fr 80px;
   gap: 1rem;
   padding: 1rem;
   background: #F9FAFB;
@@ -789,7 +789,7 @@
 
 .tableRow {
   display: grid;
-  grid-template-columns: 2fr 1.5fr 1.5fr 1.5fr 1fr;
+  grid-template-columns: 2fr 1.5fr 1.5fr 1.5fr 1fr 80px;
   gap: 1rem;
   padding: 1rem;
   border: 1px solid #E5E7EB;
@@ -844,6 +844,21 @@
 
 .statusInfo .pending {
   color: #F59E0B;
+}
+
+.actionsCell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.btnDelete {
+  transition: all 0.2s;
+}
+
+.btnDelete:hover {
+  background: #dc2626 !important;
+  transform: scale(1.05);
 }
 
 /* Modal */
