@@ -10,6 +10,7 @@ import ResponseDetailsModal from '@/components/ResponseDetailsModal';
 import WorkflowInstanceDetailModal from '@/components/WorkflowInstanceDetailModal';
 import styles from './historico.module.css';
 
+
 type TabType = 'forms' | 'workflows' | 'trash';
 
 export default function HistoricoPage() {
