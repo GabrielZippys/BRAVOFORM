@@ -147,13 +147,23 @@ export default function HistoricoPage() {
       } as Department));
       setDepartments(departmentsData);
 
-      // Carregar respostas com limite para melhor performance
-      const responsesSnapshot = await getDocs(
-        query(
-          collectionGroup(db, 'responses'),
-          limit(1000) // Limitar a 1000 respostas mais recentes
-        )
-      );
+      // Carregar respostas - tentar com orderBy, se falhar carregar todas
+      let responsesSnapshot;
+      try {
+        responsesSnapshot = await getDocs(
+          query(
+            collectionGroup(db, 'responses'),
+            orderBy('submittedAt', 'desc'),
+            limit(1000) // Limitar a 1000 respostas mais recentes
+          )
+        );
+      } catch (error: any) {
+        console.warn('Erro ao ordenar por submittedAt, carregando sem ordenação:', error.message);
+        // Se falhar (falta de índice), carregar todas sem limite
+        responsesSnapshot = await getDocs(
+          collectionGroup(db, 'responses')
+        );
+      }
       
       const allDocs = responsesSnapshot.docs;
       
@@ -177,6 +187,21 @@ export default function HistoricoPage() {
       
       console.log('Total de respostas carregadas:', allDocs.length);
       console.log('Respostas após remover duplicatas:', uniqueResponses.length);
+      
+      // Debug: verificar se IDs específicos estão presentes
+      const targetIds = ['9bX61SD1JuhikO4HwDMA', 'itvvpkjQjPsGPEO699E4'];
+      targetIds.forEach(id => {
+        const found = uniqueResponses.find(r => r.id === id);
+        if (found) {
+          console.log(`✅ Resposta ${id} encontrada:`, found);
+        } else {
+          console.log(`❌ Resposta ${id} NÃO encontrada`);
+          const inAllDocs = allDocs.find(d => d.id === id);
+          if (inAllDocs) {
+            console.log(`  Mas existe em allDocs:`, inAllDocs.data());
+          }
+        }
+      });
       
       setFormResponses(uniqueResponses);
 
