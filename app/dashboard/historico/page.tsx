@@ -45,6 +45,9 @@ export default function HistoricoPage() {
   
   // Estado para modal de confirmação de exclusão
   const [deleteModal, setDeleteModal] = useState<{ show: boolean; instanceId: string; workflowName: string }>({ show: false, instanceId: '', workflowName: '' });
+  
+  // Estado para modal de exclusão permanente
+  const [permanentDeleteModal, setPermanentDeleteModal] = useState<{ show: boolean; response: FormResponse | null }>({ show: false, response: null });
 
   useEffect(() => {
     loadData();
@@ -336,8 +339,8 @@ export default function HistoricoPage() {
       // Marcar como deletado em vez de excluir permanentemente
       await updateDoc(responseRef, {
         deletedAt: serverTimestamp(),
-        deletedBy: 'admin', // Você pode pegar o ID do usuário logado aqui
-        deletedByUsername: 'Administrador' // Você pode pegar o nome do usuário logado aqui
+        deletedBy: 'admin',
+        deletedByUsername: 'Administrador'
       });
 
       // Atualizar a lista local
@@ -355,6 +358,61 @@ export default function HistoricoPage() {
     } catch (error) {
       console.error('Erro ao excluir resposta:', error);
       alert('Erro ao excluir resposta. Verifique o console para mais detalhes.');
+    }
+  };
+
+  const handlePermanentDelete = async () => {
+    if (!permanentDeleteModal.response) return;
+
+    try {
+      const { deleteDoc } = await import('firebase/firestore');
+      
+      const responsePath = `forms/${permanentDeleteModal.response.formId}/responses/${permanentDeleteModal.response.id}`;
+      const responseRef = doc(db, responsePath);
+      
+      // Excluir permanentemente do Firestore
+      await deleteDoc(responseRef);
+
+      // Remover da lista local
+      setDeletedItems(deletedItems.filter(r => r.id !== permanentDeleteModal.response!.id));
+      
+      setPermanentDeleteModal({ show: false, response: null });
+      alert('Resposta excluída permanentemente com sucesso!');
+    } catch (error) {
+      console.error('Erro ao excluir permanentemente:', error);
+      alert('Erro ao excluir permanentemente. Verifique o console para mais detalhes.');
+    }
+  };
+
+  const handleRestoreResponse = async (response: FormResponse) => {
+    try {
+      const { updateDoc, deleteField } = await import('firebase/firestore');
+      
+      const responsePath = `forms/${response.formId}/responses/${response.id}`;
+      const responseRef = doc(db, responsePath);
+      
+      // Remover campos de exclusão
+      await updateDoc(responseRef, {
+        deletedAt: deleteField(),
+        deletedBy: deleteField(),
+        deletedByUsername: deleteField()
+      });
+
+      // Remover da lixeira
+      setDeletedItems(deletedItems.filter(r => r.id !== response.id));
+      
+      // Adicionar de volta às respostas
+      const restoredResponse = { ...response };
+      delete (restoredResponse as any).deletedAt;
+      delete (restoredResponse as any).deletedBy;
+      delete (restoredResponse as any).deletedByUsername;
+      
+      setFormResponses([restoredResponse, ...formResponses]);
+
+      alert('Resposta restaurada com sucesso!');
+    } catch (error) {
+      console.error('Erro ao restaurar resposta:', error);
+      alert('Erro ao restaurar resposta. Verifique o console para mais detalhes.');
     }
   };
 
@@ -569,16 +627,46 @@ export default function HistoricoPage() {
                             ⏱️ {daysRemaining} dias
                           </div>
                         </div>
-                        <div className={styles.actionsCell}>
+                        <div className={styles.actionsCell} style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
                           <button
                             className={styles.btnRestore}
                             title="Restaurar"
                             onClick={(e) => {
                               e.stopPropagation();
-                              // Função de restaurar será implementada
+                              handleRestoreResponse(item);
+                            }}
+                            style={{
+                              background: '#10b981',
+                              color: '#fff',
+                              border: 'none',
+                              borderRadius: '6px',
+                              padding: '6px 12px',
+                              cursor: 'pointer',
+                              fontSize: '13px',
+                              fontWeight: 500
                             }}
                           >
                             Restaurar
+                          </button>
+                          <button
+                            className={styles.btnDelete}
+                            title="Excluir permanentemente"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setPermanentDeleteModal({ show: true, response: item });
+                            }}
+                            style={{
+                              background: '#ef4444',
+                              color: '#fff',
+                              border: 'none',
+                              borderRadius: '6px',
+                              padding: '6px 12px',
+                              cursor: 'pointer',
+                              fontSize: '13px',
+                              fontWeight: 500
+                            }}
+                          >
+                            Excluir Permanentemente
                           </button>
                         </div>
                       </div>
@@ -1054,6 +1142,123 @@ export default function HistoricoPage() {
                 }}
               >
                 Excluir
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Exclusão Permanente */}
+      {permanentDeleteModal.show && permanentDeleteModal.response && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'rgba(0, 0, 0, 0.8)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 10000
+        }}>
+          <div style={{
+            background: '#1e293b',
+            borderRadius: '12px',
+            padding: '28px',
+            maxWidth: '480px',
+            width: '90%',
+            border: '3px solid #dc2626',
+            boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.5)'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
+              <div style={{
+                background: '#dc2626',
+                borderRadius: '50%',
+                padding: '10px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
+              }}>
+                <Trash2 size={24} color="#fff" />
+              </div>
+              <h3 style={{ margin: 0, color: '#fff', fontSize: '20px', fontWeight: 700 }}>
+                ⚠️ Exclusão Permanente
+              </h3>
+            </div>
+            
+            <p style={{ margin: '0 0 12px 0', color: '#e2e8f0', fontSize: '15px', lineHeight: '1.6' }}>
+              Você está prestes a excluir <strong style={{ color: '#fff' }}>permanentemente</strong> a resposta de:
+            </p>
+            
+            <div style={{
+              background: '#0f172a',
+              padding: '12px',
+              borderRadius: '8px',
+              margin: '12px 0 16px 0',
+              border: '1px solid #334155'
+            }}>
+              <p style={{ margin: '0 0 6px 0', color: '#94a3b8', fontSize: '13px' }}>
+                <strong style={{ color: '#fff' }}>Usuário:</strong> {permanentDeleteModal.response.collaboratorUsername}
+              </p>
+              <p style={{ margin: 0, color: '#94a3b8', fontSize: '13px' }}>
+                <strong style={{ color: '#fff' }}>Formulário:</strong> {permanentDeleteModal.response.formTitle}
+              </p>
+            </div>
+
+            <div style={{
+              background: '#7f1d1d',
+              border: '2px solid #dc2626',
+              borderRadius: '8px',
+              padding: '14px',
+              marginBottom: '24px'
+            }}>
+              <p style={{ margin: 0, color: '#fecaca', fontSize: '14px', fontWeight: 600, lineHeight: '1.5' }}>
+                ⚠️ <strong style={{ color: '#fff' }}>ATENÇÃO:</strong> Esta ação é <strong style={{ color: '#fff' }}>IRREVERSÍVEL</strong>!
+              </p>
+              <p style={{ margin: '8px 0 0 0', color: '#fca5a5', fontSize: '13px', lineHeight: '1.5' }}>
+                • Os dados serão excluídos permanentemente do banco de dados<br />
+                • Não será possível recuperar esta resposta<br />
+                • Esta ação não pode ser desfeita
+              </p>
+            </div>
+
+            <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
+              <button
+                onClick={() => setPermanentDeleteModal({ show: false, response: null })}
+                style={{
+                  padding: '12px 24px',
+                  background: '#475569',
+                  border: 'none',
+                  borderRadius: '8px',
+                  color: '#fff',
+                  cursor: 'pointer',
+                  fontSize: '14px',
+                  fontWeight: 600,
+                  transition: 'all 0.2s'
+                }}
+                onMouseOver={(e) => e.currentTarget.style.background = '#64748b'}
+                onMouseOut={(e) => e.currentTarget.style.background = '#475569'}
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handlePermanentDelete}
+                style={{
+                  padding: '12px 24px',
+                  background: '#dc2626',
+                  border: 'none',
+                  borderRadius: '8px',
+                  color: '#fff',
+                  cursor: 'pointer',
+                  fontSize: '14px',
+                  fontWeight: 700,
+                  transition: 'all 0.2s'
+                }}
+                onMouseOver={(e) => e.currentTarget.style.background = '#b91c1c'}
+                onMouseOut={(e) => e.currentTarget.style.background = '#dc2626'}
+              >
+                🗑️ Excluir Permanentemente
               </button>
             </div>
           </div>
