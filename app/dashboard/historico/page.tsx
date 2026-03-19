@@ -163,12 +163,21 @@ export default function HistoricoPage() {
           ...doc.data()
         } as FormResponse));
       
-      allResponses.sort((a, b) => {
+      // Remover duplicatas baseado no ID
+      const uniqueResponses = Array.from(
+        new Map(allResponses.map(r => [r.id, r])).values()
+      );
+      
+      uniqueResponses.sort((a, b) => {
         const dateA = a.submittedAt?.toMillis?.() || a.createdAt?.toMillis?.() || 0;
         const dateB = b.submittedAt?.toMillis?.() || b.createdAt?.toMillis?.() || 0;
         return dateB - dateA;
       });
-      setFormResponses(allResponses);
+      
+      console.log('Total de respostas carregadas:', allDocs.length);
+      console.log('Respostas após remover duplicatas:', uniqueResponses.length);
+      
+      setFormResponses(uniqueResponses);
 
       // Processar lixeira
       const trashData = allDocs
@@ -247,6 +256,12 @@ export default function HistoricoPage() {
     if (!timestamp) return '-';
     const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
     return date.toLocaleDateString('pt-BR');
+  };
+
+  const formatDateTime = (timestamp: any) => {
+    if (!timestamp) return '-';
+    const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
+    return date.toLocaleDateString('pt-BR') + ' às ' + date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
   };
 
   const getDaysRemaining = (deletedAt: any): number => {
@@ -847,7 +862,7 @@ export default function HistoricoPage() {
                           {company?.name || 'Empresa'}
                         </div>
                         <div className={styles.dateInfo}>
-                          {formatDate(response.submittedAt || response.createdAt)}
+                          {formatDateTime(response.submittedAt || response.createdAt)}
                         </div>
                         <div className={styles.statusInfo}>
                           {response.status === 'approved' && <CheckCircle size={16} className={styles.approved} />}

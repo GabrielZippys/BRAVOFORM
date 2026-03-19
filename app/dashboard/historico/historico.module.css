@@ -185,11 +185,13 @@
   background: transparent;
   outline: none;
   font-size: 14px;
-  color: #1f2937;
+  color: #1f2937 !important;
+  -webkit-text-fill-color: #1f2937 !important;
 }
 
 .searchInput::placeholder {
-  color: #9ca3af;
+  color: #9ca3af !important;
+  -webkit-text-fill-color: #9ca3af !important;
 }
 
 .advancedFiltersToggle {
