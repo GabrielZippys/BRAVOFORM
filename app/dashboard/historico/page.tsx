@@ -321,6 +321,43 @@ export default function HistoricoPage() {
     }
   };
 
+  const handleDeleteResponse = async (response: FormResponse) => {
+    if (!confirm(`Deseja realmente excluir a resposta de "${response.collaboratorUsername}"?\n\nEsta ação moverá a resposta para a lixeira.`)) {
+      return;
+    }
+
+    try {
+      const { updateDoc, serverTimestamp } = await import('firebase/firestore');
+      
+      // Buscar o documento da resposta usando o path completo
+      const responsePath = `forms/${response.formId}/responses/${response.id}`;
+      const responseRef = doc(db, responsePath);
+      
+      // Marcar como deletado em vez de excluir permanentemente
+      await updateDoc(responseRef, {
+        deletedAt: serverTimestamp(),
+        deletedBy: 'admin', // Você pode pegar o ID do usuário logado aqui
+        deletedByUsername: 'Administrador' // Você pode pegar o nome do usuário logado aqui
+      });
+
+      // Atualizar a lista local
+      setFormResponses(formResponses.filter(r => r.id !== response.id));
+      
+      // Adicionar à lixeira
+      setDeletedItems([{
+        ...response,
+        deletedAt: Timestamp.now(),
+        deletedBy: 'admin',
+        deletedByUsername: 'Administrador'
+      }, ...deletedItems]);
+
+      alert('Resposta movida para a lixeira com sucesso!');
+    } catch (error) {
+      console.error('Erro ao excluir resposta:', error);
+      alert('Erro ao excluir resposta. Verifique o console para mais detalhes.');
+    }
+  };
+
   // Departamentos disponíveis baseados na empresa
   const availableDepartments = React.useMemo(() => {
     if (companyFilter === 'all') return departments;
@@ -863,6 +900,7 @@ export default function HistoricoPage() {
                     <span>Empresa</span>
                     <span>Data</span>
                     <span>Status</span>
+                    <span>Ações</span>
                   </div>
                   
                   {filteredFormResponses.slice(0, 20).map(response => {
@@ -896,6 +934,29 @@ export default function HistoricoPage() {
                           {response.status === 'submitted' && <Clock size={16} className={styles.submitted} />}
                           {response.status === 'pending' && <Clock size={16} className={styles.pending} />}
                           <span>{response.status || 'Enviado'}</span>
+                        </div>
+                        <div className={styles.actionsCell}>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDeleteResponse(response);
+                            }}
+                            className={styles.btnDelete}
+                            title="Excluir resposta"
+                            style={{
+                              background: '#ef4444',
+                              color: '#fff',
+                              border: 'none',
+                              borderRadius: '6px',
+                              padding: '6px 10px',
+                              cursor: 'pointer',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '4px'
+                            }}
+                          >
+                            <Trash2 size={16} />
+                          </button>
                         </div>
                       </div>
                     );
