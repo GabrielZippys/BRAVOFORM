@@ -357,6 +357,7 @@ function OrderGridPreview({ catalogId, theme, required }: { catalogId?: string; 
     setAddedItems([...addedItems, newItem]);
     setSelectedProductId('');
     setQuantity(1);
+    setSearchTerm('');
   };
 
   const handleRemoveItem = (itemId: string) => {
@@ -448,7 +449,7 @@ function OrderGridPreview({ catalogId, theme, required }: { catalogId?: string; 
             
             // Tentar encontrar produto correspondente
             const matchedProduct = products.find(p => {
-              const productDisplay = p.codigo ? `${p.codigo} - ${p.nome}` : p.nome;
+              const productDisplay = p.codigo ? `${p.nome} - ${p.codigo}` : p.nome;
               return productDisplay === value;
             });
             
@@ -466,14 +467,14 @@ function OrderGridPreview({ catalogId, theme, required }: { catalogId?: string; 
             padding: '10px 12px',
             border: '1px solid #d1d5db',
             borderRadius: theme.borderRadius,
-            fontSize: '14px',
+            fontSize: '16px',
             background: '#fff',
             color: '#374151',
           }}
         />
         <datalist id={`products-datalist-${catalogId}`}>
           {filteredProducts.map(product => (
-            <option key={product.id} value={product.codigo ? `${product.codigo} - ${product.nome}` : product.nome} />
+            <option key={product.id} value={product.codigo ? `${product.nome} - ${product.codigo}` : product.nome} />
           ))}
         </datalist>
       </div>
@@ -510,23 +511,23 @@ function OrderGridPreview({ catalogId, theme, required }: { catalogId?: string; 
             −
           </button>
           <input
-            type="number"
-            value={quantity}
-            onChange={(e) => handleQuantityChange(parseFloat(e.target.value) || 1)}
-            min={products.find(p => p.id === selectedProductId)?.quantidadeMin || 1}
-            max={products.find(p => p.id === selectedProductId)?.quantidadeMax || 999}
-            step="0.01"
-            style={{
-              flex: 1,
-              padding: '10px 12px',
-              border: '1px solid #d1d5db',
-              borderRadius: theme.borderRadius,
-              fontSize: '14px',
-              background: '#fff',
-              color: '#374151',
-              textAlign: 'center',
-            }}
-          />
+              type="number"
+              value={quantity}
+              onChange={(e) => handleQuantityChange(parseFloat(e.target.value) || 1)}
+              min={products.find(p => p.id === selectedProductId)?.quantidadeMin || 1}
+              max={products.find(p => p.id === selectedProductId)?.quantidadeMax || 999}
+              step="0.01"
+              style={{
+                flex: 1,
+                padding: '10px 12px',
+                border: '1px solid #d1d5db',
+                borderRadius: theme.borderRadius,
+                fontSize: '16px',
+                background: '#fff',
+                color: '#374151',
+                textAlign: 'center',
+              }}
+            />
           <button
             type="button"
             onClick={() => handleQuantityChange(quantity + 1)}
@@ -662,7 +663,7 @@ function OrderGridPreview({ catalogId, theme, required }: { catalogId?: string; 
                     color: '#374151',
                     borderBottom: `1px solid ${theme.tableBorderColor}`
                   }}>
-                    {item.codigo ? `${item.codigo} - ${item.nome}` : item.nome}
+                    {item.codigo ? `${item.nome} - ${item.codigo}` : item.nome}
                   </td>
                   <td style={{ 
                     padding: '10px 12px',
