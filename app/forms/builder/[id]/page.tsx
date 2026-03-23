@@ -449,7 +449,7 @@ function OrderGridPreview({ catalogId, theme, required }: { catalogId?: string; 
             
             // Tentar encontrar produto correspondente
             const matchedProduct = products.find(p => {
-              const productDisplay = p.codigo ? `${p.codigo} - ${p.nome}` : p.nome;
+              const productDisplay = p.codigo ? `${p.nome} - ${p.codigo}` : p.nome;
               return productDisplay === value;
             });
             
@@ -475,7 +475,7 @@ function OrderGridPreview({ catalogId, theme, required }: { catalogId?: string; 
         />
         <datalist id={`products-datalist-${catalogId}`}>
           {filteredProducts.map(product => (
-            <option key={product.id} value={product.codigo ? `${product.codigo} - ${product.nome}` : product.nome} />
+            <option key={product.id} value={product.codigo ? `${product.nome} - ${product.codigo}` : product.nome} />
           ))}
         </datalist>
       </div>
