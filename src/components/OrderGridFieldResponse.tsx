@@ -111,6 +111,7 @@ export default function OrderGridFieldResponse({
     onChange([...value, newItem]);
     setSelectedProductId('');
     setQuantity(1);
+    setSearchTerm('');
   };
 
   const handleRemoveItem = (itemId: string) => {
@@ -156,6 +157,7 @@ export default function OrderGridFieldResponse({
     setEditingItemId(null);
     setSelectedProductId('');
     setQuantity(1);
+    setSearchTerm('');
   };
 
   const handleCancelEdit = () => {

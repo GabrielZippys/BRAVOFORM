@@ -409,6 +409,7 @@ function OrderGridPreview({ catalogId, theme, required }: { catalogId?: string; 
     setEditingItemId(null);
     setSelectedProductId('');
     setQuantity(1);
+    setSearchTerm('');
   };
 
   const handleCancelEdit = () => {
