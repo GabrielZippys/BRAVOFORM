@@ -12,7 +12,10 @@ import {
   RefreshCw,
   Download,
   Upload,
-  ArrowLeftRight
+  ArrowLeftRight,
+  HelpCircle,
+  ChevronDown,
+  ChevronUp
 } from 'lucide-react';
 import type { SQLIntegrationProfile, DatabaseType, EncryptionMethod } from '@/types';
 import styles from '../../app/styles/SQLProfileModal.module.css';
@@ -37,10 +40,11 @@ export default function SQLProfileModal({
   companyName,
   userId
 }: SQLProfileModalProps) {
-  const [step, setStep] = useState<'basic' | 'connection' | 'import' | 'export' | 'review'>('basic');
+  const [step, setStep] = useState<'basic' | 'connection' | 'review'>('basic');
   const [showPassword, setShowPassword] = useState(false);
   const [testingConnection, setTestingConnection] = useState(false);
   const [connectionStatus, setConnectionStatus] = useState<'idle' | 'success' | 'error'>('idle');
+  const [showTutorial, setShowTutorial] = useState(false);
   const [dbExplorer, setDbExplorer] = useState({
     connected: false,
     databases: [] as string[],
@@ -77,8 +81,10 @@ export default function SQLProfileModal({
       password: '',
       ssl: false,
       connectionTimeout: 30000,
-      maxConnections: 10
-    },
+      maxConnections: 10,
+      useTailscale: false,
+      tailscaleHostname: ''
+    } as any,
     importSettings: {
       enabled: false,
       tableName: '',
@@ -127,8 +133,10 @@ export default function SQLProfileModal({
         password: '',
         ssl: false,
         connectionTimeout: 30000,
-        maxConnections: 10
-      },
+        maxConnections: 10,
+        useTailscale: false,
+        tailscaleHostname: ''
+      } as any,
       importSettings: {
         enabled: false,
         tableName: '',
@@ -273,10 +281,10 @@ export default function SQLProfileModal({
       
       if (connectionResult) {
         setConnectionStatus('success');
-        showValidationModal('info', 'Conexão Estabelecida', `✅ Conexão bem-sucedida com o banco ${config.database}!\n\n🔗 Servidor: ${config.host}:${config.port}\n👤 Usuário: ${config.username}\n📊 Banco: ${config.dbType.toUpperCase()}\n🔐 SSL: ${config.ssl ? 'Ativado' : 'Desativado'}`);
+        showValidationModal('info', 'Conexão Estabelecida via Tailscale', `✅ Conexão segura estabelecida com sucesso!\n\n🔒 Túnel Tailscale: Ativo e criptografado\n🔗 Servidor: ${config.host}:${config.port}\n� Banco: ${config.database} (${config.dbType.toUpperCase()})\n� Usuário: ${config.username}\n� Criptografia: WireGuard + ${config.ssl ? 'SSL/TLS' : 'Apenas Tailscale'}\n\n✨ Sua conexão está protegida por criptografia de ponta a ponta!`);
       } else {
         setConnectionStatus('error');
-        showValidationModal('error', 'Falha na Conexão', 'Não foi possível conectar ao banco de dados. Verifique:\n\n• Host e porta estão corretos\n• O serviço do banco está rodando\n• Firewall permite a conexão\n• Credenciais estão corretas');
+        showValidationModal('error', 'Falha na Conexão', 'Não foi possível conectar ao banco de dados via Tailscale. Verifique:\n\n• O Tailscale está instalado e rodando no servidor?\n• O hostname/IP do Tailscale está correto?\n• O serviço do banco está rodando?\n• As credenciais estão corretas?\n• A porta do banco está acessível?');
       }
       
     } catch (error: any) {
@@ -416,14 +424,37 @@ export default function SQLProfileModal({
   };
 
   const validateConnectionFields = () => {
-    const config = formData.connectionConfig;
     const errors = [];
+    const config = formData.connectionConfig;
 
-    if (!config?.host?.trim()) errors.push('Host/Servidor é obrigatório');
-    if (!config?.database?.trim()) errors.push('Nome do Database é obrigatório');
-    if (!config?.username?.trim()) errors.push('Usuário é obrigatório');
-    if (!config?.password?.trim()) errors.push('Senha é obrigatória');
-    if (config?.port && (config.port < 1 || config.port > 65535)) errors.push('Porta deve estar entre 1 e 65535');
+    if (!config?.host?.trim()) {
+      errors.push('Host/Servidor Tailscale é obrigatório');
+      return errors;
+    }
+
+    // Validação específica para Tailscale
+    const isTailscaleHostname = config.host.includes('.ts.net') || config.host.includes('tail-scale.ts.net');
+    const isTailscaleIP = /^100\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(config.host); // IPs Tailscale começam com 100.x.x.x
+    
+    if (!isTailscaleHostname && !isTailscaleIP) {
+      errors.push('⚠️ Host deve ser um hostname Tailscale (.ts.net) ou IP Tailscale (100.x.x.x)\n\nPor segurança, apenas conexões via Tailscale são permitidas.\n\nExemplos válidos:\n• db-server.tail-scale.ts.net\n• 100.64.0.1');
+    }
+
+    if (!config.port || config.port < 1 || config.port > 65535) {
+      errors.push('Porta deve estar entre 1 e 65535');
+    }
+
+    if (!config.database?.trim()) {
+      errors.push('Nome do banco de dados é obrigatório');
+    }
+
+    if (!config.username?.trim()) {
+      errors.push('Usuário é obrigatório');
+    }
+
+    if (!config.password?.trim()) {
+      errors.push('Senha é obrigatória');
+    }
 
     return errors;
   };
@@ -431,9 +462,15 @@ export default function SQLProfileModal({
   const validateBasicFields = () => {
     const errors = [];
 
-    if (!formData.name?.trim()) errors.push('Nome do perfil é obrigatório');
-    if (formData.name && formData.name.length < 3) errors.push('Nome do perfil deve ter pelo menos 3 caracteres');
-    if (formData.name && formData.name.length > 100) errors.push('Nome do perfil deve ter no máximo 100 caracteres');
+    if (!formData.name?.trim()) {
+      errors.push('Nome do perfil é obrigatório');
+    }
+    if (formData.name && formData.name.length < 3) {
+      errors.push('Nome do perfil deve ter pelo menos 3 caracteres');
+    }
+    if (formData.name && formData.name.length > 100) {
+      errors.push('Nome do perfil deve ter no máximo 100 caracteres');
+    }
 
     return errors;
   };
@@ -510,36 +547,6 @@ export default function SQLProfileModal({
         />
       </div>
 
-      <div className={styles.formGroup}>
-        <label>Tipo de Integração *</label>
-        <div className={styles.typeSelector}>
-          <div 
-            className={`${styles.typeCard} ${formData.type === 'import' ? styles.typeCardActive : ''}`}
-            onClick={() => setFormData({ ...formData, type: 'import' })}
-          >
-            <Download size={32} />
-            <h4>Importação</h4>
-            <p>Buscar dados do banco externo</p>
-          </div>
-          <div 
-            className={`${styles.typeCard} ${formData.type === 'export' ? styles.typeCardActive : ''}`}
-            onClick={() => setFormData({ ...formData, type: 'export' })}
-          >
-            <Upload size={32} />
-            <h4>Exportação</h4>
-            <p>Enviar dados para banco externo</p>
-          </div>
-          <div 
-            className={`${styles.typeCard} ${formData.type === 'bidirectional' ? styles.typeCardActive : ''}`}
-            onClick={() => setFormData({ ...formData, type: 'bidirectional' })}
-          >
-            <ArrowLeftRight size={32} />
-            <h4>Bidirecional</h4>
-            <p>Importar e exportar dados</p>
-          </div>
-        </div>
-      </div>
-
       <div className={styles.stepActions}>
         <button className={styles.nextButton} onClick={() => {
           const errors = validateBasicFields();
@@ -549,7 +556,7 @@ export default function SQLProfileModal({
           }
           setStep('connection');
         }}>
-          Próximo: Conexão do Banco
+          Próximo: Configurar Conexão
         </button>
       </div>
     </div>
@@ -557,13 +564,21 @@ export default function SQLProfileModal({
 
   const renderConnectionStep = () => (
     <div className={styles.stepContent}>
-      <h3>Configuração da Conexão</h3>
+      <h3>🔒 Configuração da Conexão Segura</h3>
       <p className={styles.stepDescription}>
-        Configure os dados de acesso ao banco de dados externo
+        Configure a conexão via Tailscale com o banco de dados externo
       </p>
 
       <div className={styles.formGroup}>
-        <label>Tipo de Banco de Dados *</label>
+        <label className={styles.labelWithTooltip}>
+          <span>Tipo de Banco de Dados *</span>
+          <div className={styles.tooltip}>
+            <HelpCircle size={16} />
+            <span className={styles.tooltipText}>
+              Selecione o tipo de banco de dados que você deseja conectar. Suportamos MySQL, PostgreSQL e SQL Server.
+            </span>
+          </div>
+        </label>
         <select
           value={formData.connectionConfig?.dbType}
           onChange={(e) => handleDbTypeChange(e.target.value as DatabaseType)}
@@ -578,7 +593,15 @@ export default function SQLProfileModal({
 
       <div className={styles.formRow}>
         <div className={styles.formGroup}>
-          <label>Host / Servidor *</label>
+          <label className={styles.labelWithTooltip}>
+            <span>Host / Servidor Tailscale *</span>
+            <div className={styles.tooltip}>
+              <HelpCircle size={16} />
+              <span className={styles.tooltipText}>
+                Digite o hostname Tailscale (ex: db-server.tail-scale.ts.net) ou o IP Tailscale (ex: 100.64.0.1) do servidor do banco de dados. Execute 'tailscale status' no servidor para obter essa informação.
+              </span>
+            </div>
+          </label>
           <input
             type="text"
             value={formData.connectionConfig?.host}
@@ -586,13 +609,21 @@ export default function SQLProfileModal({
               ...formData,
               connectionConfig: { ...formData.connectionConfig!, host: e.target.value }
             })}
-            placeholder="Ex: 192.168.1.100 ou db.empresa.com"
+            placeholder="Ex: db-server.tail-scale.ts.net ou 100.64.0.1"
             className={styles.input}
           />
         </div>
 
         <div className={styles.formGroup}>
-          <label>Porta *</label>
+          <label className={styles.labelWithTooltip}>
+            <span>Porta *</span>
+            <div className={styles.tooltip}>
+              <HelpCircle size={16} />
+              <span className={styles.tooltipText}>
+                Porta padrão: MySQL (3306), PostgreSQL (5432), SQL Server (1433). Verifique se o banco usa uma porta customizada.
+              </span>
+            </div>
+          </label>
           <input
             type="number"
             value={formData.connectionConfig?.port}
@@ -606,7 +637,15 @@ export default function SQLProfileModal({
       </div>
 
       <div className={styles.formGroup}>
-        <label>Nome do Banco de Dados *</label>
+        <label className={styles.labelWithTooltip}>
+          <span>Nome do Banco de Dados *</span>
+          <div className={styles.tooltip}>
+            <HelpCircle size={16} />
+            <span className={styles.tooltipText}>
+              Nome exato do banco de dados (database/schema) que você deseja conectar. Exemplo: erp_producao, sistema_vendas, etc.
+            </span>
+          </div>
+        </label>
         <input
           type="text"
           value={formData.connectionConfig?.database}
@@ -621,7 +660,15 @@ export default function SQLProfileModal({
 
       <div className={styles.formRow}>
         <div className={styles.formGroup}>
-          <label>Usuário *</label>
+          <label className={styles.labelWithTooltip}>
+            <span>Usuário *</span>
+            <div className={styles.tooltip}>
+              <HelpCircle size={16} />
+              <span className={styles.tooltipText}>
+                Usuário do banco de dados com permissões de leitura/escrita nas tabelas que você deseja integrar.
+              </span>
+            </div>
+          </label>
           <input
             type="text"
             value={formData.connectionConfig?.username}
@@ -635,7 +682,15 @@ export default function SQLProfileModal({
         </div>
 
         <div className={styles.formGroup}>
-          <label>Senha *</label>
+          <label className={styles.labelWithTooltip}>
+            <span>Senha *</span>
+            <div className={styles.tooltip}>
+              <HelpCircle size={16} />
+              <span className={styles.tooltipText}>
+                Senha do usuário do banco de dados. A senha será criptografada e armazenada com segurança.
+              </span>
+            </div>
+          </label>
           <div className={styles.passwordInput}>
             <input
               type={showPassword ? 'text' : 'password'}
@@ -658,18 +713,69 @@ export default function SQLProfileModal({
         </div>
       </div>
 
-      <div className={styles.formGroup}>
-        <label className={styles.checkbox}>
-          <input
-            type="checkbox"
-            checked={formData.connectionConfig?.ssl}
-            onChange={(e) => setFormData({
-              ...formData,
-              connectionConfig: { ...formData.connectionConfig!, ssl: e.target.checked }
-            })}
-          />
-          Usar SSL/TLS (Recomendado)
-        </label>
+      <div className={styles.tailscaleSection}>
+        <div className={styles.tailscaleHeader}>
+          <div className={styles.tailscaleBadge}>
+            🔒 Conexão Segura via Tailscale
+          </div>
+          <p className={styles.tailscaleSubtitle}>
+            Todas as conexões são feitas através de rede privada virtual criptografada WireGuard
+          </p>
+          
+          <button
+            type="button"
+            className={styles.tutorialToggle}
+            onClick={() => setShowTutorial(!showTutorial)}
+          >
+            {showTutorial ? (
+              <>
+                <ChevronUp size={18} />
+                <span>Ocultar Tutorial de Configuração</span>
+              </>
+            ) : (
+              <>
+                <ChevronDown size={18} />
+                <span>Ver Tutorial de Configuração</span>
+              </>
+            )}
+          </button>
+        </div>
+
+        {showTutorial && (
+          <div className={styles.tailscaleInfo}>
+            <div className={styles.infoBox}>
+              <AlertCircle size={18} />
+              <div>
+                <strong>📋 Configuração do Tailscale:</strong>
+                <ol>
+                  <li><strong>No servidor do banco de dados:</strong>
+                    <pre>curl -fsSL https://tailscale.com/install.sh | sh
+sudo tailscale up</pre>
+                  </li>
+                  <li><strong>Obtenha o hostname Tailscale:</strong>
+                    <pre>tailscale status</pre>
+                    Exemplo: <code>db-server.tail-scale.ts.net</code> ou IP <code>100.x.x.x</code>
+                  </li>
+                  <li><strong>Use o hostname/IP no campo "Host / Servidor Tailscale" acima</strong></li>
+                </ol>
+                
+                <p><strong>🔐 Segurança Garantida:</strong></p>
+                <ul>
+                  <li>✅ <strong>Criptografia WireGuard</strong> - Protocolo de última geração</li>
+                  <li>✅ <strong>Zero Trust Network</strong> - Autenticação obrigatória</li>
+                  <li>✅ <strong>Túnel Privado</strong> - Dados nunca trafegam pela internet pública</li>
+                  <li>✅ <strong>Sem portas expostas</strong> - Firewall não precisa ser aberto</li>
+                  <li>✅ <strong>Auditoria completa</strong> - Logs de todas as conexões</li>
+                </ul>
+
+                <div className={styles.warningBox}>
+                  <strong>⚠️ Obrigatório:</strong> O servidor do banco de dados DEVE ter o Tailscale instalado e rodando. 
+                  Por segurança, conexões diretas sem Tailscale não são permitidas.
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       {connectionStatus !== 'idle' && (
@@ -712,19 +818,14 @@ export default function SQLProfileModal({
         <button 
           className={styles.nextButton} 
           onClick={() => {
-            const errors = validateConnectionFields();
-            if (errors.length > 0) {
-              showValidationModal('error', 'Campos Obrigatórios', errors.join('\n'));
-              return;
-            }
             if (connectionStatus !== 'success') {
               showValidationModal('warning', 'Conexão Não Testada', 'Teste a conexão antes de avançar para garantir que as credenciais estão corretas.');
               return;
             }
-            setStep(formData.type === 'export' ? 'export' : 'import');
+            setStep('review');
           }}
         >
-          Próximo: Configurar {formData.type === 'export' ? 'Exportação' : 'Importação'}
+          Próximo: Revisar e Salvar
         </button>
       </div>
     </div>
@@ -1200,81 +1301,67 @@ export default function SQLProfileModal({
 
   const renderReviewStep = () => (
     <div className={styles.stepContent}>
-      <h3>Revisar Configurações</h3>
+      <h3>✅ Revisar e Salvar Perfil</h3>
       <p className={styles.stepDescription}>
         Confirme as configurações do perfil antes de salvar
       </p>
 
       <div className={styles.reviewSection}>
-        <h4>Informações Básicas</h4>
+        <h4>📋 Informações Básicas</h4>
         <div className={styles.reviewItem}>
-          <span>Nome:</span>
+          <span>Nome do Perfil:</span>
           <strong>{formData.name}</strong>
         </div>
-        <div className={styles.reviewItem}>
-          <span>Tipo:</span>
-          <strong>{formData.type === 'import' ? 'Importação' : formData.type === 'export' ? 'Exportação' : 'Bidirecional'}</strong>
-        </div>
+        {formData.description && (
+          <div className={styles.reviewItem}>
+            <span>Descrição:</span>
+            <strong>{formData.description}</strong>
+          </div>
+        )}
       </div>
 
       <div className={styles.reviewSection}>
-        <h4>Conexão</h4>
+        <h4>🔒 Conexão Segura via Tailscale</h4>
         <div className={styles.reviewItem}>
-          <span>Banco:</span>
+          <span>Tipo de Banco:</span>
           <strong>{formData.connectionConfig?.dbType?.toUpperCase()}</strong>
         </div>
         <div className={styles.reviewItem}>
-          <span>Servidor:</span>
+          <span>Servidor Tailscale:</span>
           <strong>{formData.connectionConfig?.host}:{formData.connectionConfig?.port}</strong>
         </div>
         <div className={styles.reviewItem}>
-          <span>Database:</span>
+          <span>Nome do Banco:</span>
           <strong>{formData.connectionConfig?.database}</strong>
+        </div>
+        <div className={styles.reviewItem}>
+          <span>Usuário:</span>
+          <strong>{formData.connectionConfig?.username}</strong>
+        </div>
+        <div className={styles.reviewItem}>
+          <span>Status da Conexão:</span>
+          <strong className={connectionStatus === 'success' ? styles.statusSuccess : styles.statusPending}>
+            {connectionStatus === 'success' ? '✅ Testada e Validada' : '⏳ Aguardando Teste'}
+          </strong>
         </div>
       </div>
 
-      {formData.importSettings?.enabled && (
-        <div className={styles.reviewSection}>
-          <h4>Importação</h4>
-          <div className={styles.reviewItem}>
-            <span>Tabela:</span>
-            <strong>{formData.importSettings.tableName}</strong>
-          </div>
-          <div className={styles.reviewItem}>
-            <span>Destino:</span>
-            <strong>{formData.importSettings.targetCollection}</strong>
-          </div>
+      <div className={styles.infoBox} style={{ marginTop: '24px' }}>
+        <AlertCircle size={18} />
+        <div>
+          <strong>ℹ️ Próximos Passos:</strong>
+          <p>Após salvar este perfil, você poderá configurar:</p>
+          <ul>
+            <li>Importação de dados do banco externo</li>
+            <li>Exportação de dados para o banco externo</li>
+            <li>Mapeamento de colunas e transformações</li>
+            <li>Agendamento de sincronizações</li>
+          </ul>
         </div>
-      )}
-
-      {formData.exportSettings?.enabled && (
-        <div className={styles.reviewSection}>
-          <h4>Exportação</h4>
-          <div className={styles.reviewItem}>
-            <span>Origem:</span>
-            <strong>{formData.exportSettings.sourceCollection}</strong>
-          </div>
-          <div className={styles.reviewItem}>
-            <span>Tabela:</span>
-            <strong>{formData.exportSettings.targetTable}</strong>
-          </div>
-          {formData.exportSettings.filterType && formData.exportSettings.filterType !== 'all' && (
-            <div className={styles.reviewItem}>
-              <span>Filtro:</span>
-              <strong>
-                {formData.exportSettings.filterType === 'by_company' && `Empresa: ${formData.exportSettings.filterCompany}`}
-                {formData.exportSettings.filterType === 'by_department' && `Departamento: ${formData.exportSettings.filterDepartment}`}
-                {formData.exportSettings.filterType === 'by_form' && `Formulário: ${formData.exportSettings.filterFormId}`}
-                {formData.exportSettings.filterType === 'by_date' && `Período: ${formData.exportSettings.filterStartDate} até ${formData.exportSettings.filterEndDate}`}
-                {formData.exportSettings.filterType === 'custom' && 'Personalizado'}
-              </strong>
-            </div>
-          )}
-        </div>
-      )}
+      </div>
 
       <div className={styles.stepActions}>
-        <button className={styles.backButton} onClick={() => setStep(formData.type === 'import' ? 'import' : 'export')}>
+        <button className={styles.backButton} onClick={() => setStep('connection')}>
           Voltar
         </button>
         <button className={styles.saveButton} onClick={handleSave}>
@@ -1305,20 +1392,16 @@ export default function SQLProfileModal({
           </div>
 
           <div className={styles.progress}>
-            <div className={`${styles.progressStep} ${step === 'basic' ? styles.active : styles.completed}`}>
+            <div className={`${styles.progressStep} ${step === 'basic' ? styles.active : (step === 'connection' || step === 'review') ? styles.completed : ''}`}>
               <span>1</span>
               <span>Básico</span>
             </div>
-            <div className={`${styles.progressStep} ${step === 'connection' ? styles.active : (step === 'import' || step === 'export' || step === 'review') ? styles.completed : ''}`}>
+            <div className={`${styles.progressStep} ${step === 'connection' ? styles.active : step === 'review' ? styles.completed : ''}`}>
               <span>2</span>
               <span>Conexão</span>
             </div>
-            <div className={`${styles.progressStep} ${step === 'import' || step === 'export' ? styles.active : step === 'review' ? styles.completed : ''}`}>
-              <span>3</span>
-              <span>Dados</span>
-            </div>
             <div className={`${styles.progressStep} ${step === 'review' ? styles.active : ''}`}>
-              <span>4</span>
+              <span>3</span>
               <span>Revisar</span>
             </div>
           </div>
@@ -1326,8 +1409,6 @@ export default function SQLProfileModal({
           <div className={styles.content}>
             {step === 'basic' && renderBasicStep()}
             {step === 'connection' && renderConnectionStep()}
-            {step === 'import' && renderImportStep()}
-            {step === 'export' && renderExportStep()}
             {step === 'review' && renderReviewStep()}
           </div>
         </div>

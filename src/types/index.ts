@@ -673,6 +673,8 @@ export interface SQLConnectionConfig {
   sslCA?: string;
   connectionTimeout?: number;
   maxConnections?: number;
+  useTailscale?: boolean; // Usar Tailscale para conexão
+  tailscaleHostname?: string; // Hostname do Tailscale (ex: server-name.tail-scale.ts.net)
   isActive: boolean;
   createdAt: Timestamp;
   createdBy: string;
