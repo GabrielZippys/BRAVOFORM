@@ -1,10 +1,9 @@
 'use client';
 
 import React, { useState } from 'react';
-import type { SQLIntegrationProfile } from '@/types';
 import SQLIntegrationProfiles from './SQLIntegrationProfiles';
 import SQLProfileModal from './SQLProfileModal';
-import { sqlProfilesService } from '../services/sqlProfilesService';
+import type { SQLIntegrationProfile } from '@/types';
 
 interface SQLIntegrationManagerProps {
   companyId: string;
@@ -17,41 +16,36 @@ export default function SQLIntegrationManager({
   companyName,
   userId
 }: SQLIntegrationManagerProps) {
-  const [showModal, setShowModal] = useState(false);
+  const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingProfile, setEditingProfile] = useState<SQLIntegrationProfile | undefined>(undefined);
-  const [refreshTrigger, setRefreshTrigger] = useState(0);
+  const [refreshKey, setRefreshKey] = useState(0);
 
   const handleCreateProfile = () => {
     setEditingProfile(undefined);
-    setShowModal(true);
+    setIsModalOpen(true);
   };
 
   const handleEditProfile = (profile: SQLIntegrationProfile) => {
     setEditingProfile(profile);
-    setShowModal(true);
+    setIsModalOpen(true);
   };
 
   const handleSaveProfile = async (profile: SQLIntegrationProfile) => {
-    try {
-      await sqlProfilesService.saveProfile(profile);
-      setShowModal(false);
-      setEditingProfile(undefined);
-      setRefreshTrigger(prev => prev + 1);
-    } catch (error) {
-      console.error('Erro ao salvar perfil:', error);
-      throw error;
-    }
+    // A lógica de salvar já está no SQLProfileModal
+    setRefreshKey(prev => prev + 1); // Força atualização da lista
+    setIsModalOpen(false);
+    setEditingProfile(undefined);
   };
 
   const handleCloseModal = () => {
-    setShowModal(false);
+    setIsModalOpen(false);
     setEditingProfile(undefined);
   };
 
   return (
-    <>
+    <div style={{ padding: '24px' }}>
       <SQLIntegrationProfiles
-        key={refreshTrigger}
+        key={refreshKey}
         companyId={companyId}
         companyName={companyName}
         userId={userId}
@@ -60,7 +54,7 @@ export default function SQLIntegrationManager({
       />
 
       <SQLProfileModal
-        isOpen={showModal}
+        isOpen={isModalOpen}
         onClose={handleCloseModal}
         onSave={handleSaveProfile}
         profile={editingProfile}
@@ -68,6 +62,6 @@ export default function SQLIntegrationManager({
         companyName={companyName}
         userId={userId}
       />
-    </>
+    </div>
   );
 }

@@ -70,12 +70,18 @@ async function getMySQLTableSchema(config: DatabaseConfig, tableName: string): P
       connectTimeout: config.connectionTimeout || 10000
     });
 
+    // Sanitizar nome da tabela
+    const safeTableName = sanitizeTableName(tableName);
+    if (!safeTableName || safeTableName !== tableName) {
+      throw new Error('Nome de tabela inválido');
+    }
+
     // Obter colunas
-    const [columns] = await connection.execute(`DESCRIBE ${tableName}`);
+    const [columns] = await connection.execute(`DESCRIBE ${safeTableName}`);
     const columnNames = (columns as any[]).map(col => col.Field);
 
     // Obter amostra de dados
-    const [sampleData] = await connection.execute(`SELECT * FROM ${tableName} LIMIT 3`);
+    const [sampleData] = await connection.execute(`SELECT * FROM ${safeTableName} LIMIT 3`);
     await connection.end();
     
     return {
@@ -188,6 +194,25 @@ async function getPostgreSQLTableSchema(config: DatabaseConfig, tableName: strin
   }
 }
 
+// Sanitizar nome de tabela para prevenir SQL injection
+function sanitizeTableName(tableName: string): string {
+  // Apenas letras, números, underscore e hífen
+  return tableName.replace(/[^a-zA-Z0-9_\-]/g, '');
+}
+
+// Validar configuração de banco
+function validateDatabaseConfig(config: DatabaseConfig): string[] {
+  const errors: string[] = [];
+  
+  if (!config.host || config.host.length > 255) errors.push('Host inválido');
+  if (!config.port || config.port < 1 || config.port > 65535) errors.push('Porta inválida');
+  if (!config.database || config.database.length > 64) errors.push('Nome do banco inválido');
+  if (!config.username || config.username.length > 32) errors.push('Usuário inválido');
+  if (!config.password || config.password.length > 128) errors.push('Senha inválida');
+  
+  return errors;
+}
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json() as {
@@ -199,9 +224,10 @@ export async function POST(request: NextRequest) {
     const { action, config, tableName } = body;
 
     // Validar configuração básica
-    if (!config.host || !config.port || !config.database || !config.username || !config.password) {
+    const validationErrors = validateDatabaseConfig(config);
+    if (validationErrors.length > 0) {
       return NextResponse.json(
-        { error: 'Configuração do banco de dados incompleta' },
+        { error: `Configuração inválida: ${validationErrors.join(', ')}` },
         { status: 400 }
       );
     }
