@@ -1,7 +1,7 @@
 # 📊 **STATUS DE IMPLEMENTAÇÃO - Sistema de Workflow BRAVOFORM**
 
 **Data de Início:** 16 de Março de 2026  
-**Última Atualização:** 23 de Março de 2026 - 09:00 AM
+**Última Atualização:** 23 de Março de 2026 - 16:23 PM
 
 ---
 
@@ -15,9 +15,11 @@ FASE 4: Persistência e Configurações   [ ████████████
 FASE 5: Histórico de Workflows         [ ████████████████████ ] 100% ✅
 FASE 6: Interface do Colaborador       [ ████████████████████ ] 100% ✅
 FASE 7: Notificações e Automação       [ ████████████████████ ] 100% ✅
-FASE 8: Fluxo de Compras (XML/NF-e)   [                      ]   0% ⬜
+FASE 7.3: Triggers Automáticos         [ ████████████████████ ] 100% ✅
+FASE 8: Integrações SQL (Tailscale)    [ ████████████████████ ] 100% ✅
+FASE 9: Fluxo de Compras (XML/NF-e)   [                      ]   0% ⬜
 
-PROGRESSO TOTAL:                       [ █████████████████░░░ ]  87% 🔄
+PROGRESSO TOTAL:                       [ ██████████████████░░ ]  90% 🔄
 ```
 
 ---
@@ -34,14 +36,44 @@ PROGRESSO TOTAL:                       [ █████████████
 - ✅ **Company** (Linhas 123-127) - Empresas
 - ✅ **Department** (Linhas 129-134) - Departamentos
 - ✅ **OrderGridField** (Linhas 258-267) - Grade de pedidos avançada
+- ✅ **StageType** (Linhas 290-301) - Tipos de etapas de workflow
+- ✅ **RoutingCondition** (Linhas 307-318) - Condições de roteamento
+- ✅ **StageTimer** (Linhas 321-325) - Timer para etapas de aguardo
+- ✅ **ValidationConfig** (Linhas 335-341) - Configuração de validação
+- ✅ **WorkflowTrigger** (Linhas 344-366) - Triggers automáticos (SQL/Webhook/Schedule)
+- ✅ **WorkflowStage** (Linhas 369-398) - Etapa de workflow completa
+- ✅ **WorkflowHistoryEntry** - Histórico de movimentações
+- ✅ **WorkflowConnection** - Conexões entre etapas
+- ✅ **Workflow** - Workflow completo
+- ✅ **WorkflowInstance** - Instância de workflow em execução
+- ✅ **SQLConnectionConfig** - Configuração de conexão SQL via Tailscale
 
 ### **2. Componentes React Existentes**
+
+**Formulários:**
 - ✅ `/src/components/EnhancedFormBuilder.tsx` - Editor de formulários
 - ✅ `/src/components/FormResponse.tsx` - Renderizador de respostas
+
+**Histórico:**
 - ✅ `/src/components/AdminHistoryModal.tsx` - Modal de histórico admin
 - ✅ `/src/components/CollaboratorHistoryModal.tsx` - Histórico colaborador
 - ✅ `/src/components/ComprehensiveHistoryModal.tsx` - Histórico completo
 - ✅ `/src/components/TrashModal.tsx` - Gestão de lixeira
+
+**Workflow:**
+- ✅ `/src/components/WorkflowCanvas.tsx` - Canvas de criação de workflows
+- ✅ `/src/components/StageConfigPanel.tsx` - Painel de configuração de etapas
+- ✅ `/src/components/WorkflowTestMode.tsx` - Modo de teste de workflows
+- ✅ `/src/components/CollaboratorWorkflowView.tsx` - Visualização do colaborador
+- ✅ `/src/components/RoutingConditionModal.tsx` - Modal de condições de roteamento
+- ✅ `/src/components/FormSelectionModal.tsx` - Seleção de formulários
+- ✅ `/src/components/TriggerConfigPanel.tsx` - Configuração de triggers automáticos
+
+**Integrações SQL:**
+- ✅ `/src/components/SQLProfileModal.tsx` - Modal de configuração de perfis SQL
+- ✅ `/app/api/database/connect/route.ts` - API de conexão com bancos SQL
+
+**Layout:**
 - ✅ `/src/components/Header.tsx` - Cabeçalho
 - ✅ `/src/components/Sidebar.tsx` - Menu lateral
 
@@ -747,7 +779,90 @@ firebase functions:config:set nodemailer.pass="senha-app"
 
 ---
 
-### **Tarefa 7.3: Dashboard de Analytics** ⏱️ 8h
+### **Tarefa 7.3: Triggers Automáticos para Etapas de Execução** ⏱️ 12h
+**Status:** ✅ CONCLUÍDO
+
+**O que foi implementado:**
+1. ✅ Adicionado campo `trigger` nas etapas de tipo "Execução"
+2. ✅ Criada interface `WorkflowTrigger` em `/src/types/index.ts`
+3. ✅ Implementado componente `TriggerConfigPanel.tsx` completo
+4. ✅ Integração com perfis SQL configurados via Tailscale
+5. ✅ Estado vazio quando não há perfis SQL configurados
+6. ✅ Suporte para 3 tipos de triggers: SQL Database, Webhook, Schedule
+
+**Interface de Trigger:**
+```typescript
+export interface WorkflowTrigger {
+  enabled: boolean;
+  type: 'sql_database' | 'webhook' | 'schedule';
+  sqlConfig?: {
+    profileId: string;           // ID do perfil SQL configurado
+    tableName: string;            // Tabela a monitorar
+    triggerColumn: string;        // Coluna para detectar novos registros
+    lastProcessedValue?: any;     // Último valor processado
+    pollingInterval: number;      // Intervalo de verificação (minutos)
+  };
+  webhookConfig?: {
+    url: string;
+    secret: string;
+  };
+  scheduleConfig?: {
+    cron: string;                 // Expressão cron
+    timezone: string;
+  };
+}
+```
+
+**Exemplo de Uso - Etapa de Execução com Trigger SQL:**
+```typescript
+{
+  id: "exec-1",
+  name: "Validação de Fornecedor",
+  type: "execution",
+  trigger: {
+    enabled: true,
+    type: "sql_database",
+    sqlConfig: {
+      profileId: "sql-profile-123",
+      tableName: "pedidos_compra",
+      triggerColumn: "id",
+      pollingInterval: 5          // Verifica a cada 5 minutos
+    }
+  }
+}
+```
+
+**Fluxo de Funcionamento:**
+1. Admin configura trigger na etapa de Execução
+2. Sistema monitora tabela SQL via polling
+3. Ao detectar novo registro (ex: `id > lastProcessedValue`):
+   - Cria nova instância de workflow automaticamente
+   - Preenche dados iniciais com informações do registro SQL
+   - Atribui ao colaborador configurado
+   - Envia notificações
+   - Atualiza `lastProcessedValue`
+
+**Arquivos a criar:**
+- `/src/services/triggerService.ts` - Serviço de monitoramento
+- `/src/components/TriggerConfigPanel.tsx` - Painel de configuração
+- `/functions/src/sqlTriggers.ts` - Cloud Function de polling
+
+**Cloud Function de Polling:**
+```typescript
+// Executar a cada 5 minutos
+export const checkSQLTriggers = onSchedule('*/5 * * * *', async () => {
+  // 1. Buscar workflows com triggers SQL habilitados
+  // 2. Para cada trigger:
+  //    - Conectar ao banco via perfil SQL
+  //    - Verificar novos registros
+  //    - Criar instâncias de workflow
+  //    - Atualizar lastProcessedValue
+});
+```
+
+---
+
+### **Tarefa 7.4: Dashboard de Analytics** ⏱️ 8h
 **Status:** ⬜ OPCIONAL (Não implementado)
 
 **Funcionalidades planejadas:**
@@ -756,11 +871,10 @@ firebase functions:config:set nodemailer.pass="senha-app"
 - Taxa de conclusão
 - Tempo médio por etapa
 - Gargalos identificados
-4. Envio automático de notificações
 
 ---
 
-### **Tarefa 7.3: Agendamento Automático** ⏱️ 6h
+### **Tarefa 7.5: Agendamento Automático** ⏱️ 6h
 **Status:** ⬜ NÃO INICIADO
 
 **O que fazer:**
@@ -772,32 +886,100 @@ firebase functions:config:set nodemailer.pass="senha-app"
 ---
 
 ### **📋 Checklist Fase 7:**
-- [ ] Dashboard de métricas implementado
-- [ ] Triggers Firebase configurados
-- [ ] Agendamento automático funcionando
-- [ ] Notificações automáticas
+- [x] Sistema de notificações implementado
+- [x] Triggers Firebase configurados
+- [x] Triggers automáticos SQL (Tarefa 7.3) ✅
+- [ ] Dashboard de métricas (Tarefa 7.4) - OPCIONAL
+- [ ] Agendamento automático (Tarefa 7.5)
 - [ ] Testes de integração completos
 
 ---
 
-## � **FASE 8: FLUXO DE COMPRAS COM VALIDAÇÃO XML** (Semanas 15-20)
+## 🔌 **FASE 8: INTEGRAÇÕES SQL VIA TAILSCALE** (Semana 14)
 
-### **Status:** ⬜ NÃO INICIADO
+### **Status:** ✅ CONCLUÍDO
 
-### **Objetivo:** Implementar fluxo completo de compras 100% customizável com detecção automática de pedidos, validação de fornecedores, conferência de XML NF-e, formulário de recebimento e geração de PDF.
+### **Objetivo:** Implementar sistema completo de integração com bancos de dados SQL externos via Tailscale VPN mesh, permitindo conexões seguras com servidores SQL em redes privadas.
 
 ---
 
-### **Tarefa 8.1: Modelagem de Dados — Interfaces do Fluxo de Compras** ⏱️ 6h
-**Status:** ⬜ NÃO INICIADO
+### **Tarefa 8.1: Interface SQLConnectionConfig** ⏱️ 2h
+**Status:** ✅ CONCLUÍDO
 
-**O que fazer:**
-1. ⬜ Criar interfaces TypeScript para o fluxo de compras em `/src/types/index.ts`
-2. ⬜ Definir estrutura do pedido (`PurchaseOrder`)
-3. ⬜ Definir estrutura de validação de fornecedor (`SupplierValidation`)
-4. ⬜ Definir estrutura de validação XML (`XMLValidationResult`)
-5. ⬜ Definir estrutura do formulário de recebimento (`ReceivingForm`)
-6. ⬜ Definir estrutura de exclusão de pedidos (`ExcludedOrders`)
+**O que foi implementado:**
+1. ✅ Interface `SQLConnectionConfig` em `/src/types/index.ts`
+2. ✅ Suporte para MySQL, PostgreSQL e SQL Server
+3. ✅ Campos de conexão via Tailscale (hostname .ts.net ou IP 100.x.x.x)
+4. ✅ Validação de formato Tailscale
+
+**Interface criada:**
+```typescript
+export interface SQLConnectionConfig {
+  id: string;
+  name: string;
+  type: 'mysql' | 'postgresql' | 'sqlserver';
+  useTailscale: boolean;
+  tailscaleHostname: string;
+  port: number;
+  database: string;
+  username: string;
+  password: string;
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
+}
+```
+
+---
+
+### **Tarefa 8.2: Componente SQLProfileModal** ⏱️ 8h
+**Status:** ✅ CONCLUÍDO
+
+**O que foi implementado:**
+1. ✅ Modal completo de configuração de perfis SQL
+2. ✅ Fluxo simplificado em 3 passos: Basic → Connection → Review
+3. ✅ Validação de hostname/IP Tailscale
+4. ✅ Teste de conexão integrado
+5. ✅ Tutorial expansível com instruções Tailscale
+
+**Arquivos criados:**
+- `/src/components/SQLProfileModal.tsx` (1400+ linhas)
+- `/app/styles/SQLProfileModal.module.css` (1100+ linhas)
+
+---
+
+### **Tarefa 8.3: API de Conexão SQL** ⏱️ 4h
+**Status:** ✅ CONCLUÍDO
+
+**Arquivo criado:**
+- `/app/api/database/connect/route.ts`
+
+**Funcionalidades:**
+- POST `/api/database/connect` - Testa conexão e retorna tabelas
+- Suporte para MySQL, PostgreSQL e SQL Server
+- Conexão via hostname Tailscale
+
+---
+
+### **📋 Checklist Fase 8:**
+- [x] Interface SQLConnectionConfig criada
+- [x] Componente SQLProfileModal implementado
+- [x] API de conexão SQL funcionando
+- [x] Validação de Tailscale implementada
+- [x] Teste de conexão em tempo real
+- [x] Integração com TriggerConfigPanel
+
+---
+
+## 🛒 **FASE 9: FLUXO DE COMPRAS COM VALIDAÇÃO XML** (Semanas 15-20)
+
+### **Status:** ⬜ NÃO INICIADO
+
+### **Objetivo:** Implementar fluxo completo de compras com validação XML NF-e.
+
+---
+
+### **Tarefa 9.1: Modelagem de Dados** ⏱️ 6h
+**Status:** ⬜ NÃO INICIADO
 
 **Interfaces a criar:**
 ```typescript

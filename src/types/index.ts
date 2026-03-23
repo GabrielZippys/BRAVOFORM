@@ -340,6 +340,31 @@ export interface ValidationConfig {
   keepEditHistory: boolean; // Manter histórico de edições
 }
 
+// Configuração de trigger automático para etapas de execução
+export interface WorkflowTrigger {
+  enabled: boolean;
+  type: 'sql_database' | 'webhook' | 'schedule';
+  sqlConfig?: {
+    profileId: string;           // ID do perfil SQL configurado
+    tableName: string;            // Tabela a monitorar
+    triggerColumn: string;        // Coluna para detectar novos registros
+    lastProcessedValue?: any;     // Último valor processado
+    pollingInterval: number;      // Intervalo de verificação (minutos)
+    dataMapping?: {               // Mapeamento de colunas SQL para campos do workflow
+      [sqlColumn: string]: string; // sqlColumn -> workflowField
+    };
+  };
+  webhookConfig?: {
+    url: string;
+    secret: string;
+    method?: 'POST' | 'GET';
+  };
+  scheduleConfig?: {
+    cron: string;                 // Expressão cron
+    timezone: string;
+  };
+}
+
 // Configuração de uma etapa do workflow
 export interface WorkflowStage {
   id: string;
@@ -366,6 +391,7 @@ export interface WorkflowStage {
   routingConditions?: RoutingCondition[]; // Condições para múltiplos caminhos
   timer?: StageTimer; // Configuração de timer para etapas de aguardo
   validationConfig?: ValidationConfig; // Configuração de validação para etapas de validação
+  trigger?: WorkflowTrigger; // Configuração de trigger automático para etapas de execução
   order: number;
   isFinalStage: boolean;
   isInitialStage: boolean;

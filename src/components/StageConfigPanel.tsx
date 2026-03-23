@@ -7,6 +7,7 @@ import { db } from '../../firebase/config';
 import type { WorkflowStage, Department, Collaborator } from '@/types';
 import { STAGE_TYPES, getDefaultColorForType } from '@/utils/stageTypes';
 import FormSelectionModal from './FormSelectionModal';
+import TriggerConfigPanel from './TriggerConfigPanel';
 import styles from '../../app/styles/StageConfigPanel.module.css';
 
 interface StageConfigPanelProps {
@@ -27,11 +28,13 @@ export default function StageConfigPanel({
   const [forms, setForms] = useState<any[]>([]);
   const [departments, setDepartments] = useState<Department[]>([]);
   const [collaborators, setCollaborators] = useState<Collaborator[]>([]);
+  const [sqlProfiles, setSqlProfiles] = useState<Array<{ id: string; name: string }>>([]);
   const [loading, setLoading] = useState(true);
   const [isFormModalOpen, setIsFormModalOpen] = useState(false);
 
   useEffect(() => {
     loadDepartmentsAndUsers();
+    loadSqlProfiles();
   }, []);
 
   // Inicializar timer para etapas de aguardo
@@ -132,6 +135,19 @@ export default function StageConfigPanel({
       console.error('❌ Erro ao carregar dados:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadSqlProfiles = async () => {
+    try {
+      const profilesSnapshot = await getDocs(collection(db, 'sql_profiles'));
+      const profiles = profilesSnapshot.docs.map(doc => ({
+        id: doc.id,
+        name: doc.data().name || 'Perfil sem nome'
+      }));
+      setSqlProfiles(profiles);
+    } catch (error) {
+      console.error('Erro ao carregar perfis SQL:', error);
     }
   };
 
@@ -270,79 +286,89 @@ export default function StageConfigPanel({
 
               <div className={styles.section}>
                 <h4 className={styles.sectionTitle}>Requisitos</h4>
-                <div className={styles.checkboxGroup}>
-                  {STAGE_TYPES.find(t => t.type === stage.stageType)?.fields.requireComment !== undefined && (
-                    <label className={styles.checkboxCard}>
-                      <input
-                        type="checkbox"
-                        checked={stage.requireComment}
-                        onChange={(e) => onUpdate({ requireComment: e.target.checked })}
-                      />
-                      <div className={styles.checkboxContent}>
-                        <MessageSquare size={20} />
-                        <div>
-                          <strong>Exigir comentário</strong>
-                          <p>Obrigatório adicionar comentário ao mover para esta etapa</p>
+                
+                {/* Trigger Automático para etapas de execução */}
+                {stage.stageType === 'execution' ? (
+                  <TriggerConfigPanel
+                    trigger={stage.trigger}
+                    onUpdate={(trigger) => onUpdate({ trigger })}
+                    sqlProfiles={sqlProfiles}
+                  />
+                ) : (
+                  <div className={styles.checkboxGroup}>
+                    {STAGE_TYPES.find(t => t.type === stage.stageType)?.fields.requireComment !== undefined && (
+                      <label className={styles.checkboxCard}>
+                        <input
+                          type="checkbox"
+                          checked={stage.requireComment}
+                          onChange={(e) => onUpdate({ requireComment: e.target.checked })}
+                        />
+                        <div className={styles.checkboxContent}>
+                          <MessageSquare size={20} />
+                          <div>
+                            <strong>Exigir comentário</strong>
+                            <p>Obrigatório adicionar comentário ao mover para esta etapa</p>
+                          </div>
                         </div>
-                      </div>
-                    </label>
-                  )}
+                      </label>
+                    )}
 
-                  {STAGE_TYPES.find(t => t.type === stage.stageType)?.fields.requireAttachments !== undefined && (
-                    <label className={styles.checkboxCard}>
-                      <input
-                        type="checkbox"
-                        checked={stage.requireAttachments}
-                        onChange={(e) => onUpdate({ requireAttachments: e.target.checked })}
-                      />
-                      <div className={styles.checkboxContent}>
-                        <Paperclip size={20} />
-                        <div>
-                          <strong>Exigir anexos</strong>
-                          <p>Obrigatório anexar arquivos ao mover para esta etapa</p>
+                    {STAGE_TYPES.find(t => t.type === stage.stageType)?.fields.requireAttachments !== undefined && (
+                      <label className={styles.checkboxCard}>
+                        <input
+                          type="checkbox"
+                          checked={stage.requireAttachments}
+                          onChange={(e) => onUpdate({ requireAttachments: e.target.checked })}
+                        />
+                        <div className={styles.checkboxContent}>
+                          <Paperclip size={20} />
+                          <div>
+                            <strong>Exigir anexos</strong>
+                            <p>Obrigatório anexar arquivos ao mover para esta etapa</p>
+                          </div>
                         </div>
-                      </div>
-                    </label>
-                  )}
+                      </label>
+                    )}
 
-                  {STAGE_TYPES.find(t => t.type === stage.stageType)?.fields.requireForms !== undefined && (
-                    <label className={styles.checkboxCard}>
-                      <input
-                        type="checkbox"
-                        checked={stage.requireForms || false}
-                        onChange={(e) => {
-                          const isChecked = e.target.checked;
-                          onUpdate({ requireForms: isChecked });
-                          if (!isChecked) {
-                            onUpdate({ formIds: [] });
-                          } else {
-                            setIsFormModalOpen(true);
-                          }
-                        }}
-                      />
-                      <div 
-                        className={styles.checkboxContent}
-                        onClick={(e) => {
-                          if (stage.requireForms) {
-                            e.preventDefault();
-                            setIsFormModalOpen(true);
-                          }
-                        }}
-                        style={{ cursor: stage.requireForms ? 'pointer' : 'default' }}
-                      >
-                        <FileText size={20} />
-                        <div>
-                          <strong>Exigir formulários</strong>
-                          <p>
-                            {stage.requireForms && stage.formIds && stage.formIds.length > 0
-                              ? `${stage.formIds.length} formulário${stage.formIds.length > 1 ? 's' : ''} selecionado${stage.formIds.length > 1 ? 's' : ''} - Clique para editar`
-                              : 'Obrigatório responder formulários nesta etapa'}
-                          </p>
+                    {STAGE_TYPES.find(t => t.type === stage.stageType)?.fields.requireForms !== undefined && (
+                      <label className={styles.checkboxCard}>
+                        <input
+                          type="checkbox"
+                          checked={stage.requireForms || false}
+                          onChange={(e) => {
+                            const isChecked = e.target.checked;
+                            onUpdate({ requireForms: isChecked });
+                            if (!isChecked) {
+                              onUpdate({ formIds: [] });
+                            } else {
+                              setIsFormModalOpen(true);
+                            }
+                          }}
+                        />
+                        <div 
+                          className={styles.checkboxContent}
+                          onClick={(e) => {
+                            if (stage.requireForms) {
+                              e.preventDefault();
+                              setIsFormModalOpen(true);
+                            }
+                          }}
+                          style={{ cursor: stage.requireForms ? 'pointer' : 'default' }}
+                        >
+                          <FileText size={20} />
+                          <div>
+                            <strong>Exigir formulários</strong>
+                            <p>
+                              {stage.requireForms && stage.formIds && stage.formIds.length > 0
+                                ? `${stage.formIds.length} formulário${stage.formIds.length > 1 ? 's' : ''} selecionado${stage.formIds.length > 1 ? 's' : ''} - Clique para editar`
+                                : 'Obrigatório responder formulários nesta etapa'}
+                            </p>
+                          </div>
                         </div>
-                      </div>
-                    </label>
-                  )}
-                </div>
+                      </label>
+                    )}
+                  </div>
+                )}
               </div>
 
               {/* Separador */}

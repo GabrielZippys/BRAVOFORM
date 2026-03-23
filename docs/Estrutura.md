@@ -2,7 +2,7 @@
 
 ## 🎯 **Visão Geral do Projeto** (Linhas 1-10)
 
-O **BRAVOFORM** é uma plataforma completa de gerenciamento de formulários corporativos desenvolvida com Next.js 16, React 19 e Firebase. O sistema permite criação, edição, distribuição e análise de formulários personalizados com controle granular de acesso e recursos avançados de dashboard analítico.
+O **BRAVOFORM** é uma plataforma completa de gerenciamento de formulários corporativos desenvolvida com Next.js 16, React 19 e Firebase. O sistema permite criação, edição, distribuição e análise de formulários personalizados com controle granular de acesso, recursos avançados de dashboard analítico, sistema de workflow visual (BravoFlow) e integrações com bancos de dados SQL externos via Tailscale.
 
 ---
 
@@ -42,6 +42,8 @@ BRAVOFORM/
 | **Charts** | Recharts | 3.1.0 | Visualizações de dados |
 | **Icons** | Lucide React | 0.517.0 | Ícones modernos |
 | **Drag & Drop** | @dnd-kit | 6.3.1 | Interface arrastável |
+| **Workflow** | ReactFlow | 11.x | Editor visual de workflows |
+| **VPN Mesh** | Tailscale | - | Conexões SQL seguras |
 
 ---
 
@@ -139,6 +141,60 @@ interface FormResponse {
   deletedAt?: Timestamp; // Soft delete
 }
 ```
+
+#### **WorkflowTrigger** (Novo - Fase 7.3)
+```typescript
+interface WorkflowTrigger {
+  enabled: boolean;
+  type: 'sql_database' | 'webhook' | 'schedule';
+  sqlConfig?: {
+    profileId: string;           // ID do perfil SQL (Tailscale)
+    tableName: string;            // Tabela a monitorar
+    triggerColumn: string;        // Coluna para detectar novos registros
+    lastProcessedValue?: any;     // Último valor processado
+    pollingInterval: number;      // Intervalo de verificação (minutos)
+  };
+  webhookConfig?: {
+    url: string;
+    secret: string;
+  };
+  scheduleConfig?: {
+    cron: string;                 // Expressão cron
+    timezone: string;
+  };
+}
+```
+
+**Propósito:** Permite que etapas de tipo "Execução" criem workflows automaticamente quando novos registros aparecem em bancos de dados externos via integração SQL Tailscale.
+
+**Exemplo de Uso:**
+```typescript
+// Etapa de Execução com Trigger SQL
+{
+  id: "exec-1",
+  name: "Validação de Fornecedor",
+  type: "execution",
+  trigger: {
+    enabled: true,
+    type: "sql_database",
+    sqlConfig: {
+      profileId: "sql-profile-erp",
+      tableName: "pedidos_compra",
+      triggerColumn: "id",
+      pollingInterval: 5
+    }
+  }
+}
+```
+
+**Fluxo:**
+1. Cloud Function monitora tabela SQL (polling a cada X minutos)
+2. Detecta novos registros (WHERE triggerColumn > lastProcessedValue)
+3. Cria instância de workflow automaticamente
+4. Preenche dados iniciais com informações do registro
+5. Atribui ao colaborador configurado
+6. Envia notificações
+7. Atualiza lastProcessedValue
 
 ---
 

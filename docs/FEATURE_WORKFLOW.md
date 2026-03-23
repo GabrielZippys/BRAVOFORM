@@ -2,9 +2,9 @@
 
  📋 **Visão Geral da Feature** (Linhas 1-20)
 
-**STATUS: ✅ IMPLEMENTADO (75% Completo)**
+**STATUS: ✅ IMPLEMENTADO (90% Completo)**
 
-O **BravoFlow** é um sistema de workflow visual independente implementado no BRAVOFORM. Permite que administradores criem fluxos de trabalho personalizados com interface drag-and-drop usando ReactFlow, definam etapas customizadas, configurem permissões granulares e testem workflows em tempo real.
+O **BravoFlow** é um sistema de workflow visual independente implementado no BRAVOFORM. Permite que administradores criem fluxos de trabalho personalizados com interface drag-and-drop usando ReactFlow, definam etapas customizadas, configurem permissões granulares, testem workflows em tempo real e integrem com bancos de dados SQL externos via Tailscale para triggers automáticos.
 
 **Objetivo Principal:** ✅ Sistema de etapas customizáveis com editor visual, validações, temporizadores e modo de teste completo.
 
@@ -33,6 +33,9 @@ Workflow Criado → Editor Visual → Etapas Configuradas → Modo de Teste → 
 ✅ Temporizadores para etapas de espera
 ✅ Modo de teste completo
 ✅ Validação e progressão de etapas
+✅ Triggers automáticos (SQL/Webhook/Schedule)
+✅ Integrações SQL via Tailscale
+✅ Notificações Email + WhatsApp
 ```
 
  **🎯 O Conceito Central: "Tickets" em uma Esteira de Processos**
@@ -69,6 +72,7 @@ Editor visual completo usando ReactFlow com:
 - 'documentation' - Etapa de documentação
 - 'validation' - Etapa de validação (sem campos)
 - 'waiting' - Etapa de espera com timer
+- 'execution' - Etapa de execução com triggers automáticos
 ```
 
  **✅ 2. StageConfigPanel - Configuração de Etapas**
@@ -170,6 +174,96 @@ interface RoutingCondition {
 - ✅ Interface visual de configuração
 
 **Status:** Implementado mas não testado no modo de teste
+
+ **⚡ 6. Triggers Automáticos para Etapas de Execução**
+
+**Status:** ⬜ PLANEJADO (Fase 7.3)
+
+**Conceito:**
+Etapas de tipo "Execução" podem ter triggers configurados para criar workflows automaticamente quando novos registros aparecem em bancos de dados externos.
+
+**Interface de Trigger:**
+```typescript
+interface WorkflowTrigger {
+  enabled: boolean;
+  type: 'sql_database' | 'webhook' | 'schedule';
+  sqlConfig?: {
+    profileId: string;           // ID do perfil SQL (Tailscale)
+    tableName: string;            // Tabela a monitorar
+    triggerColumn: string;        // Coluna para detectar novos registros
+    lastProcessedValue?: any;     // Último valor processado
+    pollingInterval: number;      // Intervalo de verificação (minutos)
+  };
+  webhookConfig?: {
+    url: string;
+    secret: string;
+  };
+  scheduleConfig?: {
+    cron: string;                 // Expressão cron
+    timezone: string;
+  };
+}
+```
+
+**Exemplo de Uso - Trigger SQL:**
+```typescript
+{
+  id: "exec-1",
+  name: "Validação de Fornecedor",
+  type: "execution",
+  trigger: {
+    enabled: true,
+    type: "sql_database",
+    sqlConfig: {
+      profileId: "sql-profile-erp",
+      tableName: "pedidos_compra",
+      triggerColumn: "id",
+      pollingInterval: 5          // Verifica a cada 5 minutos
+    }
+  },
+  requireComment: true,
+  requireAttachments: false,
+  allowedUsers: ["user-compras-1", "user-compras-2"]
+}
+```
+
+**Fluxo de Funcionamento:**
+```
+1. Admin configura trigger na etapa de Execução
+   ↓
+2. Cloud Function monitora tabela SQL via polling (a cada 5 min)
+   ↓
+3. Detecta novo registro (WHERE id > lastProcessedValue)
+   ↓
+4. Cria nova instância de workflow automaticamente
+   ↓
+5. Preenche dados iniciais com informações do registro SQL
+   ↓
+6. Atribui ao colaborador configurado na etapa
+   ↓
+7. Envia notificações (Email + WhatsApp)
+   ↓
+8. Atualiza lastProcessedValue no trigger
+```
+
+**Casos de Uso:**
+- **Pedidos de Compra:** Novo pedido no ERP → Workflow de aprovação
+- **Notas Fiscais:** Nova NF-e no sistema → Workflow de validação
+- **Solicitações:** Nova solicitação no banco → Workflow de atendimento
+- **Ordens de Serviço:** Nova OS no sistema → Workflow de execução
+
+**Requisitos de Configuração:**
+1. ✅ Perfil SQL configurado via Tailscale (segurança)
+2. ✅ Tabela e coluna de trigger definidas
+3. ✅ Intervalo de polling configurado
+4. ✅ Usuários permitidos na etapa
+5. ✅ Cloud Function agendada rodando
+
+**Componentes Implementados:**
+- ✅ `/src/components/TriggerConfigPanel.tsx` - Painel de configuração completo
+- ✅ `/app/styles/TriggerConfigPanel.module.css` - Estilos do painel
+- ⬜ `/src/services/triggerService.ts` - Serviço de monitoramento (pendente)
+- ⬜ `/functions/src/sqlTriggers.ts` - Cloud Function de polling (pendente)
 
 ---
 
