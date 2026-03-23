@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { db } from '../../firebase/config';
 import { collection, query, where, onSnapshot, collectionGroup, Timestamp } from 'firebase/firestore';
 import { Users, CheckCircle, XCircle, Clock } from 'lucide-react';
@@ -42,6 +42,7 @@ export default function DepartmentLeaderDash({
   const [forms, setForms] = useState<FormDoc[]>([]);
   const [responses, setResponses] = useState<ResponseDoc[]>([]);
   const [loading, setLoading] = useState(true);
+  const [responsesLoaded, setResponsesLoaded] = useState(false);
 
   // Carregar colaboradores do departamento
   useEffect(() => {
@@ -81,11 +82,18 @@ export default function DepartmentLeaderDash({
       collection(db, 'forms'),
       (snap) => {
         const formsList = snap.docs
-          .map((d) => ({
-            id: d.id,
-            title: d.data().title || 'Sem título',
-            authorizedUsers: d.data().authorizedUsers || []
-          }))
+          .map((d) => {
+            const data = d.data();
+            const safeId = typeof data?.id === 'string' && data.id.trim() 
+              ? data.id.trim() 
+              : d.id;
+            
+            return {
+              id: safeId,
+              title: data.title || 'Sem título',
+              authorizedUsers: data.authorizedUsers || []
+            };
+          })
           .filter((f) => 
             f.authorizedUsers.some((userId: string) => collabIds.includes(userId))
           ) as FormDoc[];
@@ -101,10 +109,12 @@ export default function DepartmentLeaderDash({
   useEffect(() => {
     if (collaborators.length === 0) {
       setResponses([]);
+      setResponsesLoaded(false);
       setLoading(false);
       return;
     }
 
+    setResponsesLoaded(false);
     const collabIds = collaborators.map(c => c.id);
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -112,28 +122,35 @@ export default function DepartmentLeaderDash({
     const unsub = onSnapshot(
       collectionGroup(db, 'responses'),
       (snap) => {
-        const responsesList = snap.docs
-          .map((d) => {
-            const data = d.data();
-            return {
-              id: d.id,
-              formId: data.formId,
-              collaboratorId: data.collaboratorId,
-              submittedAt: data.submittedAt,
-              createdAt: data.createdAt
-            };
-          })
+        const allResponses = snap.docs.map((d) => {
+          const data = d.data();
+          return {
+            id: d.id,
+            formId: data.formId,
+            collaboratorId: data.collaboratorId,
+            submittedAt: data.submittedAt,
+            createdAt: data.createdAt
+          };
+        });
+        
+        const responsesList = allResponses
           .filter((r) => {
-            if (!collabIds.includes(r.collaboratorId)) return false;
+            const inCollabList = collabIds.includes(r.collaboratorId);
             
             const ts = r.submittedAt || r.createdAt;
-            if (!ts || !(ts instanceof Timestamp)) return false;
+            const isValidTimestamp = ts && (ts instanceof Timestamp);
             
-            const date = ts.toDate();
-            return date >= today;
+            let isToday = false;
+            if (isValidTimestamp) {
+              const date = ts.toDate();
+              isToday = date >= today;
+            }
+            
+            return inCollabList && isValidTimestamp && isToday;
           }) as ResponseDoc[];
         
         setResponses(responsesList);
+        setResponsesLoaded(true);
         setLoading(false);
       }
     );
@@ -142,11 +159,11 @@ export default function DepartmentLeaderDash({
   }, [collaborators]);
 
   // Função para verificar se um colaborador respondeu um formulário hoje
-  const hasResponded = (collaboratorId: string, formId: string): boolean => {
+  const hasResponded = useCallback((collaboratorId: string, formId: string): boolean => {
     return responses.some(
       (r) => r.collaboratorId === collaboratorId && r.formId === formId
     );
-  };
+  }, [responses]);
 
 
   // Calcular estatísticas
@@ -158,7 +175,7 @@ export default function DepartmentLeaderDash({
     ? Math.round((totalActualResponses / totalExpectedResponses) * 100) 
     : 0;
 
-  if (loading) {
+  if (loading || !responsesLoaded) {
     return <div style={{ padding: '2rem', textAlign: 'center', color: '#666' }}>Carregando dados...</div>;
   }
 
@@ -268,8 +285,9 @@ export default function DepartmentLeaderDash({
             </thead>
             <tbody>
               {collaborators.map((collab, index) => {
-                const collabResponses = forms.filter(f => hasResponded(collab.id, f.id)).length;
-                const collabTotal = forms.length;
+                const authorizedForms = forms.filter(f => f.authorizedUsers.includes(collab.id));
+                const collabResponses = authorizedForms.filter(f => hasResponded(collab.id, f.id)).length;
+                const collabTotal = authorizedForms.length;
                 const collabRate = collabTotal > 0 ? Math.round((collabResponses / collabTotal) * 100) : 0;
                 
                 return (
@@ -294,6 +312,29 @@ export default function DepartmentLeaderDash({
                       {collab.username}
                     </td>
                     {forms.map((form) => {
+                      const isAuthorized = form.authorizedUsers.includes(collab.id);
+                      if (!isAuthorized) {
+                        return (
+                          <td key={form.id} style={{ 
+                            padding: '0.4rem', 
+                            textAlign: 'center'
+                          }}>
+                            <div style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              width: '28px',
+                              height: '28px',
+                              borderRadius: '6px',
+                              background: '#f3f4f6',
+                              border: '1.5px solid #d1d5db'
+                            }}>
+                              <span style={{ fontSize: '12px', color: '#9ca3af' }}>—</span>
+                            </div>
+                          </td>
+                        );
+                      }
+                      
                       const responded = hasResponded(collab.id, form.id);
                       return (
                         <td key={form.id} style={{ 
@@ -361,6 +402,21 @@ export default function DepartmentLeaderDash({
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
           <XCircle size={14} color="#ef4444" />
           <span>Pendente</span>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+          <div style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            width: '14px',
+            height: '14px',
+            borderRadius: '3px',
+            background: '#f3f4f6',
+            border: '1px solid #d1d5db'
+          }}>
+            <span style={{ fontSize: '10px', color: '#9ca3af' }}>—</span>
+          </div>
+          <span>Não autorizado</span>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
           <Clock size={14} color="#6b7280" />

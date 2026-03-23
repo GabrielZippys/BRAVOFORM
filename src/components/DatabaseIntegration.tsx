@@ -1,23 +1,29 @@
 'use client';
 
-import React, { useState } from 'react';
-import { Database, Download, Upload, ArrowLeftRight, Shield, Settings2 } from 'lucide-react';
-import type { SQLConnectionConfig, IntegrationDirection, DatabaseType, EncryptionMethod } from '@/types';
+import React, { useState, useEffect } from 'react';
+import { Database, Download, Upload, ArrowLeftRight, Shield, Settings2, BookmarkPlus } from 'lucide-react';
+import type { SQLConnectionConfig, IntegrationDirection, DatabaseType, EncryptionMethod, SQLPreset } from '@/types';
 import styles from '../../app/styles/DatabaseIntegration.module.css';
+import SQLPresetsModal from './SQLPresetsModal';
+import { sqlPresetsService } from '../services/sqlPresetsService';
 
 interface DatabaseIntegrationProps {
   onSave: (config: SQLConnectionConfig) => Promise<void>;
   companyId: string;
+  companyName: string;
   userId: string;
 }
 
 export default function DatabaseIntegration({
   onSave,
   companyId,
+  companyName,
   userId
 }: DatabaseIntegrationProps) {
   const [step, setStep] = useState<'direction' | 'connection' | 'advanced'>('direction');
   const [direction, setDirection] = useState<IntegrationDirection>('import');
+  const [showPresetsModal, setShowPresetsModal] = useState(false);
+  const [presets, setPresets] = useState<SQLPreset[]>([]);
   
   const [config, setConfig] = useState<Partial<SQLConnectionConfig>>({
     name: '',
@@ -36,6 +42,68 @@ export default function DatabaseIntegration({
     isActive: true,
     tags: []
   });
+
+  useEffect(() => {
+    loadPresets();
+  }, [companyId]);
+
+  const loadPresets = async () => {
+    try {
+      const companyPresets = await sqlPresetsService.getCompanyPresets(companyId);
+      setPresets(companyPresets);
+    } catch (error) {
+      console.error('Erro ao carregar presets:', error);
+    }
+  };
+
+  const handleSavePreset = async (preset: SQLPreset) => {
+    try {
+      await sqlPresetsService.savePreset(preset);
+      await loadPresets();
+    } catch (error) {
+      console.error('Erro ao salvar preset:', error);
+      throw error;
+    }
+  };
+
+  const handleDeletePreset = async (presetId: string) => {
+    try {
+      await sqlPresetsService.deletePreset(presetId);
+      await loadPresets();
+    } catch (error) {
+      console.error('Erro ao deletar preset:', error);
+      throw error;
+    }
+  };
+
+  const handleLoadPreset = (preset: SQLPreset) => {
+    const loadedConfig: Partial<SQLConnectionConfig> = {
+      name: preset.name,
+      description: preset.description,
+      type: preset.connectionConfig.dbType,
+      direction: preset.type === 'import' ? 'import' : 'export',
+      host: preset.connectionConfig.host,
+      port: preset.connectionConfig.port,
+      database: preset.connectionConfig.database,
+      username: preset.connectionConfig.username,
+      password: preset.connectionConfig.password,
+      encryptionMethod: preset.encryptionMethod,
+      ssl: preset.connectionConfig.ssl,
+      sslCert: preset.connectionConfig.sslCert,
+      sslKey: preset.connectionConfig.sslKey,
+      sslCA: preset.connectionConfig.sslCA,
+      connectionTimeout: preset.connectionConfig.connectionTimeout,
+      maxConnections: preset.connectionConfig.maxConnections,
+      isActive: preset.isActive,
+      tags: preset.tags
+    };
+    
+    setConfig(loadedConfig);
+    setDirection(preset.type === 'import' ? 'import' : 'export');
+    setStep('connection');
+    
+    sqlPresetsService.updateLastUsed(preset.id!);
+  };
 
   const handleTypeChange = (type: DatabaseType) => {
     const defaultPorts: Record<DatabaseType, number> = {
@@ -461,7 +529,27 @@ export default function DatabaseIntegration({
           <h1>Integração com Banco de Dados</h1>
           <p>Configure importação e exportação de dados com segurança e criptografia</p>
         </div>
+        <button 
+          className={styles.presetsButton}
+          onClick={() => setShowPresetsModal(true)}
+          title="Gerenciar Presets"
+        >
+          <BookmarkPlus size={20} />
+          Presets
+        </button>
       </div>
+
+      <SQLPresetsModal
+        isOpen={showPresetsModal}
+        onClose={() => setShowPresetsModal(false)}
+        companyId={companyId}
+        companyName={companyName}
+        userId={userId}
+        onSavePreset={handleSavePreset}
+        onDeletePreset={handleDeletePreset}
+        onLoadPreset={handleLoadPreset}
+        existingPresets={presets}
+      />
 
       <div className={styles.progressBar}>
         <div className={`${styles.progressStep} ${step === 'direction' ? styles.active : styles.completed}`}>

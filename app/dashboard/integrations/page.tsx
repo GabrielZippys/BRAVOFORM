@@ -8,6 +8,7 @@ import { Database, MessageSquare, FolderOpen } from 'lucide-react';
 
 import { auth, db } from '../../../firebase/config';
 import styles from '../../styles/Integrations.module.css';
+import SQLIntegrationManager from '../../../src/components/SQLIntegrationManager';
 
 // --- Tipos ---
 type IntegrationService = 'sql' | 'twilio' | 'googleDrive';
@@ -116,10 +117,13 @@ export default function IntegrationsPage() {
     const [user, setUser] = useState<User | null>(null);
     const [connections, setConnections] = useState<ConnectionsState>({ sql: null, twilio: null, googleDrive: false });
     const [showSqlModal, setShowSqlModal] = useState(false);
+    const [showSqlProfilesManager, setShowSqlProfilesManager] = useState(false);
     const [showTwilioModal, setShowTwilioModal] = useState(false);
     const [loading, setLoading] = useState(true);
     const [statusLog, setStatusLog] = useState<LogEntry[]>([]);
     const [activeTab, setActiveTab] = useState<'integrations' | 'tutorial'>('integrations');
+    const [companyId, setCompanyId] = useState('');
+    const [companyName, setCompanyName] = useState('');
     
     const [dbHost, setDbHost] = useState('');
     const [dbName, setDbName] = useState('');
@@ -132,6 +136,18 @@ export default function IntegrationsPage() {
             try {
                 if (currentUser) {
                     setUser(currentUser);
+                    
+                    const userDocRef = doc(db, "users", currentUser.uid);
+                    const userDocSnap = await getDoc(userDocRef);
+                    if (userDocSnap.exists()) {
+                        const userData = userDocSnap.data();
+                        setCompanyId(userData.companyId || currentUser.uid);
+                        setCompanyName(userData.companyName || 'Minha Empresa');
+                    } else {
+                        setCompanyId(currentUser.uid);
+                        setCompanyName('Minha Empresa');
+                    }
+                    
                     const docRef = doc(db, "integrations", currentUser.uid);
                     const docSnap = await getDoc(docRef);
                     if (docSnap.exists()) {
@@ -328,7 +344,7 @@ export default function IntegrationsPage() {
                     title="Banco SQL"
                     description="📥 Importe pedidos de compra | 📤 Exporte respostas | 🔒 Criptografia AES-256 | Suporta MySQL, PostgreSQL, SQL Server, Oracle e mais."
                     isConnected={!!connections.sql}
-                    onConnect={() => setShowSqlModal(true)}
+                    onConnect={() => setShowSqlProfilesManager(true)}
                     onDisconnect={handleSqlDisconnect}
                 />
                 <IntegrationCard 
@@ -359,24 +375,16 @@ export default function IntegrationsPage() {
                 />
             </div>
 
-            {/* Modal SQL */}
-            {showSqlModal && (
+            {/* Gerenciador de Perfis SQL */}
+            {showSqlProfilesManager && user && (
                 <div className={styles.modalOverlay}>
-                    <div className={styles.modalContent}>
-                        <SqlForm 
-                            onSubmit={async (e) => {
-                                await handleSaveSqlConnection(e);
-                                setShowSqlModal(false);
-                            }}
-                            onDisconnect={handleSqlDisconnect}
-                            isConnected={!!connections.sql}
-                            isConnecting={isDbConnecting}
-                            dbHost={dbHost} setDbHost={setDbHost}
-                            dbName={dbName} setDbName={setDbName}
-                            dbUser={dbUser} setDbUser={setDbUser}
-                            dbPass={dbPass} setDbPass={setDbPass}
+                    <div className={styles.modalContentLarge}>
+                        <SQLIntegrationManager
+                            companyId={companyId}
+                            companyName={companyName}
+                            userId={user.uid}
                         />
-                        <button onClick={() => setShowSqlModal(false)} className={styles.modalClose}>Fechar</button>
+                        <button onClick={() => setShowSqlProfilesManager(false)} className={styles.modalClose}>Fechar</button>
                     </div>
                 </div>
             )}

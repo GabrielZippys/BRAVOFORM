@@ -10,7 +10,7 @@ import styles from '../../styles/UsersSimple.module.css';
 import modalStyles from '../../styles/Modal.module.css';
 import { db } from '../../../firebase/config';
 import {
-  collection, addDoc, onSnapshot, query, where, doc, updateDoc, deleteDoc, getDoc, serverTimestamp
+  collection, addDoc, onSnapshot, query, where, doc, updateDoc, deleteDoc, getDoc, getDocs, serverTimestamp
 } from 'firebase/firestore';
 import { createUserWithEmailAndPassword } from 'firebase/auth';
 import { auth } from '../../../firebase/config';
@@ -179,6 +179,18 @@ export default function UsersPage() {
     }
 
     try {
+      // Verificar se já existe um colaborador com este username
+      const existingCollabQuery = query(
+        collection(db, "collaborators"),
+        where("username", "==", formState.collabUsername.trim())
+      );
+      const existingCollabSnapshot = await getDocs(existingCollabQuery);
+      
+      if (!existingCollabSnapshot.empty) {
+        setFormError(`Já existe um colaborador com o username "${formState.collabUsername}". Por favor, escolha outro nome de usuário.`);
+        return;
+      }
+
       const email = formState.collabEmail || `${formState.collabUsername.toLowerCase()}@bravoform.com`;
       
       // Criar usuário no Firebase Auth
@@ -297,8 +309,26 @@ export default function UsersPage() {
   const handleSaveCollaboratorName = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedDepartment || !editingTarget) return;
-    const ref = doc(db, "collaborators", editingTarget.id);
+    
+    setFormError('');
+    
     try {
+      // Verificar se o username mudou
+      if (editingName.trim() !== editingTarget.username) {
+        // Verificar se já existe outro colaborador com este username
+        const existingCollabQuery = query(
+          collection(db, "collaborators"),
+          where("username", "==", editingName.trim())
+        );
+        const existingCollabSnapshot = await getDocs(existingCollabQuery);
+        
+        if (!existingCollabSnapshot.empty) {
+          setFormError(`Já existe um colaborador com o username "${editingName.trim()}". Por favor, escolha outro nome de usuário.`);
+          return;
+        }
+      }
+      
+      const ref = doc(db, "collaborators", editingTarget.id);
       await updateDoc(ref, { username: editingName.trim() });
       closeModal();
     } catch (err) {

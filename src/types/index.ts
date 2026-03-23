@@ -809,3 +809,148 @@ export interface SyncLog {
   }>;
   executedBy: string;
 }
+
+export interface SQLPreset {
+  id?: string;
+  name: string;
+  description?: string;
+  companyId: string;
+  type: 'import' | 'export';
+  connectionConfig: {
+    dbType: DatabaseType;
+    host: string;
+    port: number;
+    database: string;
+    username: string;
+    password: string;
+    ssl?: boolean;
+    sslCert?: string;
+    sslKey?: string;
+    sslCA?: string;
+    connectionTimeout?: number;
+    maxConnections?: number;
+  };
+  importConfig?: {
+    tableName: string;
+    schema?: string;
+    targetCollection: 'purchase_orders' | 'form_responses' | 'custom';
+    customCollectionName?: string;
+    columnMappings: ColumnMapping[];
+    transformRules?: DataTransformRule[];
+    filterCondition?: string;
+    orderBy?: string;
+    syncMode: 'manual' | 'scheduled' | 'realtime';
+    scheduleInterval?: number;
+    scheduleCron?: string;
+    batchSize?: number;
+    duplicateHandling: 'skip' | 'update' | 'error';
+    uniqueFields?: string[];
+  };
+  exportConfig?: {
+    sourceCollection: 'purchase_orders' | 'form_responses' | 'workflow_instances' | 'custom';
+    customCollectionName?: string;
+    targetTable: string;
+    targetSchema?: string;
+    columnMappings: ColumnMapping[];
+    transformRules?: DataTransformRule[];
+    filterCondition?: string;
+    exportMode: 'insert' | 'upsert' | 'update';
+    syncMode: 'manual' | 'scheduled' | 'trigger';
+    scheduleInterval?: number;
+    scheduleCron?: string;
+    triggerEvents?: ('create' | 'update' | 'delete')[];
+    batchSize?: number;
+    createTableIfNotExists?: boolean;
+  };
+  encryptionMethod: EncryptionMethod;
+  isActive: boolean;
+  createdAt: Timestamp;
+  createdBy: string;
+  updatedAt?: Timestamp;
+  lastUsedAt?: Timestamp;
+  tags?: string[];
+}
+
+export interface CompanySQLPresets {
+  companyId: string;
+  companyName: string;
+  presets: SQLPreset[];
+}
+
+export interface SQLIntegrationProfile {
+  id?: string;
+  name: string;
+  description?: string;
+  companyId: string;
+  type: 'import' | 'export' | 'bidirectional';
+  
+  connectionConfig: {
+    dbType: DatabaseType;
+    host: string;
+    port: number;
+    database: string;
+    username: string;
+    password: string;
+    ssl?: boolean;
+    sslCert?: string;
+    sslKey?: string;
+    sslCA?: string;
+    connectionTimeout?: number;
+    maxConnections?: number;
+  };
+  
+  importSettings?: {
+    enabled: boolean;
+    tableName: string;
+    schema?: string;
+    targetCollection: 'purchase_orders' | 'form_responses' | 'custom';
+    customCollectionName?: string;
+    columnMappings: ColumnMapping[];
+    transformRules?: DataTransformRule[];
+    filterCondition?: string;
+    orderBy?: string;
+    syncMode: 'manual' | 'scheduled' | 'realtime';
+    scheduleInterval?: number;
+    scheduleCron?: string;
+    batchSize?: number;
+    duplicateHandling: 'skip' | 'update' | 'error';
+    uniqueFields?: string[];
+  };
+  
+  exportSettings?: {
+    enabled: boolean;
+    sourceCollection: 'purchase_orders' | 'form_responses' | 'workflow_instances' | 'custom';
+    customCollectionName?: string;
+    targetTable: string;
+    targetSchema?: string;
+    columnMappings: ColumnMapping[];
+    transformRules?: DataTransformRule[];
+    filterCondition?: string;
+    exportMode: 'insert' | 'upsert' | 'update';
+    syncMode: 'manual' | 'scheduled' | 'trigger';
+    scheduleInterval?: number;
+    scheduleCron?: string;
+    triggerEvents?: ('create' | 'update' | 'delete')[];
+    batchSize?: number;
+    createTableIfNotExists?: boolean;
+    filterType?: 'all' | 'by_company' | 'by_department' | 'by_form' | 'by_date' | 'custom';
+    filterCompany?: string;
+    filterDepartment?: string;
+    filterFormId?: string;
+    filterStartDate?: string;
+    filterEndDate?: string;
+  };
+  
+  encryptionMethod: EncryptionMethod;
+  isActive: boolean;
+  status: 'offline' | 'online' | 'error' | 'testing';
+  lastConnectionTest?: Timestamp;
+  lastSyncAt?: Timestamp;
+  lastSyncStatus?: 'success' | 'failed' | 'partial';
+  lastSyncError?: string;
+  
+  createdAt: Timestamp;
+  createdBy: string;
+  updatedAt?: Timestamp;
+  tags?: string[];
+}
