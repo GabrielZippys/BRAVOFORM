@@ -1,0 +1,409 @@
+.container {
+  background: #2d3748;
+  border-radius: 12px;
+  padding: 24px;
+  margin-top: 24px;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+  padding-bottom: 16px;
+  border-bottom: 2px solid #4a5568;
+}
+
+.headerLeft {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.headerLeft svg {
+  color: #63b3ed;
+}
+
+.headerLeft h3 {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 700;
+  color: #f0ead6;
+}
+
+.headerLeft p {
+  margin: 4px 0 0 0;
+  font-size: 14px;
+  color: rgba(240, 234, 214, 0.7);
+}
+
+.refreshButton {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 20px;
+  background: #4299e1;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.refreshButton:hover:not(:disabled) {
+  background: #3182ce;
+  transform: translateY(-2px);
+}
+
+.refreshButton:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.spinning {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* Stats */
+.stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.statCard {
+  background: #1a202c;
+  padding: 20px;
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  border: 1px solid #4a5568;
+}
+
+.statLabel {
+  font-size: 13px;
+  color: rgba(240, 234, 214, 0.6);
+  font-weight: 500;
+}
+
+.statValue {
+  font-size: 28px;
+  font-weight: 700;
+  color: #63b3ed;
+}
+
+/* Explorer */
+.explorer {
+  display: grid;
+  grid-template-columns: 400px 1fr;
+  gap: 24px;
+  min-height: 600px;
+}
+
+.collectionsPanel,
+.documentPanel {
+  background: #1a202c;
+  border-radius: 8px;
+  padding: 20px;
+  border: 1px solid #4a5568;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.collectionsPanel h4,
+.documentPanel h4 {
+  margin: 0 0 16px 0;
+  font-size: 16px;
+  font-weight: 700;
+  color: #f0ead6;
+}
+
+.collectionsList {
+  overflow-y: auto;
+  max-height: 550px;
+}
+
+.collectionItem {
+  margin-bottom: 8px;
+}
+
+.collectionHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px;
+  background: #2d3748;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s;
+  border: 1px solid transparent;
+}
+
+.collectionHeader:hover {
+  background: #374151;
+  border-color: #4299e1;
+}
+
+.collectionHeader.active {
+  background: #374151;
+  border-color: #4299e1;
+}
+
+.collectionInfo {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #f0ead6;
+}
+
+.collectionInfo svg {
+  color: #63b3ed;
+}
+
+.collectionName {
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.collectionMeta {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.docCount {
+  font-size: 12px;
+  color: rgba(240, 234, 214, 0.6);
+  background: #2d3748;
+  padding: 4px 8px;
+  border-radius: 4px;
+}
+
+.size {
+  font-size: 12px;
+  color: #63b3ed;
+  font-weight: 600;
+}
+
+/* Documents */
+.documentsContainer {
+  margin-top: 8px;
+  padding-left: 32px;
+}
+
+.documentItem {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: #1a202c;
+  border-radius: 4px;
+  margin-bottom: 4px;
+  cursor: pointer;
+  transition: all 0.2s;
+  border: 1px solid transparent;
+}
+
+.documentItem:hover {
+  background: #2d3748;
+  border-color: #4299e1;
+}
+
+.documentItem.selected {
+  background: #2d3748;
+  border-color: #4299e1;
+}
+
+.documentItem svg {
+  color: #9ca3af;
+  flex-shrink: 0;
+}
+
+.docId {
+  flex: 1;
+  font-size: 13px;
+  color: #f0ead6;
+  font-family: 'Courier New', monospace;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.docSize {
+  font-size: 11px;
+  color: rgba(240, 234, 214, 0.5);
+}
+
+.loadingDocs {
+  padding: 12px;
+  text-align: center;
+  color: rgba(240, 234, 214, 0.6);
+  font-size: 13px;
+}
+
+/* Document Panel */
+.documentHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid #4a5568;
+}
+
+.documentSize {
+  font-size: 14px;
+  color: #63b3ed;
+  font-weight: 600;
+}
+
+.documentContent {
+  overflow-y: auto;
+  flex: 1;
+}
+
+.fieldsView,
+.jsonView {
+  margin-bottom: 24px;
+}
+
+.fieldsView h5,
+.jsonView h5 {
+  margin: 0 0 12px 0;
+  font-size: 14px;
+  font-weight: 700;
+  color: #f0ead6;
+}
+
+.fieldsTable {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.fieldsTable thead {
+  background: #2d3748;
+}
+
+.fieldsTable th {
+  padding: 10px 12px;
+  text-align: left;
+  font-weight: 600;
+  color: #f0ead6;
+  border-bottom: 2px solid #4a5568;
+}
+
+.fieldsTable td {
+  padding: 10px 12px;
+  border-bottom: 1px solid #374151;
+  color: rgba(240, 234, 214, 0.8);
+}
+
+.fieldName {
+  font-weight: 600;
+  color: #63b3ed;
+  font-family: 'Courier New', monospace;
+}
+
+.fieldType {
+  color: #9ca3af;
+  font-style: italic;
+  font-size: 12px;
+}
+
+.fieldValue {
+  font-family: 'Courier New', monospace;
+  font-size: 12px;
+  max-width: 300px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.jsonCode {
+  background: #1a202c;
+  padding: 16px;
+  border-radius: 6px;
+  overflow-x: auto;
+  font-family: 'Courier New', monospace;
+  font-size: 12px;
+  line-height: 1.6;
+  color: #f0ead6;
+  border: 1px solid #4a5568;
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.emptyState {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: rgba(240, 234, 214, 0.4);
+  gap: 16px;
+}
+
+.emptyState svg {
+  opacity: 0.3;
+}
+
+.emptyState p {
+  margin: 0;
+  font-size: 14px;
+}
+
+.loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px;
+  gap: 12px;
+  color: rgba(240, 234, 214, 0.6);
+}
+
+/* Responsive */
+@media (max-width: 1024px) {
+  .explorer {
+    grid-template-columns: 1fr;
+  }
+
+  .stats {
+    grid-template-columns: 1fr;
+  }
+
+  .collectionsPanel {
+    max-height: 400px;
+  }
+}
+
+@media (max-width: 768px) {
+  .container {
+    padding: 16px;
+  }
+
+  .header {
+    flex-direction: column;
+    gap: 16px;
+    align-items: flex-start;
+  }
+
+  .refreshButton {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .statValue {
+    font-size: 24px;
+  }
+}

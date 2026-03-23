@@ -1,7 +1,7 @@
 # 📊 **STATUS DE IMPLEMENTAÇÃO - Sistema de Workflow BRAVOFORM**
 
 **Data de Início:** 16 de Março de 2026  
-**Última Atualização:** 18 de Março de 2026 - 10:45 AM
+**Última Atualização:** 23 de Março de 2026 - 09:00 AM
 
 ---
 
@@ -15,8 +15,9 @@ FASE 4: Persistência e Configurações   [ ████████████
 FASE 5: Histórico de Workflows         [ ████████████████████ ] 100% ✅
 FASE 6: Interface do Colaborador       [ ████████████████████ ] 100% ✅
 FASE 7: Notificações e Automação       [ ████████████████████ ] 100% ✅
+FASE 8: Fluxo de Compras (XML/NF-e)   [                      ]   0% ⬜
 
-PROGRESSO TOTAL:                       [ ████████████████████ ] 100% 🎉
+PROGRESSO TOTAL:                       [ █████████████████░░░ ]  87% 🔄
 ```
 
 ---
@@ -779,11 +780,464 @@ firebase functions:config:set nodemailer.pass="senha-app"
 
 ---
 
-## 📝 **PRÓXIMA AÇÃO IMEDIATA**
+## � **FASE 8: FLUXO DE COMPRAS COM VALIDAÇÃO XML** (Semanas 15-20)
 
-### **🎯 PRÓXIMOS PASSOS: Fase 6 - Interface do Colaborador**
+### **Status:** ⬜ NÃO INICIADO
 
-**Componentes Implementados (Fases 1-5):**
+### **Objetivo:** Implementar fluxo completo de compras 100% customizável com detecção automática de pedidos, validação de fornecedores, conferência de XML NF-e, formulário de recebimento e geração de PDF.
+
+---
+
+### **Tarefa 8.1: Modelagem de Dados — Interfaces do Fluxo de Compras** ⏱️ 6h
+**Status:** ⬜ NÃO INICIADO
+
+**O que fazer:**
+1. ⬜ Criar interfaces TypeScript para o fluxo de compras em `/src/types/index.ts`
+2. ⬜ Definir estrutura do pedido (`PurchaseOrder`)
+3. ⬜ Definir estrutura de validação de fornecedor (`SupplierValidation`)
+4. ⬜ Definir estrutura de validação XML (`XMLValidationResult`)
+5. ⬜ Definir estrutura do formulário de recebimento (`ReceivingForm`)
+6. ⬜ Definir estrutura de exclusão de pedidos (`ExcludedOrders`)
+
+**Interfaces a criar:**
+```typescript
+export interface PurchaseOrder {
+  id: string;
+  orderNumber: string;
+  supplier: {
+    cnpj: string;
+    name: string;
+  };
+  items: Array<{
+    description: string;
+    quantity: number;
+    unitPrice: number;
+    totalPrice: number;
+  }>;
+  totalValue: number;
+  paymentConditions?: string;
+  status: 'novo' | 'aprovado' | 'em_processo' | 'concluido' | 'cancelado';
+  createdBy: string;
+  createdAt: Timestamp;
+  workflowInstanceId?: string;
+  isExcludedFromDetection: boolean;
+  parentOrderId?: string;           // Referência ao pedido original (se refeito)
+}
+
+export interface XMLNFeData {
+  cnpjEmitente: string;
+  nomeEmitente: string;
+  numeroNFe: string;
+  serieNFe: string;
+  dataEmissao: string;
+  items: Array<{
+    description: string;
+    quantity: number;
+    unitPrice: number;
+    totalPrice: number;
+    ncm?: string;
+  }>;
+  totalValue: number;
+  paymentConditions?: string;
+  xmlFileUrl: string;
+}
+
+export interface XMLValidationResult {
+  status: 'aprovado' | 'divergente';
+  divergences: Array<{
+    field: string;
+    xmlValue: string;
+    orderValue: string;
+    severity: 'critico' | 'aviso';
+  }>;
+  validatedAt: Timestamp;
+}
+
+export interface DivergenceResolution {
+  action: 'seguir_com_justificativa' | 'modificar_pedido' | 'novo_pedido';
+  justification?: string;
+  newOrderNumber?: string;
+  modifications?: Record<string, any>;
+  resolvedBy: string;
+  resolvedAt: Timestamp;
+}
+
+export interface ReceivingFormData {
+  receivingDate: Date;
+  nfeNumber: string;
+  supplier: string;
+  inspectedItems: Array<{
+    description: string;
+    nfeQuantity: number;
+    receivedQuantity: number;
+    condition: 'conforme' | 'avariado' | 'faltante';
+    notes?: string;
+  }>;
+  generalNotes?: string;
+  photos?: string[];
+  inspectorSignature: string;
+  completedBy: string;
+  completedAt: Timestamp;
+}
+```
+
+---
+
+### **Tarefa 8.2: Serviço de Detecção de Pedidos** ⏱️ 10h
+**Status:** ⬜ NÃO INICIADO
+
+**O que fazer:**
+1. ⬜ Criar `/src/services/pedidoDetectionService.ts`
+2. ⬜ Implementar monitoramento de novos pedidos no Firestore (listener ou polling)
+3. ⬜ Implementar lógica de exclusão de pedidos refeitos (`excludedOrderIds`)
+4. ⬜ Criar instância de workflow automaticamente ao detectar novo pedido
+5. ⬜ Criar collection `purchase_orders` no Firestore
+6. ⬜ Criar collection `excluded_orders` para gerenciar exclusões
+
+**Funcionalidades:**
+- Listener em tempo real na collection `purchase_orders`
+- Filtro: `status == 'novo'` AND `isExcludedFromDetection == false`
+- Auto-criação de instância de workflow via `WorkflowInstanceService`
+- Atualização do status do pedido para `em_processo` após criação da instância
+
+**Firebase Trigger alternativo:**
+```typescript
+// /functions/src/purchaseOrderTriggers.ts
+export const onNewPurchaseOrder = onDocumentCreated(
+  'purchase_orders/{orderId}',
+  async (event) => {
+    const order = event.data?.data() as PurchaseOrder;
+    if (order.isExcludedFromDetection) return; // Ignorar pedidos refeitos
+    // Criar instância de workflow automaticamente
+  }
+);
+```
+
+---
+
+### **Tarefa 8.3: Componente de Aprovação Gerencial** ⏱️ 8h
+**Status:** ⬜ NÃO INICIADO
+
+**O que fazer:**
+1. ⬜ Criar `/src/components/PurchaseApprovalStep.tsx`
+2. ⬜ Exibir dados completos do pedido para o gerente
+3. ⬜ Implementar botões "Aprovar" e "Rejeitar"
+4. ⬜ Campo de comentário obrigatório em caso de rejeição
+5. ⬜ Integrar com `WorkflowInstanceService.advanceStage()`
+
+**Interface:**
+```
+┌─────────────────────────────────────────┐
+│ 👔 Aprovação de Pedido                  │
+├─────────────────────────────────────────┤
+│ Pedido: #12345                          │
+│ Fornecedor: ABC Ltda (CNPJ: ...)       │
+│ Valor Total: R$ 15.000,00              │
+│                                         │
+│ Itens:                                  │
+│ ┌───────────┬─────┬──────────┐         │
+│ │ Descrição │ Qtd │ Valor    │         │
+│ ├───────────┼─────┼──────────┤         │
+│ │ Item A    │ 100 │ R$ 50,00 │         │
+│ │ Item B    │ 50  │ R$ 200,00│         │
+│ └───────────┴─────┴──────────┘         │
+│                                         │
+│ [❌ Rejeitar]            [✅ Aprovar]   │
+└─────────────────────────────────────────┘
+```
+
+---
+
+### **Tarefa 8.4: Componente de Validação de Fornecedor** ⏱️ 8h
+**Status:** ⬜ NÃO INICIADO
+
+**O que fazer:**
+1. ⬜ Criar `/src/components/SupplierValidationStep.tsx`
+2. ⬜ Exibir dados do fornecedor do pedido
+3. ⬜ Checkbox "Fornecedor está correto?"
+4. ⬜ Se NÃO: campo para indicar fornecedor correto → rotear para Compras (sub-etapa 4.1)
+5. ⬜ Se SIM: avançar para upload de XML
+
+**Sub-etapa 4.1 — Refazer Pedido:**
+1. ⬜ Criar `/src/components/ReorderStep.tsx`
+2. ⬜ Exibir fornecedor correto indicado pelo faturamento
+3. ⬜ Campo obrigatório "Número do Novo Pedido"
+4. ⬜ Ao salvar: adicionar novo pedido à lista de exclusão (`excluded_orders`)
+5. ⬜ Vincular novo pedido ao fluxo existente
+
+---
+
+### **Tarefa 8.5: Serviço de Parser XML NF-e** ⏱️ 10h
+**Status:** ⬜ NÃO INICIADO
+
+**O que fazer:**
+1. ⬜ Criar `/src/services/xmlParserService.ts`
+2. ⬜ Implementar parse de XML NF-e (padrão SEFAZ)
+3. ⬜ Extrair dados: CNPJ emitente, itens, quantidades, valores, número NF-e
+4. ⬜ Validar estrutura do XML (schema NF-e)
+5. ⬜ Retornar dados em formato `XMLNFeData`
+
+**Dependências possíveis:**
+- `fast-xml-parser` ou `xml2js` para parsing
+- Validação contra schema XSD da NF-e (opcional)
+
+**Campos a extrair do XML:**
+```
+<nfeProc>
+  <NFe>
+    <infNFe>
+      <emit>
+        <CNPJ>...</CNPJ>
+        <xNome>...</xNome>
+      </emit>
+      <det>
+        <prod>
+          <xProd>...</xProd>
+          <qCom>...</qCom>
+          <vUnCom>...</vUnCom>
+          <vProd>...</vProd>
+        </prod>
+      </det>
+      <total>
+        <ICMSTot>
+          <vNF>...</vNF>
+        </ICMSTot>
+      </total>
+    </infNFe>
+  </NFe>
+</nfeProc>
+```
+
+---
+
+### **Tarefa 8.6: Serviço de Validação XML vs Pedido** ⏱️ 8h
+**Status:** ⬜ NÃO INICIADO
+
+**O que fazer:**
+1. ⬜ Criar `/src/services/xmlValidationService.ts`
+2. ⬜ Comparar `XMLNFeData` com `PurchaseOrder`
+3. ⬜ Comparar: CNPJ fornecedor, descrição itens, quantidades, valores
+4. ⬜ Gerar lista de divergências com severidade (`critico` / `aviso`)
+5. ⬜ Retornar `XMLValidationResult`
+6. ⬜ Se `aprovado` → avançar etapa automaticamente
+7. ⬜ Se `divergente` → rotear para Compras (Etapa 6.1)
+
+**Regras de comparação:**
+- CNPJ: match exato → divergência `critico` se diferente
+- Quantidades: tolerância de 0% → `critico` se diferente
+- Valores: tolerância de 1% → `aviso` se pequena diferença, `critico` se > 5%
+- Descrição: comparação fuzzy → `aviso` se similar mas não idêntico
+
+---
+
+### **Tarefa 8.7: Componente de Upload XML e Etapa de Validação** ⏱️ 8h
+**Status:** ⬜ NÃO INICIADO
+
+**O que fazer:**
+1. ⬜ Criar `/src/components/XMLUploadStep.tsx`
+2. ⬜ Campo de upload aceitando apenas `.xml`
+3. ⬜ Preview dos dados extraídos do XML após upload
+4. ⬜ Botão "Confirmar e Validar"
+5. ⬜ Integrar com `XMLParserService` e `XMLValidationService`
+6. ⬜ Exibir resultado da validação (aprovado/divergente)
+
+---
+
+### **Tarefa 8.8: Componente de Resolução de Divergências** ⏱️ 10h
+**Status:** ⬜ NÃO INICIADO
+
+**O que fazer:**
+1. ⬜ Criar `/src/components/DivergenceResolutionStep.tsx`
+2. ⬜ Exibir tabela comparativa: XML vs Pedido com divergências destacadas
+3. ⬜ Implementar 3 opções de resolução:
+
+**Opção A — Seguir com justificativa:**
+- ⬜ Campo de texto obrigatório (justificativa)
+- ⬜ `requireComment: true`
+- ⬜ Registrar justificativa no histórico → avançar para Formulário de Recebimento
+
+**Opção B — Modificar pedido:**
+- ⬜ Permitir edição dos dados do pedido
+- ⬜ Após salvar → retornar para revalidação XML automática
+
+**Opção C — Novo pedido:**
+- ⬜ Campo obrigatório "Número do Novo Pedido"
+- ⬜ Adicionar à lista de exclusão
+- ⬜ Retornar para Upload XML com novo pedido vinculado
+
+**Interface:**
+```
+┌─────────────────────────────────────────────┐
+│ ⚠️ Divergências Encontradas                 │
+├─────────────────────────────────────────────┤
+│ ┌──────────┬────────────┬────────────┬────┐ │
+│ │ Campo    │ XML        │ Pedido     │ ⚠️ │ │
+│ ├──────────┼────────────┼────────────┼────┤ │
+│ │ CNPJ     │ 12.345...  │ 12.345...  │ ✅ │ │
+│ │ Qtd A    │ 100        │ 95         │ ❌ │ │
+│ │ Valor    │ R$5.200    │ R$5.000    │ ❌ │ │
+│ └──────────┴────────────┴────────────┴────┘ │
+│                                             │
+│ Escolha uma ação:                           │
+│ ┌─────────────────────────────────────────┐ │
+│ │ ○ Seguir com justificativa              │ │
+│ │   [Campo de texto obrigatório]          │ │
+│ │ ○ Modificar pedido atual                │ │
+│ │ ○ Fazer novo pedido                     │ │
+│ │   [Número do novo pedido: ______]       │ │
+│ └─────────────────────────────────────────┘ │
+│                                             │
+│              [Confirmar Ação]               │
+└─────────────────────────────────────────────┘
+```
+
+---
+
+### **Tarefa 8.9: Formulário de Recebimento** ⏱️ 10h
+**Status:** ⬜ NÃO INICIADO
+
+**O que fazer:**
+1. ⬜ Criar `/src/components/ReceivingFormStep.tsx`
+2. ⬜ Auto-preencher dados da NF-e (número, fornecedor)
+3. ⬜ Tabela de conferência: itens da NF-e vs recebimento físico
+4. ⬜ Campo de estado por item (conforme / avariado / faltante)
+5. ⬜ Campo de observações gerais
+6. ⬜ Upload de fotos do recebimento (opcional)
+7. ⬜ Campo de assinatura do conferente
+8. ⬜ Validação de todos os campos obrigatórios
+
+**Interface:**
+```
+┌─────────────────────────────────────────────┐
+│ 📝 Formulário de Recebimento                │
+├─────────────────────────────────────────────┤
+│ NF-e: 12345 | Fornecedor: ABC Ltda         │
+│ Data de Recebimento: [__/__/____]           │
+│                                             │
+│ Conferência de Itens:                       │
+│ ┌─────────┬───────┬──────────┬───────────┐ │
+│ │ Item    │ NF-e  │ Recebido │ Estado    │ │
+│ ├─────────┼───────┼──────────┼───────────┤ │
+│ │ Item A  │ 100   │ [___]    │ [▼ Estado]│ │
+│ │ Item B  │ 50    │ [___]    │ [▼ Estado]│ │
+│ └─────────┴───────┴──────────┴───────────┘ │
+│                                             │
+│ Observações: [________________________]     │
+│ Fotos: [📎 Anexar fotos]                   │
+│ Conferente: [____________________]          │
+│                                             │
+│            [Concluir Recebimento]           │
+└─────────────────────────────────────────────┘
+```
+
+---
+
+### **Tarefa 8.10: Serviço de Geração de PDF** ⏱️ 12h
+**Status:** ⬜ NÃO INICIADO
+
+**O que fazer:**
+1. ⬜ Criar `/src/services/pdfGeneratorService.ts`
+2. ⬜ Instalar dependência de geração de PDF (`jsPDF`, `@react-pdf/renderer` ou `puppeteer`)
+3. ⬜ Gerar PDF consolidado com:
+   - Dados do pedido original
+   - Dados da NF-e (do XML)
+   - Resultado da validação XML vs Pedido
+   - Justificativas de divergência (se houver)
+   - Formulário de recebimento preenchido
+   - Fotos do recebimento (se houver)
+   - Timeline completa do workflow
+4. ⬜ Salvar PDF no Firebase Storage
+5. ⬜ Registrar URL do PDF na instância do workflow
+
+---
+
+### **Tarefa 8.11: Distribuição Automática do PDF** ⏱️ 6h
+**Status:** ⬜ NÃO INICIADO
+
+**O que fazer:**
+1. ⬜ Criar `/src/services/pdfDistributionService.ts`
+2. ⬜ Enviar PDF por email para setor de Qualidade
+3. ⬜ Enviar PDF por email para setor de Faturamento
+4. ⬜ Integrar com `NotificationService` existente
+5. ⬜ Criar Firebase Trigger para disparo automático ao gerar PDF
+
+**Trigger:**
+```typescript
+// Ao completar etapa de Formulário de Recebimento:
+// 1. Gerar PDF → PDFGeneratorService
+// 2. Distribuir → PDFDistributionService
+// 3. Marcar workflow como concluído
+```
+
+---
+
+### **Tarefa 8.12: Gerenciador de Pedidos Excluídos** ⏱️ 4h
+**Status:** ⬜ NÃO INICIADO
+
+**O que fazer:**
+1. ⬜ Criar `/src/services/excludedOrdersManager.ts`
+2. ⬜ Collection `excluded_orders` no Firestore
+3. ⬜ Funções: `addExclusion()`, `removeExclusion()`, `isExcluded()`, `listExclusions()`
+4. ⬜ Integrar com `PedidoDetectionService` para filtrar pedidos refeitos
+5. ⬜ Integrar com `ReorderStep` e `DivergenceResolutionStep` (opção C)
+
+---
+
+### **Tarefa 8.13: Integração com WorkflowCanvas** ⏱️ 8h
+**Status:** ⬜ NÃO INICIADO
+
+**O que fazer:**
+1. ⬜ Criar template pré-configurado "Fluxo de Compras" no BravoFlow
+2. ⬜ Configurar etapas com tipos customizados (automática, manual, condicional)
+3. ⬜ Configurar roteamento condicional (fornecedor OK/diferente, XML OK/divergente)
+4. ⬜ Configurar permissões por setor (compras, gerência, faturamento, operação)
+5. ⬜ Permitir customização total das etapas pelo admin
+
+---
+
+### **Tarefa 8.14: Testes e Validação** ⏱️ 10h
+**Status:** ⬜ NÃO INICIADO
+
+**O que fazer:**
+1. ⬜ Testar fluxo completo: pedido → aprovação → fornecedor OK → XML OK → recebimento → PDF
+2. ⬜ Testar caminho alternativo: fornecedor diferente → refazer pedido → exclusão
+3. ⬜ Testar caminho alternativo: XML divergente → seguir com justificativa
+4. ⬜ Testar caminho alternativo: XML divergente → modificar pedido → revalidação
+5. ⬜ Testar caminho alternativo: XML divergente → novo pedido → exclusão
+6. ⬜ Testar geração e distribuição de PDF
+7. ⬜ Testar que pedidos excluídos NÃO abrem novo fluxo
+8. ⬜ Testar permissões por setor em cada etapa
+
+---
+
+### **📋 Checklist Fase 8:**
+- [ ] Interfaces TypeScript do fluxo de compras
+- [ ] Collection `purchase_orders` criada
+- [ ] Collection `excluded_orders` criada
+- [ ] PedidoDetectionService implementado
+- [ ] Componente de Aprovação Gerencial
+- [ ] Componente de Validação de Fornecedor
+- [ ] Sub-etapa de Refazer Pedido
+- [ ] XMLParserService (parse NF-e)
+- [ ] XMLValidationService (comparação XML vs Pedido)
+- [ ] Componente de Upload XML
+- [ ] Componente de Resolução de Divergências (3 opções)
+- [ ] Formulário de Recebimento
+- [ ] PDFGeneratorService
+- [ ] PDFDistributionService
+- [ ] ExcludedOrdersManager
+- [ ] Template "Fluxo de Compras" no BravoFlow
+- [ ] Testes de todos os caminhos do fluxo
+- [ ] Build sem erros
+- [ ] Documentação atualizada
+
+---
+
+##  **PRÓXIMA AÇÃO IMEDIATA**
+
+### **🎯 PRÓXIMOS PASSOS: Fase 8 - Fluxo de Compras com Validação XML**
+
+**Componentes Já Implementados (Fases 1-7):**
 - ✅ `/src/components/WorkflowCanvas.tsx` - Editor visual de workflows
 - ✅ `/src/components/StageNode.tsx` - Nó de etapa customizado
 - ✅ `/src/components/StageConfigPanel.tsx` - Painel de configuração
@@ -793,19 +1247,30 @@ firebase functions:config:set nodemailer.pass="senha-app"
 - ✅ `/src/components/ConfirmModal.tsx` - Modais de confirmação
 - ✅ `/src/components/ActivationSettingsModal.tsx` - Configurações de ativação
 - ✅ `/src/services/workflowService.ts` - Serviço de workflows
-- ✅ `/src/services/workflowInstanceService.ts` - Serviço de instâncias (NOVO)
+- ✅ `/src/services/workflowInstanceService.ts` - Serviço de instâncias
+- ✅ `/src/services/notificationService.ts` - Serviço de notificações
 - ✅ `/app/dashboard/historico/page.tsx` - Página de histórico
 - ✅ `/app/dashboard/bravoflow/page.tsx` - Lista de workflows
 - ✅ `/app/dashboard/bravoflow/create/page.tsx` - Criar workflow
 - ✅ `/app/dashboard/bravoflow/edit/[id]/page.tsx` - Editar workflow
+- ✅ `/app/colaborador/workflows/page.tsx` - Workflows do colaborador
+- ✅ `/app/colaborador/workflows/[id]/page.tsx` - Execução de workflow
 
-**Próximos Passos:**
-1. ⬜ Criar modal de detalhes de instância (`WorkflowInstanceDetailModal`)
-2. ⬜ Implementar página do colaborador (`/app/colaborador/workflows`)
-3. ⬜ Criar componente de execução real de workflow
-4. ⬜ Implementar sistema de notificações
-5. ⬜ Criar triggers Firebase para automação
-6. ⬜ Implementar dashboard de analytics
+**Próximos Passos (Fase 8):**
+1. ⬜ Tarefa 8.1: Modelagem de dados — interfaces do fluxo de compras
+2. ⬜ Tarefa 8.2: Serviço de detecção de pedidos (`PedidoDetectionService`)
+3. ⬜ Tarefa 8.3: Componente de aprovação gerencial
+4. ⬜ Tarefa 8.4: Componente de validação de fornecedor + sub-etapa refazer pedido
+5. ⬜ Tarefa 8.5: Serviço de parser XML NF-e (`XMLParserService`)
+6. ⬜ Tarefa 8.6: Serviço de validação XML vs pedido (`XMLValidationService`)
+7. ⬜ Tarefa 8.7: Componente de upload XML
+8. ⬜ Tarefa 8.8: Componente de resolução de divergências (3 opções)
+9. ⬜ Tarefa 8.9: Formulário de recebimento (operação)
+10. ⬜ Tarefa 8.10: Serviço de geração de PDF
+11. ⬜ Tarefa 8.11: Distribuição automática do PDF (qualidade + faturamento)
+12. ⬜ Tarefa 8.12: Gerenciador de pedidos excluídos
+13. ⬜ Tarefa 8.13: Integração com WorkflowCanvas (template pré-configurado)
+14. ⬜ Tarefa 8.14: Testes e validação de todos os caminhos
 
 ## 📊 **MÉTRICAS DE PROGRESSO**
 
@@ -818,11 +1283,24 @@ firebase functions:config:set nodemailer.pass="senha-app"
 | Fase 5 - Histórico | 4 | 4 | 0 | 100% |
 | Fase 6 - Interface Colaborador | 4 | 3 | 1 | 75% |
 | Fase 7 - Analytics | 3 | 0 | 3 | 0% |
-| **TOTAL** | **30** | **24** | **6** | **80%** |
+| Fase 8 - Fluxo de Compras (XML) | 14 | 0 | 14 | 0% |
+| **TOTAL** | **44** | **24** | **20** | **55%** |
 
 ---
 
 ## 🔄 **HISTÓRICO DE ATUALIZAÇÕES**
+
+### **24/03/2026 - 09:00 AM** 🛒
+- ➕ **Fase 8 (Fluxo de Compras com Validação XML) - PLANEJAMENTO CONCLUÍDO**
+  - Novo fluxo 100% customizável adicionado ao BravoFlow
+  - 14 tarefas planejadas (8.1 a 8.14)
+  - Fluxo: Pedido → Detecção Automática → Aprovação Gerencial → Validação Fornecedor → Upload XML → Validação XML Automática → Formulário Recebimento → Geração PDF
+  - Regras críticas: exclusão de pedidos refeitos, validação XML automática, justificativa obrigatória em divergências
+  - Componentes novos: PedidoDetectionService, XMLParserService, XMLValidationService, PDFGeneratorService, ExcludedOrdersManager
+  - Sub-etapas condicionais: Refazer Pedido (4.1), Resolução de Divergência (6.1) com 3 opções
+  - Estimativa total: ~114h de desenvolvimento
+- 📊 Progresso total: 55% (24/44 tarefas)
+- 🎯 Próximo: Tarefa 8.1 - Modelagem de dados do fluxo de compras
 
 ### **18/03/2026 - 10:25 AM** 🎉
 - ✅ Fase 5 (Histórico) - CONCLUÍDA 100%

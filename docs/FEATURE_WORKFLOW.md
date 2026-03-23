@@ -2027,6 +2027,355 @@ export const onWorkflowStageChange = onDocumentUpdated(
 
 ---
 
+---
+
+## 🛒 **NOVO FLUXO: Processo de Compras com Validação XML** (100% Customizável)
+
+### **Visão Geral**
+
+Fluxo completo de compras que integra pedidos, aprovação gerencial, validação de fornecedores, conferência automática de XML fiscal e formulário de recebimento com geração de PDF. Totalmente customizável via BravoFlow.
+
+### **Fluxo Visual Completo**
+```
+📋 Novo Pedido (Comprador)
+    │
+    ▼
+🔍 Detecção Automática de Pedidos (Sistema)
+    │
+    ▼
+👔 Aprovação Gerencial (Gerente)
+    │
+    ▼
+💰 Validação de Fornecedor (Faturamento)
+    │
+    ├── ✅ Fornecedor OK ──────────────────────────────┐
+    │                                                   │
+    └── ❌ Fornecedor Diferente ──► 🔄 Refazer Pedido  │
+         (Compras recebe novo fornecedor,               │
+          refaz pedido, informa nº novo)                │
+         ⚠️ Novo pedido excluído de abrir novo fluxo   │
+                        │                               │
+                        └───────────────────────────────┤
+                                                        ▼
+                                                 📎 Upload XML NF-e
+                                                   (Faturamento)
+                                                        │
+                                                        ▼
+                                                 🤖 Validação Automática
+                                                   XML vs Pedido
+                                                        │
+                                    ┌───────────────────┤
+                                    │                   │
+                              ❌ Divergência      ✅ Dados OK
+                                    │                   │
+                                    ▼                   │
+                            ⚠️ Notifica Compras         │
+                            (3 opções):                 │
+                            • Seguir c/ justificativa   │
+                              (campo texto obrigatório) │
+                            • Modificar pedido atual    │
+                            • Novo pedido               │
+                              (nº novo, excluído        │
+                               de abrir novo fluxo)     │
+                                    │                   │
+                                    └───────────────────┤
+                                                        ▼
+                                                 📝 Formulário de
+                                                   Recebimento
+                                                   (Operação)
+                                                        │
+                                                        ▼
+                                                 📄 Geração de PDF
+                                                   (Qualidade +
+                                                    Faturamento)
+                                                        │
+                                                        ▼
+                                                    ✅ FIM
+```
+
+---
+
+### **Detalhamento das Etapas**
+
+#### **Etapa 1: Criação de Pedido (Comprador)**
+- **Responsável:** Setor de Compras
+- **Ação:** Comprador cria o pedido no sistema
+- **Dados:** Fornecedor, itens, quantidades, valores, condições de pagamento
+- **Resultado:** Pedido registrado no banco de dados com status `novo`
+
+#### **Etapa 2: Detecção Automática de Novos Pedidos (Sistema)**
+- **Tipo:** Automática (trigger/polling no banco)
+- **Ação:** Sistema monitora a collection/tabela de pedidos para identificar novos registros
+- **Regra:** Apenas pedidos com status `novo` e que **não estejam na lista de exclusão** (pedidos refeitos que já pertencem a um fluxo existente)
+- **Resultado:** Cria uma instância de workflow automaticamente para cada novo pedido detectado
+
+```typescript
+interface PedidoDetection {
+  pollInterval: number;              // Intervalo de verificação (ms)
+  statusFilter: 'novo';             // Apenas pedidos novos
+  excludedOrderIds: string[];       // IDs de pedidos excluídos (refeitos)
+  autoCreateInstance: boolean;      // Criar instância automaticamente
+}
+```
+
+#### **Etapa 3: Aprovação Gerencial (Gerente)**
+- **Responsável:** Gerentes (allowedRoles: ['gerente'])
+- **Ação:** Gerente revisa o pedido e aprova ou rejeita
+- **Campos:**
+  - Visualização completa dos dados do pedido
+  - Botão "Aprovar" → avança para Etapa 4
+  - Botão "Rejeitar" → volta para Compras com comentário obrigatório
+- **Validação:** `requireComment: true` em caso de rejeição
+
+#### **Etapa 4: Validação de Fornecedor (Faturamento)**
+- **Responsável:** Setor de Faturamento
+- **Ação:** Faturamento verifica se o fornecedor do pedido é o correto
+- **Campos:**
+  - Exibição do fornecedor atual do pedido
+  - Checkbox: "Fornecedor está correto?"
+  - Se **SIM** → avança para Etapa 5 (Upload XML)
+  - Se **NÃO** → campo para informar o fornecedor correto → envia para Compras (Etapa 4.1)
+
+```typescript
+interface ValidacaoFornecedor {
+  fornecedorOriginal: string;       // Fornecedor do pedido
+  fornecedorCorreto: boolean;       // Check do faturamento
+  novoFornecedor?: string;          // Se diferente, qual o correto
+}
+```
+
+#### **Etapa 4.1: Refazer Pedido (Compras) — Sub-etapa condicional**
+- **Responsável:** Setor de Compras
+- **Trigger:** Ativada quando faturamento indica fornecedor diferente
+- **Ação:** Compras recebe a informação do novo fornecedor, refaz o pedido e informa o número do novo pedido
+- **Campos:**
+  - Exibição do fornecedor correto indicado pelo faturamento
+  - Campo: "Número do Novo Pedido" (obrigatório)
+- **Regra Crítica:** O número do novo pedido é adicionado à **lista de exclusão** (`excludedOrderIds`), para que o sistema **não abra um novo fluxo** para esse pedido
+- **Resultado:** Retorna para Etapa 5 (Upload XML) com o novo pedido vinculado
+
+```typescript
+interface RefazerPedido {
+  motivoRefacao: string;            // Fornecedor diferente
+  novoNumeroPedido: string;         // Número do pedido refeito
+  adicionarExclusao: true;          // Flag para excluir do auto-detect
+}
+```
+
+#### **Etapa 5: Upload de XML da Nota Fiscal (Faturamento)**
+- **Responsável:** Setor de Faturamento
+- **Ação:** Faturamento faz upload do arquivo XML da NF-e
+- **Campos:**
+  - Campo de upload de arquivo (aceita apenas `.xml`)
+  - `requireAttachments: true`
+- **Validação:** Arquivo deve ser XML válido (NF-e)
+
+#### **Etapa 6: Validação Automática XML vs Pedido (Sistema)**
+- **Tipo:** Automática
+- **Ação:** Sistema lê o XML da NF-e e compara automaticamente com os dados do pedido
+- **Campos Comparados:**
+  - CNPJ do fornecedor
+  - Descrição dos itens
+  - Quantidades
+  - Valores unitários e totais
+  - Condições de pagamento
+- **Resultado:**
+  - ✅ **Tudo OK** → avança para Etapa 7 (Formulário de Recebimento)
+  - ❌ **Divergência encontrada** → envia para Etapa 6.1 (Notifica Compras)
+
+```typescript
+interface XMLValidation {
+  xmlData: {
+    cnpjEmitente: string;
+    itens: Array<{ descricao: string; quantidade: number; valorUnitario: number }>;
+    valorTotal: number;
+    condicaoPagamento?: string;
+  };
+  pedidoData: {
+    cnpjFornecedor: string;
+    itens: Array<{ descricao: string; quantidade: number; valorUnitario: number }>;
+    valorTotal: number;
+  };
+  divergencias: Array<{
+    campo: string;
+    valorXML: string;
+    valorPedido: string;
+    tipo: 'critico' | 'aviso';
+  }>;
+  resultado: 'aprovado' | 'divergente';
+}
+```
+
+#### **Etapa 6.1: Resolução de Divergência (Compras) — Sub-etapa condicional**
+- **Responsável:** Setor de Compras
+- **Trigger:** Ativada quando a validação XML detecta divergência
+- **Exibição:** Lista detalhada de todas as divergências encontradas
+- **Opções (3 caminhos):**
+
+  **Opção A — Seguir mesmo assim:**
+  - Campo de texto **obrigatório** onde Compras deve explicar/justificar a divergência
+  - `requireComment: true` (campo de justificativa obrigatório)
+  - Resultado: Avança para Etapa 7 com registro da justificativa no histórico
+
+  **Opção B — Modificar o pedido atual:**
+  - Compras corrige os dados do pedido para bater com o XML
+  - Resultado: Retorna para Etapa 6 (revalidação automática)
+
+  **Opção C — Fazer novo pedido:**
+  - Campo: "Número do Novo Pedido" (obrigatório)
+  - **Regra Crítica:** Novo pedido é adicionado à **lista de exclusão** (`excludedOrderIds`)
+  - Resultado: Retorna para Etapa 5 (Upload XML) com novo pedido vinculado
+
+```typescript
+interface ResolucaoDivergencia {
+  acao: 'seguir_com_justificativa' | 'modificar_pedido' | 'novo_pedido';
+  justificativa?: string;           // Obrigatório se acao = 'seguir_com_justificativa'
+  novoNumeroPedido?: string;        // Obrigatório se acao = 'novo_pedido'
+  adicionarExclusao?: boolean;      // true se acao = 'novo_pedido'
+  modificacoes?: Record<string, any>; // Se acao = 'modificar_pedido'
+}
+```
+
+#### **Etapa 7: Formulário de Recebimento (Operação)**
+- **Responsável:** Setor de Operação
+- **Ação:** Preenchimento do formulário de recebimento de materiais
+- **Campos do Formulário:**
+  - Data de recebimento
+  - Número da NF-e (preenchido automaticamente do XML)
+  - Fornecedor (preenchido automaticamente)
+  - Conferência física: quantidades recebidas vs NF-e
+  - Estado dos materiais (conforme / avariado / faltante)
+  - Observações da operação
+  - Fotos do recebimento (opcional)
+  - Assinatura do conferente
+- **Validação:** Todos os campos obrigatórios devem ser preenchidos
+
+```typescript
+interface FormularioRecebimento {
+  dataRecebimento: Date;
+  numeroNFe: string;                // Auto-preenchido do XML
+  fornecedor: string;               // Auto-preenchido
+  itensConferidos: Array<{
+    descricao: string;
+    qtdNFe: number;
+    qtdRecebida: number;
+    estado: 'conforme' | 'avariado' | 'faltante';
+    observacao?: string;
+  }>;
+  observacoesGerais?: string;
+  fotosRecebimento?: string[];      // URLs das fotos
+  assinaturaConferente: string;     // Nome ou assinatura digital
+}
+```
+
+#### **Etapa 8: Geração de PDF (Sistema → Qualidade + Faturamento)**
+- **Tipo:** Automática
+- **Ação:** Sistema gera um PDF completo com todos os dados consolidados
+- **Conteúdo do PDF:**
+  - Dados do pedido original
+  - Dados da NF-e (extraídos do XML)
+  - Resultado da validação XML vs Pedido
+  - Eventuais justificativas de divergência
+  - Formulário de recebimento preenchido
+  - Fotos do recebimento (se houver)
+  - Timeline completa do workflow
+- **Distribuição:**
+  - Enviado automaticamente para o setor de **Qualidade**
+  - Enviado automaticamente para o setor de **Faturamento**
+- **Formato:** PDF gerado via biblioteca (ex: `jsPDF`, `@react-pdf/renderer` ou `puppeteer`)
+
+```typescript
+interface PDFRecebimento {
+  pedido: PedidoData;
+  nfe: XMLData;
+  validacao: XMLValidation;
+  recebimento: FormularioRecebimento;
+  historico: StageHistoryEntry[];
+  divergencias?: {
+    existiram: boolean;
+    justificativa?: string;
+  };
+  destinatarios: {
+    qualidade: string[];            // Emails do setor de qualidade
+    faturamento: string[];          // Emails do setor de faturamento
+  };
+}
+```
+
+---
+
+### **Regras de Negócio Críticas**
+
+#### **1. Exclusão de Pedidos Refeitos**
+```
+Quando Compras refaz um pedido (Etapa 4.1 ou Etapa 6.1 Opção C):
+  → O número do novo pedido é salvo em `excludedOrderIds`
+  → O sistema de detecção automática (Etapa 2) IGNORA esses pedidos
+  → Isso evita que um pedido refeito abra um SEGUNDO fluxo duplicado
+```
+
+#### **2. Validação XML Automática**
+```
+O sistema deve:
+  → Fazer parse do XML da NF-e
+  → Extrair dados: CNPJ, itens, quantidades, valores
+  → Comparar campo a campo com o pedido original
+  → Gerar lista de divergências (se houver)
+  → Classificar divergências como 'critico' ou 'aviso'
+```
+
+#### **3. Campo de Justificativa Obrigatório**
+```
+Quando Compras decide seguir apesar de divergência:
+  → Campo de texto é OBRIGATÓRIO (não pode estar vazio)
+  → Justificativa fica registrada no histórico do workflow
+  → Aparece no PDF final gerado para Qualidade e Faturamento
+```
+
+#### **4. Geração Automática de PDF**
+```
+Ao concluir o formulário de recebimento:
+  → Sistema gera PDF automaticamente
+  → PDF consolidado com TODAS as informações do fluxo
+  → Enviado por email para Qualidade e Faturamento
+  → Arquivado no histórico da instância do workflow
+```
+
+---
+
+### **Componentes Técnicos Necessários**
+
+| Componente | Tipo | Descrição |
+|-----------|------|-----------|
+| `PedidoDetectionService` | Service | Monitora banco para novos pedidos, respeita lista de exclusão |
+| `XMLParserService` | Service | Faz parse de XML NF-e e extrai dados estruturados |
+| `XMLValidationService` | Service | Compara dados do XML com dados do pedido |
+| `SupplierValidationStep` | Component | UI para faturamento validar fornecedor |
+| `DivergenceResolutionStep` | Component | UI para compras resolver divergências (3 opções) |
+| `ReceivingFormStep` | Component | Formulário de recebimento para operação |
+| `PDFGeneratorService` | Service | Gera PDF consolidado com todos os dados |
+| `PDFDistributionService` | Service | Envia PDF por email para qualidade e faturamento |
+| `ExcludedOrdersManager` | Service | Gerencia lista de pedidos excluídos do auto-detect |
+
+---
+
+### **Permissões por Etapa**
+
+| Etapa | Setor Responsável | allowedRoles |
+|-------|------------------|-------------|
+| 1. Criação de Pedido | Compras | `['compras']` |
+| 2. Detecção Automática | Sistema | `['system']` (automático) |
+| 3. Aprovação | Gerência | `['gerente', 'diretoria']` |
+| 4. Validação Fornecedor | Faturamento | `['faturamento']` |
+| 4.1. Refazer Pedido | Compras | `['compras']` |
+| 5. Upload XML | Faturamento | `['faturamento']` |
+| 6. Validação XML | Sistema | `['system']` (automático) |
+| 6.1. Resolução Divergência | Compras | `['compras']` |
+| 7. Formulário Recebimento | Operação | `['operacao']` |
+| 8. Geração PDF | Sistema | `['system']` (automático) |
+
+---
+
 ## 🎯 **PRÓXIMOS PASSOS IMEDIATOS**
 
 ### **1. Começar Fase 1 - Tarefa 1.1** 

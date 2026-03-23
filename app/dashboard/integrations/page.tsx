@@ -78,7 +78,11 @@ const IntegrationCard: React.FC<IntegrationCardProps> = ({ icon, title, descript
 const SqlForm: React.FC<SqlFormProps> = ({ onSubmit, onDisconnect, isConnected, isConnecting, dbHost, setDbHost, dbName, setDbName, dbUser, setDbUser, dbPass, setDbPass }) => (
     <div className={styles.sqlFrame}>
         <h3 className={styles.sqlTitle}>Banco de Dados Externo (SQL)</h3>
-        <p className={styles.cardDescription} style={{textAlign: 'center', marginBottom: '2rem'}}>Salve respostas de formulários diretamente em uma tabela do seu banco de dados SQL.</p>
+        <p className={styles.cardDescription} style={{textAlign: 'center', marginBottom: '2rem'}}>
+            <strong>📥 Importe</strong> pedidos de compra do seu ERP automaticamente<br/>
+            <strong>📤 Exporte</strong> respostas de formulários para seu banco de dados<br/>
+            <strong>🔒 Segurança:</strong> Credenciais criptografadas com AES-256-GCM
+        </p>
         
         {isConnected ? (
             <div style={{textAlign: 'center'}}>
@@ -322,7 +326,7 @@ export default function IntegrationsPage() {
                 <IntegrationCard 
                     icon={<Database size={40} />}
                     title="Banco SQL"
-                    description="Conecte seu banco de dados SQL para salvar respostas automaticamente."
+                    description="📥 Importe pedidos de compra | 📤 Exporte respostas | 🔒 Criptografia AES-256 | Suporta MySQL, PostgreSQL, SQL Server, Oracle e mais."
                     isConnected={!!connections.sql}
                     onConnect={() => setShowSqlModal(true)}
                     onDisconnect={handleSqlDisconnect}

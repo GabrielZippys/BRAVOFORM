@@ -458,3 +458,354 @@ export interface StageHistoryEntry {
   attachments?: string[];
   duration?: number;          // Duração em milissegundos
 }
+
+// --- PURCHASE ORDER WORKFLOW INTERFACES (FASE 8) ---
+
+// Interface para pedido de compra
+export interface PurchaseOrder {
+  id: string;
+  orderNumber: string;
+  supplier: {
+    cnpj: string;
+    name: string;
+    address?: string;
+    contact?: string;
+  };
+  items: Array<{
+    description: string;
+    quantity: number;
+    unitPrice: number;
+    totalPrice: number;
+    code?: string;
+    unit?: string;
+  }>;
+  totalValue: number;
+  paymentConditions?: string;
+  deliveryDate?: Timestamp;
+  status: 'novo' | 'aprovado' | 'em_processo' | 'concluido' | 'cancelado';
+  createdBy: string;
+  createdByName?: string;
+  createdAt: Timestamp;
+  updatedAt?: Timestamp;
+  workflowInstanceId?: string;  // Vinculado à instância de workflow
+  isExcludedFromDetection: boolean; // Flag para pedidos refeitos
+  parentOrderId?: string;       // Referência ao pedido original (se refeito)
+  companyId: string;
+  departmentId: string;
+}
+
+// Interface para dados extraídos do XML da NF-e
+export interface XMLNFeData {
+  cnpjEmitente: string;
+  nomeEmitente: string;
+  numeroNFe: string;
+  serieNFe: string;
+  dataEmissao: string;
+  chaveAcesso?: string;
+  items: Array<{
+    description: string;
+    quantity: number;
+    unitPrice: number;
+    totalPrice: number;
+    ncm?: string;
+    cfop?: string;
+    unit?: string;
+  }>;
+  totalValue: number;
+  paymentConditions?: string;
+  xmlFileUrl: string;           // URL do arquivo XML no Storage
+  xmlFileName?: string;
+  parsedAt?: Timestamp;
+}
+
+// Interface para resultado da validação XML vs Pedido
+export interface XMLValidationResult {
+  status: 'aprovado' | 'divergente';
+  divergences: Array<{
+    field: string;
+    xmlValue: string;
+    orderValue: string;
+    severity: 'critico' | 'aviso';
+    description?: string;
+  }>;
+  validatedAt: Timestamp;
+  validatedBy?: string;
+  summary?: {
+    totalDivergences: number;
+    criticalDivergences: number;
+    warningDivergences: number;
+  };
+}
+
+// Interface para resolução de divergências
+export interface DivergenceResolution {
+  action: 'seguir_com_justificativa' | 'modificar_pedido' | 'novo_pedido';
+  justification?: string;       // Obrigatório se action = 'seguir_com_justificativa'
+  newOrderNumber?: string;      // Obrigatório se action = 'novo_pedido'
+  modifications?: Record<string, any>; // Se action = 'modificar_pedido'
+  resolvedBy: string;
+  resolvedByName?: string;
+  resolvedAt: Timestamp;
+}
+
+// Interface para validação de fornecedor
+export interface SupplierValidation {
+  fornecedorOriginal: {
+    cnpj: string;
+    name: string;
+  };
+  fornecedorCorreto: boolean;   // Check do faturamento
+  novoFornecedor?: {
+    cnpj: string;
+    name: string;
+  };
+  validatedBy: string;
+  validatedByName?: string;
+  validatedAt: Timestamp;
+  requiresReorder: boolean;     // Se precisa refazer pedido
+}
+
+// Interface para dados do formulário de recebimento
+export interface ReceivingFormData {
+  receivingDate: Timestamp;
+  nfeNumber: string;            // Auto-preenchido do XML
+  supplier: string;             // Auto-preenchido
+  inspectedItems: Array<{
+    description: string;
+    nfeQuantity: number;
+    receivedQuantity: number;
+    condition: 'conforme' | 'avariado' | 'faltante';
+    notes?: string;
+  }>;
+  generalNotes?: string;
+  photos?: string[];            // URLs das fotos no Storage
+  inspectorSignature: string;   // Nome ou assinatura digital
+  inspectorId: string;
+  completedBy: string;
+  completedByName?: string;
+  completedAt: Timestamp;
+  discrepancies?: {
+    hasDiscrepancies: boolean;
+    totalDiscrepancies: number;
+    details?: string;
+  };
+}
+
+// Interface para configuração de detecção de pedidos
+export interface PedidoDetectionConfig {
+  pollInterval: number;         // Intervalo de verificação em ms
+  statusFilter: 'novo';         // Apenas pedidos novos
+  autoCreateInstance: boolean;  // Criar instância automaticamente
+  workflowId: string;           // ID do workflow a ser usado
+  enabled: boolean;             // Se a detecção está ativa
+}
+
+// Interface para pedidos excluídos da detecção
+export interface ExcludedOrder {
+  id: string;
+  orderNumber: string;
+  parentOrderId?: string;       // Pedido original
+  reason: 'refazer_fornecedor' | 'refazer_divergencia' | 'manual';
+  excludedBy: string;
+  excludedByName?: string;
+  excludedAt: Timestamp;
+  workflowInstanceId: string;   // Instância que causou a exclusão
+}
+
+// Interface para dados consolidados do PDF
+export interface PDFReceivingData {
+  pedido: PurchaseOrder;
+  nfe: XMLNFeData;
+  supplierValidation?: SupplierValidation;
+  xmlValidation: XMLValidationResult;
+  divergenceResolution?: DivergenceResolution;
+  recebimento: ReceivingFormData;
+  historico: StageHistoryEntry[];
+  workflowInstance: {
+    id: string;
+    startedAt: Timestamp;
+    completedAt?: Timestamp;
+    totalDuration?: number;
+  };
+  generatedAt: Timestamp;
+  generatedBy: string;
+  pdfUrl?: string;              // URL do PDF gerado no Storage
+}
+
+// Interface para configuração de distribuição do PDF
+export interface PDFDistributionConfig {
+  destinatarios: {
+    qualidade: string[];        // Emails do setor de qualidade
+    faturamento: string[];      // Emails do setor de faturamento
+    compras?: string[];         // Emails do setor de compras (opcional)
+  };
+  includeAttachments: boolean;  // Se deve incluir anexos (fotos, XML)
+  emailSubject?: string;
+  emailBody?: string;
+}
+
+// ============================================
+// INTEGRAÇÃO COM BANCO SQL EXTERNO
+// ============================================
+
+export type DatabaseType = 'mysql' | 'postgresql' | 'sqlserver' | 'oracle' | 'mongodb' | 'sqlite';
+
+export type IntegrationDirection = 'import' | 'export' | 'bidirectional';
+
+export type EncryptionMethod = 'aes-256-gcm' | 'aes-128-gcm' | 'none';
+
+export interface SQLConnectionConfig {
+  id?: string;
+  name: string;
+  description?: string;
+  type: DatabaseType;
+  direction: IntegrationDirection;
+  host: string;
+  port: number;
+  database: string;
+  username: string;
+  password: string; // Será criptografado no backend
+  encryptedPassword?: string; // Senha criptografada
+  encryptionMethod: EncryptionMethod;
+  ssl?: boolean;
+  sslCert?: string;
+  sslKey?: string;
+  sslCA?: string;
+  connectionTimeout?: number;
+  maxConnections?: number;
+  isActive: boolean;
+  createdAt: Timestamp;
+  createdBy: string;
+  updatedAt?: Timestamp;
+  lastTestedAt?: Timestamp;
+  lastTestStatus?: 'success' | 'failed';
+  lastTestError?: string;
+  companyId: string;
+  tags?: string[];
+}
+
+export interface TableColumn {
+  name: string;
+  type: string;
+  nullable: boolean;
+  isPrimaryKey?: boolean;
+}
+
+export interface TableInfo {
+  name: string;
+  schema?: string;
+  columns: TableColumn[];
+  rowCount?: number;
+}
+
+export interface ColumnMapping {
+  sourceColumn: string;
+  targetField: string;
+  transform?: 'none' | 'uppercase' | 'lowercase' | 'trim' | 'date' | 'number' | 'cnpj_format';
+  defaultValue?: any;
+  required: boolean;
+}
+
+export interface DataTransformRule {
+  field: string;
+  transform: 'none' | 'uppercase' | 'lowercase' | 'trim' | 'date' | 'number' | 'cnpj_format' | 'custom';
+  customScript?: string; // JavaScript para transformação customizada
+  defaultValue?: any;
+  required: boolean;
+}
+
+export interface SQLImportConfig {
+  id?: string;
+  connectionId: string;
+  name: string;
+  description?: string;
+  tableName: string;
+  schema?: string;
+  targetCollection: 'purchase_orders' | 'form_responses' | 'custom';
+  customCollectionName?: string;
+  columnMappings: ColumnMapping[];
+  transformRules?: DataTransformRule[];
+  filterCondition?: string;
+  orderBy?: string;
+  syncMode: 'manual' | 'scheduled' | 'realtime';
+  scheduleInterval?: number;
+  scheduleCron?: string; // Expressão cron para agendamentos avançados
+  batchSize?: number; // Tamanho do lote para importação
+  duplicateHandling: 'skip' | 'update' | 'error';
+  uniqueFields?: string[]; // Campos para detectar duplicatas
+  lastSyncAt?: Timestamp;
+  lastSyncStatus?: 'success' | 'failed' | 'partial';
+  lastSyncRecords?: number;
+  lastSyncError?: string;
+  isActive: boolean;
+  createdAt: Timestamp;
+  createdBy: string;
+  updatedAt?: Timestamp;
+  companyId: string;
+  notifyOnError?: boolean;
+  notifyEmails?: string[];
+}
+
+export interface SQLExportConfig {
+  id?: string;
+  connectionId: string;
+  name: string;
+  description?: string;
+  sourceCollection: 'purchase_orders' | 'form_responses' | 'workflow_instances' | 'custom';
+  customCollectionName?: string;
+  targetTable: string;
+  targetSchema?: string;
+  columnMappings: ColumnMapping[];
+  transformRules?: DataTransformRule[];
+  filterCondition?: string;
+  exportMode: 'insert' | 'upsert' | 'update';
+  syncMode: 'manual' | 'scheduled' | 'trigger';
+  scheduleInterval?: number;
+  scheduleCron?: string;
+  triggerEvents?: ('create' | 'update' | 'delete')[];
+  batchSize?: number;
+  createTableIfNotExists?: boolean;
+  tableStructure?: {
+    columns: {
+      name: string;
+      type: string;
+      nullable: boolean;
+      primaryKey?: boolean;
+      unique?: boolean;
+      defaultValue?: any;
+    }[];
+    indexes?: {
+      name: string;
+      columns: string[];
+      unique: boolean;
+    }[];
+  };
+  lastSyncAt?: Timestamp;
+  lastSyncStatus?: 'success' | 'failed' | 'partial';
+  lastSyncRecords?: number;
+  lastSyncError?: string;
+  isActive: boolean;
+  createdAt: Timestamp;
+  createdBy: string;
+  updatedAt?: Timestamp;
+  companyId: string;
+  notifyOnError?: boolean;
+  notifyEmails?: string[];
+}
+
+export interface SyncLog {
+  id?: string;
+  importConfigId: string;
+  startedAt: Timestamp;
+  completedAt?: Timestamp;
+  status: 'running' | 'success' | 'failed' | 'partial';
+  recordsProcessed: number;
+  recordsImported: number;
+  recordsFailed: number;
+  errors?: Array<{
+    row: number;
+    field?: string;
+    message: string;
+  }>;
+  executedBy: string;
+}
