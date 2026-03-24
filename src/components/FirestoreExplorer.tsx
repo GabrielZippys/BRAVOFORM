@@ -51,6 +51,11 @@ export default function FirestoreExplorer() {
 
   const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
+  // Seleção múltipla
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [showDuplicates, setShowDuplicates] = useState(false);
+  const [duplicateField, setDuplicateField] = useState<string>('');
+
   // Collections conhecidas — só aparecem as que têm documentos
   const knownCollections = [
     'admins', 'collaborators', 'companies', 'departments', 'forms',
@@ -99,6 +104,9 @@ export default function FirestoreExplorer() {
     setSortField('');
     setEditingCell(null);
     setViewMode('table');
+    setSelectedIds(new Set());
+    setShowDuplicates(false);
+    setDuplicateField('');
     try {
       const snap = await getDocs(collection(db, collectionName));
       const docs: DocumentData[] = [];
@@ -167,12 +175,38 @@ export default function FirestoreExplorer() {
     return result;
   }, [documents, searchQuery, filterField, filterValue, sortField, sortDirection]);
 
+  const duplicateDocuments = useMemo(() => {
+    if (!showDuplicates || !duplicateField) return [];
+    
+    const valueMap = new Map<string, DocumentData[]>();
+    documents.forEach(doc => {
+      const value = formatValue(doc.data[duplicateField]);
+      if (value && value !== '—') {
+        if (!valueMap.has(value)) {
+          valueMap.set(value, []);
+        }
+        valueMap.get(value)!.push(doc);
+      }
+    });
+    
+    const duplicates: DocumentData[] = [];
+    valueMap.forEach(docs => {
+      if (docs.length > 1) {
+        duplicates.push(...docs);
+      }
+    });
+    
+    return duplicates;
+  }, [documents, showDuplicates, duplicateField]);
+
+  const displayDocuments = showDuplicates ? duplicateDocuments : filteredDocuments;
+
   const paginatedDocs = useMemo(() => {
     const start = (currentPage - 1) * pageSize;
-    return filteredDocuments.slice(start, start + pageSize);
-  }, [filteredDocuments, currentPage]);
+    return displayDocuments.slice(start, start + pageSize);
+  }, [displayDocuments, currentPage]);
 
-  const totalPages = Math.ceil(filteredDocuments.length / pageSize);
+  const totalPages = Math.ceil(displayDocuments.length / pageSize);
 
   const handleSort = (field: string) => {
     if (sortField === field) {
@@ -267,6 +301,57 @@ export default function FirestoreExplorer() {
     );
   };
 
+  const toggleSelectAll = () => {
+    if (selectedIds.size === paginatedDocs.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(paginatedDocs.map(d => d.id)));
+    }
+  };
+
+  const toggleSelectDoc = (docId: string) => {
+    const newSet = new Set(selectedIds);
+    if (newSet.has(docId)) {
+      newSet.delete(docId);
+    } else {
+      newSet.add(docId);
+    }
+    setSelectedIds(newSet);
+  };
+
+  const handleDeleteSelected = async () => {
+    if (selectedIds.size === 0 || !selectedCollection) return;
+    if (!confirm(`Tem certeza que deseja excluir ${selectedIds.size} documento(s)?`)) return;
+    
+    try {
+      const deletePromises = Array.from(selectedIds).map(id =>
+        deleteDoc(doc(db, selectedCollection, id))
+      );
+      await Promise.all(deletePromises);
+      
+      setDocuments(docs => docs.filter(d => !selectedIds.has(d.id)));
+      setCollections(cols => cols.map(c =>
+        c.name === selectedCollection ? { ...c, documentCount: c.documentCount - selectedIds.size } : c
+      ));
+      setSelectedIds(new Set());
+      showFeedback('success', `${selectedIds.size} documento(s) excluído(s) com sucesso!`);
+    } catch (error) {
+      console.error('Erro ao excluir documentos:', error);
+      showFeedback('error', 'Erro ao excluir documentos selecionados');
+    }
+  };
+
+  const findDuplicates = () => {
+    if (!duplicateField) {
+      showFeedback('error', 'Selecione um campo para buscar duplicados');
+      return;
+    }
+    setShowDuplicates(true);
+    setSearchQuery('');
+    setFilterField('');
+    setFilterValue('');
+  };
+
   return (
     <div className={styles.container}>
       {/* Header */}
@@ -341,60 +426,95 @@ export default function FirestoreExplorer() {
             </div>
           ) : (
             <>
-              {/* Toolbar */}
-              <div className={styles.toolbar}>
-                <div className={styles.toolbarLeft}>
+              {/* Unified Toolbar - Minimalista */}
+              <div className={styles.unifiedToolbar}>
+                {/* Left: Title & Badges */}
+                <div className={styles.toolbarSection}>
                   <h4>{selectedCollection}</h4>
-                  <span className={styles.countBadge}>{filteredDocuments.length} documentos</span>
-                </div>
-                <div className={styles.toolbarRight}>
-                  <button onClick={exportCollection} className={styles.toolBtn} title="Exportar JSON">
-                    <Download size={16} />
-                  </button>
-                  <button
-                    onClick={() => { setViewMode('table'); setSelectedDocument(null); }}
-                    className={`${styles.toolBtn} ${viewMode === 'table' ? styles.toolBtnActive : ''}`}
-                    title="Tabela"
-                  >
-                    <Table size={16} />
-                  </button>
-                </div>
-              </div>
-
-              {/* Filters */}
-              <div className={styles.filterBar}>
-                <div className={styles.searchBox}>
-                  <Search size={16} />
-                  <input
-                    type="text"
-                    placeholder="Buscar em todos os campos..."
-                    value={searchQuery}
-                    onChange={e => { setSearchQuery(e.target.value); setCurrentPage(1); }}
-                    className={styles.searchInput}
-                  />
-                  {searchQuery && (
-                    <button onClick={() => setSearchQuery('')} className={styles.clearBtn}><X size={14} /></button>
+                  <span className={styles.countBadge}>
+                    {showDuplicates ? `${displayDocuments.length} duplicados` : `${displayDocuments.length} docs`}
+                  </span>
+                  {selectedIds.size > 0 && (
+                    <span className={styles.selectedBadge}>{selectedIds.size} sel.</span>
                   )}
                 </div>
-                <div className={styles.filterGroup}>
-                  <Filter size={16} />
+
+                {/* Center: Search & Filters */}
+                <div className={styles.toolbarSection} style={{ flex: 1, maxWidth: '700px' }}>
+                  <div className={styles.compactSearch} style={{ flex: 2, minWidth: '280px' }}>
+                    <Search size={14} />
+                    <input
+                      type="text"
+                      placeholder="Buscar em todos os campos..."
+                      value={searchQuery}
+                      onChange={e => { setSearchQuery(e.target.value); setCurrentPage(1); setShowDuplicates(false); }}
+                      className={styles.compactInput}
+                      disabled={showDuplicates}
+                    />
+                    {searchQuery && <button onClick={() => setSearchQuery('')} className={styles.clearBtn}><X size={12} /></button>}
+                  </div>
+
                   <select
-                    value={filterField}
-                    onChange={e => { setFilterField(e.target.value); setCurrentPage(1); }}
-                    className={styles.filterSelect}
+                    value={showDuplicates ? duplicateField : filterField}
+                    onChange={e => {
+                      const value = e.target.value;
+                      if (showDuplicates) {
+                        setDuplicateField(value);
+                      } else {
+                        setFilterField(value);
+                        setCurrentPage(1);
+                      }
+                    }}
+                    className={styles.compactSelect}
+                    style={{ flex: 1, minWidth: '140px' }}
                   >
-                    <option value="">Filtrar por campo...</option>
+                    <option value="">Campo...</option>
                     {allFields.map(f => <option key={f} value={f}>{f}</option>)}
                   </select>
-                  {filterField && (
+
+                  {filterField && !showDuplicates && (
                     <input
                       type="text"
                       placeholder="Valor..."
                       value={filterValue}
                       onChange={e => { setFilterValue(e.target.value); setCurrentPage(1); }}
-                      className={styles.filterInput}
+                      className={styles.compactInput}
+                      style={{ width: '130px' }}
                     />
                   )}
+
+                  <button 
+                    onClick={() => {
+                      if (showDuplicates) {
+                        setShowDuplicates(false);
+                        setDuplicateField('');
+                      } else {
+                        if (!filterField) {
+                          showFeedback('error', 'Selecione um campo primeiro');
+                          return;
+                        }
+                        setDuplicateField(filterField);
+                        findDuplicates();
+                      }
+                    }}
+                    className={showDuplicates ? styles.compactBtnClear : styles.compactBtn}
+                    disabled={!showDuplicates && !filterField}
+                    title={showDuplicates ? 'Limpar busca de duplicados' : 'Encontrar duplicados'}
+                  >
+                    {showDuplicates ? <X size={14} /> : <AlertCircle size={14} />}
+                  </button>
+                </div>
+
+                {/* Right: Actions */}
+                <div className={styles.toolbarSection}>
+                  {selectedIds.size > 0 && (
+                    <button onClick={handleDeleteSelected} className={`${styles.compactBtn} ${styles.dangerBtn}`} title="Excluir selecionados">
+                      <Trash2 size={14} />
+                    </button>
+                  )}
+                  <button onClick={exportCollection} className={styles.compactBtn} title="Exportar JSON">
+                    <Download size={14} />
+                  </button>
                 </div>
               </div>
 
@@ -462,6 +582,14 @@ export default function FirestoreExplorer() {
                     <table className={styles.dataTable}>
                       <thead>
                         <tr>
+                          <th className={styles.thCheckbox}>
+                            <input
+                              type="checkbox"
+                              checked={paginatedDocs.length > 0 && selectedIds.size === paginatedDocs.length}
+                              onChange={toggleSelectAll}
+                              className={styles.checkbox}
+                            />
+                          </th>
                           <th onClick={() => handleSort('_id')}>
                             <span className={`${styles.thContent} ${sortField === '_id' ? styles.thSorted : ''}`}>
                               ID
@@ -482,13 +610,21 @@ export default function FirestoreExplorer() {
                       <tbody>
                         {paginatedDocs.length === 0 ? (
                           <tr>
-                            <td colSpan={visibleFields.length + 2} className={styles.noResults}>
+                            <td colSpan={visibleFields.length + 3} className={styles.noResults}>
                               Nenhum documento encontrado
                             </td>
                           </tr>
                         ) : (
                           paginatedDocs.map(docItem => (
                             <tr key={docItem.id} className={styles.dataRow}>
+                              <td className={styles.checkboxCell}>
+                                <input
+                                  type="checkbox"
+                                  checked={selectedIds.has(docItem.id)}
+                                  onChange={() => toggleSelectDoc(docItem.id)}
+                                  className={styles.checkbox}
+                                />
+                              </td>
                               <td className={styles.idCell} title={docItem.id}>
                                 {docItem.id.length > 14 ? docItem.id.slice(0, 14) + '…' : docItem.id}
                               </td>

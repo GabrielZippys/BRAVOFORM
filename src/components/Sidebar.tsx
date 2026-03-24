@@ -19,7 +19,7 @@ const mainLinks = [
 const settingsLinks = [
   { href: '/dashboard/users', label: 'Deptos & Usuários', icon: Users },
   { href: '/dashboard/integrations', label: 'Integrações', icon: PlugZap },
-  { href: '/dashboard/backups', label: 'Backups', icon: DatabaseBackup },
+  { href: '/dashboard/backups', label: 'Banco de Dados', icon: DatabaseBackup },
 ];
 
 interface SidebarProps {
