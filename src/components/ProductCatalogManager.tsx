@@ -244,6 +244,8 @@ const ProductCatalogManager: React.FC<ProductCatalogManagerProps> = ({ companyId
         quantidadeMin: doc.data().quantidadeMin || 1,
         quantidadeMax: doc.data().quantidadeMax || 999,
       }));
+      // Ordenar alfabeticamente por nome
+      productsData.sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
       setProducts(productsData);
     } catch (error) {
       console.error('Erro ao carregar produtos:', error);

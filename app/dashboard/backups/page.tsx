@@ -97,19 +97,15 @@ export default function BackupsPage() {
         <h2 className={styles.title}>Backups e Armazenamento</h2>
       </div>
 
-      <div className={styles.frame}>
+      {/* Explorador do Firestore (principal) */}
+      <FirestoreExplorer />
+
+      {/* Uso de Armazenamento em Tempo Real (final da página) */}
+      <div className={styles.frame} style={{ marginTop: '24px' }}>
         <h3 className={styles.frameTitle}>Uso de Armazenamento em Tempo Real</h3>
         
-        {loading ? (
-            <div style={{textAlign: 'center', padding: '2rem'}}>
-              <p className={styles.storageText}>🔄 Calculando uso real do Firestore...</p>
-              <p style={{color: 'rgba(240, 234, 214, 0.5)', fontSize: '0.75rem', marginTop: '0.5rem'}}>
-                Analisando todas as collections e documentos
-              </p>
-            </div>
-        ) : (
-            <>
-              <div className={styles.storageUsage}>
+        <>
+          <div className={styles.storageUsage}>
                 <div className={styles.progressBarContainer}>
                   <div 
                     className={styles.progressBar} 
@@ -176,12 +172,8 @@ export default function BackupsPage() {
                   </p>
                 </div>
               </div>
-            </>
-        )}
+        </>
       </div>
-
-      {/* Explorador do Firestore */}
-      <FirestoreExplorer />
 
       {/* Indicador de atualização em tempo real */}
       <div style={{
