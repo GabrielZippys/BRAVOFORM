@@ -485,191 +485,6 @@ export interface StageHistoryEntry {
   duration?: number;          // Duração em milissegundos
 }
 
-// --- PURCHASE ORDER WORKFLOW INTERFACES (FASE 8) ---
-
-// Interface para pedido de compra
-export interface PurchaseOrder {
-  id: string;
-  orderNumber: string;
-  supplier: {
-    cnpj: string;
-    name: string;
-    address?: string;
-    contact?: string;
-  };
-  items: Array<{
-    description: string;
-    quantity: number;
-    unitPrice: number;
-    totalPrice: number;
-    code?: string;
-    unit?: string;
-  }>;
-  totalValue: number;
-  paymentConditions?: string;
-  deliveryDate?: Timestamp;
-  status: 'novo' | 'aprovado' | 'em_processo' | 'concluido' | 'cancelado';
-  createdBy: string;
-  createdByName?: string;
-  createdAt: Timestamp;
-  updatedAt?: Timestamp;
-  workflowInstanceId?: string;  // Vinculado à instância de workflow
-  isExcludedFromDetection: boolean; // Flag para pedidos refeitos
-  parentOrderId?: string;       // Referência ao pedido original (se refeito)
-  companyId: string;
-  departmentId: string;
-}
-
-// Interface para dados extraídos do XML da NF-e
-export interface XMLNFeData {
-  cnpjEmitente: string;
-  nomeEmitente: string;
-  numeroNFe: string;
-  serieNFe: string;
-  dataEmissao: string;
-  chaveAcesso?: string;
-  items: Array<{
-    description: string;
-    quantity: number;
-    unitPrice: number;
-    totalPrice: number;
-    ncm?: string;
-    cfop?: string;
-    unit?: string;
-  }>;
-  totalValue: number;
-  paymentConditions?: string;
-  xmlFileUrl: string;           // URL do arquivo XML no Storage
-  xmlFileName?: string;
-  parsedAt?: Timestamp;
-}
-
-// Interface para resultado da validação XML vs Pedido
-export interface XMLValidationResult {
-  status: 'aprovado' | 'divergente';
-  divergences: Array<{
-    field: string;
-    xmlValue: string;
-    orderValue: string;
-    severity: 'critico' | 'aviso';
-    description?: string;
-  }>;
-  validatedAt: Timestamp;
-  validatedBy?: string;
-  summary?: {
-    totalDivergences: number;
-    criticalDivergences: number;
-    warningDivergences: number;
-  };
-}
-
-// Interface para resolução de divergências
-export interface DivergenceResolution {
-  action: 'seguir_com_justificativa' | 'modificar_pedido' | 'novo_pedido';
-  justification?: string;       // Obrigatório se action = 'seguir_com_justificativa'
-  newOrderNumber?: string;      // Obrigatório se action = 'novo_pedido'
-  modifications?: Record<string, any>; // Se action = 'modificar_pedido'
-  resolvedBy: string;
-  resolvedByName?: string;
-  resolvedAt: Timestamp;
-}
-
-// Interface para validação de fornecedor
-export interface SupplierValidation {
-  fornecedorOriginal: {
-    cnpj: string;
-    name: string;
-  };
-  fornecedorCorreto: boolean;   // Check do faturamento
-  novoFornecedor?: {
-    cnpj: string;
-    name: string;
-  };
-  validatedBy: string;
-  validatedByName?: string;
-  validatedAt: Timestamp;
-  requiresReorder: boolean;     // Se precisa refazer pedido
-}
-
-// Interface para dados do formulário de recebimento
-export interface ReceivingFormData {
-  receivingDate: Timestamp;
-  nfeNumber: string;            // Auto-preenchido do XML
-  supplier: string;             // Auto-preenchido
-  inspectedItems: Array<{
-    description: string;
-    nfeQuantity: number;
-    receivedQuantity: number;
-    condition: 'conforme' | 'avariado' | 'faltante';
-    notes?: string;
-  }>;
-  generalNotes?: string;
-  photos?: string[];            // URLs das fotos no Storage
-  inspectorSignature: string;   // Nome ou assinatura digital
-  inspectorId: string;
-  completedBy: string;
-  completedByName?: string;
-  completedAt: Timestamp;
-  discrepancies?: {
-    hasDiscrepancies: boolean;
-    totalDiscrepancies: number;
-    details?: string;
-  };
-}
-
-// Interface para configuração de detecção de pedidos
-export interface PedidoDetectionConfig {
-  pollInterval: number;         // Intervalo de verificação em ms
-  statusFilter: 'novo';         // Apenas pedidos novos
-  autoCreateInstance: boolean;  // Criar instância automaticamente
-  workflowId: string;           // ID do workflow a ser usado
-  enabled: boolean;             // Se a detecção está ativa
-}
-
-// Interface para pedidos excluídos da detecção
-export interface ExcludedOrder {
-  id: string;
-  orderNumber: string;
-  parentOrderId?: string;       // Pedido original
-  reason: 'refazer_fornecedor' | 'refazer_divergencia' | 'manual';
-  excludedBy: string;
-  excludedByName?: string;
-  excludedAt: Timestamp;
-  workflowInstanceId: string;   // Instância que causou a exclusão
-}
-
-// Interface para dados consolidados do PDF
-export interface PDFReceivingData {
-  pedido: PurchaseOrder;
-  nfe: XMLNFeData;
-  supplierValidation?: SupplierValidation;
-  xmlValidation: XMLValidationResult;
-  divergenceResolution?: DivergenceResolution;
-  recebimento: ReceivingFormData;
-  historico: StageHistoryEntry[];
-  workflowInstance: {
-    id: string;
-    startedAt: Timestamp;
-    completedAt?: Timestamp;
-    totalDuration?: number;
-  };
-  generatedAt: Timestamp;
-  generatedBy: string;
-  pdfUrl?: string;              // URL do PDF gerado no Storage
-}
-
-// Interface para configuração de distribuição do PDF
-export interface PDFDistributionConfig {
-  destinatarios: {
-    qualidade: string[];        // Emails do setor de qualidade
-    faturamento: string[];      // Emails do setor de faturamento
-    compras?: string[];         // Emails do setor de compras (opcional)
-  };
-  includeAttachments: boolean;  // Se deve incluir anexos (fotos, XML)
-  emailSubject?: string;
-  emailBody?: string;
-}
-
 // ============================================
 // INTEGRAÇÃO COM BANCO SQL EXTERNO
 // ============================================
@@ -981,4 +796,151 @@ export interface SQLIntegrationProfile {
   createdBy: string;
   updatedAt?: Timestamp;
   tags?: string[];
+}
+
+// --- FLUXO DE COMPRAS COM VALIDAÇÃO XML (FASE 9) ---
+
+// Pedido de Compra
+export interface PurchaseOrder {
+  id: string;
+  orderNumber: string;                    // Número do pedido (ex: "PC-2024-001")
+  supplier: {
+    cnpj: string;                         // CNPJ do fornecedor
+    name: string;                         // Nome do fornecedor
+    email?: string;
+    phone?: string;
+  };
+  items: Array<{
+    id: string;
+    description: string;                  // Descrição do item
+    quantity: number;                     // Quantidade solicitada
+    unitPrice: number;                    // Preço unitário
+    totalPrice: number;                   // Preço total (quantity * unitPrice)
+    unit?: string;                        // Unidade de medida (UN, KG, etc)
+    ncm?: string;                         // Código NCM (opcional)
+  }>;
+  totalValue: number;                     // Valor total do pedido
+  paymentConditions?: string;             // Condições de pagamento
+  deliveryDate?: string;                  // Data prevista de entrega
+  notes?: string;                         // Observações gerais
+  status: 'novo' | 'aprovado' | 'em_processo' | 'concluido' | 'cancelado' | 'rejeitado';
+  createdBy: string;                      // ID do colaborador que criou
+  createdByName: string;                  // Nome do colaborador
+  createdAt: Timestamp;
+  updatedAt?: Timestamp;
+  companyId: string;
+  departmentId: string;
+  workflowInstanceId?: string;            // ID da instância de workflow associada
+  isExcludedFromDetection: boolean;       // Se true, não dispara novo workflow
+  parentOrderId?: string;                 // Referência ao pedido original (se refeito)
+  approvedBy?: string;                    // ID do gerente que aprovou
+  approvedByName?: string;
+  approvedAt?: Timestamp;
+  rejectionReason?: string;               // Motivo da rejeição (se rejeitado)
+}
+
+// Dados extraídos do XML da NF-e
+export interface XMLNFeData {
+  cnpjEmitente: string;                   // CNPJ do emitente (fornecedor)
+  nomeEmitente: string;                   // Nome do emitente
+  numeroNFe: string;                      // Número da NF-e
+  serieNFe: string;                       // Série da NF-e
+  chaveAcesso?: string;                   // Chave de acesso da NF-e (44 dígitos)
+  dataEmissao: string;                    // Data de emissão (ISO string)
+  items: Array<{
+    description: string;                  // Descrição do produto
+    quantity: number;                     // Quantidade
+    unitPrice: number;                    // Valor unitário
+    totalPrice: number;                   // Valor total
+    unit?: string;                        // Unidade comercial
+    ncm?: string;                         // Código NCM
+    cfop?: string;                        // CFOP
+  }>;
+  totalValue: number;                     // Valor total da NF-e
+  paymentConditions?: string;             // Forma de pagamento
+  xmlFileUrl: string;                     // URL do arquivo XML no Storage
+  xmlFileName: string;                    // Nome do arquivo XML
+  parsedAt: Timestamp;                    // Quando foi feito o parse
+}
+
+// Resultado da validação XML vs Pedido
+export interface XMLValidationResult {
+  status: 'aprovado' | 'divergente';
+  divergences: Array<{
+    field: string;                        // Campo com divergência (ex: "cnpj", "item[0].quantity")
+    fieldLabel: string;                   // Label amigável (ex: "CNPJ do Fornecedor")
+    xmlValue: string;                     // Valor no XML
+    orderValue: string;                   // Valor no pedido
+    severity: 'critico' | 'aviso';        // Severidade da divergência
+    message: string;                      // Mensagem explicativa
+  }>;
+  validatedAt: Timestamp;
+  validatedBy?: string;                   // ID do usuário que validou
+  autoValidated: boolean;                 // Se foi validação automática ou manual
+  matchPercentage: number;                // Percentual de compatibilidade (0-100)
+}
+
+// Resolução de divergência
+export interface DivergenceResolution {
+  action: 'seguir_com_justificativa' | 'modificar_pedido' | 'novo_pedido';
+  justification?: string;                 // Justificativa (obrigatória para "seguir_com_justificativa")
+  newOrderNumber?: string;                // Número do novo pedido (para "novo_pedido")
+  newOrderId?: string;                    // ID do novo pedido criado
+  modifications?: Record<string, any>;    // Modificações feitas no pedido (para "modificar_pedido")
+  resolvedBy: string;                     // ID do usuário que resolveu
+  resolvedByName: string;
+  resolvedAt: Timestamp;
+}
+
+// Dados do formulário de recebimento
+export interface ReceivingFormData {
+  receivingDate: string;                  // Data do recebimento (ISO string)
+  nfeNumber: string;                      // Número da NF-e
+  supplier: string;                       // Nome do fornecedor
+  inspectedItems: Array<{
+    id: string;
+    description: string;                  // Descrição do item
+    nfeQuantity: number;                  // Quantidade na NF-e
+    receivedQuantity: number;             // Quantidade recebida fisicamente
+    condition: 'conforme' | 'avariado' | 'faltante' | 'excedente';
+    notes?: string;                       // Observações sobre o item
+    photos?: string[];                    // URLs de fotos do item
+  }>;
+  generalNotes?: string;                  // Observações gerais do recebimento
+  photos?: string[];                      // Fotos gerais do recebimento
+  inspectorSignature: string;             // Assinatura do conferente (base64)
+  inspectorName: string;                  // Nome do conferente
+  completedBy: string;                    // ID do usuário que completou
+  completedAt: Timestamp;
+  hasDiscrepancies: boolean;              // Se há divergências no recebimento
+  discrepancyDetails?: string;            // Detalhes das divergências
+}
+
+// Pedido excluído da detecção automática
+export interface ExcludedOrder {
+  id: string;
+  orderNumber: string;                    // Número do pedido excluído
+  orderId: string;                        // ID do documento do pedido
+  reason: 'refeito' | 'duplicado' | 'cancelado' | 'manual';
+  relatedOrderNumber?: string;            // Número do pedido relacionado (novo pedido)
+  relatedOrderId?: string;                // ID do pedido relacionado
+  workflowInstanceId?: string;            // ID do workflow que gerou a exclusão
+  excludedBy: string;                     // ID do usuário que excluiu
+  excludedByName: string;
+  excludedAt: Timestamp;
+  notes?: string;                         // Observações sobre a exclusão
+}
+
+// Dados completos do fluxo de compras (para geração de PDF)
+export interface PurchaseFlowData {
+  purchaseOrder: PurchaseOrder;
+  xmlData?: XMLNFeData;
+  validationResult?: XMLValidationResult;
+  divergenceResolution?: DivergenceResolution;
+  receivingForm?: ReceivingFormData;
+  workflowInstance: WorkflowInstance;
+  pdfUrl?: string;                        // URL do PDF gerado
+  pdfGeneratedAt?: Timestamp;
+  distributedTo?: string[];               // Emails para quem o PDF foi enviado
+  distributedAt?: Timestamp;
 }
