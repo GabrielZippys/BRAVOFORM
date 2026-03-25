@@ -1,13 +1,11 @@
 'use client';
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { collection, getDocs, doc, updateDoc, deleteDoc } from 'firebase/firestore';
 import {
   Database, RefreshCw, Search, Filter, Trash2, Save, X,
   ChevronUp, ChevronDown, ChevronLeft, ChevronRight, Eye,
   Table, Download, Folder, Check, AlertCircle
 } from 'lucide-react';
-import { db } from '../../firebase/config';
 import * as XLSX from 'xlsx';
 import styles from '../../app/styles/FirestoreExplorer.module.css';
 
@@ -57,13 +55,6 @@ export default function FirestoreExplorer() {
   const [showDuplicates, setShowDuplicates] = useState(false);
   const [duplicateField, setDuplicateField] = useState<string>('');
 
-  // Collections conhecidas — só aparecem as que têm documentos
-  const knownCollections = [
-    'admins', 'collaborators', 'companies', 'departments', 'forms',
-    'form_responses', 'password_resets', 'product_catalogs', 'products',
-    'sql_profiles', 'users', 'workflows', 'workflow_instances', 'purchase_orders'
-  ];
-
   useEffect(() => {
     loadCollections();
   }, []);
@@ -75,20 +66,14 @@ export default function FirestoreExplorer() {
   const loadCollections = async () => {
     setLoadingCollections(true);
     try {
-      const stats: CollectionInfo[] = [];
-      for (const name of knownCollections) {
-        try {
-          const snap = await getDocs(collection(db, name));
-          if (snap.size > 0) {
-            let size = 0;
-            snap.forEach(d => { size += estimateSize(d.data()); });
-            stats.push({ name, documentCount: snap.size, estimatedSize: size });
-          }
-        } catch { /* skip */ }
+      const response = await fetch('/api/dataconnect/list-tables');
+      const result = await response.json();
+      
+      if (result.success) {
+        setCollections(result.data.sort((a: CollectionInfo, b: CollectionInfo) => b.documentCount - a.documentCount));
       }
-      setCollections(stats.sort((a, b) => b.documentCount - a.documentCount));
     } catch (error) {
-      console.error('Erro ao carregar collections:', error);
+      console.error('Erro ao carregar tabelas PostgreSQL:', error);
     } finally {
       setLoadingCollections(false);
     }
@@ -109,20 +94,27 @@ export default function FirestoreExplorer() {
     setShowDuplicates(false);
     setDuplicateField('');
     try {
-      const snap = await getDocs(collection(db, collectionName));
-      const docs: DocumentData[] = [];
-      const fieldsSet = new Set<string>();
-      snap.forEach(d => {
-        const data = d.data();
-        docs.push({ id: d.id, data });
-        Object.keys(data).forEach(k => fieldsSet.add(k));
-      });
-      const fields = Array.from(fieldsSet).sort();
-      setDocuments(docs);
-      setAllFields(fields);
-      setVisibleFields(fields.slice(0, 8));
+      const response = await fetch(`/api/dataconnect/list-tables?table=${collectionName}`);
+      const result = await response.json();
+      
+      if (result.success) {
+        const docs: DocumentData[] = result.data.map((row: any) => {
+          const { id, ...data } = row;
+          return { id: String(id), data };
+        });
+        
+        const fieldsSet = new Set<string>();
+        docs.forEach(doc => {
+          Object.keys(doc.data).forEach(k => fieldsSet.add(k));
+        });
+        
+        const fields = Array.from(fieldsSet).sort();
+        setDocuments(docs);
+        setAllFields(fields);
+        setVisibleFields(fields.slice(0, 8));
+      }
     } catch (error) {
-      console.error('Erro ao carregar documentos:', error);
+      console.error('Erro ao carregar documentos PostgreSQL:', error);
     } finally {
       setLoadingDocs(false);
     }
@@ -234,16 +226,28 @@ export default function FirestoreExplorer() {
       if (editValue === 'true') parsedValue = true;
       if (editValue === 'false') parsedValue = false;
 
-      await updateDoc(doc(db, selectedCollection, editingCell.docId), {
-        [editingCell.field]: parsedValue
+      const response = await fetch('/api/dataconnect/list-tables', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          tableName: selectedCollection,
+          id: editingCell.docId,
+          field: editingCell.field,
+          value: parsedValue
+        })
       });
-      setDocuments(docs => docs.map(d =>
-        d.id === editingCell.docId
-          ? { ...d, data: { ...d.data, [editingCell.field]: parsedValue } }
-          : d
-      ));
-      showFeedback('success', 'Campo atualizado com sucesso!');
-      setEditingCell(null);
+
+      if (response.ok) {
+        setDocuments(docs => docs.map(d =>
+          d.id === editingCell.docId
+            ? { ...d, data: { ...d.data, [editingCell.field]: parsedValue } }
+            : d
+        ));
+        showFeedback('success', 'Campo atualizado com sucesso!');
+        setEditingCell(null);
+      } else {
+        showFeedback('error', 'Erro ao salvar alteração');
+      }
     } catch (error) {
       console.error('Erro ao salvar:', error);
       showFeedback('error', 'Erro ao salvar alteração');
@@ -258,13 +262,20 @@ export default function FirestoreExplorer() {
     if (!selectedCollection) return;
     if (!confirm(`Tem certeza que deseja excluir o documento "${docId}"?`)) return;
     try {
-      await deleteDoc(doc(db, selectedCollection, docId));
-      setDocuments(docs => docs.filter(d => d.id !== docId));
-      if (selectedDocument?.id === docId) setSelectedDocument(null);
-      setCollections(cols => cols.map(c =>
-        c.name === selectedCollection ? { ...c, documentCount: c.documentCount - 1 } : c
-      ));
-      showFeedback('success', 'Documento excluído com sucesso!');
+      const response = await fetch(`/api/dataconnect/list-tables?table=${selectedCollection}&id=${docId}`, {
+        method: 'DELETE'
+      });
+
+      if (response.ok) {
+        setDocuments(docs => docs.filter(d => d.id !== docId));
+        if (selectedDocument?.id === docId) setSelectedDocument(null);
+        setCollections(cols => cols.map(c =>
+          c.name === selectedCollection ? { ...c, documentCount: c.documentCount - 1 } : c
+        ));
+        showFeedback('success', 'Documento excluído com sucesso!');
+      } else {
+        showFeedback('error', 'Erro ao excluir documento');
+      }
     } catch (error) {
       console.error('Erro ao excluir:', error);
       showFeedback('error', 'Erro ao excluir documento');
@@ -367,7 +378,9 @@ export default function FirestoreExplorer() {
     
     try {
       const deletePromises = Array.from(selectedIds).map(id =>
-        deleteDoc(doc(db, selectedCollection, id))
+        fetch(`/api/dataconnect/list-tables?table=${selectedCollection}&id=${id}`, {
+          method: 'DELETE'
+        })
       );
       await Promise.all(deletePromises);
       
@@ -401,8 +414,8 @@ export default function FirestoreExplorer() {
         <div className={styles.headerLeft}>
           <Database size={24} />
           <div>
-            <h3>Explorador do Firestore</h3>
-            <p>Visualize, filtre e edite collections e documentos</p>
+            <h3>Banco de Dados (PostgreSQL)</h3>
+            <p>Visualize, filtre e edite tabelas e registros do Data Connect</p>
           </div>
         </div>
         <button onClick={loadCollections} className={styles.refreshButton} disabled={loadingCollections}>

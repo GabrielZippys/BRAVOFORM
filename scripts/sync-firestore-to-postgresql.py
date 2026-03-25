@@ -495,24 +495,60 @@ def export_and_sync_responses():
                     answer_number = None
                     answer_date = None
                     answer_boolean = None
+                    field_type = 'text'
                     
                     cleaned = clean_answer_value(value)
                     
-                    # Tentar converter para número
-                    try:
-                        answer_number = float(cleaned.replace(',', '.'))
-                    except (ValueError, AttributeError):
-                        answer_text = cleaned
+                    # Tentar converter para data (formato ISO, timestamp, ou padrões comuns)
+                    if isinstance(value, str) and len(value) >= 8:
+                        # Padrões de data: YYYY-MM-DD, DD/MM/YYYY, YYYY-MM-DDTHH:MM, etc
+                        if any(sep in value for sep in ['-', '/', 'T']) and any(c.isdigit() for c in value):
+                            try:
+                                # Tentar ISO format primeiro
+                                parsed_date = datetime.fromisoformat(value.replace('Z', '+00:00'))
+                                answer_date = parsed_date.replace(tzinfo=None)
+                                field_type = 'date'
+                            except:
+                                try:
+                                    # Tentar DD/MM/YYYY
+                                    parsed_date = datetime.strptime(value.split()[0], '%d/%m/%Y')
+                                    answer_date = parsed_date
+                                    field_type = 'date'
+                                except:
+                                    try:
+                                        # Tentar YYYY-MM-DD
+                                        parsed_date = datetime.strptime(value.split('T')[0], '%Y-%m-%d')
+                                        answer_date = parsed_date
+                                        field_type = 'date'
+                                    except:
+                                        pass
                     
-                    # Tentar converter para boolean
-                    if cleaned.lower() in ('true', 'false', 'sim', 'não', 'yes', 'no'):
-                        answer_boolean = cleaned.lower() in ('true', 'sim', 'yes')
+                    # Se não é data, tentar número
+                    if answer_date is None:
+                        try:
+                            # Tentar converter para número (aceita vírgula como decimal)
+                            num_str = cleaned.replace(',', '.')
+                            if num_str and num_str.replace('.', '').replace('-', '').isdigit():
+                                answer_number = float(num_str)
+                                field_type = 'number'
+                        except (ValueError, AttributeError):
+                            pass
+                    
+                    # Se não é data nem número, tentar boolean
+                    if answer_date is None and answer_number is None:
+                        if cleaned.lower() in ('true', 'false', 'sim', 'não', 'yes', 'no'):
+                            answer_boolean = cleaned.lower() in ('true', 'sim', 'yes')
+                            field_type = 'boolean'
+                        else:
+                            # É texto
+                            answer_text = cleaned
+                            field_type = 'text'
                     
                     answers_data.append({
                         'response_id': response_id,
                         'field_id': str(field_id),
-                        'field_label': str(field_id),  # Pode ser melhorado com metadata do form
-                        'field_type': 'text',
+                        'field_label': str(field_id),
+                        'field_type': field_type,
                         'answer_text': answer_text,
                         'answer_number': answer_number,
                         'answer_date': answer_date,
