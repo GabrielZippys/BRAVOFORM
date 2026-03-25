@@ -290,3 +290,39 @@ DETAIL:  Failing row contains (Yr2ogV1yBSEtQGgDS8XK, 3UA4Np5gDxgwR7X8rRhC, Novil
 2026-03-25 15:16:28,794 | INFO    | Inseridas 7292 answers
 2026-03-25 15:16:28,803 | INFO    | Sincronização concluída com sucesso!
 2026-03-25 15:16:28,805 | INFO    | === SINCRONIZAÇÃO CONCLUÍDA | tempo=8.76s ===
+2026-03-25 16:43:29,609 | INFO    | Firestore conectado | project_id=formbravo-8854e
+2026-03-25 16:43:29,610 | INFO    | === INÍCIO DA SINCRONIZAÇÃO FIRESTORE → POSTGRESQL ===
+2026-03-25 16:43:29,610 | INFO    | Etapa 1/5: Exportando empresas e departamentos...
+2026-03-25 16:43:29,610 | INFO    | Exportando empresas e departamentos...
+2026-03-25 16:43:30,275 | INFO    | Empresas coletadas: 3 | Departamentos: 19
+2026-03-25 16:43:30,514 | INFO    | Inseridas 3 empresas e 19 departamentos
+2026-03-25 16:43:30,515 | INFO    | Etapa 2/5: Exportando produtos e catálogos...
+2026-03-25 16:43:30,515 | INFO    | Exportando produtos e catálogos...
+2026-03-25 16:43:31,049 | INFO    | Catálogos coletados: 12 | Produtos: 0
+2026-03-25 16:43:31,215 | INFO    | Inseridos 12 catálogos e 0 produtos
+2026-03-25 16:43:31,215 | INFO    | Etapa 3/5: Exportando formulários...
+2026-03-25 16:43:31,215 | INFO    | Exportando metadados dos formulários...
+2026-03-25 16:43:31,434 | INFO    | Total de formulários coletados: 18
+2026-03-25 16:43:31,544 | INFO    | Tabela forms limpa
+2026-03-25 16:43:31,615 | INFO    | Inseridos 18 formulários na tabela forms
+2026-03-25 16:43:31,616 | INFO    | Etapa 4/5: Exportando respostas...
+2026-03-25 16:43:31,616 | INFO    | Sincronizando respostas dos últimos 30 dias (desde 2026-02-23T19:43:31.616660+00:00)
+2026-03-25 16:43:31,832 | INFO    | Form 3UA4Np5gDxgwR7X8rRhC: 2 respostas coletadas
+2026-03-25 16:43:32,913 | INFO    | Form 41yvJ4c580Yr4oWjPd5J: 296 respostas coletadas
+2026-03-25 16:43:32,948 | INFO    | Form Al5l7YVJ5qdwPUajsUO7: 1 respostas coletadas
+2026-03-25 16:43:32,996 | INFO    | Form EdyIAbIAM9HoW7UN9D3v: 23 respostas coletadas
+2026-03-25 16:43:33,141 | INFO    | Form J182jCabwjE9ReVDVeNU: 35 respostas coletadas
+2026-03-25 16:43:33,200 | INFO    | Form M0IGy69OkdNXoft3mlAC: 10 respostas coletadas
+2026-03-25 16:43:33,891 | INFO    | Form dZaCzuAVEz5VP7k1LfLr: 454 respostas coletadas
+2026-03-25 16:43:35,020 | INFO    | Form hpwFnAXxpfQUbSOqFpbN: 136 respostas coletadas
+2026-03-25 16:43:35,727 | INFO    | Form jySaXiqjiteqxqmLqIiD: 45 respostas coletadas
+2026-03-25 16:43:36,073 | INFO    | Form ppdd25B3IPotSu4arCoH: 34 respostas coletadas
+2026-03-25 16:43:36,095 | INFO    | Form vLZkM9odYbw6EFaG84vI: 1 respostas coletadas
+2026-03-25 16:43:36,115 | INFO    | Total: 1037 respostas, 7292 answers
+2026-03-25 16:43:36,267 | INFO    | Deletados: 1037 respostas, 7292 answers (modo incremental)
+2026-03-25 16:43:36,620 | INFO    | Inseridas 1037 respostas
+2026-03-25 16:43:38,414 | INFO    | Inseridas 7292 answers
+2026-03-25 16:43:38,429 | INFO    | Sincronização concluída com sucesso!
+2026-03-25 16:43:38,431 | INFO    | Etapa 5/5: Criando índices...
+2026-03-25 16:43:38,614 | INFO    | Índices criados com sucesso
+2026-03-25 16:43:38,614 | INFO    | === SINCRONIZAÇÃO CONCLUÍDA | tempo=9.00s ===

@@ -123,6 +123,142 @@ def pg_connect():
 # -----------------------------------------------------------------------------
 # Export Firestore → PostgreSQL
 # -----------------------------------------------------------------------------
+def export_and_sync_products_and_catalogs():
+    """
+    Exporta produtos e catálogos do Firestore para PostgreSQL
+    Tabelas: products, product_catalogs
+    """
+    log.info("Exportando produtos e catálogos...")
+    
+    products_data = []
+    catalogs_data = []
+    
+    # Buscar catálogos
+    for catalog_doc in db.collection("product_catalogs").stream():
+        catalog_id = catalog_doc.id
+        cdata = catalog_doc.to_dict() or {}
+        
+        catalogs_data.append({
+            'id': catalog_id,
+            'name': cdata.get("name", ""),
+            'description': cdata.get("description", ""),
+            'company_id': cdata.get("companyId", ""),
+            'display_field': cdata.get("displayField", "name"),
+            'search_fields': str(cdata.get("searchFields", [])),
+            'value_field': cdata.get("valueField", "id"),
+            'fields': str(cdata.get("fields", [])),
+            'additional_fields': str(cdata.get("additionalFields", [])),
+            'created_at': ts_to_iso(cdata.get("createdAt")),
+            'updated_at': ts_to_iso(cdata.get("updatedAt")),
+        })
+        
+        # Buscar produtos desse catálogo
+        for prod_doc in db.collection("product_catalogs").document(catalog_id).collection("products").stream():
+            pdata = prod_doc.to_dict() or {}
+            products_data.append({
+                'id': prod_doc.id,
+                'catalog_id': catalog_id,
+                'name': pdata.get("name", ""),
+                'codigo': pdata.get("codigo", ""),
+                'ean': pdata.get("ean", ""),
+                'unidade': pdata.get("unidade", ""),
+                'quantidade_max': pdata.get("quantidadeMax"),
+                'quantidade_min': pdata.get("quantidadeMin"),
+                'collection': pdata.get("collection", "products"),
+                'company_id': pdata.get("companyId", ""),
+                'created_at': ts_to_iso(pdata.get("createdAt")),
+                'updated_at': ts_to_iso(pdata.get("updatedAt")),
+            })
+    
+    log.info(f"Catálogos coletados: {len(catalogs_data)} | Produtos: {len(products_data)}")
+    
+    if catalogs_data or products_data:
+        sync_products_catalogs_to_postgresql(catalogs_data, products_data)
+    
+    return catalogs_data, products_data
+
+def sync_products_catalogs_to_postgresql(catalogs_data, products_data):
+    """Sincroniza tabelas product_catalogs e products no PostgreSQL"""
+    conn = pg_connect()
+    cur = conn.cursor()
+    
+    try:
+        # Criar tabela product_catalogs
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS product_catalogs (
+                id VARCHAR(255) PRIMARY KEY,
+                name VARCHAR(500) NOT NULL,
+                description TEXT,
+                company_id VARCHAR(255),
+                display_field VARCHAR(255),
+                search_fields TEXT,
+                value_field VARCHAR(255),
+                fields TEXT,
+                additional_fields TEXT,
+                created_at TIMESTAMP,
+                updated_at TIMESTAMP
+            )
+        """)
+        
+        # Criar tabela products
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS products (
+                id VARCHAR(255) PRIMARY KEY,
+                catalog_id VARCHAR(255) REFERENCES product_catalogs(id),
+                name VARCHAR(500) NOT NULL,
+                codigo VARCHAR(255),
+                ean VARCHAR(255),
+                unidade VARCHAR(50),
+                quantidade_max INTEGER,
+                quantidade_min INTEGER,
+                collection VARCHAR(255),
+                company_id VARCHAR(255),
+                created_at TIMESTAMP,
+                updated_at TIMESTAMP
+            )
+        """)
+        
+        # Limpar
+        cur.execute("DELETE FROM products")
+        cur.execute("DELETE FROM product_catalogs")
+        
+        # Inserir catálogos
+        if catalogs_data:
+            execute_batch(cur, """
+                INSERT INTO product_catalogs (
+                    id, name, description, company_id, display_field, search_fields,
+                    value_field, fields, additional_fields, created_at, updated_at
+                ) VALUES (
+                    %(id)s, %(name)s, %(description)s, %(company_id)s, %(display_field)s,
+                    %(search_fields)s, %(value_field)s, %(fields)s, %(additional_fields)s,
+                    %(created_at)s, %(updated_at)s
+                )
+            """, catalogs_data, page_size=100)
+        
+        # Inserir produtos
+        if products_data:
+            execute_batch(cur, """
+                INSERT INTO products (
+                    id, catalog_id, name, codigo, ean, unidade, quantidade_max,
+                    quantidade_min, collection, company_id, created_at, updated_at
+                ) VALUES (
+                    %(id)s, %(catalog_id)s, %(name)s, %(codigo)s, %(ean)s, %(unidade)s,
+                    %(quantidade_max)s, %(quantidade_min)s, %(collection)s, %(company_id)s,
+                    %(created_at)s, %(updated_at)s
+                )
+            """, products_data, page_size=100)
+        
+        conn.commit()
+        log.info(f"Inseridos {len(catalogs_data)} catálogos e {len(products_data)} produtos")
+        
+    except Exception as e:
+        conn.rollback()
+        log.exception(f"Erro ao sincronizar products/catalogs: {e}")
+        raise
+    finally:
+        cur.close()
+        conn.close()
+
 def export_and_sync_companies_and_departments():
     """
     Exporta empresas e departamentos do Firestore para PostgreSQL
@@ -448,6 +584,32 @@ def sync_to_postgresql(responses_data, answers_data, cutoff_date):
         cur.close()
         conn.close()
 
+def create_indexes():
+    """Cria índices para otimizar queries"""
+    conn = pg_connect()
+    cur = conn.cursor()
+    
+    try:
+        # Índices para products
+        cur.execute("CREATE INDEX IF NOT EXISTS idx_products_catalog_id ON products(catalog_id)")
+        cur.execute("CREATE INDEX IF NOT EXISTS idx_products_company_id ON products(company_id)")
+        cur.execute("CREATE INDEX IF NOT EXISTS idx_products_codigo ON products(codigo)")
+        cur.execute("CREATE INDEX IF NOT EXISTS idx_products_ean ON products(ean)")
+        cur.execute("CREATE INDEX IF NOT EXISTS idx_products_name ON products(name)")
+        
+        # Índices para product_catalogs
+        cur.execute("CREATE INDEX IF NOT EXISTS idx_product_catalogs_company_id ON product_catalogs(company_id)")
+        
+        conn.commit()
+        log.info("Índices criados com sucesso")
+        
+    except Exception as e:
+        conn.rollback()
+        log.exception(f"Erro ao criar índices: {e}")
+    finally:
+        cur.close()
+        conn.close()
+
 # -----------------------------------------------------------------------------
 # Main
 # -----------------------------------------------------------------------------
@@ -457,16 +619,24 @@ def main():
         log.info("=== INÍCIO DA SINCRONIZAÇÃO FIRESTORE → POSTGRESQL ===")
         
         # 1. Exportar empresas e departamentos
-        log.info("Etapa 1/3: Exportando empresas e departamentos...")
+        log.info("Etapa 1/5: Exportando empresas e departamentos...")
         export_and_sync_companies_and_departments()
         
-        # 2. Exportar metadados dos formulários
-        log.info("Etapa 2/3: Exportando formulários...")
+        # 2. Exportar produtos e catálogos
+        log.info("Etapa 2/5: Exportando produtos e catálogos...")
+        export_and_sync_products_and_catalogs()
+        
+        # 3. Exportar metadados dos formulários
+        log.info("Etapa 3/5: Exportando formulários...")
         export_and_sync_forms()
         
-        # 3. Exportar respostas
-        log.info("Etapa 3/3: Exportando respostas...")
+        # 4. Exportar respostas
+        log.info("Etapa 4/5: Exportando respostas...")
         export_and_sync_responses()
+        
+        # 5. Criar índices
+        log.info("Etapa 5/5: Criando índices...")
+        create_indexes()
         
         elapsed = time.time() - t0
         log.info(f"=== SINCRONIZAÇÃO CONCLUÍDA | tempo={elapsed:.2f}s ===")

@@ -8,8 +8,7 @@ import { type Form, type FormResponse as FormResponseType } from '@/types';
 import { X, Send, Eraser, CheckCircle2, AlertTriangle } from 'lucide-react';
 import { ref as sRef, uploadBytes, getDownloadURL } from 'firebase/storage';
 import OrderGridFieldResponse from './OrderGridFieldResponse';
-
-
+import { dualSave } from '@/services/dualSaveService';
 
 // Campo aprimorado para tipos
 type EnhancedFormField = {
@@ -861,27 +860,19 @@ const handleAutoFillLeader = () => {
     }
 
     // 4) Grava no PostgreSQL (secundário - não bloqueia UX)
-    try {
-      fetch('/api/dataconnect/save-response', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          responseId: savedResponseId,
-          formId: form.id,
-          formTitle: form.title,
-          companyId: form.companyId || '',
-          departmentId: form.departmentId || '',
-          department: collaborator.department || '',
-          collaboratorId: collaborator.id,
-          collaboratorUsername: collaborator.username,
-          status: 'pending',
-          answers,
-          fieldMetadata,
-        }),
-      }).catch(err => console.warn('PostgreSQL sync falhou (não crítico):', err));
-    } catch (pgErr) {
-      console.warn('PostgreSQL sync falhou (não crítico):', pgErr);
-    }
+    dualSave.saveFormResponse({
+      responseId: savedResponseId,
+      formId: form.id,
+      formTitle: form.title,
+      companyId: form.companyId || '',
+      departmentId: form.departmentId || '',
+      department: collaborator.department || '',
+      collaboratorId: collaborator.id,
+      collaboratorUsername: collaborator.username,
+      status: 'pending',
+      answers,
+      fieldMetadata,
+    });
 
     triggerToast('success', 'Resposta enviada com sucesso!', 1800, onClose);
   } catch (err) {
