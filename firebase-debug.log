@@ -1,0 +1,47 @@
+[debug] [2026-03-25T14:39:06.992Z] ----------------------------------------------------------------------
+[debug] [2026-03-25T14:39:06.994Z] Command:       C:\Program Files\nodejs\node.exe C:\Users\OptiPlex 7080\AppData\Roaming\npm\node_modules\firebase-tools\lib\bin\firebase.js deploy --only dataconnect
+[debug] [2026-03-25T14:39:06.994Z] CLI Version:   15.6.0
+[debug] [2026-03-25T14:39:06.994Z] Platform:      win32
+[debug] [2026-03-25T14:39:06.995Z] Node Version:  v22.21.1
+[debug] [2026-03-25T14:39:06.995Z] Time:          Wed Mar 25 2026 11:39:06 GMT-0300 (Horário Padrão de Brasília)
+[debug] [2026-03-25T14:39:06.995Z] ----------------------------------------------------------------------
+[debug] 
+[debug] [2026-03-25T14:39:08.839Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2026-03-25T14:39:08.839Z] > authorizing via signed-in user (gabriel.henrique@bravo-ti.com)
+[debug] [2026-03-25T14:39:08.839Z] [iam] checking project formbravo-8854e for permissions ["cloudsql.databases.create","cloudsql.databases.update","cloudsql.instances.connect","cloudsql.instances.create","cloudsql.instances.get","cloudsql.instances.list","cloudsql.instances.update","cloudsql.users.create","firebase.projects.get","firebasedataconnect.connectors.create","firebasedataconnect.connectors.delete","firebasedataconnect.connectors.list","firebasedataconnect.connectors.update","firebasedataconnect.operations.get","firebasedataconnect.schemas.create","firebasedataconnect.schemas.delete","firebasedataconnect.schemas.list","firebasedataconnect.schemas.update","firebasedataconnect.services.create","firebasedataconnect.services.delete","firebasedataconnect.services.list","firebasedataconnect.services.update"]
+[debug] [2026-03-25T14:39:08.840Z] Checked if tokens are valid: true, expires at: 1774453133772
+[debug] [2026-03-25T14:39:08.840Z] Checked if tokens are valid: true, expires at: 1774453133772
+[debug] [2026-03-25T14:39:08.841Z] >>> [apiv2][query] POST https://cloudresourcemanager.googleapis.com/v1/projects/formbravo-8854e:testIamPermissions [none]
+[debug] [2026-03-25T14:39:08.841Z] >>> [apiv2][(partial)header] POST https://cloudresourcemanager.googleapis.com/v1/projects/formbravo-8854e:testIamPermissions  x-goog-user-project=formbravo-8854e
+[debug] [2026-03-25T14:39:08.841Z] >>> [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/formbravo-8854e:testIamPermissions {"permissions":["cloudsql.databases.create","cloudsql.databases.update","cloudsql.instances.connect","cloudsql.instances.create","cloudsql.instances.get","cloudsql.instances.list","cloudsql.instances.update","cloudsql.users.create","firebase.projects.get","firebasedataconnect.connectors.create","firebasedataconnect.connectors.delete","firebasedataconnect.connectors.list","firebasedataconnect.connectors.update","firebasedataconnect.operations.get","firebasedataconnect.schemas.create","firebasedataconnect.schemas.delete","firebasedataconnect.schemas.list","firebasedataconnect.schemas.update","firebasedataconnect.services.create","firebasedataconnect.services.delete","firebasedataconnect.services.list","firebasedataconnect.services.update"]}
+[debug] [2026-03-25T14:39:09.822Z] <<< [apiv2][status] POST https://cloudresourcemanager.googleapis.com/v1/projects/formbravo-8854e:testIamPermissions 200
+[debug] [2026-03-25T14:39:09.822Z] <<< [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/formbravo-8854e:testIamPermissions {"permissions":["cloudsql.databases.create","cloudsql.databases.update","cloudsql.instances.connect","cloudsql.instances.create","cloudsql.instances.get","cloudsql.instances.list","cloudsql.instances.update","cloudsql.users.create","firebase.projects.get","firebasedataconnect.connectors.create","firebasedataconnect.connectors.delete","firebasedataconnect.connectors.list","firebasedataconnect.connectors.update","firebasedataconnect.operations.get","firebasedataconnect.schemas.create","firebasedataconnect.schemas.delete","firebasedataconnect.schemas.list","firebasedataconnect.schemas.update","firebasedataconnect.services.create","firebasedataconnect.services.delete","firebasedataconnect.services.list","firebasedataconnect.services.update"]}
+[info] 
+[info] === Deploying to 'formbravo-8854e'...
+[info] 
+[info] i  deploying dataconnect 
+[info] i  dataconnect: ensuring required API firebasedataconnect.googleapis.com is enabled... 
+[debug] [2026-03-25T14:39:09.825Z] Checked if tokens are valid: true, expires at: 1774453133772
+[debug] [2026-03-25T14:39:09.825Z] Checked if tokens are valid: true, expires at: 1774453133772
+[info] i  dataconnect: ensuring required API sqladmin.googleapis.com is enabled... 
+[debug] [2026-03-25T14:39:09.825Z] Checked if tokens are valid: true, expires at: 1774453133772
+[debug] [2026-03-25T14:39:09.825Z] Checked if tokens are valid: true, expires at: 1774453133772
+[debug] [2026-03-25T14:39:09.825Z] >>> [apiv2][query] GET https://serviceusage.googleapis.com/v1/projects/formbravo-8854e/services/firebasedataconnect.googleapis.com [none]
+[debug] [2026-03-25T14:39:09.825Z] >>> [apiv2][(partial)header] GET https://serviceusage.googleapis.com/v1/projects/formbravo-8854e/services/firebasedataconnect.googleapis.com  x-goog-user-project=formbravo-8854e
+[debug] [2026-03-25T14:39:09.826Z] >>> [apiv2][query] GET https://serviceusage.googleapis.com/v1/projects/formbravo-8854e/services/sqladmin.googleapis.com [none]
+[debug] [2026-03-25T14:39:09.827Z] >>> [apiv2][(partial)header] GET https://serviceusage.googleapis.com/v1/projects/formbravo-8854e/services/sqladmin.googleapis.com  x-goog-user-project=formbravo-8854e
+[debug] [2026-03-25T14:39:10.887Z] <<< [apiv2][status] GET https://serviceusage.googleapis.com/v1/projects/formbravo-8854e/services/firebasedataconnect.googleapis.com 200
+[debug] [2026-03-25T14:39:10.887Z] <<< [apiv2][body] GET https://serviceusage.googleapis.com/v1/projects/formbravo-8854e/services/firebasedataconnect.googleapis.com [omitted]
+[info] +  dataconnect: required API firebasedataconnect.googleapis.com is enabled 
+[debug] [2026-03-25T14:39:10.913Z] <<< [apiv2][status] GET https://serviceusage.googleapis.com/v1/projects/formbravo-8854e/services/sqladmin.googleapis.com 200
+[debug] [2026-03-25T14:39:10.913Z] <<< [apiv2][body] GET https://serviceusage.googleapis.com/v1/projects/formbravo-8854e/services/sqladmin.googleapis.com [omitted]
+[info] +  dataconnect: required API sqladmin.googleapis.com is enabled 
+[debug] [2026-03-25T14:39:11.070Z] TypeError: Cannot read properties of undefined (reading 'map')
+    at load (C:\Users\OptiPlex 7080\AppData\Roaming\npm\node_modules\firebase-tools\lib\dataconnect\load.js:62:75)
+    at async Promise.all (index 0)
+    at async loadAll (C:\Users\OptiPlex 7080\AppData\Roaming\npm\node_modules\firebase-tools\lib\dataconnect\load.js:44:12)
+    at async default_1 (C:\Users\OptiPlex 7080\AppData\Roaming\npm\node_modules\firebase-tools\lib\deploy\dataconnect\prepare.js:25:23)
+    at async chain (C:\Users\OptiPlex 7080\AppData\Roaming\npm\node_modules\firebase-tools\lib\deploy\index.js:45:9)
+    at async deploy (C:\Users\OptiPlex 7080\AppData\Roaming\npm\node_modules\firebase-tools\lib\deploy\index.js:124:9)
+[error] 
+[error] Error: An unexpected error has occurred.

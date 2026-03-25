@@ -1,0 +1,71 @@
+# Schema GraphQL para Firebase Data Connect
+# Este schema define as tabelas PostgreSQL
+
+type Product @table {
+  id: UUID! @default(expr: "uuidGenerateV4()")
+  name: String!
+  price: Float!
+  description: String
+  stock: Int! @default(value: 0)
+  created_at: Timestamp! @default(expr: "request.time")
+  updated_at: Timestamp! @default(expr: "request.time")
+}
+
+type Order @table {
+  id: UUID! @default(expr: "uuidGenerateV4()")
+  product_id: UUID!
+  customer_name: String!
+  quantity: Int!
+  total: Float!
+  status: String! @default(value: "pending")
+  created_at: Timestamp! @default(expr: "request.time")
+}
+
+# Queries
+type Query {
+  # Listar todos os produtos
+  listProducts: [Product!]!
+  
+  # Buscar produto por ID
+  getProduct(id: UUID!): Product
+  
+  # Listar pedidos
+  listOrders: [Order!]!
+  
+  # Buscar pedido por ID
+  getOrder(id: UUID!): Order
+}
+
+# Mutations
+type Mutation {
+  # Criar novo produto
+  createProduct(
+    name: String!
+    price: Float!
+    description: String
+    stock: Int
+  ): Product!
+  
+  # Atualizar produto
+  updateProduct(
+    id: UUID!
+    name: String
+    price: Float
+    description: String
+    stock: Int
+  ): Product!
+  
+  # Criar novo pedido
+  createOrder(
+    product_id: UUID!
+    customer_name: String!
+    quantity: Int!
+    total: Float!
+  ): Order!
+  
+  # Atualizar status do pedido
+  updateOrderStatus(
+    id: UUID!
+    status: String!
+  ): Order!
+}

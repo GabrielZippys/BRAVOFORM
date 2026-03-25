@@ -1,0 +1,11 @@
+specVersion: 'v1alpha'
+serviceId: 'formbravo-8854e-service'
+location: 'southamerica-east1'
+schema:
+  source: './schema.gql'
+  datasource:
+    postgresql:
+      database: 'formbravo-8854e-database'
+      cloudSql:
+        instanceId: 'formbravo-8854e-instance'
+connectorId: 'formbravo-8854e-service'
