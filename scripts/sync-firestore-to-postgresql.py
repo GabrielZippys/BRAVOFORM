@@ -54,8 +54,13 @@ if not cred_path.exists():
 if not cred_path.exists():
     raise RuntimeError(f"Credenciais do Firebase não encontradas: {cred_path}")
 
-project_id = os.getenv("FIREBASE_PROJECT_ID", "formbravo-8854e")
 credentials = service_account.Credentials.from_service_account_file(str(cred_path))
+
+# Usar project_id do arquivo de credenciais
+import json
+with open(cred_path) as f:
+    cred_data = json.load(f)
+    project_id = cred_data.get("project_id", "formbravo-8854e")
 
 try:
     db = firestore.Client(project=project_id, credentials=credentials)
@@ -69,7 +74,7 @@ PG_HOST = os.getenv("PG_HOST", "34.39.165.146")
 PG_PORT = int(os.getenv("PG_PORT", "5432"))
 PG_DATABASE = os.getenv("PG_DATABASE", "formbravo-8854e-database")
 PG_USER = os.getenv("PG_USER", "ipanema")
-PG_PASSWORD = os.getenv("PG_PASSWORD", "Brav0x00")
+PG_PASSWORD = os.getenv("PG_PASSWORD", "Br@v0x00")
 
 # -----------------------------------------------------------------------------
 # Helpers
@@ -118,6 +123,181 @@ def pg_connect():
 # -----------------------------------------------------------------------------
 # Export Firestore → PostgreSQL
 # -----------------------------------------------------------------------------
+def export_and_sync_companies_and_departments():
+    """
+    Exporta empresas e departamentos do Firestore para PostgreSQL
+    Tabelas: companies, departments
+    """
+    log.info("Exportando empresas e departamentos...")
+    
+    companies_data = []
+    departments_data = []
+    
+    for comp_doc in db.collection("companies").stream():
+        comp_id = comp_doc.id
+        cdata = comp_doc.to_dict() or {}
+        
+        companies_data.append({
+            'id': comp_id,
+            'name': cdata.get("name", ""),
+            'created_at': ts_to_iso(cdata.get("createdAt")),
+        })
+        
+        # Buscar departamentos dessa empresa
+        for dept_doc in db.collection("companies").document(comp_id).collection("departments").stream():
+            ddata = dept_doc.to_dict() or {}
+            departments_data.append({
+                'id': dept_doc.id,
+                'name': ddata.get("name", ""),
+                'company_id': comp_id,
+                'created_at': ts_to_iso(ddata.get("createdAt")),
+            })
+    
+    log.info(f"Empresas coletadas: {len(companies_data)} | Departamentos: {len(departments_data)}")
+    
+    if companies_data or departments_data:
+        sync_companies_departments_to_postgresql(companies_data, departments_data)
+    
+    return companies_data, departments_data
+
+def sync_companies_departments_to_postgresql(companies_data, departments_data):
+    """Sincroniza tabelas companies e departments no PostgreSQL"""
+    conn = pg_connect()
+    cur = conn.cursor()
+    
+    try:
+        # Criar tabelas
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS companies (
+                id VARCHAR(255) PRIMARY KEY,
+                name VARCHAR(500) NOT NULL,
+                created_at TIMESTAMP
+            )
+        """)
+        
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS departments (
+                id VARCHAR(255) PRIMARY KEY,
+                name VARCHAR(500) NOT NULL,
+                company_id VARCHAR(255) REFERENCES companies(id),
+                created_at TIMESTAMP
+            )
+        """)
+        
+        # Limpar
+        cur.execute("DELETE FROM departments")
+        cur.execute("DELETE FROM companies")
+        
+        # Inserir companies
+        if companies_data:
+            execute_batch(cur, """
+                INSERT INTO companies (id, name, created_at)
+                VALUES (%(id)s, %(name)s, %(created_at)s)
+            """, companies_data, page_size=100)
+        
+        # Inserir departments
+        if departments_data:
+            execute_batch(cur, """
+                INSERT INTO departments (id, name, company_id, created_at)
+                VALUES (%(id)s, %(name)s, %(company_id)s, %(created_at)s)
+            """, departments_data, page_size=100)
+        
+        conn.commit()
+        log.info(f"Inseridas {len(companies_data)} empresas e {len(departments_data)} departamentos")
+        
+    except Exception as e:
+        conn.rollback()
+        log.exception(f"Erro ao sincronizar companies/departments: {e}")
+        raise
+    finally:
+        cur.close()
+        conn.close()
+
+def export_and_sync_forms():
+    """
+    Exporta metadados dos formulários do Firestore para PostgreSQL
+    Tabela: forms (id, title, description, company_id, department_id, fields_json)
+    """
+    log.info("Exportando metadados dos formulários...")
+    
+    forms_data = []
+    
+    for form_doc in db.collection("forms").stream():
+        form_id = form_doc.id
+        fdata = form_doc.to_dict() or {}
+        
+        forms_data.append({
+            'id': form_id,
+            'title': fdata.get("title") or fdata.get("name") or "",
+            'description': fdata.get("description", ""),
+            'company_id': fdata.get("companyId", ""),
+            'department_id': fdata.get("departmentId", ""),
+            'department_name': fdata.get("department", "") or fdata.get("departmentId", ""),
+            'is_active': 1 if fdata.get("active", True) else 0,
+            'created_at': ts_to_iso(fdata.get("createdAt")),
+            'updated_at': ts_to_iso(fdata.get("updatedAt") or fdata.get("createdAt")),
+            'fields_json': str(fdata.get("fields", []))  # JSON dos campos para referência
+        })
+    
+    log.info(f"Total de formulários coletados: {len(forms_data)}")
+    
+    # Sincronizar com PostgreSQL
+    if forms_data:
+        sync_forms_to_postgresql(forms_data)
+    
+    return forms_data
+
+def sync_forms_to_postgresql(forms_data):
+    """Sincroniza tabela forms no PostgreSQL"""
+    conn = pg_connect()
+    cur = conn.cursor()
+    
+    try:
+        # Criar tabela se não existir
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS forms (
+                id VARCHAR(255) PRIMARY KEY,
+                title VARCHAR(500) NOT NULL,
+                description TEXT,
+                company_id VARCHAR(255),
+                department_id VARCHAR(255),
+                department_name VARCHAR(255),
+                is_active INTEGER DEFAULT 1,
+                created_at TIMESTAMP,
+                updated_at TIMESTAMP,
+                fields_json TEXT
+            )
+        """)
+        
+        # Limpar tabela (modo truncate)
+        cur.execute("DELETE FROM forms")
+        log.info(f"Tabela forms limpa")
+        
+        # Inserir formulários
+        insert_sql = """
+            INSERT INTO forms (
+                id, title, description, company_id, department_id, department_name,
+                is_active, created_at, updated_at, fields_json
+            ) VALUES (
+                %(id)s, %(title)s, %(description)s, %(company_id)s, %(department_id)s, %(department_name)s,
+                %(is_active)s, %(created_at)s, %(updated_at)s, %(fields_json)s
+            )
+        """
+        
+        from psycopg2.extras import execute_batch
+        execute_batch(cur, insert_sql, forms_data, page_size=100)
+        
+        conn.commit()
+        log.info(f"Inseridos {len(forms_data)} formulários na tabela forms")
+        
+    except Exception as e:
+        conn.rollback()
+        log.exception(f"Erro ao sincronizar forms: {e}")
+        raise
+    finally:
+        cur.close()
+        conn.close()
+
 def export_and_sync_responses():
     """
     Exporta respostas do Firestore e sincroniza com PostgreSQL
@@ -148,6 +328,9 @@ def export_and_sync_responses():
             response_id = resp_doc.id
             
             # Dados da resposta principal
+            submitted_at = ts_to_iso(r.get('submittedAt') or r.get('createdAt'))
+            created_at = ts_to_iso(r.get('createdAt')) or submitted_at  # Fallback para submitted_at
+            
             responses_data.append({
                 'id': response_id,
                 'form_id': form_id,
@@ -160,8 +343,8 @@ def export_and_sync_responses():
                 'status': r.get('status', 'submitted'),
                 'current_stage_id': r.get('currentStageId'),
                 'assigned_to': r.get('assignedTo'),
-                'created_at': ts_to_iso(r.get('createdAt')),
-                'submitted_at': ts_to_iso(r.get('submittedAt') or r.get('createdAt')),
+                'created_at': created_at,
+                'submitted_at': submitted_at,
                 'deleted_at': ts_to_iso(r.get('deletedAt')),
                 'deleted_by': r.get('deletedBy'),
                 'deleted_by_username': r.get('deletedByUsername')
@@ -273,6 +456,16 @@ def main():
         t0 = time.time()
         log.info("=== INÍCIO DA SINCRONIZAÇÃO FIRESTORE → POSTGRESQL ===")
         
+        # 1. Exportar empresas e departamentos
+        log.info("Etapa 1/3: Exportando empresas e departamentos...")
+        export_and_sync_companies_and_departments()
+        
+        # 2. Exportar metadados dos formulários
+        log.info("Etapa 2/3: Exportando formulários...")
+        export_and_sync_forms()
+        
+        # 3. Exportar respostas
+        log.info("Etapa 3/3: Exportando respostas...")
         export_and_sync_responses()
         
         elapsed = time.time() - t0

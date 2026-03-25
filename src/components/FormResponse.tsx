@@ -847,14 +847,40 @@ const handleAutoFillLeader = () => {
     });
     payload.fieldMetadata = fieldMetadata;
 
-    // 3) Grava 1x
+    // 3) Grava no Firestore (primário)
+    let savedResponseId = existingResponse?.id || '';
     if (existingResponse?.id) {
       await updateDoc(doc(db, 'forms', form.id, 'responses', existingResponse.id), {
         ...payload,
         updatedAt: serverTimestamp(),
       });
+      savedResponseId = existingResponse.id;
     } else {
-      await addDoc(collection(db, 'forms', form.id, 'responses'), payload);
+      const docRef = await addDoc(collection(db, 'forms', form.id, 'responses'), payload);
+      savedResponseId = docRef.id;
+    }
+
+    // 4) Grava no PostgreSQL (secundário - não bloqueia UX)
+    try {
+      fetch('/api/dataconnect/save-response', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          responseId: savedResponseId,
+          formId: form.id,
+          formTitle: form.title,
+          companyId: form.companyId || '',
+          departmentId: form.departmentId || '',
+          department: collaborator.department || '',
+          collaboratorId: collaborator.id,
+          collaboratorUsername: collaborator.username,
+          status: 'pending',
+          answers,
+          fieldMetadata,
+        }),
+      }).catch(err => console.warn('PostgreSQL sync falhou (não crítico):', err));
+    } catch (pgErr) {
+      console.warn('PostgreSQL sync falhou (não crítico):', pgErr);
     }
 
     triggerToast('success', 'Resposta enviada com sucesso!', 1800, onClose);

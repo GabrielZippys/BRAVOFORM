@@ -1,0 +1,292 @@
+2026-03-25 14:28:27,434 | INFO    | Firestore conectado | project_id=seu-project-id-no-firebase
+2026-03-25 14:28:27,434 | INFO    | === INÍCIO DA SINCRONIZAÇÃO FIRESTORE → POSTGRESQL ===
+2026-03-25 14:28:27,434 | INFO    | Sincronizando respostas dos últimos 30 dias (desde 2026-02-23T17:28:27.434970+00:00)
+2026-03-25 14:28:28,309 | ERROR   | Falha na execução: 403 Permission denied on resource project seu-project-id-no-firebase. [reason: "CONSUMER_INVALID"
+domain: "googleapis.com"
+metadata {
+  key: "service"
+  value: "firestore.googleapis.com"
+}
+metadata {
+  key: "containerInfo"
+  value: "seu-project-id-no-firebase"
+}
+metadata {
+  key: "consumer"
+  value: "projects/seu-project-id-no-firebase"
+}
+, locale: "en-US"
+message: "Permission denied on resource project seu-project-id-no-firebase."
+, links {
+  description: "Google developers console"
+  url: "https://console.developers.google.com"
+}
+]
+Traceback (most recent call last):
+  File "C:\Users\OptiPlex 7080\Desktop\BRAVOFORM\scripts\sync-firestore-to-postgresql.py", line 276, in main
+    export_and_sync_responses()
+    ~~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\OptiPlex 7080\Desktop\BRAVOFORM\scripts\sync-firestore-to-postgresql.py", line 132, in export_and_sync_responses
+    for form_doc in db.collection("forms").stream():
+                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\OptiPlex 7080\AppData\Roaming\Python\Python313\site-packages\google\cloud\firestore_v1\stream_generator.py", line 58, in __next__
+    return self._generator.__next__()
+           ~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\OptiPlex 7080\AppData\Roaming\Python\Python313\site-packages\google\cloud\firestore_v1\query.py", line 410, in _make_stream
+    response_iterator, expected_prefix = self._get_stream_iterator(
+                                         ~~~~~~~~~~~~~~~~~~~~~~~~~^
+        transaction,
+        ^^^^^^^^^^^^
+    ...<2 lines>...
+        explain_options,
+        ^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\OptiPlex 7080\AppData\Roaming\Python\Python313\site-packages\google\cloud\firestore_v1\query.py", line 260, in _get_stream_iterator
+    response_iterator = self._client._firestore_api.run_query(
+        request=request,
+        metadata=self._client._rpc_metadata,
+        **kwargs,
+    )
+  File "C:\Users\OptiPlex 7080\AppData\Roaming\Python\Python313\site-packages\google\cloud\firestore_v1\services\firestore\client.py", line 1624, in run_query
+    response = rpc(
+        request,
+    ...<2 lines>...
+        metadata=metadata,
+    )
+  File "C:\Users\OptiPlex 7080\AppData\Roaming\Python\Python313\site-packages\google\api_core\gapic_v1\method.py", line 131, in __call__
+    return wrapped_func(*args, **kwargs)
+  File "C:\Users\OptiPlex 7080\AppData\Roaming\Python\Python313\site-packages\google\api_core\retry\retry_unary.py", line 294, in retry_wrapped_func
+    return retry_target(
+        target,
+    ...<3 lines>...
+        on_error=on_error,
+    )
+  File "C:\Users\OptiPlex 7080\AppData\Roaming\Python\Python313\site-packages\google\api_core\retry\retry_unary.py", line 156, in retry_target
+    next_sleep = _retry_error_helper(
+        exc,
+    ...<6 lines>...
+        timeout,
+    )
+  File "C:\Users\OptiPlex 7080\AppData\Roaming\Python\Python313\site-packages\google\api_core\retry\retry_base.py", line 214, in _retry_error_helper
+    raise final_exc from source_exc
+  File "C:\Users\OptiPlex 7080\AppData\Roaming\Python\Python313\site-packages\google\api_core\retry\retry_unary.py", line 147, in retry_target
+    result = target()
+  File "C:\Users\OptiPlex 7080\AppData\Roaming\Python\Python313\site-packages\google\api_core\timeout.py", line 130, in func_with_timeout
+    return func(*args, **kwargs)
+  File "C:\Users\OptiPlex 7080\AppData\Roaming\Python\Python313\site-packages\google\api_core\grpc_helpers.py", line 174, in error_remapped_callable
+    raise exceptions.from_grpc_error(exc) from exc
+google.api_core.exceptions.PermissionDenied: 403 Permission denied on resource project seu-project-id-no-firebase. [reason: "CONSUMER_INVALID"
+domain: "googleapis.com"
+metadata {
+  key: "service"
+  value: "firestore.googleapis.com"
+}
+metadata {
+  key: "containerInfo"
+  value: "seu-project-id-no-firebase"
+}
+metadata {
+  key: "consumer"
+  value: "projects/seu-project-id-no-firebase"
+}
+, locale: "en-US"
+message: "Permission denied on resource project seu-project-id-no-firebase."
+, links {
+  description: "Google developers console"
+  url: "https://console.developers.google.com"
+}
+]
+2026-03-25 14:28:54,873 | INFO    | Firestore conectado | project_id=formbravo-8854e
+2026-03-25 14:28:54,873 | INFO    | === INÍCIO DA SINCRONIZAÇÃO FIRESTORE → POSTGRESQL ===
+2026-03-25 14:28:54,873 | INFO    | Sincronizando respostas dos últimos 30 dias (desde 2026-02-23T17:28:54.873842+00:00)
+2026-03-25 14:28:55,388 | INFO    | Form 3UA4Np5gDxgwR7X8rRhC: 2 respostas coletadas
+2026-03-25 14:28:56,262 | INFO    | Form 41yvJ4c580Yr4oWjPd5J: 296 respostas coletadas
+2026-03-25 14:28:56,306 | INFO    | Form Al5l7YVJ5qdwPUajsUO7: 1 respostas coletadas
+2026-03-25 14:28:56,375 | INFO    | Form EdyIAbIAM9HoW7UN9D3v: 23 respostas coletadas
+2026-03-25 14:28:56,599 | INFO    | Form J182jCabwjE9ReVDVeNU: 35 respostas coletadas
+2026-03-25 14:28:56,658 | INFO    | Form M0IGy69OkdNXoft3mlAC: 10 respostas coletadas
+2026-03-25 14:28:57,303 | INFO    | Form dZaCzuAVEz5VP7k1LfLr: 454 respostas coletadas
+2026-03-25 14:28:58,186 | INFO    | Form hpwFnAXxpfQUbSOqFpbN: 136 respostas coletadas
+2026-03-25 14:28:58,601 | INFO    | Form jySaXiqjiteqxqmLqIiD: 45 respostas coletadas
+2026-03-25 14:28:58,888 | INFO    | Form ppdd25B3IPotSu4arCoH: 34 respostas coletadas
+2026-03-25 14:28:58,926 | INFO    | Form vLZkM9odYbw6EFaG84vI: 1 respostas coletadas
+2026-03-25 14:28:58,971 | INFO    | Total: 1037 respostas, 7292 answers
+2026-03-25 14:28:59,129 | ERROR   | Falha na execução: connection to server at "34.39.165.146", port 5432 failed: FATAL:  password authentication failed for user "ipanema"
+connection to server at "34.39.165.146", port 5432 failed: FATAL:  password authentication failed for user "ipanema"
+Traceback (most recent call last):
+  File "C:\Users\OptiPlex 7080\Desktop\BRAVOFORM\scripts\sync-firestore-to-postgresql.py", line 281, in main
+    export_and_sync_responses()
+    ~~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\OptiPlex 7080\Desktop\BRAVOFORM\scripts\sync-firestore-to-postgresql.py", line 214, in export_and_sync_responses
+    sync_to_postgresql(responses_data, answers_data, cutoff_date)
+    ~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\OptiPlex 7080\Desktop\BRAVOFORM\scripts\sync-firestore-to-postgresql.py", line 218, in sync_to_postgresql
+    conn = pg_connect()
+  File "C:\Users\OptiPlex 7080\Desktop\BRAVOFORM\scripts\sync-firestore-to-postgresql.py", line 114, in pg_connect
+    return psycopg2.connect(
+           ~~~~~~~~~~~~~~~~^
+        host=PG_HOST,
+        ^^^^^^^^^^^^^
+    ...<4 lines>...
+        sslmode='prefer'
+        ^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\OptiPlex 7080\AppData\Roaming\Python\Python313\site-packages\psycopg2\__init__.py", line 135, in connect
+    conn = _connect(dsn, connection_factory=connection_factory, **kwasync)
+psycopg2.OperationalError: connection to server at "34.39.165.146", port 5432 failed: FATAL:  password authentication failed for user "ipanema"
+connection to server at "34.39.165.146", port 5432 failed: FATAL:  password authentication failed for user "ipanema"
+
+2026-03-25 14:31:09,277 | INFO    | Firestore conectado | project_id=formbravo-8854e
+2026-03-25 14:31:09,277 | INFO    | === INÍCIO DA SINCRONIZAÇÃO FIRESTORE → POSTGRESQL ===
+2026-03-25 14:31:09,277 | INFO    | Sincronizando respostas dos últimos 30 dias (desde 2026-02-23T17:31:09.277665+00:00)
+2026-03-25 14:31:09,770 | INFO    | Form 3UA4Np5gDxgwR7X8rRhC: 2 respostas coletadas
+2026-03-25 14:31:10,714 | INFO    | Form 41yvJ4c580Yr4oWjPd5J: 296 respostas coletadas
+2026-03-25 14:31:10,755 | INFO    | Form Al5l7YVJ5qdwPUajsUO7: 1 respostas coletadas
+2026-03-25 14:31:10,813 | INFO    | Form EdyIAbIAM9HoW7UN9D3v: 23 respostas coletadas
+2026-03-25 14:31:11,015 | INFO    | Form J182jCabwjE9ReVDVeNU: 35 respostas coletadas
+2026-03-25 14:31:11,069 | INFO    | Form M0IGy69OkdNXoft3mlAC: 10 respostas coletadas
+2026-03-25 14:31:11,703 | INFO    | Form dZaCzuAVEz5VP7k1LfLr: 454 respostas coletadas
+2026-03-25 14:31:12,670 | INFO    | Form hpwFnAXxpfQUbSOqFpbN: 136 respostas coletadas
+2026-03-25 14:31:13,170 | INFO    | Form jySaXiqjiteqxqmLqIiD: 45 respostas coletadas
+2026-03-25 14:31:13,474 | INFO    | Form ppdd25B3IPotSu4arCoH: 34 respostas coletadas
+2026-03-25 14:31:13,509 | INFO    | Form vLZkM9odYbw6EFaG84vI: 1 respostas coletadas
+2026-03-25 14:31:13,540 | INFO    | Total: 1037 respostas, 7292 answers
+2026-03-25 14:31:13,667 | INFO    | Deletados: 3 respostas, 6 answers (modo incremental)
+2026-03-25 14:31:13,720 | ERROR   | Erro na sincronização: null value in column "created_at" of relation "form_response" violates not-null constraint
+DETAIL:  Failing row contains (Yr2ogV1yBSEtQGgDS8XK, 3UA4Np5gDxgwR7X8rRhC, Novilhão e Parisienne - Estoque PA e PORCO, iSpVxVuV1Hg5l1XhkWPT, IDDEi48f6KNeSdSh9LY0, IDDEi48f6KNeSdSh9LY0, kcoKw7S6PSWaSRlmOGxfntfUcdf2, ADM LOJAS, pending, null, null, null, 2026-03-02 14:10:21.982, null, null, null).
+Traceback (most recent call last):
+  File "C:\Users\OptiPlex 7080\Desktop\BRAVOFORM\scripts\sync-firestore-to-postgresql.py", line 245, in sync_to_postgresql
+    execute_batch(cur, insert_sql, responses_data, page_size=100)
+    ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\OptiPlex 7080\AppData\Roaming\Python\Python313\site-packages\psycopg2\extras.py", line 1216, in execute_batch
+    cur.execute(b";".join(sqls))
+    ~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+psycopg2.errors.NotNullViolation: null value in column "created_at" of relation "form_response" violates not-null constraint
+DETAIL:  Failing row contains (Yr2ogV1yBSEtQGgDS8XK, 3UA4Np5gDxgwR7X8rRhC, Novilhão e Parisienne - Estoque PA e PORCO, iSpVxVuV1Hg5l1XhkWPT, IDDEi48f6KNeSdSh9LY0, IDDEi48f6KNeSdSh9LY0, kcoKw7S6PSWaSRlmOGxfntfUcdf2, ADM LOJAS, pending, null, null, null, 2026-03-02 14:10:21.982, null, null, null).
+
+2026-03-25 14:31:13,721 | ERROR   | Falha na execução: null value in column "created_at" of relation "form_response" violates not-null constraint
+DETAIL:  Failing row contains (Yr2ogV1yBSEtQGgDS8XK, 3UA4Np5gDxgwR7X8rRhC, Novilhão e Parisienne - Estoque PA e PORCO, iSpVxVuV1Hg5l1XhkWPT, IDDEi48f6KNeSdSh9LY0, IDDEi48f6KNeSdSh9LY0, kcoKw7S6PSWaSRlmOGxfntfUcdf2, ADM LOJAS, pending, null, null, null, 2026-03-02 14:10:21.982, null, null, null).
+Traceback (most recent call last):
+  File "C:\Users\OptiPlex 7080\Desktop\BRAVOFORM\scripts\sync-firestore-to-postgresql.py", line 281, in main
+    export_and_sync_responses()
+    ~~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\OptiPlex 7080\Desktop\BRAVOFORM\scripts\sync-firestore-to-postgresql.py", line 214, in export_and_sync_responses
+    sync_to_postgresql(responses_data, answers_data, cutoff_date)
+    ~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\OptiPlex 7080\Desktop\BRAVOFORM\scripts\sync-firestore-to-postgresql.py", line 245, in sync_to_postgresql
+    execute_batch(cur, insert_sql, responses_data, page_size=100)
+    ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\OptiPlex 7080\AppData\Roaming\Python\Python313\site-packages\psycopg2\extras.py", line 1216, in execute_batch
+    cur.execute(b";".join(sqls))
+    ~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+psycopg2.errors.NotNullViolation: null value in column "created_at" of relation "form_response" violates not-null constraint
+DETAIL:  Failing row contains (Yr2ogV1yBSEtQGgDS8XK, 3UA4Np5gDxgwR7X8rRhC, Novilhão e Parisienne - Estoque PA e PORCO, iSpVxVuV1Hg5l1XhkWPT, IDDEi48f6KNeSdSh9LY0, IDDEi48f6KNeSdSh9LY0, kcoKw7S6PSWaSRlmOGxfntfUcdf2, ADM LOJAS, pending, null, null, null, 2026-03-02 14:10:21.982, null, null, null).
+
+2026-03-25 14:31:47,799 | INFO    | Firestore conectado | project_id=formbravo-8854e
+2026-03-25 14:31:47,800 | INFO    | === INÍCIO DA SINCRONIZAÇÃO FIRESTORE → POSTGRESQL ===
+2026-03-25 14:31:47,800 | INFO    | Sincronizando respostas dos últimos 30 dias (desde 2026-02-23T17:31:47.800310+00:00)
+2026-03-25 14:31:48,241 | INFO    | Form 3UA4Np5gDxgwR7X8rRhC: 2 respostas coletadas
+2026-03-25 14:31:49,110 | INFO    | Form 41yvJ4c580Yr4oWjPd5J: 296 respostas coletadas
+2026-03-25 14:31:49,146 | INFO    | Form Al5l7YVJ5qdwPUajsUO7: 1 respostas coletadas
+2026-03-25 14:31:49,210 | INFO    | Form EdyIAbIAM9HoW7UN9D3v: 23 respostas coletadas
+2026-03-25 14:31:49,394 | INFO    | Form J182jCabwjE9ReVDVeNU: 35 respostas coletadas
+2026-03-25 14:31:49,448 | INFO    | Form M0IGy69OkdNXoft3mlAC: 10 respostas coletadas
+2026-03-25 14:31:50,074 | INFO    | Form dZaCzuAVEz5VP7k1LfLr: 454 respostas coletadas
+2026-03-25 14:31:50,983 | INFO    | Form hpwFnAXxpfQUbSOqFpbN: 136 respostas coletadas
+2026-03-25 14:31:51,416 | INFO    | Form jySaXiqjiteqxqmLqIiD: 45 respostas coletadas
+2026-03-25 14:31:51,687 | INFO    | Form ppdd25B3IPotSu4arCoH: 34 respostas coletadas
+2026-03-25 14:31:51,718 | INFO    | Form vLZkM9odYbw6EFaG84vI: 1 respostas coletadas
+2026-03-25 14:31:51,746 | INFO    | Total: 1037 respostas, 7292 answers
+2026-03-25 14:31:51,846 | INFO    | Deletados: 3 respostas, 6 answers (modo incremental)
+2026-03-25 14:31:52,225 | INFO    | Inseridas 1037 respostas
+2026-03-25 14:31:54,026 | INFO    | Inseridas 7292 answers
+2026-03-25 14:31:54,037 | INFO    | Sincronização concluída com sucesso!
+2026-03-25 14:31:54,039 | INFO    | === SINCRONIZAÇÃO CONCLUÍDA | tempo=6.24s ===
+2026-03-25 14:39:33,190 | INFO    | Firestore conectado | project_id=formbravo-8854e
+2026-03-25 14:39:33,190 | INFO    | === INÍCIO DA SINCRONIZAÇÃO FIRESTORE → POSTGRESQL ===
+2026-03-25 14:39:33,190 | INFO    | Etapa 1/2: Exportando formulários...
+2026-03-25 14:39:33,190 | INFO    | Exportando metadados dos formulários...
+2026-03-25 14:39:33,856 | INFO    | Total de formulários coletados: 18
+2026-03-25 14:39:34,049 | INFO    | Tabela forms limpa
+2026-03-25 14:39:34,101 | INFO    | Inseridos 18 formulários na tabela forms
+2026-03-25 14:39:34,102 | INFO    | Etapa 2/2: Exportando respostas...
+2026-03-25 14:39:34,102 | INFO    | Sincronizando respostas dos últimos 30 dias (desde 2026-02-23T17:39:34.102712+00:00)
+2026-03-25 14:39:34,289 | INFO    | Form 3UA4Np5gDxgwR7X8rRhC: 2 respostas coletadas
+2026-03-25 14:39:35,104 | INFO    | Form 41yvJ4c580Yr4oWjPd5J: 296 respostas coletadas
+2026-03-25 14:39:35,139 | INFO    | Form Al5l7YVJ5qdwPUajsUO7: 1 respostas coletadas
+2026-03-25 14:39:35,202 | INFO    | Form EdyIAbIAM9HoW7UN9D3v: 23 respostas coletadas
+2026-03-25 14:39:35,374 | INFO    | Form J182jCabwjE9ReVDVeNU: 35 respostas coletadas
+2026-03-25 14:39:35,425 | INFO    | Form M0IGy69OkdNXoft3mlAC: 10 respostas coletadas
+2026-03-25 14:39:35,989 | INFO    | Form dZaCzuAVEz5VP7k1LfLr: 454 respostas coletadas
+2026-03-25 14:39:36,861 | INFO    | Form hpwFnAXxpfQUbSOqFpbN: 136 respostas coletadas
+2026-03-25 14:39:37,280 | INFO    | Form jySaXiqjiteqxqmLqIiD: 45 respostas coletadas
+2026-03-25 14:39:37,555 | INFO    | Form ppdd25B3IPotSu4arCoH: 34 respostas coletadas
+2026-03-25 14:39:37,589 | INFO    | Form vLZkM9odYbw6EFaG84vI: 1 respostas coletadas
+2026-03-25 14:39:37,620 | INFO    | Total: 1037 respostas, 7292 answers
+2026-03-25 14:39:37,754 | INFO    | Deletados: 1037 respostas, 7292 answers (modo incremental)
+2026-03-25 14:39:38,052 | INFO    | Inseridas 1037 respostas
+2026-03-25 14:39:39,800 | INFO    | Inseridas 7292 answers
+2026-03-25 14:39:39,809 | INFO    | Sincronização concluída com sucesso!
+2026-03-25 14:39:39,811 | INFO    | === SINCRONIZAÇÃO CONCLUÍDA | tempo=6.62s ===
+2026-03-25 15:11:33,929 | INFO    | Firestore conectado | project_id=formbravo-8854e
+2026-03-25 15:11:33,930 | INFO    | === INÍCIO DA SINCRONIZAÇÃO FIRESTORE → POSTGRESQL ===
+2026-03-25 15:11:33,930 | INFO    | Etapa 1/3: Exportando empresas e departamentos...
+2026-03-25 15:11:33,930 | INFO    | Exportando empresas e departamentos...
+2026-03-25 15:11:34,655 | INFO    | Empresas coletadas: 3 | Departamentos: 19
+2026-03-25 15:11:34,832 | INFO    | Inseridas 3 empresas e 19 departamentos
+2026-03-25 15:11:34,832 | INFO    | Etapa 2/3: Exportando formulários...
+2026-03-25 15:11:34,832 | INFO    | Exportando metadados dos formulários...
+2026-03-25 15:11:35,079 | INFO    | Total de formulários coletados: 18
+2026-03-25 15:11:35,224 | INFO    | Tabela forms limpa
+2026-03-25 15:11:35,265 | INFO    | Inseridos 18 formulários na tabela forms
+2026-03-25 15:11:35,266 | INFO    | Etapa 3/3: Exportando respostas...
+2026-03-25 15:11:35,266 | INFO    | Sincronizando respostas dos últimos 30 dias (desde 2026-02-23T18:11:35.266493+00:00)
+2026-03-25 15:11:35,480 | INFO    | Form 3UA4Np5gDxgwR7X8rRhC: 2 respostas coletadas
+2026-03-25 15:11:36,301 | INFO    | Form 41yvJ4c580Yr4oWjPd5J: 296 respostas coletadas
+2026-03-25 15:11:36,356 | INFO    | Form Al5l7YVJ5qdwPUajsUO7: 1 respostas coletadas
+2026-03-25 15:11:36,438 | INFO    | Form EdyIAbIAM9HoW7UN9D3v: 23 respostas coletadas
+2026-03-25 15:11:36,649 | INFO    | Form J182jCabwjE9ReVDVeNU: 35 respostas coletadas
+2026-03-25 15:11:36,705 | INFO    | Form M0IGy69OkdNXoft3mlAC: 10 respostas coletadas
+2026-03-25 15:11:37,308 | INFO    | Form dZaCzuAVEz5VP7k1LfLr: 454 respostas coletadas
+2026-03-25 15:11:38,167 | INFO    | Form hpwFnAXxpfQUbSOqFpbN: 136 respostas coletadas
+2026-03-25 15:11:38,628 | INFO    | Form jySaXiqjiteqxqmLqIiD: 45 respostas coletadas
+2026-03-25 15:11:38,882 | INFO    | Form ppdd25B3IPotSu4arCoH: 34 respostas coletadas
+2026-03-25 15:11:38,907 | INFO    | Form vLZkM9odYbw6EFaG84vI: 1 respostas coletadas
+2026-03-25 15:11:38,928 | INFO    | Total: 1037 respostas, 7292 answers
+2026-03-25 15:11:39,061 | INFO    | Deletados: 1037 respostas, 7292 answers (modo incremental)
+2026-03-25 15:11:39,381 | INFO    | Inseridas 1037 respostas
+2026-03-25 15:11:41,145 | INFO    | Inseridas 7292 answers
+2026-03-25 15:11:41,154 | INFO    | Sincronização concluída com sucesso!
+2026-03-25 15:11:41,156 | INFO    | === SINCRONIZAÇÃO CONCLUÍDA | tempo=7.23s ===
+2026-03-25 15:16:20,046 | INFO    | Firestore conectado | project_id=formbravo-8854e
+2026-03-25 15:16:20,046 | INFO    | === INÍCIO DA SINCRONIZAÇÃO FIRESTORE → POSTGRESQL ===
+2026-03-25 15:16:20,046 | INFO    | Etapa 1/3: Exportando empresas e departamentos...
+2026-03-25 15:16:20,046 | INFO    | Exportando empresas e departamentos...
+2026-03-25 15:16:20,473 | INFO    | Empresas coletadas: 3 | Departamentos: 19
+2026-03-25 15:16:20,641 | INFO    | Inseridas 3 empresas e 19 departamentos
+2026-03-25 15:16:20,642 | INFO    | Etapa 2/3: Exportando formulários...
+2026-03-25 15:16:20,642 | INFO    | Exportando metadados dos formulários...
+2026-03-25 15:16:21,844 | INFO    | Total de formulários coletados: 18
+2026-03-25 15:16:22,064 | INFO    | Tabela forms limpa
+2026-03-25 15:16:22,202 | INFO    | Inseridos 18 formulários na tabela forms
+2026-03-25 15:16:22,202 | INFO    | Etapa 3/3: Exportando respostas...
+2026-03-25 15:16:22,202 | INFO    | Sincronizando respostas dos últimos 30 dias (desde 2026-02-23T18:16:22.202920+00:00)
+2026-03-25 15:16:22,482 | INFO    | Form 3UA4Np5gDxgwR7X8rRhC: 2 respostas coletadas
+2026-03-25 15:16:23,575 | INFO    | Form 41yvJ4c580Yr4oWjPd5J: 296 respostas coletadas
+2026-03-25 15:16:23,672 | INFO    | Form Al5l7YVJ5qdwPUajsUO7: 1 respostas coletadas
+2026-03-25 15:16:23,759 | INFO    | Form EdyIAbIAM9HoW7UN9D3v: 23 respostas coletadas
+2026-03-25 15:16:24,012 | INFO    | Form J182jCabwjE9ReVDVeNU: 35 respostas coletadas
+2026-03-25 15:16:24,084 | INFO    | Form M0IGy69OkdNXoft3mlAC: 10 respostas coletadas
+2026-03-25 15:16:24,812 | INFO    | Form dZaCzuAVEz5VP7k1LfLr: 454 respostas coletadas
+2026-03-25 15:16:25,787 | INFO    | Form hpwFnAXxpfQUbSOqFpbN: 136 respostas coletadas
+2026-03-25 15:16:26,192 | INFO    | Form jySaXiqjiteqxqmLqIiD: 45 respostas coletadas
+2026-03-25 15:16:26,460 | INFO    | Form ppdd25B3IPotSu4arCoH: 34 respostas coletadas
+2026-03-25 15:16:26,492 | INFO    | Form vLZkM9odYbw6EFaG84vI: 1 respostas coletadas
+2026-03-25 15:16:26,523 | INFO    | Total: 1037 respostas, 7292 answers
+2026-03-25 15:16:26,653 | INFO    | Deletados: 1037 respostas, 7292 answers (modo incremental)
+2026-03-25 15:16:26,974 | INFO    | Inseridas 1037 respostas
+2026-03-25 15:16:28,794 | INFO    | Inseridas 7292 answers
+2026-03-25 15:16:28,803 | INFO    | Sincronização concluída com sucesso!
+2026-03-25 15:16:28,805 | INFO    | === SINCRONIZAÇÃO CONCLUÍDA | tempo=8.76s ===

@@ -39,3 +39,11 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Firebase credentials (NUNCA commitar!)
+firebase_cred.json
+*-firebase-adminsdk-*.json
+serviceAccountKey.json
+
+# Logs Python
+scripts/logs/
