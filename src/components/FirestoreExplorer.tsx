@@ -8,6 +8,7 @@ import {
   Table, Download, Folder, Check, AlertCircle
 } from 'lucide-react';
 import { db } from '../../firebase/config';
+import * as XLSX from 'xlsx';
 import styles from '../../app/styles/FirestoreExplorer.module.css';
 
 interface CollectionInfo {
@@ -272,14 +273,55 @@ export default function FirestoreExplorer() {
 
   const exportCollection = () => {
     if (!documents.length || !selectedCollection) return;
-    const exportData = documents.map(d => ({ _id: d.id, ...d.data }));
-    const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `${selectedCollection}_export.json`;
-    a.click();
-    URL.revokeObjectURL(url);
+    
+    // Preparar dados para Excel
+    const exportData = documents.map(d => {
+      const row: Record<string, any> = { ID: d.id };
+      
+      // Achatar objetos aninhados e formatar valores
+      Object.keys(d.data).forEach(key => {
+        const value = d.data[key];
+        
+        // Converter Timestamp para data legível
+        if (value?.toDate) {
+          row[key] = value.toDate().toLocaleString('pt-BR');
+        }
+        // Converter arrays para string
+        else if (Array.isArray(value)) {
+          row[key] = value.length > 0 ? JSON.stringify(value) : '';
+        }
+        // Converter objetos para string
+        else if (typeof value === 'object' && value !== null) {
+          row[key] = JSON.stringify(value);
+        }
+        // Valores primitivos
+        else {
+          row[key] = value;
+        }
+      });
+      
+      return row;
+    });
+    
+    // Criar workbook e worksheet
+    const ws = XLSX.utils.json_to_sheet(exportData);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, selectedCollection.substring(0, 31)); // Excel limita nome da aba a 31 chars
+    
+    // Auto-ajustar largura das colunas
+    const colWidths = Object.keys(exportData[0] || {}).map(key => {
+      const maxLength = Math.max(
+        key.length,
+        ...exportData.map(row => String(row[key] || '').length)
+      );
+      return { wch: Math.min(maxLength + 2, 50) }; // Máximo 50 caracteres
+    });
+    ws['!cols'] = colWidths;
+    
+    // Gerar arquivo Excel
+    XLSX.writeFile(wb, `${selectedCollection}_export.xlsx`);
+    
+    showFeedback('success', `${documents.length} documentos exportados para Excel`);
   };
 
   const showFeedback = (type: 'success' | 'error', message: string) => {
@@ -512,7 +554,7 @@ export default function FirestoreExplorer() {
                       <Trash2 size={14} />
                     </button>
                   )}
-                  <button onClick={exportCollection} className={styles.compactBtn} title="Exportar JSON">
+                  <button onClick={exportCollection} className={styles.compactBtn} title="Exportar para Excel">
                     <Download size={14} />
                   </button>
                 </div>
