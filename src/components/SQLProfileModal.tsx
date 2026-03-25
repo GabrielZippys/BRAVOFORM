@@ -212,11 +212,11 @@ export default function SQLProfileModal({
         return;
       }
       
-      // Validação do formato do host
-      const hostRegex = /^([a-zA-Z0-9\-]+\.)+[a-zA-Z]{2,}$|^(\d{1,3}\.){3}\d{1,3}$/;
+      // Validação do formato do host (aceita localhost, IPs e domínios)
+      const hostRegex = /^(localhost|127\.0\.0\.1|(\d{1,3}\.){3}\d{1,3}|([a-zA-Z0-9\-]+\.)+[a-zA-Z]{2,})$/;
       if (!hostRegex.test(config.host.trim())) {
         setConnectionStatus('error');
-        showValidationModal('error', 'Host Inválido', 'Formato de host inválido. Use exemplos como:\n• exemplo.com\n• 192.168.1.100\n• db.empresa.com\n• localhost');
+        showValidationModal('error', 'Host Inválido', 'Formato de host inválido. Use exemplos como:\n• localhost\n• 127.0.0.1\n• 192.168.1.100\n• db.empresa.com');
         return;
       }
       
