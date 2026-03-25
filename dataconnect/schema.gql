@@ -1,71 +1,215 @@
 # Schema GraphQL para Firebase Data Connect
-# Este schema define as tabelas PostgreSQL
+# Otimizado para análise de respostas de formulários no Power BI
 
-type Product @table {
-  id: UUID! @default(expr: "uuidGenerateV4()")
-  name: String!
-  price: Float!
-  description: String
-  stock: Int! @default(value: 0)
+# Tabela principal de respostas
+type FormResponse @table {
+  id: String! @col(name: "id")
+  form_id: String!
+  form_title: String!
+  company_id: String!
+  department_id: String!
+  department_name: String
+  collaborator_id: String!
+  collaborator_username: String!
+  status: String! @default(value: "submitted")
+  current_stage_id: String
+  assigned_to: String
   created_at: Timestamp! @default(expr: "request.time")
-  updated_at: Timestamp! @default(expr: "request.time")
+  submitted_at: Timestamp!
+  deleted_at: Timestamp
+  deleted_by: String
+  deleted_by_username: String
 }
 
-type Order @table {
+# Tabela de respostas individuais (normalizada para facilitar queries)
+type Answer @table {
   id: UUID! @default(expr: "uuidGenerateV4()")
-  product_id: UUID!
-  customer_name: String!
-  quantity: Int!
-  total: Float!
-  status: String! @default(value: "pending")
+  response_id: String!
+  field_id: String!
+  field_label: String!
+  field_type: String!
+  answer_text: String
+  answer_number: Float
+  answer_date: Date
+  answer_boolean: Boolean
   created_at: Timestamp! @default(expr: "request.time")
 }
 
-# Queries
+# Tabela de anexos (arquivos, assinaturas, imagens)
+type Attachment @table {
+  id: UUID! @default(expr: "uuidGenerateV4()")
+  response_id: String!
+  field_id: String!
+  file_url: String!
+  file_name: String!
+  file_type: String!
+  file_size: Int
+  created_at: Timestamp! @default(expr: "request.time")
+}
+
+# Tabela de histórico de workflow
+type WorkflowHistory @table {
+  id: UUID! @default(expr: "uuidGenerateV4()")
+  response_id: String!
+  stage_id: String!
+  stage_name: String!
+  action: String!
+  performed_by: String!
+  performed_by_username: String!
+  comment: String
+  created_at: Timestamp! @default(expr: "request.time")
+}
+
+# Tabela de itens de grade/tabela (para Grade de Pedidos)
+type TableItem @table {
+  id: UUID! @default(expr: "uuidGenerateV4()")
+  response_id: String!
+  field_id: String!
+  row_index: Int!
+  column_id: String!
+  column_label: String!
+  value: String!
+  created_at: Timestamp! @default(expr: "request.time")
+}
+
+# Queries otimizadas para Power BI
 type Query {
-  # Listar todos os produtos
-  listProducts: [Product!]!
+  # Listar respostas com filtros
+  listResponses(
+    company_id: String
+    department_id: String
+    form_id: String
+    status: String
+    start_date: Timestamp
+    end_date: Timestamp
+  ): [FormResponse!]!
   
-  # Buscar produto por ID
-  getProduct(id: UUID!): Product
+  # Buscar resposta específica com todas as respostas
+  getResponse(id: String!): FormResponse
   
-  # Listar pedidos
-  listOrders: [Order!]!
+  # Listar respostas de um campo específico
+  getAnswersByField(
+    field_id: String!
+    start_date: Timestamp
+    end_date: Timestamp
+  ): [Answer!]!
   
-  # Buscar pedido por ID
-  getOrder(id: UUID!): Order
+  # Listar histórico de workflow
+  getWorkflowHistory(response_id: String!): [WorkflowHistory!]!
+  
+  # Listar anexos de uma resposta
+  getAttachments(response_id: String!): [Attachment!]!
+  
+  # Listar itens de tabela/grade
+  getTableItems(
+    response_id: String!
+    field_id: String!
+  ): [TableItem!]!
+  
+  # Relatórios agregados (útil para dashboards)
+  getResponseStats(
+    company_id: String!
+    start_date: Timestamp
+    end_date: Timestamp
+  ): ResponseStats!
+}
+
+# Tipo para estatísticas agregadas
+type ResponseStats {
+  total_responses: Int!
+  responses_by_status: [StatusCount!]!
+  responses_by_department: [DepartmentCount!]!
+  responses_by_form: [FormCount!]!
+}
+
+type StatusCount {
+  status: String!
+  count: Int!
+}
+
+type DepartmentCount {
+  department_id: String!
+  department_name: String!
+  count: Int!
+}
+
+type FormCount {
+  form_id: String!
+  form_title: String!
+  count: Int!
 }
 
 # Mutations
 type Mutation {
-  # Criar novo produto
-  createProduct(
-    name: String!
-    price: Float!
-    description: String
-    stock: Int
-  ): Product!
-  
-  # Atualizar produto
-  updateProduct(
-    id: UUID!
-    name: String
-    price: Float
-    description: String
-    stock: Int
-  ): Product!
-  
-  # Criar novo pedido
-  createOrder(
-    product_id: UUID!
-    customer_name: String!
-    quantity: Int!
-    total: Float!
-  ): Order!
-  
-  # Atualizar status do pedido
-  updateOrderStatus(
-    id: UUID!
+  # Criar nova resposta completa
+  createFormResponse(
+    id: String!
+    form_id: String!
+    form_title: String!
+    company_id: String!
+    department_id: String!
+    department_name: String
+    collaborator_id: String!
+    collaborator_username: String!
     status: String!
-  ): Order!
+    submitted_at: Timestamp!
+  ): FormResponse!
+  
+  # Adicionar resposta individual
+  addAnswer(
+    response_id: String!
+    field_id: String!
+    field_label: String!
+    field_type: String!
+    answer_text: String
+    answer_number: Float
+    answer_date: Date
+    answer_boolean: Boolean
+  ): Answer!
+  
+  # Adicionar anexo
+  addAttachment(
+    response_id: String!
+    field_id: String!
+    file_url: String!
+    file_name: String!
+    file_type: String!
+    file_size: Int
+  ): Attachment!
+  
+  # Adicionar entrada no histórico de workflow
+  addWorkflowHistory(
+    response_id: String!
+    stage_id: String!
+    stage_name: String!
+    action: String!
+    performed_by: String!
+    performed_by_username: String!
+    comment: String
+  ): WorkflowHistory!
+  
+  # Adicionar item de tabela/grade
+  addTableItem(
+    response_id: String!
+    field_id: String!
+    row_index: Int!
+    column_id: String!
+    column_label: String!
+    value: String!
+  ): TableItem!
+  
+  # Atualizar status da resposta
+  updateResponseStatus(
+    id: String!
+    status: String!
+    current_stage_id: String
+    assigned_to: String
+  ): FormResponse!
+  
+  # Marcar resposta como deletada
+  deleteResponse(
+    id: String!
+    deleted_by: String!
+    deleted_by_username: String!
+  ): FormResponse!
 }
