@@ -1,4 +1,4 @@
 google-cloud-firestore==2.14.0
 google-auth==2.27.0
-psycopg2-binary==2.9.9
+psycopg2-binary==2.9.10
 python-dotenv==1.0.0
