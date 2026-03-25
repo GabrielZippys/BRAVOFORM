@@ -194,6 +194,116 @@ async function getPostgreSQLTableSchema(config: DatabaseConfig, tableName: strin
   }
 }
 
+async function testSQLServerConnection(config: DatabaseConfig): Promise<boolean> {
+  try {
+    const sql = require('mssql');
+    const poolConfig = {
+      server: config.host,
+      port: config.port,
+      database: config.database,
+      user: config.username,
+      password: config.password,
+      options: {
+        encrypt: config.ssl || false,
+        trustServerCertificate: true,
+        enableArithAbort: true,
+        connectTimeout: config.connectionTimeout || 10000
+      }
+    };
+
+    const pool = await sql.connect(poolConfig);
+    await pool.request().query('SELECT 1');
+    await pool.close();
+    return true;
+  } catch (error: any) {
+    console.error('SQL Server connection error:', error);
+    throw new Error(error.message || error.code || 'Erro desconhecido ao conectar SQL Server');
+  }
+}
+
+async function getSQLServerTables(config: DatabaseConfig): Promise<string[]> {
+  try {
+    const sql = require('mssql');
+    const poolConfig = {
+      server: config.host,
+      port: config.port,
+      database: config.database,
+      user: config.username,
+      password: config.password,
+      options: {
+        encrypt: config.ssl || false,
+        trustServerCertificate: true,
+        enableArithAbort: true,
+        connectTimeout: config.connectionTimeout || 10000
+      }
+    };
+
+    const pool = await sql.connect(poolConfig);
+    const result = await pool.request().query(`
+      SELECT TABLE_NAME 
+      FROM INFORMATION_SCHEMA.TABLES 
+      WHERE TABLE_TYPE = 'BASE TABLE'
+      ORDER BY TABLE_NAME
+    `);
+    await pool.close();
+    return result.recordset.map((row: any) => row.TABLE_NAME);
+  } catch (error) {
+    console.error('SQL Server tables error:', error);
+    throw error;
+  }
+}
+
+async function getSQLServerTableSchema(config: DatabaseConfig, tableName: string): Promise<{ columns: string[], sampleData: any[] }> {
+  try {
+    const sql = require('mssql');
+    const poolConfig = {
+      server: config.host,
+      port: config.port,
+      database: config.database,
+      user: config.username,
+      password: config.password,
+      options: {
+        encrypt: config.ssl || false,
+        trustServerCertificate: true,
+        enableArithAbort: true,
+        connectTimeout: config.connectionTimeout || 10000
+      }
+    };
+
+    const pool = await sql.connect(poolConfig);
+
+    // Obter colunas
+    const columnsResult = await pool.request()
+      .input('tableName', sql.NVarChar, tableName)
+      .query(`
+        SELECT COLUMN_NAME 
+        FROM INFORMATION_SCHEMA.COLUMNS 
+        WHERE TABLE_NAME = @tableName
+        ORDER BY ORDINAL_POSITION
+      `);
+    
+    const columnNames = columnsResult.recordset.map((row: any) => row.COLUMN_NAME);
+
+    // Sanitizar nome da tabela
+    const safeTableName = sanitizeTableName(tableName);
+    if (!safeTableName || safeTableName !== tableName) {
+      throw new Error('Nome de tabela inválido');
+    }
+
+    // Obter amostra de dados
+    const sampleResult = await pool.request().query(`SELECT TOP 3 * FROM ${safeTableName}`);
+    await pool.close();
+    
+    return {
+      columns: columnNames,
+      sampleData: sampleResult.recordset
+    };
+  } catch (error) {
+    console.error('SQL Server schema error:', error);
+    throw error;
+  }
+}
+
 // Sanitizar nome de tabela para prevenir SQL injection
 function sanitizeTableName(tableName: string): string {
   // Apenas letras, números, underscore e hífen
@@ -240,6 +350,8 @@ export async function POST(request: NextRequest) {
             testResult = await testMySQLConnection(config);
           } else if (config.dbType === 'postgresql') {
             testResult = await testPostgreSQLConnection(config);
+          } else if (config.dbType === 'sqlserver') {
+            testResult = await testSQLServerConnection(config);
           } else {
             return NextResponse.json(
               { error: 'Tipo de banco não suportado' },
@@ -260,6 +372,8 @@ export async function POST(request: NextRequest) {
           tables = await getMySQLTables(config);
         } else if (config.dbType === 'postgresql') {
           tables = await getPostgreSQLTables(config);
+        } else if (config.dbType === 'sqlserver') {
+          tables = await getSQLServerTables(config);
         } else {
           return NextResponse.json(
             { error: 'Tipo de banco não suportado' },
@@ -281,6 +395,8 @@ export async function POST(request: NextRequest) {
           schema = await getMySQLTableSchema(config, tableName);
         } else if (config.dbType === 'postgresql') {
           schema = await getPostgreSQLTableSchema(config, tableName);
+        } else if (config.dbType === 'sqlserver') {
+          schema = await getSQLServerTableSchema(config, tableName);
         } else {
           return NextResponse.json(
             { error: 'Tipo de banco não suportado' },
