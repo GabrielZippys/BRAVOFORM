@@ -204,19 +204,42 @@ async function testSQLServerConnection(config: DatabaseConfig): Promise<boolean>
       user: config.username,
       password: config.password,
       options: {
-        encrypt: config.ssl || false,
+        encrypt: false, // Desabilitar criptografia para conexão local
         trustServerCertificate: true,
         enableArithAbort: true,
-        connectTimeout: config.connectionTimeout || 10000
+        connectTimeout: config.connectionTimeout || 30000,
+        requestTimeout: 30000,
+        instanceName: undefined // Não usar instância nomeada
+      },
+      pool: {
+        max: 1,
+        min: 0,
+        idleTimeoutMillis: 30000
       }
     };
 
+    console.log('Tentando conectar ao SQL Server com config:', {
+      server: poolConfig.server,
+      port: poolConfig.port,
+      database: poolConfig.database,
+      user: poolConfig.user
+    });
+
     const pool = await sql.connect(poolConfig);
-    await pool.request().query('SELECT 1');
+    console.log('Conexão estabelecida, testando query...');
+    await pool.request().query('SELECT 1 AS test');
+    console.log('Query executada com sucesso');
     await pool.close();
+    console.log('Conexão fechada');
     return true;
   } catch (error: any) {
-    console.error('SQL Server connection error:', error);
+    console.error('SQL Server connection error details:', {
+      message: error.message,
+      code: error.code,
+      name: error.name,
+      originalError: error.originalError,
+      stack: error.stack
+    });
     throw new Error(error.message || error.code || 'Erro desconhecido ao conectar SQL Server');
   }
 }
@@ -231,10 +254,11 @@ async function getSQLServerTables(config: DatabaseConfig): Promise<string[]> {
       user: config.username,
       password: config.password,
       options: {
-        encrypt: config.ssl || false,
+        encrypt: false,
         trustServerCertificate: true,
         enableArithAbort: true,
-        connectTimeout: config.connectionTimeout || 10000
+        connectTimeout: config.connectionTimeout || 30000,
+        requestTimeout: 30000
       }
     };
 
@@ -263,10 +287,11 @@ async function getSQLServerTableSchema(config: DatabaseConfig, tableName: string
       user: config.username,
       password: config.password,
       options: {
-        encrypt: config.ssl || false,
+        encrypt: false,
         trustServerCertificate: true,
         enableArithAbort: true,
-        connectTimeout: config.connectionTimeout || 10000
+        connectTimeout: config.connectionTimeout || 30000,
+        requestTimeout: 30000
       }
     };
 
