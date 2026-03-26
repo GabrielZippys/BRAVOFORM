@@ -59,18 +59,12 @@ export async function POST(request: NextRequest) {
           }
         }
 
-        const answerId = `${responseId}_${fieldId}`;
-        
         await client.query(`
           INSERT INTO answer (
-            id, response_id, field_id, field_label, field_type,
+            response_id, field_id, field_label, field_type,
             answer_text, answer_number, answer_boolean
-          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-          ON CONFLICT (id) DO UPDATE SET
-            answer_text = EXCLUDED.answer_text,
-            answer_number = EXCLUDED.answer_number,
-            answer_boolean = EXCLUDED.answer_boolean
-        `, [answerId, responseId, fieldId, fieldLabel, fieldType,
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7)
+        `, [responseId, fieldId, fieldLabel, fieldType,
             answerText, answerNumber, answerBoolean]);
       }
     }

@@ -41,6 +41,7 @@ interface FormResponseProps {
   onClose: () => void;
   existingResponse?: FormResponseType | null;
   canEdit?: boolean;
+  isAnonymous?: boolean;
 }
 
 
@@ -49,7 +50,8 @@ export default function FormResponse({
   collaborator,
   onClose,
   existingResponse,
-  canEdit
+  canEdit,
+  isAnonymous = false
 }: FormResponseProps) {
   if (!form) return null;
 
@@ -809,15 +811,16 @@ const handleAutoFillLeader = () => {
 
     // 2) Monta payload
     const payload: Record<string, any> = {
-      collaboratorId: collaborator.id,
-      collaboratorUsername: collaborator.username,
+      collaboratorId: isAnonymous ? '' : collaborator.id,
+      collaboratorUsername: isAnonymous ? 'Anônimo' : collaborator.username,
       formId: form.id,
       formTitle: form.title,
-      department: collaborator.department || '', // Use collaborator's department name
-      companyId: form.companyId || '', // Keep for backward compatibility
-      departmentId: form.departmentId || '', // Keep for backward compatibility
+      department: isAnonymous ? '' : (collaborator.department || ''),
+      companyId: form.companyId || '',
+      departmentId: form.departmentId || '',
       status: 'pending',
       submittedAt: serverTimestamp(),
+      isAnonymous: isAnonymous,
     };
 
     // por label
@@ -860,19 +863,24 @@ const handleAutoFillLeader = () => {
     }
 
     // 4) Grava no PostgreSQL (secundário - não bloqueia UX)
-    dualSave.saveFormResponse({
-      responseId: savedResponseId,
-      formId: form.id,
-      formTitle: form.title,
-      companyId: form.companyId || '',
-      departmentId: form.departmentId || '',
-      department: collaborator.department || '',
-      collaboratorId: collaborator.id,
-      collaboratorUsername: collaborator.username,
-      status: 'pending',
-      answers,
-      fieldMetadata,
-    });
+    try {
+      await dualSave.saveFormResponse({
+        responseId: savedResponseId,
+        formId: form.id,
+        formTitle: form.title,
+        companyId: form.companyId || '',
+        departmentId: form.departmentId || '',
+        department: isAnonymous ? '' : (collaborator.department || ''),
+        collaboratorId: isAnonymous ? '' : collaborator.id,
+        collaboratorUsername: isAnonymous ? 'Anônimo' : collaborator.username,
+        status: 'pending',
+        answers,
+        fieldMetadata,
+      });
+    } catch (err) {
+      console.error(err);
+      triggerToast('error', 'Não foi possível salvar a resposta no banco de dados secundário.', 3000);
+    }
 
     triggerToast('success', 'Resposta enviada com sucesso!', 1800, onClose);
   } catch (err) {

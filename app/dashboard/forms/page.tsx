@@ -21,7 +21,7 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 
-import { Plus, Edit, Trash2, AlertTriangle, GripVertical, Pause, Play, Archive, Copy } from 'lucide-react';
+import { Plus, Edit, Trash2, AlertTriangle, GripVertical, Pause, Play, Archive, Copy, Share2 } from 'lucide-react';
 import EnhancedFormBuilderPage from '@/components/EnhancedFormBuilder';
 import ConfirmModal from '@/components/ConfirmModal';
 import ArchivedFormsModal from '@/components/ArchivedFormsModal';
@@ -40,6 +40,7 @@ const SortableFormCard = ({
   onTogglePause,
   onArchive,
   onDuplicate,
+  onShare,
 }: {
   form: Form;
   onEdit: (form: Form) => void;
@@ -47,6 +48,7 @@ const SortableFormCard = ({
   onTogglePause: (id: string, currentPausedState: boolean) => void;
   onArchive: (id: string, title: string) => void;
   onDuplicate: (form: Form) => void;
+  onShare: (form: Form) => void;
 }) => {
   const { attributes, listeners, setNodeRef, transform, transition } = useSortable({
     id: form.id,
@@ -112,6 +114,18 @@ const SortableFormCard = ({
           }}
         >
           <Copy size={16} />
+        </button>
+
+        <button
+          onClick={() => onShare(form)}
+          className={styles.actionButton}
+          title="Gerar link compartilhável"
+          style={{
+            background: 'rgba(16, 185, 129, 0.1)',
+            color: '#10b981'
+          }}
+        >
+          <Share2 size={16} />
         </button>
 
         <button
@@ -381,6 +395,37 @@ export default function FormsPage() {
     });
   };
 
+  const handleShareForm = (form: Form) => {
+    // Gera um link único para o formulário
+    const shareableLink = `${window.location.origin}/forms/public/${form.id}`;
+    
+    // Copia para a área de transferência
+    navigator.clipboard.writeText(shareableLink).then(() => {
+      alert('Link compartilhável copiado para a área de transferência!\n\n' + shareableLink);
+    }).catch(() => {
+      // Fallback se clipboard API não funcionar
+      const modal = document.createElement('div');
+      modal.style.cssText = `
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        background: white;
+        padding: 20px;
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        z-index: 10000;
+        max-width: 400px;
+      `;
+      modal.innerHTML = `
+        <h3 style="margin: 0 0 10px 0;">Link Compartilhável</h3>
+        <p style="margin: 0 0 15px 0; word-break: break-all; color: #666;">${shareableLink}</p>
+        <button onclick="this.parentElement.remove()" style="background: #3b82f6; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer;">Fechar</button>
+      `;
+      document.body.appendChild(modal);
+    });
+  };
+
   if (loading.auth) {
     return <p className={styles.emptyState}>A verificar autenticação...</p>;
   }
@@ -487,6 +532,7 @@ export default function FormsPage() {
                     onTogglePause={handleTogglePause}
                     onArchive={handleArchiveForm}
                     onDuplicate={handleDuplicateForm}
+                    onShare={handleShareForm}
                   />
                 ))
               ) : (
