@@ -1,18 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { Pool } from 'pg';
-
-const pool = new Pool({
-  host: process.env.PG_HOST || '34.39.165.146',
-  port: parseInt(process.env.PG_PORT || '5432'),
-  database: process.env.PG_DATABASE || 'formbravo-8854e-database',
-  user: process.env.PG_USER || 'ipanema',
-  password: process.env.PG_PASSWORD || 'Br@v0x00',
-  ssl: false,
-  max: 5,
-  idleTimeoutMillis: 30000,
-});
+import { getPool } from '@/lib/db/postgresql';
 
 export async function POST(request: NextRequest) {
+  const pool = getPool();
   const client = await pool.connect();
   
   try {
@@ -61,6 +51,7 @@ export async function POST(request: NextRequest) {
 }
 
 export async function DELETE(request: NextRequest) {
+  const pool = getPool();
   const client = await pool.connect();
   
   try {
