@@ -9,17 +9,17 @@ const poolConfig: PoolConfig = {
   
   ssl: process.env.PG_SSL === 'true' ? { rejectUnauthorized: false } : false,
   
-  max: parseInt(process.env.PG_POOL_MAX || '5'),
+  max: parseInt(process.env.PG_POOL_MAX || '3'),
   min: parseInt(process.env.PG_POOL_MIN || '0'),
   
-  idleTimeoutMillis: parseInt(process.env.PG_IDLE_TIMEOUT || '30000'),
-  connectionTimeoutMillis: parseInt(process.env.PG_CONNECTION_TIMEOUT || '10000'),
+  idleTimeoutMillis: parseInt(process.env.PG_IDLE_TIMEOUT || '10000'),
+  connectionTimeoutMillis: parseInt(process.env.PG_CONNECTION_TIMEOUT || '60000'),
   
-  statement_timeout: parseInt(process.env.PG_STATEMENT_TIMEOUT || '30000'),
-  query_timeout: parseInt(process.env.PG_QUERY_TIMEOUT || '30000'),
+  statement_timeout: parseInt(process.env.PG_STATEMENT_TIMEOUT || '60000'),
+  query_timeout: parseInt(process.env.PG_QUERY_TIMEOUT || '60000'),
   
   keepAlive: true,
-  keepAliveInitialDelayMillis: 10000,
+  keepAliveInitialDelayMillis: 0,
 };
 
 let pool: Pool | null = null;
@@ -66,36 +66,73 @@ export async function closePool(): Promise<void> {
   }
 }
 
+async function sleep(ms: number): Promise<void> {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
 export async function executeQuery<T = any>(
   queryText: string,
   params?: any[]
 ): Promise<T[]> {
   const pool = getPool();
-  const client = await pool.connect();
+  let lastError: any;
   
-  try {
-    const result = await client.query(queryText, params);
-    return result.rows;
-  } finally {
-    client.release();
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    try {
+      const client = await pool.connect();
+      try {
+        const result = await client.query(queryText, params);
+        return result.rows;
+      } finally {
+        client.release();
+      }
+    } catch (error: any) {
+      lastError = error;
+      console.error(`❌ Query attempt ${attempt}/3 failed:`, error.message);
+      
+      if (attempt < 3) {
+        const delay = Math.min(1000 * Math.pow(2, attempt - 1), 5000);
+        console.log(`⏳ Retrying in ${delay}ms...`);
+        await sleep(delay);
+      }
+    }
   }
+  
+  throw lastError;
 }
 
 export async function executeTransaction<T = any>(
   callback: (client: any) => Promise<T>
 ): Promise<T> {
   const pool = getPool();
-  const client = await pool.connect();
+  let lastError: any;
   
-  try {
-    await client.query('BEGIN');
-    const result = await callback(client);
-    await client.query('COMMIT');
-    return result;
-  } catch (error) {
-    await client.query('ROLLBACK').catch(() => {});
-    throw error;
-  } finally {
-    client.release();
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    let client;
+    try {
+      client = await pool.connect();
+      await client.query('BEGIN');
+      const result = await callback(client);
+      await client.query('COMMIT');
+      return result;
+    } catch (error: any) {
+      lastError = error;
+      if (client) {
+        await client.query('ROLLBACK').catch(() => {});
+      }
+      console.error(`❌ Transaction attempt ${attempt}/3 failed:`, error.message);
+      
+      if (attempt < 3) {
+        const delay = Math.min(1000 * Math.pow(2, attempt - 1), 5000);
+        console.log(`⏳ Retrying transaction in ${delay}ms...`);
+        await sleep(delay);
+      }
+    } finally {
+      if (client) {
+        client.release();
+      }
+    }
   }
+  
+  throw lastError;
 }

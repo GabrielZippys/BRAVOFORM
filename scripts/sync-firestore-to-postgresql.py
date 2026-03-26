@@ -151,24 +151,28 @@ def export_and_sync_products_and_catalogs():
             'created_at': ts_to_iso(cdata.get("createdAt")),
             'updated_at': ts_to_iso(cdata.get("updatedAt")),
         })
-        
-        # Buscar produtos desse catálogo
-        for prod_doc in db.collection("product_catalogs").document(catalog_id).collection("products").stream():
-            pdata = prod_doc.to_dict() or {}
-            products_data.append({
-                'id': prod_doc.id,
-                'catalog_id': catalog_id,
-                'name': pdata.get("name", ""),
-                'codigo': pdata.get("codigo", ""),
-                'ean': pdata.get("ean", ""),
-                'unidade': pdata.get("unidade", ""),
-                'quantidade_max': pdata.get("quantidadeMax"),
-                'quantidade_min': pdata.get("quantidadeMin"),
-                'collection': pdata.get("collection", "products"),
-                'company_id': pdata.get("companyId", ""),
-                'created_at': ts_to_iso(pdata.get("createdAt")),
-                'updated_at': ts_to_iso(pdata.get("updatedAt")),
-            })
+    
+    # Buscar produtos da coleção raiz /products
+    for prod_doc in db.collection("products").stream():
+        pdata = prod_doc.to_dict() or {}
+        # Firestore usa 'nome' (pt-BR), não 'name'
+        product_name = pdata.get("nome", "") or pdata.get("name", "")
+        products_data.append({
+            'id': prod_doc.id,
+            'catalog_id': pdata.get("catalogId", ""),
+            'name': product_name,
+            'codigo': pdata.get("codigo", ""),
+            'ean': pdata.get("ean", ""),
+            'unidade': pdata.get("unidade", ""),
+            'quantidade_max': pdata.get("quantidadeMax"),
+            'quantidade_min': pdata.get("quantidadeMin"),
+            'preco': pdata.get("preco"),
+            'estoque': pdata.get("estoque"),
+            'collection': pdata.get("collection", "products"),
+            'company_id': pdata.get("companyId", ""),
+            'created_at': ts_to_iso(pdata.get("createdAt")),
+            'updated_at': ts_to_iso(pdata.get("updatedAt")),
+        })
     
     log.info(f"Catálogos coletados: {len(catalogs_data)} | Produtos: {len(products_data)}")
     
@@ -200,7 +204,7 @@ def sync_products_catalogs_to_postgresql(catalogs_data, products_data):
             )
         """)
         
-        # Criar tabela products
+        # Criar tabela products (com colunas extras preco, estoque)
         cur.execute("""
             CREATE TABLE IF NOT EXISTS products (
                 id VARCHAR(255) PRIMARY KEY,
@@ -211,12 +215,20 @@ def sync_products_catalogs_to_postgresql(catalogs_data, products_data):
                 unidade VARCHAR(50),
                 quantidade_max INTEGER,
                 quantidade_min INTEGER,
+                preco DECIMAL(12,2),
+                estoque INTEGER,
                 collection VARCHAR(255),
                 company_id VARCHAR(255),
                 created_at TIMESTAMP,
                 updated_at TIMESTAMP
             )
         """)
+        # Adicionar colunas se não existem (para tabelas já criadas)
+        for col, col_type in [('preco', 'DECIMAL(12,2)'), ('estoque', 'INTEGER')]:
+            try:
+                cur.execute(f"ALTER TABLE products ADD COLUMN IF NOT EXISTS {col} {col_type}")
+            except Exception:
+                pass
         
         # Limpar
         cur.execute("DELETE FROM products")
@@ -240,10 +252,10 @@ def sync_products_catalogs_to_postgresql(catalogs_data, products_data):
             execute_batch(cur, """
                 INSERT INTO products (
                     id, catalog_id, name, codigo, ean, unidade, quantidade_max,
-                    quantidade_min, collection, company_id, created_at, updated_at
+                    quantidade_min, preco, estoque, collection, company_id, created_at, updated_at
                 ) VALUES (
                     %(id)s, %(catalog_id)s, %(name)s, %(codigo)s, %(ean)s, %(unidade)s,
-                    %(quantidade_max)s, %(quantidade_min)s, %(collection)s, %(company_id)s,
+                    %(quantidade_max)s, %(quantidade_min)s, %(preco)s, %(estoque)s, %(collection)s, %(company_id)s,
                     %(created_at)s, %(updated_at)s
                 )
             """, products_data, page_size=100)
@@ -344,6 +356,192 @@ def sync_companies_departments_to_postgresql(companies_data, departments_data):
     except Exception as e:
         conn.rollback()
         log.exception(f"Erro ao sincronizar companies/departments: {e}")
+        raise
+    finally:
+        cur.close()
+        conn.close()
+
+def export_and_sync_users():
+    """
+    Exporta usuários do Firestore para PostgreSQL
+    Tabela: users
+    """
+    log.info("Exportando usuários...")
+    
+    users_data = []
+    
+    for user_doc in db.collection("users").stream():
+        user_id = user_doc.id
+        udata = user_doc.to_dict() or {}
+        
+        users_data.append({
+            'id': user_id,
+            'name': udata.get("name", ""),
+            'email': udata.get("email", ""),
+            'role': udata.get("role", "Admin"),
+            'company_id': udata.get("companyId"),
+            'department_id': udata.get("departmentId"),
+            'created_at': ts_to_iso(udata.get("createdAt")),
+        })
+    
+    log.info(f"Total de usuários coletados: {len(users_data)}")
+    
+    if users_data:
+        sync_users_to_postgresql(users_data)
+    
+    return users_data
+
+def sync_users_to_postgresql(users_data):
+    """Sincroniza tabela users no PostgreSQL"""
+    conn = pg_connect()
+    cur = conn.cursor()
+    
+    try:
+        # Criar tabela se não existir
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS users (
+                id VARCHAR(255) PRIMARY KEY,
+                name VARCHAR(500) NOT NULL,
+                email VARCHAR(500),
+                role VARCHAR(100),
+                company_id VARCHAR(255),
+                department_id VARCHAR(255),
+                created_at TIMESTAMP
+            )
+        """)
+        
+        # Limpar tabela
+        cur.execute("DELETE FROM users")
+        log.info("Tabela users limpa")
+        
+        # Inserir usuários
+        execute_batch(cur, """
+            INSERT INTO users (id, name, email, role, company_id, department_id, created_at)
+            VALUES (%(id)s, %(name)s, %(email)s, %(role)s, %(company_id)s, %(department_id)s, %(created_at)s)
+        """, users_data, page_size=100)
+        
+        conn.commit()
+        log.info(f"Inseridos {len(users_data)} usuários na tabela users")
+        
+    except Exception as e:
+        conn.rollback()
+        log.exception(f"Erro ao sincronizar users: {e}")
+        raise
+    finally:
+        cur.close()
+        conn.close()
+
+def export_and_sync_collaborators():
+    """
+    Exporta colaboradores do Firestore para PostgreSQL
+    Tabela: collaborators
+    """
+    log.info("Exportando colaboradores...")
+    
+    collaborators_data = []
+    
+    def _extract_collaborator(collab_id, cdata, fallback_company_id=""):
+        """Extrai dados do colaborador do Firestore com mapeamento correto"""
+        # permissions pode ser um objeto aninhado
+        perms = cdata.get("permissions", {})
+        if not isinstance(perms, dict):
+            perms = {}
+        
+        return {
+            'id': collab_id,
+            'uid': cdata.get("uid", ""),
+            'username': cdata.get("username", ""),
+            'name': cdata.get("name", "") or cdata.get("username", ""),
+            'email': cdata.get("email"),
+            'role': cdata.get("role", "collaborator"),
+            'active': cdata.get("active", True),
+            'company_id': cdata.get("companyId", "") or fallback_company_id,
+            'department_id': cdata.get("departmentId", ""),
+            'department_name': cdata.get("department", ""),
+            'is_temporary_password': cdata.get("isTemporaryPassword", False),
+            'can_view_history': perms.get("canViewHistory", False) or cdata.get("canViewHistory", False),
+            'can_edit_history': perms.get("canEditHistory", False) or cdata.get("canEditHistory", False),
+            'created_at': ts_to_iso(cdata.get("createdAt")),
+        }
+    
+    # Buscar colaboradores na coleção raiz /collaborators
+    for collab_doc in db.collection("collaborators").stream():
+        collab_id = collab_doc.id
+        cdata = collab_doc.to_dict() or {}
+        collaborators_data.append(_extract_collaborator(collab_id, cdata))
+    
+    # Também buscar em companies/{companyId}/collaborators (estrutura antiga)
+    for comp_doc in db.collection("companies").stream():
+        comp_id = comp_doc.id
+        
+        for collab_doc in db.collection("companies").document(comp_id).collection("collaborators").stream():
+            collab_id = collab_doc.id
+            cdata = collab_doc.to_dict() or {}
+            
+            # Evitar duplicatas
+            if not any(c['id'] == collab_id for c in collaborators_data):
+                collaborators_data.append(_extract_collaborator(collab_id, cdata, comp_id))
+    
+    log.info(f"Total de colaboradores coletados: {len(collaborators_data)}")
+    
+    if collaborators_data:
+        sync_collaborators_to_postgresql(collaborators_data)
+    
+    return collaborators_data
+
+def sync_collaborators_to_postgresql(collaborators_data):
+    """Sincroniza tabela collaborators no PostgreSQL"""
+    conn = pg_connect()
+    cur = conn.cursor()
+    
+    try:
+        # Criar tabela se não existir
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS collaborators (
+                id VARCHAR(255) PRIMARY KEY,
+                uid VARCHAR(255),
+                username VARCHAR(500) NOT NULL,
+                name VARCHAR(500),
+                email VARCHAR(500),
+                role VARCHAR(100) DEFAULT 'collaborator',
+                active BOOLEAN DEFAULT TRUE,
+                company_id VARCHAR(255),
+                department_id VARCHAR(255),
+                department_name VARCHAR(255),
+                is_temporary_password BOOLEAN DEFAULT FALSE,
+                can_view_history BOOLEAN DEFAULT FALSE,
+                can_edit_history BOOLEAN DEFAULT FALSE,
+                created_at TIMESTAMP
+            )
+        """)
+        # Adicionar colunas se não existem (para tabelas já criadas)
+        for col, col_type in [('uid', 'VARCHAR(255)'), ('name', 'VARCHAR(500)'), ('role', 'VARCHAR(100)'), ('active', 'BOOLEAN DEFAULT TRUE')]:
+            try:
+                cur.execute(f"ALTER TABLE collaborators ADD COLUMN IF NOT EXISTS {col} {col_type}")
+            except Exception:
+                pass
+        
+        # Limpar tabela
+        cur.execute("DELETE FROM collaborators")
+        log.info("Tabela collaborators limpa")
+        
+        # Inserir colaboradores
+        execute_batch(cur, """
+            INSERT INTO collaborators (
+                id, uid, username, name, email, role, active, company_id, department_id, department_name,
+                is_temporary_password, can_view_history, can_edit_history, created_at
+            ) VALUES (
+                %(id)s, %(uid)s, %(username)s, %(name)s, %(email)s, %(role)s, %(active)s, %(company_id)s, %(department_id)s, %(department_name)s,
+                %(is_temporary_password)s, %(can_view_history)s, %(can_edit_history)s, %(created_at)s
+            )
+        """, collaborators_data, page_size=100)
+        
+        conn.commit()
+        log.info(f"Inseridos {len(collaborators_data)} colaboradores na tabela collaborators")
+        
+    except Exception as e:
+        conn.rollback()
+        log.exception(f"Erro ao sincronizar collaborators: {e}")
         raise
     finally:
         cur.close()
@@ -655,23 +853,31 @@ def main():
         log.info("=== INÍCIO DA SINCRONIZAÇÃO FIRESTORE → POSTGRESQL ===")
         
         # 1. Exportar empresas e departamentos
-        log.info("Etapa 1/5: Exportando empresas e departamentos...")
+        log.info("Etapa 1/7: Exportando empresas e departamentos...")
         export_and_sync_companies_and_departments()
         
-        # 2. Exportar produtos e catálogos
-        log.info("Etapa 2/5: Exportando produtos e catálogos...")
+        # 2. Exportar usuários
+        log.info("Etapa 2/7: Exportando usuários...")
+        export_and_sync_users()
+        
+        # 3. Exportar colaboradores
+        log.info("Etapa 3/7: Exportando colaboradores...")
+        export_and_sync_collaborators()
+        
+        # 4. Exportar produtos e catálogos
+        log.info("Etapa 4/7: Exportando produtos e catálogos...")
         export_and_sync_products_and_catalogs()
         
-        # 3. Exportar metadados dos formulários
-        log.info("Etapa 3/5: Exportando formulários...")
+        # 5. Exportar metadados dos formulários
+        log.info("Etapa 5/7: Exportando formulários...")
         export_and_sync_forms()
         
-        # 4. Exportar respostas
-        log.info("Etapa 4/5: Exportando respostas...")
+        # 6. Exportar respostas
+        log.info("Etapa 6/7: Exportando respostas...")
         export_and_sync_responses()
         
-        # 5. Criar índices
-        log.info("Etapa 5/5: Criando índices...")
+        # 7. Criar índices
+        log.info("Etapa 7/7: Criando índices...")
         create_indexes()
         
         elapsed = time.time() - t0

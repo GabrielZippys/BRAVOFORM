@@ -14,10 +14,11 @@ import {
 } from 'firebase/firestore';
 import { createUserWithEmailAndPassword } from 'firebase/auth';
 import { auth } from '../../../firebase/config';
+import { dualSave } from '@/services/dualSaveService';
 
 // --- Tipos de Dados ---
 interface Company { id: string; name: string; }
-interface Department { id: string; name: string; }
+interface Department { id: string; name: string; companyId?: string; }
 interface AppUser { id: string; name: string; email: string; role: string; }
 interface Collaborator {
   id: string;
@@ -197,7 +198,7 @@ export default function UsersPage() {
       const userCredential = await createUserWithEmailAndPassword(auth, email, formState.collabPassword);
       
       // Salvar dados do colaborador no Firestore
-      await addDoc(collection(db, "collaborators"), {
+      const docRef = await addDoc(collection(db, "collaborators"), {
         uid: userCredential.user.uid,
         username: formState.collabUsername,
         email: email,
@@ -213,6 +214,27 @@ export default function UsersPage() {
         active: true,
         createdAt: serverTimestamp(),
         lastLogin: null
+      });
+
+      // Sincronizar com PostgreSQL
+      dualSave.saveCollaborator({
+        collaboratorId: docRef.id,
+        uid: userCredential.user.uid,
+        username: formState.collabUsername,
+        name: formState.collabName || formState.collabUsername,
+        email: email,
+        role: 'collaborator',
+        active: true,
+        companyId: selectedDepartment.companyId,
+        departmentId: selectedDepartment.id,
+        departmentName: selectedDepartment.name,
+        isTemporaryPassword: true,
+        permissions: {
+          canViewHistory: false,
+          canEditHistory: false,
+          canManageUsers: false,
+          canDeleteResponses: false
+        }
       });
       
       console.log('Collaborator created successfully:', userCredential.user.uid);

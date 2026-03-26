@@ -7,8 +7,11 @@ export async function POST(request: NextRequest) {
   
   try {
     const body = await request.json();
-    const { productId, catalogId, name, codigo, ean, unidade, 
-            quantidadeMax, quantidadeMin, collection, companyId } = body;
+    const { productId, catalogId, nome, name, codigo, ean, unidade, 
+            quantidadeMax, quantidadeMin, preco, estoque, collection, companyId } = body;
+
+    // Firestore usa 'nome' (pt-BR), aceitar ambos
+    const productName = nome || name || '';
 
     await client.query('BEGIN');
 
@@ -16,8 +19,8 @@ export async function POST(request: NextRequest) {
     await client.query(`
       INSERT INTO products (
         id, catalog_id, name, codigo, ean, unidade, quantidade_max,
-        quantidade_min, collection, company_id, created_at, updated_at
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW(), NOW())
+        quantidade_min, preco, estoque, collection, company_id, created_at, updated_at
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, NOW(), NOW())
       ON CONFLICT (id) DO UPDATE SET
         name = EXCLUDED.name,
         codigo = EXCLUDED.codigo,
@@ -25,9 +28,12 @@ export async function POST(request: NextRequest) {
         unidade = EXCLUDED.unidade,
         quantidade_max = EXCLUDED.quantidade_max,
         quantidade_min = EXCLUDED.quantidade_min,
+        preco = EXCLUDED.preco,
+        estoque = EXCLUDED.estoque,
         updated_at = NOW()
-    `, [productId, catalogId, name, codigo || '', ean || '', unidade || '',
-        quantidadeMax || null, quantidadeMin || null, collection || 'products', companyId || '']);
+    `, [productId, catalogId, productName, codigo || '', ean || '', unidade || '',
+        quantidadeMax || null, quantidadeMin || null, preco || null, estoque || null,
+        collection || 'products', companyId || '']);
 
     await client.query('COMMIT');
 

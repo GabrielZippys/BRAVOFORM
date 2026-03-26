@@ -88,12 +88,15 @@ export const dualSave = {
   saveProduct: (data: {
     productId: string;
     catalogId: string;
-    name: string;
+    nome?: string;
+    name?: string;
     codigo?: string;
     ean?: string;
     unidade?: string;
     quantidadeMax?: number;
     quantidadeMin?: number;
+    preco?: number;
+    estoque?: number;
     collection?: string;
     companyId?: string;
   }) => {
@@ -142,14 +145,19 @@ export const dualSave = {
   // ========== COLLABORATORS ==========
   saveCollaborator: (data: {
     collaboratorId: string;
+    uid?: string;
     username: string;
+    name?: string;
     email?: string;
-    companyId: string;
-    departmentId: string;
+    role?: string;
+    active?: boolean;
+    companyId?: string;
+    departmentId?: string;
     departmentName?: string;
     isTemporaryPassword?: boolean;
     canViewHistory?: boolean;
     canEditHistory?: boolean;
+    permissions?: Record<string, boolean>;
   }) => {
     fireAndForget(`${API_BASE}/save-collaborator`, 'POST', data);
   },

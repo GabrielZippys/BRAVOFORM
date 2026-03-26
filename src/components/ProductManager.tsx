@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { collection, addDoc, updateDoc, deleteDoc, doc, getDocs, query, where, serverTimestamp } from 'firebase/firestore';
 import { db } from '../../firebase/config';
 import { Plus, Trash2, X } from 'lucide-react';
+import { dualSave } from '@/services/dualSaveService';
 
 interface Product {
   id: string;
@@ -87,11 +88,29 @@ const ProductManager: React.FC<ProductManagerProps> = ({
 
       if (editingProduct) {
         await updateDoc(doc(db, 'products', editingProduct.id), productData);
+        dualSave.saveProduct({
+          productId: editingProduct.id,
+          catalogId,
+          nome: formData.nome,
+          codigo: formData.codigo || '',
+          ean: formData.ean || '',
+          preco: formData.preco ? parseFloat(formData.preco) : 0,
+          estoque: formData.estoque ? parseInt(formData.estoque) : 0,
+        });
         alert('Produto atualizado com sucesso!');
       } else {
-        await addDoc(collection(db, 'products'), {
+        const docRef = await addDoc(collection(db, 'products'), {
           ...productData,
           createdAt: serverTimestamp(),
+        });
+        dualSave.saveProduct({
+          productId: docRef.id,
+          catalogId,
+          nome: formData.nome,
+          codigo: formData.codigo || '',
+          ean: formData.ean || '',
+          preco: formData.preco ? parseFloat(formData.preco) : 0,
+          estoque: formData.estoque ? parseInt(formData.estoque) : 0,
         });
         alert('Produto criado com sucesso!');
       }

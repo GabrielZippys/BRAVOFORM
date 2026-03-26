@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { Plus, Trash2, Edit2, X, Save, FolderOpen } from 'lucide-react';
 import { db } from '../../firebase/config';
 import { collection, addDoc, getDocs, updateDoc, deleteDoc, doc, query, where, serverTimestamp } from 'firebase/firestore';
+import { dualSave } from '@/services/dualSaveService';
 
 interface ProductCatalog {
   id: string;
@@ -123,10 +124,24 @@ const ProductCatalogManager: React.FC<ProductCatalogManagerProps> = ({ companyId
       };
 
       if (editingCatalog) {
-        // Atualizar catálogo
-        await updateDoc(doc(db, 'product_catalogs', editingCatalog.id), catalogData);
+        // Atualizar catálogo existente
+        await updateDoc(doc(db, 'product_catalogs', editingCatalog.id), {
+          ...catalogData,
+          updatedAt: serverTimestamp(),
+        });
+        dualSave.saveCatalog({
+          catalogId: editingCatalog.id,
+          name: catalogData.name,
+          description: catalogData.description,
+          companyId: catalogData.companyId,
+          displayField: catalogData.displayField,
+          valueField: catalogData.valueField,
+          searchFields: catalogData.searchFields,
+          fields: catalogData.fields,
+          additionalFields: catalogData.additionalFields,
+        });
 
-        // Atualizar produtos: remover produtos antigos que não estão na lista
+        // Remover produtos que foram deletados
         const currentProductsQuery = query(
           collection(db, 'products'),
           where('catalogId', '==', editingCatalog.id)
@@ -144,7 +159,7 @@ const ProductCatalogManager: React.FC<ProductCatalogManagerProps> = ({ companyId
         // Adicionar novos produtos (que não têm ID)
         for (const product of products) {
           if (!product.id) {
-            await addDoc(collection(db, 'products'), {
+            const docRef = await addDoc(collection(db, 'products'), {
               catalogId: editingCatalog.id,
               nome: product.nome,
               codigo: product.codigo || '',
@@ -153,6 +168,15 @@ const ProductCatalogManager: React.FC<ProductCatalogManagerProps> = ({ companyId
               quantidadeMax: product.quantidadeMax,
               createdAt: serverTimestamp(),
               updatedAt: serverTimestamp(),
+            });
+            dualSave.saveProduct({
+              productId: docRef.id,
+              catalogId: editingCatalog.id,
+              nome: product.nome,
+              codigo: product.codigo || '',
+              unidade: product.unidade,
+              quantidadeMax: product.quantidadeMax,
+              quantidadeMin: product.quantidadeMin,
             });
           } else {
             // Atualizar produto existente
@@ -164,6 +188,15 @@ const ProductCatalogManager: React.FC<ProductCatalogManagerProps> = ({ companyId
               quantidadeMax: product.quantidadeMax,
               updatedAt: serverTimestamp(),
             });
+            dualSave.saveProduct({
+              productId: product.id,
+              catalogId: editingCatalog.id,
+              nome: product.nome,
+              codigo: product.codigo || '',
+              unidade: product.unidade,
+              quantidadeMax: product.quantidadeMax,
+              quantidadeMin: product.quantidadeMin,
+            });
           }
         }
 
@@ -174,10 +207,21 @@ const ProductCatalogManager: React.FC<ProductCatalogManagerProps> = ({ companyId
           ...catalogData,
           createdAt: serverTimestamp(),
         });
+        dualSave.saveCatalog({
+          catalogId: docRef.id,
+          name: catalogData.name,
+          description: catalogData.description,
+          companyId: catalogData.companyId,
+          displayField: catalogData.displayField,
+          valueField: catalogData.valueField,
+          searchFields: catalogData.searchFields,
+          fields: catalogData.fields,
+          additionalFields: catalogData.additionalFields,
+        });
 
         // Salvar produtos
         for (const product of products) {
-          await addDoc(collection(db, 'products'), {
+          const productRef = await addDoc(collection(db, 'products'), {
             catalogId: docRef.id,
             nome: product.nome,
             codigo: product.codigo || '',
@@ -186,6 +230,15 @@ const ProductCatalogManager: React.FC<ProductCatalogManagerProps> = ({ companyId
             quantidadeMax: product.quantidadeMax,
             createdAt: serverTimestamp(),
             updatedAt: serverTimestamp(),
+          });
+          dualSave.saveProduct({
+            productId: productRef.id,
+            catalogId: docRef.id,
+            nome: product.nome,
+            codigo: product.codigo || '',
+            unidade: product.unidade,
+            quantidadeMax: product.quantidadeMax,
+            quantidadeMin: product.quantidadeMin,
           });
         }
 
@@ -209,6 +262,7 @@ const ProductCatalogManager: React.FC<ProductCatalogManagerProps> = ({ companyId
 
     try {
       await deleteDoc(doc(db, 'product_catalogs', catalogId));
+      dualSave.deleteCatalog(catalogId);
       alert('Catálogo excluído com sucesso!');
       loadCatalogs();
     } catch (error) {

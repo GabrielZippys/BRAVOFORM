@@ -31,11 +31,11 @@ PG_PASSWORD=Br@v0x00
 PG_SSL=true
 
 # Connection Pool (otimizado para Vercel)
-PG_POOL_MAX=5
+PG_POOL_MAX=3
 PG_POOL_MIN=0
-PG_IDLE_TIMEOUT=30000
-PG_CONNECTION_TIMEOUT=10000
-PG_STATEMENT_TIMEOUT=30000
+PG_IDLE_TIMEOUT=10000
+PG_CONNECTION_TIMEOUT=60000
+PG_STATEMENT_TIMEOUT=60000
 PG_QUERY_TIMEOUT=30000
 ```
 
@@ -170,6 +170,25 @@ Resposta esperada:
 **Solução:**
 1. Aumente `PG_STATEMENT_TIMEOUT` e `PG_QUERY_TIMEOUT`
 2. Otimize queries com índices no PostgreSQL
+
+### Erro: Connection terminated due to connection timeout
+
+**Causa:** Timeout de conexão muito baixo para ambiente serverless do Vercel
+
+**Solução:**
+1. Aumente `PG_CONNECTION_TIMEOUT` para 60000 (60 segundos)
+2. Reduza `PG_POOL_MAX` para 3 (menos conexões simultâneas)
+3. Verifique se os IPs do Vercel estão autorizados no Cloud SQL
+4. O sistema agora tem retry automático (3 tentativas com backoff exponencial)
+
+### Erro: Connection terminated unexpectedly
+
+**Causa:** Conexão perdida durante execução de query
+
+**Solução:**
+1. Verifique estabilidade da rede entre Vercel e Cloud SQL
+2. Aumente `PG_IDLE_TIMEOUT` para 10000
+3. Sistema fará retry automático em caso de falha
 
 ---
 
