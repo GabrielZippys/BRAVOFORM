@@ -26,6 +26,9 @@ interface FormData {
   title: string;
   description?: string;
   fields: EnhancedFormField[];
+  logoUrl?: string | null;
+  logoSize?: number;
+  logoAlignment?: string;
   theme?: {
     bgColor?: string;
     accentColor?: string;
@@ -152,7 +155,7 @@ export default function PublicFormPage() {
   function pickReadableTextColor(bgCss:string, preferredCss:string, min=4.5){
     const bg = parseColor(bgCss);
     const preferred = parseColor(preferredCss);
-    const black = {r:0,g:0,b:0}, white = {r:255,g:255,g:255};
+    const black = {r:0,g:0,b:0}, white = {r:255,g:255,b:255};
     const bgNoAlpha = {r:bg.r,g:bg.g,b:bg.b};
     const cPref = Math.abs((preferred.r + preferred.g + preferred.b) / 3 - (bgNoAlpha.r + bgNoAlpha.g + bgNoAlpha.b) / 3);
     if (cPref >= min * 50) return rgbToHex({r:preferred.r,g:preferred.g,b:preferred.b});
@@ -171,6 +174,15 @@ export default function PublicFormPage() {
   const autoInputText = pickReadableTextColor(resolvedInputBg, theme.inputFontColor);
   const autoPlaceholder = withAlpha(autoInputText, 0.6);
   const borderColor = theme.borderColor || "#e5e7eb";
+
+  // Contraste para radio/checkbox - detecta fundo e calcula cor inversa
+  const bgLuminance = (() => {
+    const c = parseColor(theme.bgColor);
+    return (0.299 * c.r + 0.587 * c.g + 0.114 * c.b) / 255;
+  })();
+  const isDarkBg = bgLuminance < 0.5;
+  const tickBorderColor = isDarkBg ? 'rgba(255,255,255,0.7)' : 'rgba(0,0,0,0.4)';
+  const tickBgUnchecked = isDarkBg ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)';
 
   // Validação
   const isBlank = (v: any) => (typeof v === 'string' ? v.trim() === '' : v == null);
@@ -518,31 +530,36 @@ export default function PublicFormPage() {
               {field.required && <span style={{ color: '#ef4444', marginLeft: '0.25rem' }}>*</span>}
             </label>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-              {field.options?.map(option => (
-                <label key={option} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
-                  <input
-                    type="radio"
-                    name={fieldId}
-                    value={option}
-                    checked={value === option}
-                    onChange={(e) => handleInputChange(fieldId, e.target.value)}
-                    disabled={disabled}
-                    style={{ accentColor: theme.accentColor }}
-                  />
-                  <span style={{ color: theme.fontColor }}>{option}</span>
-                </label>
-              ))}
+              {field.options?.map(option => {
+                const isChecked = value === option;
+                return (
+                  <label key={option} style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', cursor: 'pointer', padding: '0.25rem 0' }}
+                    onClick={() => { if (!disabled) handleInputChange(fieldId, option); }}>
+                    <span style={{
+                      width: 20, height: 20, borderRadius: '50%', flexShrink: 0,
+                      border: `2px solid ${isChecked ? theme.accentColor : tickBorderColor}`,
+                      background: isChecked ? theme.accentColor : tickBgUnchecked,
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      transition: 'all 0.15s ease',
+                    }}>
+                      {isChecked && <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#fff' }} />}
+                    </span>
+                    <span style={{ color: theme.fontColor }}>{option}</span>
+                  </label>
+                );
+              })}
               {field.allowOther && (
-                <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
-                  <input
-                    type="radio"
-                    name={fieldId}
-                    value="___OTHER___"
-                    checked={value === '___OTHER___'}
-                    onChange={(e) => handleInputChange(fieldId, e.target.value)}
-                    disabled={disabled}
-                    style={{ accentColor: theme.accentColor }}
-                  />
+                <label style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', cursor: 'pointer', padding: '0.25rem 0' }}
+                  onClick={() => { if (!disabled) handleInputChange(fieldId, '___OTHER___'); }}>
+                  <span style={{
+                    width: 20, height: 20, borderRadius: '50%', flexShrink: 0,
+                    border: `2px solid ${value === '___OTHER___' ? theme.accentColor : tickBorderColor}`,
+                    background: value === '___OTHER___' ? theme.accentColor : tickBgUnchecked,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    transition: 'all 0.15s ease',
+                  }}>
+                    {value === '___OTHER___' && <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#fff' }} />}
+                  </span>
                   <span style={{ color: theme.fontColor }}>Outro:</span>
                   <input
                     type="text"
@@ -578,63 +595,77 @@ export default function PublicFormPage() {
               {field.required && <span style={{ color: '#ef4444', marginLeft: '0.25rem' }}>*</span>}
             </label>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-              {field.options?.map(option => (
-                <label key={option} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
-                  <input
-                    type="checkbox"
-                    value={option}
-                    checked={Array.isArray(value) && value.includes(option)}
-                    onChange={(e) => {
+              {field.options?.map(option => {
+                const isChecked = Array.isArray(value) && value.includes(option);
+                return (
+                  <label key={option} style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', cursor: 'pointer', padding: '0.25rem 0' }}
+                    onClick={() => {
+                      if (disabled) return;
                       const current = Array.isArray(value) ? value : [];
-                      if (e.target.checked) {
-                        handleInputChange(fieldId, [...current, option]);
-                      } else {
-                        handleInputChange(fieldId, current.filter(item => item !== option));
-                      }
-                    }}
-                    disabled={disabled}
-                    style={{ accentColor: theme.accentColor }}
-                  />
-                  <span style={{ color: theme.fontColor }}>{option}</span>
-                </label>
-              ))}
-              {field.allowOther && (
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
-                    <input
-                      type="checkbox"
-                      value="___OTHER___"
-                      checked={Array.isArray(value) && value.includes('___OTHER___')}
-                      onChange={(e) => {
-                        const current = Array.isArray(value) ? value : [];
-                        if (e.target.checked) {
-                          handleInputChange(fieldId, [...current, '___OTHER___']);
-                        } else {
-                          handleInputChange(fieldId, current.filter(item => item !== '___OTHER___'));
-                        }
-                      }}
-                      disabled={disabled}
-                      style={{ accentColor: theme.accentColor }}
-                    />
-                    <span style={{ color: theme.fontColor }}>Outro:</span>
+                      if (isChecked) handleInputChange(fieldId, current.filter(item => item !== option));
+                      else handleInputChange(fieldId, [...current, option]);
+                    }}>
+                    <span style={{
+                      width: 20, height: 20, borderRadius: 4, flexShrink: 0,
+                      border: `2px solid ${isChecked ? theme.accentColor : tickBorderColor}`,
+                      background: isChecked ? theme.accentColor : tickBgUnchecked,
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      transition: 'all 0.15s ease',
+                    }}>
+                      {isChecked && (
+                        <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+                          <path d="M2 6L5 9L10 3" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                        </svg>
+                      )}
+                    </span>
+                    <span style={{ color: theme.fontColor }}>{option}</span>
                   </label>
-                  <input
-                    type="text"
-                    value={otherInputValues[fieldId] || ''}
-                    onChange={(e) => handleOtherInputChange(fieldId, e.target.value)}
-                    placeholder="Especifique..."
-                    disabled={disabled || !(Array.isArray(value) && value.includes('___OTHER___'))}
-                    style={{
-                      flex: 1,
-                      padding: '0.5rem',
-                      border: `1px solid ${borderColor}`,
-                      borderRadius: theme.borderRadius,
-                      background: theme.inputBgColor,
-                      color: autoInputText
-                    }}
-                  />
-                </div>
-              )}
+                );
+              })}
+              {field.allowOther && (() => {
+                const isOtherChecked = Array.isArray(value) && value.includes('___OTHER___');
+                return (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', cursor: 'pointer', padding: '0.25rem 0' }}
+                      onClick={() => {
+                        if (disabled) return;
+                        const current = Array.isArray(value) ? value : [];
+                        if (isOtherChecked) handleInputChange(fieldId, current.filter(item => item !== '___OTHER___'));
+                        else handleInputChange(fieldId, [...current, '___OTHER___']);
+                      }}>
+                      <span style={{
+                        width: 20, height: 20, borderRadius: 4, flexShrink: 0,
+                        border: `2px solid ${isOtherChecked ? theme.accentColor : tickBorderColor}`,
+                        background: isOtherChecked ? theme.accentColor : tickBgUnchecked,
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        transition: 'all 0.15s ease',
+                      }}>
+                        {isOtherChecked && (
+                          <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+                            <path d="M2 6L5 9L10 3" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                          </svg>
+                        )}
+                      </span>
+                      <span style={{ color: theme.fontColor }}>Outro:</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={otherInputValues[fieldId] || ''}
+                      onChange={(e) => handleOtherInputChange(fieldId, e.target.value)}
+                      placeholder="Especifique..."
+                      disabled={disabled || !isOtherChecked}
+                      style={{
+                        flex: 1,
+                        padding: '0.5rem',
+                        border: `1px solid ${borderColor}`,
+                        borderRadius: theme.borderRadius,
+                        background: theme.inputBgColor,
+                        color: autoInputText
+                      }}
+                    />
+                  </div>
+                );
+              })()}
             </div>
             {invalid[fieldId] && (
               <p style={{ color: '#ef4444', fontSize: '0.875rem', marginTop: '0.25rem' }}>
@@ -760,12 +791,26 @@ export default function PublicFormPage() {
       <div style={{
         maxWidth: '800px',
         margin: '0 auto',
-        background: 'white',
+        background: theme.bgColor,
         padding: '2rem',
         borderRadius: theme.borderRadius,
-        boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)'
+        boxShadow: isDarkBg ? '0 4px 24px rgba(0,0,0,0.4)' : '0 4px 6px rgba(0,0,0,0.1)',
+        border: `1px solid ${isDarkBg ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)'}`,
       }}>
-        <header style={{ marginBottom: '2rem', textAlign: 'center' }}>
+        <header style={{ marginBottom: '2rem', textAlign: form.logoAlignment === 'Direita' ? 'right' : form.logoAlignment === 'Esquerda' ? 'left' : 'center' }}>
+          {form.logoUrl && (
+            <div style={{ marginBottom: '1rem' }}>
+              <img
+                src={form.logoUrl}
+                alt="Logo"
+                style={{
+                  maxWidth: `${form.logoSize || 40}%`,
+                  height: 'auto',
+                  objectFit: 'contain',
+                }}
+              />
+            </div>
+          )}
           <h1 style={{ fontSize: '2rem', marginBottom: '0.5rem', color: theme.fontColor }}>
             {form.title}
           </h1>
@@ -817,6 +862,16 @@ export default function PublicFormPage() {
       <style jsx>{`
         @keyframes spin {
           to { transform: rotate(360deg); }
+        }
+        input::placeholder, textarea::placeholder {
+          color: ${autoPlaceholder} !important;
+          opacity: 1;
+        }
+        input[type="date"], input[type="datetime-local"] {
+          color-scheme: ${isDarkBg ? 'dark' : 'light'};
+        }
+        select {
+          color-scheme: ${isDarkBg ? 'dark' : 'light'};
         }
       `}</style>
     </div>
