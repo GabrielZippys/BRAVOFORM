@@ -46,6 +46,7 @@ log = _setup_logger()
 # Configurações
 # -----------------------------------------------------------------------------
 DAYS_TO_SYNC = int(os.getenv("DAYS_TO_SYNC", "30"))
+SYNC_ALL = os.getenv("SYNC_ALL", "false").lower() == "true"  # SYNC_ALL=true → ignora filtro de data
 
 # Firestore
 cred_path = Path("firebase_cred.json")
@@ -632,17 +633,69 @@ def sync_forms_to_postgresql(forms_data):
         cur.close()
         conn.close()
 
+def normalize_answer(value):
+    """Normaliza um valor de resposta para os tipos answer_text/number/date/boolean"""
+    answer_text = None
+    answer_number = None
+    answer_date = None
+    answer_boolean = None
+    field_type = 'text'
+
+    cleaned = clean_answer_value(value)
+
+    # Tentar converter para data
+    if isinstance(value, str) and len(value) >= 8:
+        if any(sep in value for sep in ['-', '/', 'T']) and any(c.isdigit() for c in value):
+            for fmt in [None, '%d/%m/%Y', '%Y-%m-%d']:
+                try:
+                    if fmt is None:
+                        parsed = datetime.fromisoformat(value.replace('Z', '+00:00'))
+                    else:
+                        parsed = datetime.strptime(value.split()[0], fmt)
+                    answer_date = parsed.replace(tzinfo=None)
+                    field_type = 'date'
+                    break
+                except Exception:
+                    pass
+
+    # Tentar número
+    if answer_date is None:
+        try:
+            num_str = cleaned.replace(',', '.')
+            if num_str and num_str.replace('.', '').replace('-', '').isdigit():
+                answer_number = float(num_str)
+                field_type = 'number'
+        except (ValueError, AttributeError):
+            pass
+
+    # Boolean ou texto
+    if answer_date is None and answer_number is None:
+        if cleaned.lower() in ('true', 'false', 'sim', 'não', 'yes', 'no'):
+            answer_boolean = cleaned.lower() in ('true', 'sim', 'yes')
+            field_type = 'boolean'
+        else:
+            answer_text = cleaned if cleaned else None
+            field_type = 'text'
+
+    return answer_text, answer_number, answer_date, answer_boolean, field_type
+
+
 def export_and_sync_responses():
     """
-    Exporta respostas do Firestore e sincroniza com PostgreSQL
-    Mantém compatibilidade com estrutura existente
+    Exporta TODAS as respostas do Firestore e sincroniza com PostgreSQL.
+    Modo padrão: últimos DAYS_TO_SYNC dias.
+    SYNC_ALL=true  → sincroniza tudo desde o início, sem filtro de data.
     """
-    cutoff_date = datetime.now(timezone.utc) - timedelta(days=DAYS_TO_SYNC)
-    log.info(f"Sincronizando respostas dos últimos {DAYS_TO_SYNC} dias (desde {cutoff_date.isoformat()})")
-    
+    if SYNC_ALL:
+        cutoff_date = None
+        log.info("Modo SYNC_ALL: sincronizando TODAS as respostas (sem filtro de data)")
+    else:
+        cutoff_date = datetime.now(timezone.utc) - timedelta(days=DAYS_TO_SYNC)
+        log.info(f"Sincronizando respostas dos últimos {DAYS_TO_SYNC} dias (desde {cutoff_date.isoformat()})")
+
     responses_data = []
     answers_data = []
-    
+
     for form_doc in db.collection("forms").stream():
         form_id = form_doc.id
         fdata = form_doc.to_dict() or {}
@@ -650,21 +703,24 @@ def export_and_sync_responses():
         company_id = fdata.get("companyId", "")
         department_id = fdata.get("departmentId", "")
         department_name = fdata.get("department", "") or department_id
-        
-        # Buscar respostas recentes
+
         responses_ref = db.collection("forms").document(form_id).collection("responses")
-        query = responses_ref.where("submittedAt", ">=", cutoff_date)
-        
+
+        # Filtro de data apenas se não for SYNC_ALL
+        if cutoff_date:
+            query = responses_ref.where("submittedAt", ">=", cutoff_date)
+        else:
+            query = responses_ref  # Todas as respostas
+
         resp_count = 0
         for resp_doc in query.stream():
             resp_count += 1
             r = resp_doc.to_dict() or {}
             response_id = resp_doc.id
-            
-            # Dados da resposta principal
+
             submitted_at = ts_to_iso(r.get('submittedAt') or r.get('createdAt'))
-            created_at = ts_to_iso(r.get('createdAt')) or submitted_at  # Fallback para submitted_at
-            
+            created_at = ts_to_iso(r.get('createdAt')) or submitted_at
+
             responses_data.append({
                 'id': response_id,
                 'form_id': form_id,
@@ -673,7 +729,7 @@ def export_and_sync_responses():
                 'department_id': department_id,
                 'department_name': department_name,
                 'collaborator_id': r.get('collaboratorId', ''),
-                'collaborator_username': r.get('collaboratorUsername', ''),
+                'collaborator_username': r.get('collaboratorUsername', r.get('collaboratorName', 'Anônimo')),
                 'status': r.get('status', 'submitted'),
                 'current_stage_id': r.get('currentStageId'),
                 'assigned_to': r.get('assignedTo'),
@@ -681,138 +737,145 @@ def export_and_sync_responses():
                 'submitted_at': submitted_at,
                 'deleted_at': ts_to_iso(r.get('deletedAt')),
                 'deleted_by': r.get('deletedBy'),
-                'deleted_by_username': r.get('deletedByUsername')
+                'deleted_by_username': r.get('deletedByUsername'),
             })
-            
-            # Processar respostas individuais
+
+            # fieldMetadata: {fieldId: {label, type}} — salvo pelo frontend
+            field_metadata = r.get('fieldMetadata', {}) or {}
+
             answers = r.get('answers', {})
             if isinstance(answers, dict):
-                for field_id, value in answers.items():
-                    # Determinar tipo de resposta
-                    answer_text = None
-                    answer_number = None
-                    answer_date = None
-                    answer_boolean = None
-                    field_type = 'text'
-                    
-                    cleaned = clean_answer_value(value)
-                    
-                    # Tentar converter para data (formato ISO, timestamp, ou padrões comuns)
-                    if isinstance(value, str) and len(value) >= 8:
-                        # Padrões de data: YYYY-MM-DD, DD/MM/YYYY, YYYY-MM-DDTHH:MM, etc
-                        if any(sep in value for sep in ['-', '/', 'T']) and any(c.isdigit() for c in value):
-                            try:
-                                # Tentar ISO format primeiro
-                                parsed_date = datetime.fromisoformat(value.replace('Z', '+00:00'))
-                                answer_date = parsed_date.replace(tzinfo=None)
-                                field_type = 'date'
-                            except:
-                                try:
-                                    # Tentar DD/MM/YYYY
-                                    parsed_date = datetime.strptime(value.split()[0], '%d/%m/%Y')
-                                    answer_date = parsed_date
-                                    field_type = 'date'
-                                except:
-                                    try:
-                                        # Tentar YYYY-MM-DD
-                                        parsed_date = datetime.strptime(value.split('T')[0], '%Y-%m-%d')
-                                        answer_date = parsed_date
-                                        field_type = 'date'
-                                    except:
-                                        pass
-                    
-                    # Se não é data, tentar número
-                    if answer_date is None:
-                        try:
-                            # Tentar converter para número (aceita vírgula como decimal)
-                            num_str = cleaned.replace(',', '.')
-                            if num_str and num_str.replace('.', '').replace('-', '').isdigit():
-                                answer_number = float(num_str)
-                                field_type = 'number'
-                        except (ValueError, AttributeError):
-                            pass
-                    
-                    # Se não é data nem número, tentar boolean
-                    if answer_date is None and answer_number is None:
-                        if cleaned.lower() in ('true', 'false', 'sim', 'não', 'yes', 'no'):
-                            answer_boolean = cleaned.lower() in ('true', 'sim', 'yes')
-                            field_type = 'boolean'
-                        else:
-                            # É texto
-                            answer_text = cleaned
-                            field_type = 'text'
-                    
+                for fid, value in answers.items():
+                    meta = field_metadata.get(str(fid), {}) or {}
+                    field_label = meta.get('label') or str(fid)  # usa label real se disponível
+                    declared_type = meta.get('type', '')
+
+                    answer_text, answer_number, answer_date, answer_boolean, inferred_type = normalize_answer(value)
+
+                    # Prefere o tipo declarado pelo frontend; fallback para o inferido
+                    field_type = declared_type if declared_type else inferred_type
+
                     answers_data.append({
                         'response_id': response_id,
-                        'field_id': str(field_id),
-                        'field_label': str(field_id),
+                        'form_id': form_id,       # chave direta — nova coluna
+                        'field_id': str(fid),
+                        'field_label': field_label,
                         'field_type': field_type,
                         'answer_text': answer_text,
                         'answer_number': answer_number,
                         'answer_date': answer_date,
-                        'answer_boolean': answer_boolean
+                        'answer_boolean': answer_boolean,
                     })
-        
+
         if resp_count > 0:
-            log.info(f"Form {form_id}: {resp_count} respostas coletadas")
-    
-    log.info(f"Total: {len(responses_data)} respostas, {len(answers_data)} answers")
-    
-    # Sincronizar com PostgreSQL
+            log.info(f"Form '{form_title}' ({form_id}): {resp_count} respostas coletadas")
+
+    log.info(f"Total coletado: {len(responses_data)} respostas | {len(answers_data)} answers")
+
     sync_to_postgresql(responses_data, answers_data, cutoff_date)
 
 def sync_to_postgresql(responses_data, answers_data, cutoff_date):
-    """Sincroniza dados com PostgreSQL"""
+    """
+    Sincroniza dados com PostgreSQL.
+    cutoff_date=None → limpa e reinsere TUDO (SYNC_ALL).
+    cutoff_date=datetime → modo incremental (apenas o período).
+    """
     conn = pg_connect()
     cur = conn.cursor()
-    
+
     try:
-        # Deletar dados antigos (modo incremental)
-        cutoff_iso = cutoff_date.isoformat()
-        cur.execute("DELETE FROM answer WHERE response_id IN (SELECT id FROM form_response WHERE submitted_at >= %s)", (cutoff_iso,))
-        deleted_answers = cur.rowcount
-        
-        cur.execute("DELETE FROM form_response WHERE submitted_at >= %s", (cutoff_iso,))
-        deleted_responses = cur.rowcount
-        
-        log.info(f"Deletados: {deleted_responses} respostas, {deleted_answers} answers (modo incremental)")
-        
-        # Inserir respostas
+        # Garantir que form_id existe nas tabelas filhas — ignora se a tabela não existir
+        for tbl, idx in [
+            ("answer",           "idx_answer_form_id"),
+            ("attachment",       "idx_attachment_form_id"),
+            ("workflow_history", "idx_workflow_form_id"),
+            ("table_item",       "idx_table_item_form_id"),
+        ]:
+            try:
+                cur.execute(f"ALTER TABLE {tbl} ADD COLUMN IF NOT EXISTS form_id VARCHAR(255)")
+                cur.execute(f"CREATE INDEX IF NOT EXISTS {idx} ON {tbl}(form_id)")
+                conn.commit()  # commit parcial para não deixar transação aberta em erro
+            except Exception as e:
+                conn.rollback()
+                log.warning(f"Tabela '{tbl}' não encontrada, pulando ALTER: {e}")
+
+        if cutoff_date is None:
+            # SYNC_ALL: limpa tudo e reinsere
+            log.info("SYNC_ALL: deletando todos os answers e respostas antes de reinserir...")
+            cur.execute("DELETE FROM answer")
+            cur.execute("DELETE FROM form_response")
+            log.info("Tabelas limpas. Reinserindo dados completos do Firestore...")
+        else:
+            # Incremental: remove apenas o período
+            cutoff_iso = cutoff_date.isoformat()
+            cur.execute(
+                "DELETE FROM answer WHERE response_id IN "
+                "(SELECT id FROM form_response WHERE submitted_at >= %s)",
+                (cutoff_iso,)
+            )
+            deleted_answers = cur.rowcount
+            cur.execute("DELETE FROM form_response WHERE submitted_at >= %s", (cutoff_iso,))
+            deleted_responses = cur.rowcount
+            log.info(f"Incremental: removidos {deleted_responses} respostas e {deleted_answers} answers")
+
+        # Inserir form_response (UPSERT — não falha se já existir)
         if responses_data:
             insert_sql = """
                 INSERT INTO form_response (
                     id, form_id, form_title, company_id, department_id, department_name,
                     collaborator_id, collaborator_username, status, current_stage_id,
-                    assigned_to, created_at, submitted_at, deleted_at, deleted_by, deleted_by_username
+                    assigned_to, created_at, submitted_at,
+                    deleted_at, deleted_by, deleted_by_username
                 ) VALUES (
-                    %(id)s, %(form_id)s, %(form_title)s, %(company_id)s, %(department_id)s, %(department_name)s,
-                    %(collaborator_id)s, %(collaborator_username)s, %(status)s, %(current_stage_id)s,
-                    %(assigned_to)s, %(created_at)s, %(submitted_at)s, %(deleted_at)s, %(deleted_by)s, %(deleted_by_username)s
+                    %(id)s, %(form_id)s, %(form_title)s, %(company_id)s, %(department_id)s,
+                    %(department_name)s, %(collaborator_id)s, %(collaborator_username)s,
+                    %(status)s, %(current_stage_id)s, %(assigned_to)s,
+                    %(created_at)s, %(submitted_at)s,
+                    %(deleted_at)s, %(deleted_by)s, %(deleted_by_username)s
                 )
+                ON CONFLICT (id) DO UPDATE SET
+                    status              = EXCLUDED.status,
+                    current_stage_id    = EXCLUDED.current_stage_id,
+                    assigned_to         = EXCLUDED.assigned_to,
+                    deleted_at          = EXCLUDED.deleted_at,
+                    deleted_by          = EXCLUDED.deleted_by,
+                    deleted_by_username = EXCLUDED.deleted_by_username
             """
             execute_batch(cur, insert_sql, responses_data, page_size=100)
-            log.info(f"Inseridas {len(responses_data)} respostas")
-        
-        # Inserir answers
+            log.info(f"Inseridas/atualizadas {len(responses_data)} respostas")
+
+        # Inserir answers — agora com form_id
         if answers_data:
             insert_sql = """
                 INSERT INTO answer (
-                    response_id, field_id, field_label, field_type,
+                    response_id, form_id, field_id, field_label, field_type,
                     answer_text, answer_number, answer_date, answer_boolean
                 ) VALUES (
-                    %(response_id)s, %(field_id)s, %(field_label)s, %(field_type)s,
+                    %(response_id)s, %(form_id)s, %(field_id)s, %(field_label)s, %(field_type)s,
                     %(answer_text)s, %(answer_number)s, %(answer_date)s, %(answer_boolean)s
                 )
             """
             execute_batch(cur, insert_sql, answers_data, page_size=100)
-            log.info(f"Inseridas {len(answers_data)} answers")
-        
+            log.info(f"Inseridas {len(answers_data)} answers (com form_id)")
+
+        # Backfill de form_id em registros antigos que ainda não têm (segurança)
+        cur.execute("""
+            UPDATE answer a
+            SET form_id = fr.form_id
+            FROM form_response fr
+            WHERE a.response_id = fr.id
+              AND (a.form_id IS NULL OR a.form_id = '')
+        """)
+        backfilled = cur.rowcount
+        if backfilled > 0:
+            log.info(f"Backfill: {backfilled} answers sem form_id atualizados")
+
         conn.commit()
-        log.info("Sincronização concluída com sucesso!")
-        
+        log.info("✅ Sincronização concluída com sucesso!")
+
     except Exception as e:
         conn.rollback()
-        log.exception(f"Erro na sincronização: {e}")
+        log.exception(f"❌ Erro na sincronização: {e}")
         raise
     finally:
         cur.close()

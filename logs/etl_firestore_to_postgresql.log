@@ -134,3 +134,115 @@
 2026-03-26 10:46:53,276 | INFO    | Etapa 7/7: Criando índices...
 2026-03-26 10:46:53,427 | INFO    | Índices criados com sucesso
 2026-03-26 10:46:53,428 | INFO    | === SINCRONIZAÇÃO CONCLUÍDA | tempo=8.51s ===
+2026-03-27 14:34:57,613 | INFO    | Firestore conectado | project_id=formbravo-8854e
+2026-03-27 14:34:57,613 | INFO    | === INÍCIO DA SINCRONIZAÇÃO FIRESTORE → POSTGRESQL ===
+2026-03-27 14:34:57,614 | INFO    | Etapa 1/7: Exportando empresas e departamentos...
+2026-03-27 14:34:57,614 | INFO    | Exportando empresas e departamentos...
+2026-03-27 14:34:58,211 | INFO    | Empresas coletadas: 3 | Departamentos: 19
+2026-03-27 14:34:58,413 | INFO    | Inseridas 3 empresas e 19 departamentos
+2026-03-27 14:34:58,414 | INFO    | Etapa 2/7: Exportando usuários...
+2026-03-27 14:34:58,414 | INFO    | Exportando usuários...
+2026-03-27 14:34:58,457 | INFO    | Total de usuários coletados: 2
+2026-03-27 14:34:58,559 | INFO    | Tabela users limpa
+2026-03-27 14:34:58,575 | INFO    | Inseridos 2 usuários na tabela users
+2026-03-27 14:34:58,575 | INFO    | Etapa 3/7: Exportando colaboradores...
+2026-03-27 14:34:58,575 | INFO    | Exportando colaboradores...
+2026-03-27 14:34:58,780 | INFO    | Total de colaboradores coletados: 38
+2026-03-27 14:34:58,924 | INFO    | Tabela collaborators limpa
+2026-03-27 14:34:58,964 | INFO    | Inseridos 38 colaboradores na tabela collaborators
+2026-03-27 14:34:58,964 | INFO    | Etapa 4/7: Exportando produtos e catálogos...
+2026-03-27 14:34:58,965 | INFO    | Exportando produtos e catálogos...
+2026-03-27 14:34:59,145 | INFO    | Catálogos coletados: 12 | Produtos: 462
+2026-03-27 14:34:59,533 | INFO    | Inseridos 12 catálogos e 462 produtos
+2026-03-27 14:34:59,533 | INFO    | Etapa 5/7: Exportando formulários...
+2026-03-27 14:34:59,534 | INFO    | Exportando metadados dos formulários...
+2026-03-27 14:34:59,745 | INFO    | Total de formulários coletados: 18
+2026-03-27 14:34:59,870 | INFO    | Tabela forms limpa
+2026-03-27 14:34:59,946 | INFO    | Inseridos 18 formulários na tabela forms
+2026-03-27 14:34:59,946 | INFO    | Etapa 6/7: Exportando respostas...
+2026-03-27 14:34:59,946 | INFO    | Sincronizando respostas dos últimos 30 dias (desde 2026-02-25T17:34:59.946971+00:00)
+2026-03-27 14:35:00,158 | INFO    | Form 'Novilhão e Parisienne - Estoque PA e PORCO' (3UA4Np5gDxgwR7X8rRhC): 2 respostas coletadas
+2026-03-27 14:35:01,947 | INFO    | Form 'Novilhão e Parisienne - Carnes' (41yvJ4c580Yr4oWjPd5J): 276 respostas coletadas
+2026-03-27 14:35:01,988 | INFO    | Form 'Lojas - Pedidos Mercado' (Al5l7YVJ5qdwPUajsUO7): 2 respostas coletadas
+2026-03-27 14:35:02,056 | INFO    | Form 'Novilhão - Produtos de Limpeza' (EdyIAbIAM9HoW7UN9D3v): 23 respostas coletadas
+2026-03-27 14:35:02,314 | INFO    | Form 'Novilhão e Parisienne - Embalagens' (J182jCabwjE9ReVDVeNU): 35 respostas coletadas
+2026-03-27 14:35:02,349 | INFO    | Form 'Parisienne - Produtos de Limpeza' (M0IGy69OkdNXoft3mlAC): 10 respostas coletadas
+2026-03-27 14:35:02,949 | INFO    | Form 'Novilhão e Parisienne - Frango' (dZaCzuAVEz5VP7k1LfLr): 485 respostas coletadas
+2026-03-27 14:35:03,856 | INFO    | Form 'Novilhão e Parisienne - Compra Semanal' (hpwFnAXxpfQUbSOqFpbN): 136 respostas coletadas
+2026-03-27 14:35:04,228 | INFO    | Form 'Novilhão e Parisienne - Hortifruti' (jySaXiqjiteqxqmLqIiD): 40 respostas coletadas
+2026-03-27 14:35:04,485 | INFO    | Form 'Balanço Mensal ' (ppdd25B3IPotSu4arCoH): 34 respostas coletadas
+2026-03-27 14:35:04,517 | INFO    | Form 'Controle de Recebimento - Lojas e TI' (vLZkM9odYbw6EFaG84vI): 7 respostas coletadas
+2026-03-27 14:35:04,538 | INFO    | Total coletado: 1050 respostas | 7244 answers
+2026-03-27 14:35:04,657 | ERROR   | ❌ Erro na sincronização: relation "attachment" does not exist
+Traceback (most recent call last):
+  File "C:\Users\OptiPlex 7080\Desktop\BRAVOFORM\scripts\sync-firestore-to-postgresql.py", line 789, in sync_to_postgresql
+    cur.execute("ALTER TABLE attachment ADD COLUMN IF NOT EXISTS form_id VARCHAR(255)")
+    ~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+psycopg2.errors.UndefinedTable: relation "attachment" does not exist
+
+2026-03-27 14:35:04,658 | ERROR   | Falha na execução: relation "attachment" does not exist
+Traceback (most recent call last):
+  File "C:\Users\OptiPlex 7080\Desktop\BRAVOFORM\scripts\sync-firestore-to-postgresql.py", line 940, in main
+    export_and_sync_responses()
+    ~~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\OptiPlex 7080\Desktop\BRAVOFORM\scripts\sync-firestore-to-postgresql.py", line 775, in export_and_sync_responses
+    sync_to_postgresql(responses_data, answers_data, cutoff_date)
+    ~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\OptiPlex 7080\Desktop\BRAVOFORM\scripts\sync-firestore-to-postgresql.py", line 789, in sync_to_postgresql
+    cur.execute("ALTER TABLE attachment ADD COLUMN IF NOT EXISTS form_id VARCHAR(255)")
+    ~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+psycopg2.errors.UndefinedTable: relation "attachment" does not exist
+
+2026-03-27 14:37:10,953 | INFO    | Firestore conectado | project_id=formbravo-8854e
+2026-03-27 14:37:10,953 | INFO    | === INÍCIO DA SINCRONIZAÇÃO FIRESTORE → POSTGRESQL ===
+2026-03-27 14:37:10,954 | INFO    | Etapa 1/7: Exportando empresas e departamentos...
+2026-03-27 14:37:10,954 | INFO    | Exportando empresas e departamentos...
+2026-03-27 14:37:11,461 | INFO    | Empresas coletadas: 3 | Departamentos: 19
+2026-03-27 14:37:11,616 | INFO    | Inseridas 3 empresas e 19 departamentos
+2026-03-27 14:37:11,616 | INFO    | Etapa 2/7: Exportando usuários...
+2026-03-27 14:37:11,616 | INFO    | Exportando usuários...
+2026-03-27 14:37:11,644 | INFO    | Total de usuários coletados: 2
+2026-03-27 14:37:11,756 | INFO    | Tabela users limpa
+2026-03-27 14:37:11,769 | INFO    | Inseridos 2 usuários na tabela users
+2026-03-27 14:37:11,770 | INFO    | Etapa 3/7: Exportando colaboradores...
+2026-03-27 14:37:11,770 | INFO    | Exportando colaboradores...
+2026-03-27 14:37:11,936 | INFO    | Total de colaboradores coletados: 38
+2026-03-27 14:37:12,073 | INFO    | Tabela collaborators limpa
+2026-03-27 14:37:12,106 | INFO    | Inseridos 38 colaboradores na tabela collaborators
+2026-03-27 14:37:12,106 | INFO    | Etapa 4/7: Exportando produtos e catálogos...
+2026-03-27 14:37:12,106 | INFO    | Exportando produtos e catálogos...
+2026-03-27 14:37:12,289 | INFO    | Catálogos coletados: 12 | Produtos: 462
+2026-03-27 14:37:12,599 | INFO    | Inseridos 12 catálogos e 462 produtos
+2026-03-27 14:37:12,599 | INFO    | Etapa 5/7: Exportando formulários...
+2026-03-27 14:37:12,599 | INFO    | Exportando metadados dos formulários...
+2026-03-27 14:37:12,844 | INFO    | Total de formulários coletados: 18
+2026-03-27 14:37:12,965 | INFO    | Tabela forms limpa
+2026-03-27 14:37:13,021 | INFO    | Inseridos 18 formulários na tabela forms
+2026-03-27 14:37:13,021 | INFO    | Etapa 6/7: Exportando respostas...
+2026-03-27 14:37:13,022 | INFO    | Sincronizando respostas dos últimos 30 dias (desde 2026-02-25T17:37:13.022025+00:00)
+2026-03-27 14:37:13,219 | INFO    | Form 'Novilhão e Parisienne - Estoque PA e PORCO' (3UA4Np5gDxgwR7X8rRhC): 2 respostas coletadas
+2026-03-27 14:37:14,059 | INFO    | Form 'Novilhão e Parisienne - Carnes' (41yvJ4c580Yr4oWjPd5J): 276 respostas coletadas
+2026-03-27 14:37:14,103 | INFO    | Form 'Lojas - Pedidos Mercado' (Al5l7YVJ5qdwPUajsUO7): 2 respostas coletadas
+2026-03-27 14:37:14,163 | INFO    | Form 'Novilhão - Produtos de Limpeza' (EdyIAbIAM9HoW7UN9D3v): 23 respostas coletadas
+2026-03-27 14:37:14,335 | INFO    | Form 'Novilhão e Parisienne - Embalagens' (J182jCabwjE9ReVDVeNU): 35 respostas coletadas
+2026-03-27 14:37:14,372 | INFO    | Form 'Parisienne - Produtos de Limpeza' (M0IGy69OkdNXoft3mlAC): 10 respostas coletadas
+2026-03-27 14:37:14,962 | INFO    | Form 'Novilhão e Parisienne - Frango' (dZaCzuAVEz5VP7k1LfLr): 485 respostas coletadas
+2026-03-27 14:37:15,843 | INFO    | Form 'Novilhão e Parisienne - Compra Semanal' (hpwFnAXxpfQUbSOqFpbN): 136 respostas coletadas
+2026-03-27 14:37:16,229 | INFO    | Form 'Novilhão e Parisienne - Hortifruti' (jySaXiqjiteqxqmLqIiD): 40 respostas coletadas
+2026-03-27 14:37:16,510 | INFO    | Form 'Balanço Mensal ' (ppdd25B3IPotSu4arCoH): 34 respostas coletadas
+2026-03-27 14:37:16,534 | INFO    | Form 'Controle de Recebimento - Lojas e TI' (vLZkM9odYbw6EFaG84vI): 7 respostas coletadas
+2026-03-27 14:37:16,558 | INFO    | Total coletado: 1050 respostas | 7244 answers
+2026-03-27 14:37:16,806 | WARNING | Tabela 'attachment' não encontrada, pulando ALTER: relation "attachment" does not exist
+
+2026-03-27 14:37:16,827 | WARNING | Tabela 'workflow_history' não encontrada, pulando ALTER: relation "workflow_history" does not exist
+
+2026-03-27 14:37:16,846 | WARNING | Tabela 'table_item' não encontrada, pulando ALTER: relation "table_item" does not exist
+
+2026-03-27 14:37:17,053 | INFO    | Incremental: removidos 1011 respostas e 7130 answers
+2026-03-27 14:37:17,502 | INFO    | Inseridas/atualizadas 1050 respostas
+2026-03-27 14:37:19,392 | INFO    | Inseridas 7244 answers (com form_id)
+2026-03-27 14:37:19,419 | INFO    | Backfill: 388 answers sem form_id atualizados
+2026-03-27 14:37:19,441 | INFO    | ✅ Sincronização concluída com sucesso!
+2026-03-27 14:37:19,443 | INFO    | Etapa 7/7: Criando índices...
+2026-03-27 14:37:19,587 | INFO    | Índices criados com sucesso
+2026-03-27 14:37:19,588 | INFO    | === SINCRONIZAÇÃO CONCLUÍDA | tempo=8.63s ===

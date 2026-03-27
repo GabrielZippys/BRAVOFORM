@@ -29,9 +29,11 @@ CREATE INDEX IF NOT EXISTS idx_form_response_status ON form_response(status);
 CREATE INDEX IF NOT EXISTS idx_form_response_submitted_at ON form_response(submitted_at);
 
 -- Tabela de respostas individuais (normalizada)
+-- form_id incluído como chave direta para joins sem depender de form_response
 CREATE TABLE IF NOT EXISTS answer (
     id SERIAL PRIMARY KEY,
     response_id VARCHAR(255) NOT NULL,
+    form_id VARCHAR(255) NOT NULL,          -- chave de join direto
     field_id VARCHAR(255) NOT NULL,
     field_label VARCHAR(500) NOT NULL,
     field_type VARCHAR(50) NOT NULL,
@@ -45,12 +47,14 @@ CREATE TABLE IF NOT EXISTS answer (
 
 -- Índices
 CREATE INDEX IF NOT EXISTS idx_answer_response_id ON answer(response_id);
-CREATE INDEX IF NOT EXISTS idx_answer_field_id ON answer(field_id);
+CREATE INDEX IF NOT EXISTS idx_answer_form_id     ON answer(form_id);
+CREATE INDEX IF NOT EXISTS idx_answer_field_id    ON answer(field_id);
 
 -- Tabela de anexos
 CREATE TABLE IF NOT EXISTS attachment (
     id SERIAL PRIMARY KEY,
     response_id VARCHAR(255) NOT NULL,
+    form_id VARCHAR(255) NOT NULL,          -- chave de join direto
     field_id VARCHAR(255) NOT NULL,
     file_url TEXT NOT NULL,
     file_name VARCHAR(500) NOT NULL,
@@ -62,11 +66,13 @@ CREATE TABLE IF NOT EXISTS attachment (
 
 -- Índices
 CREATE INDEX IF NOT EXISTS idx_attachment_response_id ON attachment(response_id);
+CREATE INDEX IF NOT EXISTS idx_attachment_form_id     ON attachment(form_id);
 
 -- Tabela de histórico de workflow
 CREATE TABLE IF NOT EXISTS workflow_history (
     id SERIAL PRIMARY KEY,
     response_id VARCHAR(255) NOT NULL,
+    form_id VARCHAR(255) NOT NULL,          -- chave de join direto
     stage_id VARCHAR(255) NOT NULL,
     stage_name VARCHAR(255) NOT NULL,
     action VARCHAR(100) NOT NULL,
@@ -79,12 +85,14 @@ CREATE TABLE IF NOT EXISTS workflow_history (
 
 -- Índices
 CREATE INDEX IF NOT EXISTS idx_workflow_history_response_id ON workflow_history(response_id);
-CREATE INDEX IF NOT EXISTS idx_workflow_history_created_at ON workflow_history(created_at);
+CREATE INDEX IF NOT EXISTS idx_workflow_history_form_id     ON workflow_history(form_id);
+CREATE INDEX IF NOT EXISTS idx_workflow_history_created_at  ON workflow_history(created_at);
 
 -- Tabela de itens de grade/tabela
 CREATE TABLE IF NOT EXISTS table_item (
     id SERIAL PRIMARY KEY,
     response_id VARCHAR(255) NOT NULL,
+    form_id VARCHAR(255) NOT NULL,          -- chave de join direto
     field_id VARCHAR(255) NOT NULL,
     row_index INTEGER NOT NULL,
     column_id VARCHAR(255) NOT NULL,
@@ -96,7 +104,8 @@ CREATE TABLE IF NOT EXISTS table_item (
 
 -- Índices
 CREATE INDEX IF NOT EXISTS idx_table_item_response_id ON table_item(response_id);
-CREATE INDEX IF NOT EXISTS idx_table_item_field_id ON table_item(field_id);
+CREATE INDEX IF NOT EXISTS idx_table_item_form_id     ON table_item(form_id);
+CREATE INDEX IF NOT EXISTS idx_table_item_field_id    ON table_item(field_id);
 
 -- Inserir dados de teste
 INSERT INTO form_response (id, form_id, form_title, company_id, department_id, department_name, collaborator_id, collaborator_username, status, submitted_at)
@@ -106,50 +115,90 @@ VALUES
     ('test-resp-003', 'form-002', 'Formulário de Compras', 'comp-001', 'dept-compras', 'Compras', 'colab-003', 'Pedro Costa', 'approved', '2026-03-20 09:15:00')
 ON CONFLICT (id) DO NOTHING;
 
-INSERT INTO answer (response_id, field_id, field_label, field_type, answer_text, answer_number)
-VALUES 
-    ('test-resp-001', 'field-cliente', 'Nome do Cliente', 'text', 'Empresa ABC Ltda', NULL),
-    ('test-resp-001', 'field-valor', 'Valor da Venda', 'number', NULL, 15000.00),
-    ('test-resp-002', 'field-cliente', 'Nome do Cliente', 'text', 'Empresa XYZ S.A.', NULL),
-    ('test-resp-002', 'field-valor', 'Valor da Venda', 'number', NULL, 25000.00),
-    ('test-resp-003', 'field-fornecedor', 'Nome do Fornecedor', 'text', 'Fornecedor 123', NULL),
-    ('test-resp-003', 'field-valor', 'Valor da Compra', 'number', NULL, 8500.00);
+INSERT INTO answer (response_id, form_id, field_id, field_label, field_type, answer_text, answer_number)
+VALUES
+    ('test-resp-001', 'form-001', 'field-cliente',    'Nome do Cliente',    'text',   'Empresa ABC Ltda',  NULL),
+    ('test-resp-001', 'form-001', 'field-valor',      'Valor da Venda',     'number', NULL,                15000.00),
+    ('test-resp-002', 'form-001', 'field-cliente',    'Nome do Cliente',    'text',   'Empresa XYZ S.A.',  NULL),
+    ('test-resp-002', 'form-001', 'field-valor',      'Valor da Venda',     'number', NULL,                25000.00),
+    ('test-resp-003', 'form-002', 'field-fornecedor', 'Nome do Fornecedor', 'text',   'Fornecedor 123',    NULL),
+    ('test-resp-003', 'form-002', 'field-valor',      'Valor da Compra',    'number', NULL,                8500.00);
 
-INSERT INTO workflow_history (response_id, stage_id, stage_name, action, performed_by, performed_by_username, comment)
-VALUES 
-    ('test-resp-001', 'stage-analise', 'Análise', 'approved', 'user-admin', 'Admin', 'Aprovado conforme política'),
-    ('test-resp-003', 'stage-analise', 'Análise', 'approved', 'user-admin', 'Admin', 'Compra aprovada');
+INSERT INTO workflow_history (response_id, form_id, stage_id, stage_name, action, performed_by, performed_by_username, comment)
+VALUES
+    ('test-resp-001', 'form-001', 'stage-analise', 'Análise', 'approved', 'user-admin', 'Admin', 'Aprovado conforme política'),
+    ('test-resp-003', 'form-002', 'stage-analise', 'Análise', 'approved', 'user-admin', 'Admin', 'Compra aprovada');
 
--- Views úteis para Power BI
+-- ============================================================
+-- Views para Power BI / análise de dados
+-- form_id presente em todas para joins diretos
+-- ============================================================
+
 CREATE OR REPLACE VIEW vw_responses_summary AS
-SELECT 
-    fr.id,
+SELECT
+    fr.id                AS response_id,
+    fr.form_id,
     fr.form_title,
+    fr.company_id,
+    fr.department_id,
     fr.department_name,
+    fr.collaborator_id,
     fr.collaborator_username,
     fr.status,
     fr.submitted_at,
-    COUNT(DISTINCT a.id) as total_answers,
-    COUNT(DISTINCT att.id) as total_attachments
+    COUNT(DISTINCT a.id)   AS total_answers,
+    COUNT(DISTINCT att.id) AS total_attachments
 FROM form_response fr
-LEFT JOIN answer a ON fr.id = a.response_id
+LEFT JOIN answer a      ON fr.id = a.response_id
 LEFT JOIN attachment att ON fr.id = att.response_id
 WHERE fr.deleted_at IS NULL
-GROUP BY fr.id, fr.form_title, fr.department_name, fr.collaborator_username, fr.status, fr.submitted_at;
+GROUP BY fr.id, fr.form_id, fr.form_title, fr.company_id,
+         fr.department_id, fr.department_name, fr.collaborator_id,
+         fr.collaborator_username, fr.status, fr.submitted_at;
 
 CREATE OR REPLACE VIEW vw_responses_with_values AS
-SELECT 
-    fr.id,
+SELECT
+    fr.id                AS response_id,
+    fr.form_id,
     fr.form_title,
+    fr.company_id,
+    fr.department_id,
     fr.department_name,
+    fr.collaborator_id,
     fr.collaborator_username,
     fr.status,
     fr.submitted_at,
-    SUM(CASE WHEN a.answer_number IS NOT NULL THEN a.answer_number ELSE 0 END) as total_value
+    SUM(CASE WHEN a.answer_number IS NOT NULL THEN a.answer_number ELSE 0 END) AS total_value
 FROM form_response fr
 LEFT JOIN answer a ON fr.id = a.response_id
 WHERE fr.deleted_at IS NULL
-GROUP BY fr.id, fr.form_title, fr.department_name, fr.collaborator_username, fr.status, fr.submitted_at;
+GROUP BY fr.id, fr.form_id, fr.form_title, fr.company_id,
+         fr.department_id, fr.department_name, fr.collaborator_id,
+         fr.collaborator_username, fr.status, fr.submitted_at;
+
+-- View flat: uma linha por campo respondido — ideal para pivot no Power BI
+CREATE OR REPLACE VIEW vw_flat_answers AS
+SELECT
+    fr.form_id,
+    fr.form_title,
+    fr.id                AS response_id,
+    fr.company_id,
+    fr.department_id,
+    fr.department_name,
+    fr.collaborator_id,
+    fr.collaborator_username,
+    fr.status,
+    fr.submitted_at,
+    a.field_id,
+    a.field_label,
+    a.field_type,
+    a.answer_text,
+    a.answer_number,
+    a.answer_boolean,
+    a.answer_date
+FROM form_response fr
+JOIN answer a ON fr.id = a.response_id
+WHERE fr.deleted_at IS NULL;
 
 -- Comentários nas tabelas para documentação
 COMMENT ON TABLE form_response IS 'Tabela principal com informações das respostas de formulários';

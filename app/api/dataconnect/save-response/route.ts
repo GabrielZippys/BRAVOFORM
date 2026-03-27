@@ -27,14 +27,13 @@ export async function POST(request: NextRequest) {
     // 2) Deletar answers antigos (para update)
     await client.query('DELETE FROM answer WHERE response_id = $1', [responseId]);
 
-    // 3) Inserir cada answer normalizado
+    // 3) Inserir cada answer normalizado (com form_id para joins diretos)
     if (answers && typeof answers === 'object') {
       for (const [fieldId, value] of Object.entries(answers)) {
         const meta = fieldMetadata?.[fieldId] || {};
         const fieldLabel = meta.label || fieldId;
         const fieldType = meta.type || 'text';
-        
-        // Determinar tipo de valor
+
         let answerText = '';
         let answerNumber: number | null = null;
         let answerBoolean: boolean | null = null;
@@ -61,10 +60,10 @@ export async function POST(request: NextRequest) {
 
         await client.query(`
           INSERT INTO answer (
-            response_id, field_id, field_label, field_type,
+            response_id, form_id, field_id, field_label, field_type,
             answer_text, answer_number, answer_boolean
-          ) VALUES ($1, $2, $3, $4, $5, $6, $7)
-        `, [responseId, fieldId, fieldLabel, fieldType,
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+        `, [responseId, formId, fieldId, fieldLabel, fieldType,
             answerText, answerNumber, answerBoolean]);
       }
     }

@@ -1,7 +1,11 @@
 {
   "permissions": {
     "allow": [
-      "mcp__Claude_Preview__preview_start"
+      "mcp__Claude_Preview__preview_start",
+      "Bash(set SYNC_ALL=true)",
+      "Bash(python scripts/sync-firestore-to-postgresql.py)",
+      "Bash(python -c \"import os; os.environ[''SYNC_ALL'']=''true''; exec\\(open\\(''scripts/sync-firestore-to-postgresql.py''\\).read\\(\\)\\)\")",
+      "Bash(powershell -Command \"$env:SYNC_ALL=''true''; python scripts/sync-firestore-to-postgresql.py\")"
     ]
   }
 }
