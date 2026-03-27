@@ -2753,51 +2753,352 @@ const toggleAutofill = useCallback((checked: boolean) => {
               <>
                 <div className={styles.sidebarHeader}>
                   <h3>Aparência</h3>
-                  <p>Personalize as cores</p>
+                  <p>Clique em qualquer swatch para editar</p>
                 </div>
-                <div style={{ padding: '16px', overflowY: 'auto', maxHeight: 'calc(100vh - 180px)' }}>
-                  {/* Estilo consistente para todos os inputs de cor */}
-                  {[
-                    { label: '📄 Fundo Geral', key: 'bgColor', value: draft.theme.bgColor },
-                    { label: '📝 Texto Geral', key: 'fontColor', value: draft.theme.fontColor },
-                    { label: '🏷️ Texto Título', key: 'titleColor', value: draft.theme.titleColor || '#ffffff' },
-                    { label: '📋 Texto Descrição', key: 'descriptionColor', value: draft.theme.descriptionColor || '#b8c5d6' },
-                    { label: '🔖 Fundo Seção', key: 'sectionHeaderBg', value: draft.theme.sectionHeaderBg || '' },
-                    { label: '🔖 Texto Seção', key: 'sectionHeaderFont', value: draft.theme.sectionHeaderFont || '#ffffff' },
-                    { label: '⬜ Fundo Campos', key: 'inputBgColor', value: draft.theme.inputBgColor },
-                    { label: '🔵 Fundo Botões', key: 'accentColor', value: draft.theme.accentColor },
-                    { label: '📊 Tab: Fundo Header', key: 'tableHeaderBg', value: draft.theme.tableHeaderBg || '#1a2238' },
-                    { label: '📊 Tab: Texto Header', key: 'tableHeaderFont', value: draft.theme.tableHeaderFont || '#49cfff' },
-                    { label: '📊 Tab: Linha Ímpar', key: 'tableOddRowBg', value: draft.theme.tableOddRowBg || '#222c42' },
-                    { label: '📊 Tab: Linha Par', key: 'tableEvenRowBg', value: draft.theme.tableEvenRowBg || '#171e2c' },
-                    { label: '📊 Tab: Texto Linhas', key: 'tableCellFont', value: draft.theme.tableCellFont || '#e0e6f7' },
-                    { label: '📊 Tab: Bordas', key: 'tableBorderColor', value: draft.theme.tableBorderColor || '#19263b' }
-                  ].map((item, idx) => (
-                    <div key={item.key} style={{ marginBottom: '16px' }}>
-                      <label style={{ 
-                        display: 'block',
-                        fontSize: '12px', 
-                        fontWeight: 500, 
-                        color: '#cbd5e1',
-                        marginBottom: '8px'
+                <div style={{ padding: '10px 12px', overflowY: 'auto', maxHeight: 'calc(100vh - 180px)' }}>
+                  {([
+                    {
+                      group: 'Formulário',
+                      icon: '🗂️',
+                      items: [
+                        {
+                          label: 'Fundo do formulário',
+                          hint: 'Cor de fundo do card onde os campos aparecem',
+                          key: 'bgColor', value: draft.theme.bgColor,
+                          preview: (
+                            <div style={{ width: '100%', height: 16, borderRadius: 4, background: draft.theme.bgColor, border: '1px solid rgba(255,255,255,0.12)' }} />
+                          ),
+                        },
+                        {
+                          label: 'Labels e perguntas',
+                          hint: 'Cor do texto "Código do Vendedor *", "Nome *", etc.',
+                          key: 'fontColor', value: draft.theme.fontColor,
+                          preview: (
+                            <div style={{ background: draft.theme.bgColor, borderRadius: 4, padding: '2px 6px', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                              <span style={{ fontSize: 10, fontWeight: 600, color: draft.theme.fontColor }}>Nome completo</span>
+                              <span style={{ fontSize: 10, color: '#ef4444' }}>*</span>
+                            </div>
+                          ),
+                        },
+                      ],
+                    },
+                    {
+                      group: 'Título & Descrição',
+                      icon: '✏️',
+                      items: [
+                        {
+                          label: 'Nome do formulário',
+                          hint: 'Título grande no topo — ex: "Controle de Recebimento"',
+                          key: 'titleColor', value: draft.theme.titleColor || '#1f2937',
+                          preview: (
+                            <div style={{ background: draft.theme.bgColor, borderRadius: 4, padding: '2px 6px' }}>
+                              <span style={{ fontSize: 11, fontWeight: 800, color: draft.theme.titleColor || '#1f2937' }}>
+                                Nome do Formulário
+                              </span>
+                            </div>
+                          ),
+                        },
+                        {
+                          label: 'Subtítulo / descrição',
+                          hint: 'Texto menor abaixo do título, quando há descrição',
+                          key: 'descriptionColor', value: draft.theme.descriptionColor || '#6b7280',
+                          preview: (
+                            <div style={{ background: draft.theme.bgColor, borderRadius: 4, padding: '2px 6px' }}>
+                              <span style={{ fontSize: 10, color: draft.theme.descriptionColor || '#6b7280' }}>
+                                Preencha todos os campos obrigatórios
+                              </span>
+                            </div>
+                          ),
+                        },
+                      ],
+                    },
+                    {
+                      group: 'Faixas separadoras de seção',
+                      icon: '🔖',
+                      items: [
+                        {
+                          label: 'Fundo da faixa',
+                          hint: 'Cor de fundo da barra que separa grupos de campos',
+                          key: 'sectionHeaderBg', value: draft.theme.sectionHeaderBg || '#f1f5f9',
+                          preview: (
+                            <div style={{ width: '100%', height: 20, borderRadius: 4, background: draft.theme.sectionHeaderBg || '#f1f5f9', display: 'flex', alignItems: 'center', paddingLeft: 7, border: '1px solid rgba(255,255,255,0.08)' }}>
+                              <span style={{ fontSize: 9, fontWeight: 700, color: draft.theme.sectionHeaderFont || '#1f2937', opacity: 0.6 }}>▸ Dados Pessoais</span>
+                            </div>
+                          ),
+                        },
+                        {
+                          label: 'Texto dentro da faixa',
+                          hint: 'Cor do texto que aparece dentro da barra separadora',
+                          key: 'sectionHeaderFont', value: draft.theme.sectionHeaderFont || '#1f2937',
+                          preview: (
+                            <div style={{ width: '100%', height: 20, borderRadius: 4, background: draft.theme.sectionHeaderBg || '#f1f5f9', display: 'flex', alignItems: 'center', paddingLeft: 7 }}>
+                              <span style={{ fontSize: 9, fontWeight: 700, color: draft.theme.sectionHeaderFont || '#1f2937' }}>▸ Dados Pessoais</span>
+                            </div>
+                          ),
+                        },
+                      ],
+                    },
+                    {
+                      group: 'Caixas de texto (inputs)',
+                      icon: '⌨️',
+                      items: [
+                        {
+                          label: 'Fundo das caixas de resposta',
+                          hint: 'Cor de fundo dos campos onde o usuário digita a resposta',
+                          key: 'inputBgColor', value: draft.theme.inputBgColor,
+                          preview: (
+                            <div style={{ width: '100%', height: 22, borderRadius: 5, background: draft.theme.inputBgColor, border: '1.5px solid rgba(255,255,255,0.12)', display: 'flex', alignItems: 'center', paddingLeft: 7 }}>
+                              <span style={{ fontSize: 9, color: draft.theme.inputFontColor || '#e8f2ff', fontStyle: 'italic' }}>Digite aqui...</span>
+                            </div>
+                          ),
+                        },
+                        {
+                          label: 'Texto digitado pelo usuário',
+                          hint: 'Cor das letras que o usuário digita dentro das caixas de resposta',
+                          key: 'inputFontColor', value: draft.theme.inputFontColor || '#e8f2ff',
+                          preview: (
+                            <div style={{ width: '100%', height: 22, borderRadius: 5, background: draft.theme.inputBgColor, border: '1.5px solid rgba(255,255,255,0.12)', display: 'flex', alignItems: 'center', paddingLeft: 7 }}>
+                              <span style={{ fontSize: 10, color: draft.theme.inputFontColor || '#e8f2ff', fontWeight: 500 }}>Exemplo de resposta</span>
+                            </div>
+                          ),
+                        },
+                      ],
+                    },
+                    {
+                      group: 'Botão de envio',
+                      icon: '🚀',
+                      items: [
+                        {
+                          label: 'Fundo do botão "Enviar Resposta"',
+                          hint: 'Cor de fundo do botão principal que o usuário clica para enviar',
+                          key: 'accentColor', value: draft.theme.accentColor,
+                          preview: (
+                            <div style={{ display: 'inline-flex', alignItems: 'center', gap: 5, background: draft.theme.accentColor, color: draft.theme.buttonFont || '#ffffff', fontSize: 10, fontWeight: 700, padding: '4px 12px', borderRadius: 5 }}>
+                              <span>↑</span>
+                              <span>Enviar Resposta</span>
+                            </div>
+                          ),
+                        },
+                        {
+                          label: 'Texto do botão "Enviar Resposta"',
+                          hint: 'Cor das letras visíveis dentro do botão de envio',
+                          key: 'buttonFont', value: draft.theme.buttonFont || '#ffffff',
+                          preview: (
+                            <div style={{ display: 'inline-flex', alignItems: 'center', gap: 5, background: draft.theme.accentColor, color: draft.theme.buttonFont || '#ffffff', fontSize: 10, fontWeight: 700, padding: '4px 12px', borderRadius: 5 }}>
+                              <span>↑</span>
+                              <span>Enviar Resposta</span>
+                            </div>
+                          ),
+                        },
+                      ],
+                    },
+                    {
+                      group: 'Tabelas e grades',
+                      icon: '📊',
+                      items: [
+                        {
+                          label: 'Fundo do cabeçalho (colunas)',
+                          hint: 'Cor de fundo da linha com os títulos das colunas da tabela',
+                          key: 'tableHeaderBg', value: draft.theme.tableHeaderBg || '#1a2238',
+                          preview: (
+                            <div style={{ display: 'flex', borderRadius: 4, overflow: 'hidden', border: `1px solid ${draft.theme.tableBorderColor || '#19263b'}` }}>
+                              {['', 'Seg', 'Ter', 'Qua'].map((c, i) => (
+                                <div key={i} style={{ flex: 1, background: draft.theme.tableHeaderBg || '#1a2238', padding: '3px 0', textAlign: 'center' }}>
+                                  <span style={{ fontSize: 8, fontWeight: 700, color: draft.theme.tableHeaderFont || '#49cfff' }}>{c}</span>
+                                </div>
+                              ))}
+                            </div>
+                          ),
+                        },
+                        {
+                          label: 'Texto do cabeçalho (colunas)',
+                          hint: 'Cor dos títulos das colunas — ex: "Seg", "Ter", "Horário Inicial"',
+                          key: 'tableHeaderFont', value: draft.theme.tableHeaderFont || '#49cfff',
+                          preview: (
+                            <div style={{ display: 'flex', borderRadius: 4, overflow: 'hidden', border: `1px solid ${draft.theme.tableBorderColor || '#19263b'}` }}>
+                              {['Seg', 'Ter', 'Qua'].map((c, i) => (
+                                <div key={i} style={{ flex: 1, background: draft.theme.tableHeaderBg || '#1a2238', padding: '3px 0', textAlign: 'center' }}>
+                                  <span style={{ fontSize: 8, fontWeight: 700, color: draft.theme.tableHeaderFont || '#49cfff' }}>{c}</span>
+                                </div>
+                              ))}
+                            </div>
+                          ),
+                        },
+                        {
+                          label: 'Linhas ímpares (1ª, 3ª, 5ª…)',
+                          hint: 'Cor de fundo das linhas de numeração ímpar — metade do efeito zebra',
+                          key: 'tableOddRowBg', value: draft.theme.tableOddRowBg || '#222c42',
+                          preview: (
+                            <div style={{ borderRadius: 4, overflow: 'hidden', border: `1px solid ${draft.theme.tableBorderColor || '#19263b'}` }}>
+                              {[draft.theme.tableOddRowBg || '#222c42', draft.theme.tableEvenRowBg || '#171e2c', draft.theme.tableOddRowBg || '#222c42'].map((bg, i) => (
+                                <div key={i} style={{ height: 8, background: bg, borderBottom: i < 2 ? `1px solid ${draft.theme.tableBorderColor || '#19263b'}` : 'none' }} />
+                              ))}
+                            </div>
+                          ),
+                        },
+                        {
+                          label: 'Linhas pares (2ª, 4ª, 6ª…)',
+                          hint: 'Cor de fundo das linhas de numeração par — cria efeito zebra com a ímpar',
+                          key: 'tableEvenRowBg', value: draft.theme.tableEvenRowBg || '#171e2c',
+                          preview: (
+                            <div style={{ borderRadius: 4, overflow: 'hidden', border: `1px solid ${draft.theme.tableBorderColor || '#19263b'}` }}>
+                              {[draft.theme.tableEvenRowBg || '#171e2c', draft.theme.tableOddRowBg || '#222c42', draft.theme.tableEvenRowBg || '#171e2c'].map((bg, i) => (
+                                <div key={i} style={{ height: 8, background: bg, borderBottom: i < 2 ? `1px solid ${draft.theme.tableBorderColor || '#19263b'}` : 'none' }} />
+                              ))}
+                            </div>
+                          ),
+                        },
+                        {
+                          label: 'Texto dentro das células',
+                          hint: 'Cor do texto que o usuário digita nas células da tabela',
+                          key: 'tableCellFont', value: draft.theme.tableCellFont || '#e0e6f7',
+                          preview: (
+                            <div style={{ display: 'flex', borderRadius: 4, overflow: 'hidden', border: `1px solid ${draft.theme.tableBorderColor || '#19263b'}` }}>
+                              {['08:00', '09:30', '14:00'].map((v, i) => (
+                                <div key={i} style={{ flex: 1, background: i % 2 === 0 ? (draft.theme.tableOddRowBg || '#222c42') : (draft.theme.tableEvenRowBg || '#171e2c'), padding: '3px 0', textAlign: 'center', borderRight: i < 2 ? `1px solid ${draft.theme.tableBorderColor || '#19263b'}` : 'none' }}>
+                                  <span style={{ fontSize: 8, color: draft.theme.tableCellFont || '#e0e6f7' }}>{v}</span>
+                                </div>
+                              ))}
+                            </div>
+                          ),
+                        },
+                        {
+                          label: 'Linhas de borda entre células',
+                          hint: 'Cor das linhas que dividem as células e colunas da tabela',
+                          key: 'tableBorderColor', value: draft.theme.tableBorderColor || '#19263b',
+                          preview: (
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', borderRadius: 4, overflow: 'hidden', border: `2px solid ${draft.theme.tableBorderColor || '#19263b'}` }}>
+                              {[0,1,2,3,4,5].map(i => (
+                                <div key={i} style={{ height: 8, background: i % 2 === 0 ? (draft.theme.tableOddRowBg || '#222c42') : (draft.theme.tableEvenRowBg || '#171e2c'), borderRight: (i+1) % 3 !== 0 ? `1.5px solid ${draft.theme.tableBorderColor || '#19263b'}` : 'none', borderBottom: i < 3 ? `1.5px solid ${draft.theme.tableBorderColor || '#19263b'}` : 'none' }} />
+                              ))}
+                            </div>
+                          ),
+                        },
+                      ],
+                    },
+                  ] as Array<{ group: string; icon: string; items: Array<{ label: string; hint: string; key: string; value: string; preview: React.ReactNode }> }>).map(({ group, icon, items }) => (
+                    <div key={group} style={{ marginBottom: '6px' }}>
+                      {/* Cabeçalho do grupo */}
+                      <div style={{
+                        display: 'flex', alignItems: 'center', gap: 6,
+                        fontSize: '10px', fontWeight: 700, letterSpacing: '0.07em',
+                        textTransform: 'uppercase', color: '#7dd3fc',
+                        margin: '14px 0 8px',
+                        paddingBottom: '7px',
+                        borderBottom: '1px solid rgba(125,211,252,0.15)',
                       }}>
-                        {item.label}
-                      </label>
-                      <input
-                        type="color"
-                        value={item.value}
-                        onChange={e => updateTheme({ [item.key]: e.target.value })}
-                        style={{ 
-                          height: '42px', 
-                          width: '100%',
-                          borderRadius: '8px',
-                          border: '2px solid #334155',
-                          cursor: 'pointer',
-                          backgroundColor: 'transparent'
-                        }}
-                      />
+                        <span>{icon}</span>
+                        <span>{group}</span>
+                      </div>
+                      {/* Itens */}
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                        {items.map(item => (
+                          <label key={item.key} style={{
+                            display: 'flex', alignItems: 'center', gap: '10px',
+                            background: 'rgba(255,255,255,0.04)',
+                            border: '1px solid rgba(255,255,255,0.08)',
+                            borderRadius: '10px', padding: '9px 11px',
+                            cursor: 'pointer',
+                            transition: 'background 0.15s, border-color 0.15s',
+                          }}
+                            onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.09)'; e.currentTarget.style.borderColor = 'rgba(125,211,252,0.25)'; }}
+                            onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.04)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)'; }}
+                          >
+                            {/* Swatch clicável */}
+                            <div style={{
+                              width: 36, height: 36, borderRadius: '8px',
+                              background: item.value,
+                              border: '2px solid rgba(255,255,255,0.2)',
+                              flexShrink: 0, position: 'relative', overflow: 'hidden',
+                              boxShadow: '0 2px 8px rgba(0,0,0,0.4)',
+                            }}>
+                              <input
+                                type="color"
+                                value={item.value}
+                                onChange={e => updateTheme({ [item.key]: e.target.value })}
+                                style={{
+                                  position: 'absolute', inset: '-6px',
+                                  width: 'calc(100% + 12px)', height: 'calc(100% + 12px)',
+                                  opacity: 0, cursor: 'pointer',
+                                }}
+                              />
+                            </div>
+                            {/* Texto */}
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <div style={{ fontSize: '12px', fontWeight: 600, color: '#f1f5f9', marginBottom: '2px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                {item.label}
+                              </div>
+                              <div style={{ fontSize: '10.5px', color: '#94a3b8', lineHeight: 1.35, marginBottom: '6px' }}>
+                                {item.hint}
+                              </div>
+                              {/* Mini preview */}
+                              {item.preview}
+                            </div>
+                            {/* Hex value */}
+                            <div style={{
+                              fontSize: '9px', fontFamily: 'monospace', fontWeight: 700,
+                              color: '#7dd3fc', background: 'rgba(0,0,0,0.35)',
+                              padding: '3px 6px', borderRadius: 5, flexShrink: 0,
+                              letterSpacing: '0.04em', border: '1px solid rgba(125,211,252,0.15)',
+                            }}>
+                              {item.value?.toUpperCase()}
+                            </div>
+                          </label>
+                        ))}
+                      </div>
                     </div>
                   ))}
+
+                  {/* ── Arredondamento dos cantos ── */}
+                  <div style={{ marginBottom: '6px' }}>
+                    <div style={{
+                      display: 'flex', alignItems: 'center', gap: 6,
+                      fontSize: '10px', fontWeight: 700, letterSpacing: '0.07em',
+                      textTransform: 'uppercase', color: '#7dd3fc',
+                      margin: '14px 0 8px', paddingBottom: '7px',
+                      borderBottom: '1px solid rgba(125,211,252,0.15)',
+                    }}>
+                      <span>⬡</span>
+                      <span>Cantos & Bordas</span>
+                    </div>
+                    <div style={{
+                      background: 'rgba(255,255,255,0.04)',
+                      border: '1px solid rgba(255,255,255,0.08)',
+                      borderRadius: '10px', padding: '9px 11px',
+                    }}>
+                      <div style={{ fontSize: '12px', fontWeight: 600, color: '#f1f5f9', marginBottom: '2px' }}>
+                        Arredondamento dos cantos
+                      </div>
+                      <div style={{ fontSize: '10.5px', color: '#94a3b8', marginBottom: '10px', lineHeight: 1.35 }}>
+                        Raio das bordas de campos, botões e cards — 0 = quadrado, 16 = bem arredondado
+                      </div>
+                      {/* Preview do borderRadius */}
+                      <div style={{ display: 'flex', gap: 6, marginBottom: '10px' }}>
+                        {[0, 4, 8, 16].map(r => (
+                          <div key={r} style={{
+                            flex: 1, height: 22, borderRadius: r,
+                            background: r === (draft.theme.borderRadius ?? 8) ? 'rgba(125,211,252,0.25)' : 'rgba(255,255,255,0.08)',
+                            border: `1.5px solid ${r === (draft.theme.borderRadius ?? 8) ? '#7dd3fc' : 'rgba(255,255,255,0.12)'}`,
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            cursor: 'pointer', transition: 'all 0.15s',
+                          }}
+                            onClick={() => updateTheme({ borderRadius: r })}
+                          >
+                            <span style={{ fontSize: 9, color: r === (draft.theme.borderRadius ?? 8) ? '#7dd3fc' : '#64748b', fontWeight: 700 }}>{r}px</span>
+                          </div>
+                        ))}
+                      </div>
+                      <input
+                        type="range" min={0} max={24} step={1}
+                        value={draft.theme.borderRadius ?? 8}
+                        onChange={e => updateTheme({ borderRadius: Number(e.target.value) })}
+                        style={{ width: '100%', accentColor: '#7dd3fc' }}
+                      />
+                      <div style={{ textAlign: 'right', fontSize: '10px', color: '#7dd3fc', fontWeight: 700, marginTop: 4 }}>
+                        {draft.theme.borderRadius ?? 8}px
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </>
             ) : (

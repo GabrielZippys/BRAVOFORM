@@ -146,9 +146,9 @@ export async function GET(
         description: formData.description,
         fields: formData.fields,
         theme: formData.theme,
-        logoUrl: formData.logoUrl || null,
-        logoSize: formData.logoSize ?? 40,
-        logoAlignment: formData.logoAlignment || 'Centro',
+        logoUrl: formData.logo?.url || formData.logoUrl || null,
+        logoSize: formData.logo?.size ?? formData.logoSize ?? 40,
+        logoAlignment: formData.logo?.align || formData.logoAlignment || 'center',
       }
     });
 
