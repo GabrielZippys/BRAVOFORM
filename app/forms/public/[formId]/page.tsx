@@ -32,6 +32,8 @@ interface FormData {
   theme?: {
     bgColor?: string;
     accentColor?: string;
+    titleColor?: string;
+    descriptionColor?: string;
     fontColor?: string;
     inputBgColor?: string;
     inputFontColor?: string;
@@ -452,18 +454,19 @@ export default function PublicFormPage() {
     switch (field.type) {
       case 'Cabeçalho':
         return (
-          <div key={field.id} style={{ marginBottom: '1.5rem' }}>
-            <h3 style={{
-              color: theme.sectionHeaderFont,
+          <div key={field.id} style={{ marginBottom: '1rem' }}>
+            <h2 style={{
+              marginBottom: '1rem',
               background: theme.sectionHeaderBg,
-              padding: '0.75rem',
+              color: theme.sectionHeaderFont,
+              fontSize: '1.5rem',
+              padding: 8,
               borderRadius: theme.borderRadius,
-              marginBottom: '0.5rem'
             }}>
               {field.label}
-            </h3>
+            </h2>
             {field.description && (
-              <p style={{ color: theme.fontColor, opacity: 0.8, fontSize: '0.9rem' }}>
+              <p style={{ margin: '0 0 0.5rem 0', color: theme.descriptionColor || theme.fontColor }}>
                 {field.description}
               </p>
             )}
@@ -473,23 +476,26 @@ export default function PublicFormPage() {
       case 'Texto':
         return (
           <div key={field.id} ref={(el) => { fieldRefs.current[fieldId] = el; }} style={{ marginBottom: '1rem' }}>
-            <label style={{ display: 'block', marginBottom: '0.5rem', color: theme.fontColor, fontWeight: 500 }}>
+            <label style={{ display: 'block', marginBottom: 8, color: theme.fontColor, fontWeight: 500 }}>
               {field.label}
-              {field.required && <span style={{ color: '#ef4444', marginLeft: '0.25rem' }}>*</span>}
+              {field.required && <span style={{ color: '#ef4444', marginLeft: 4 }}>*</span>}
             </label>
             <input
               type="text"
               value={value}
               onChange={(e) => handleInputChange(fieldId, e.target.value)}
               disabled={disabled}
-              placeholder={field.placeholder || ''}
+              placeholder={field.placeholder || 'Digite aqui...'}
               style={{
                 width: '100%',
-                padding: '0.75rem',
-                border: `2px solid ${borderColor}`,
+                padding: '8px 12px',
+                border: `1px solid ${theme.tableBorderColor || borderColor}`,
                 borderRadius: theme.borderRadius,
+                fontSize: 14,
                 background: theme.inputBgColor,
                 color: autoInputText,
+                caretColor: autoInputText,
+                boxSizing: 'border-box',
                 ...invalidize(fieldId)
               }}
             />
@@ -504,9 +510,9 @@ export default function PublicFormPage() {
       case 'Data':
         return (
           <div key={field.id} ref={(el) => { fieldRefs.current[fieldId] = el; }} style={{ marginBottom: '1rem' }}>
-            <label style={{ display: 'block', marginBottom: '0.5rem', color: theme.fontColor, fontWeight: 500 }}>
+            <label style={{ display: 'block', marginBottom: 8, color: theme.fontColor, fontWeight: 500 }}>
               {field.label}
-              {field.required && <span style={{ color: '#ef4444', marginLeft: '0.25rem' }}>*</span>}
+              {field.required && <span style={{ color: '#ef4444', marginLeft: 4 }}>*</span>}
             </label>
             <input
               type="date"
@@ -515,11 +521,14 @@ export default function PublicFormPage() {
               disabled={disabled}
               style={{
                 width: '100%',
-                padding: '0.75rem',
-                border: `2px solid ${borderColor}`,
+                padding: '8px 12px',
+                border: `1px solid ${theme.tableBorderColor || borderColor}`,
                 borderRadius: theme.borderRadius,
+                fontSize: 14,
                 background: theme.inputBgColor,
                 color: autoInputText,
+                caretColor: autoInputText,
+                boxSizing: 'border-box',
                 ...invalidize(fieldId)
               }}
             />
@@ -534,60 +543,77 @@ export default function PublicFormPage() {
       case 'Múltipla Escolha':
         return (
           <div key={field.id} ref={(el) => { fieldRefs.current[fieldId] = el; }} style={{ marginBottom: '1rem' }}>
-            <label style={{ display: 'block', marginBottom: '0.5rem', color: theme.fontColor, fontWeight: 500 }}>
+            <label style={{ display: 'block', marginBottom: 8, color: theme.fontColor, fontWeight: 500 }}>
               {field.label}
-              {field.required && <span style={{ color: '#ef4444', marginLeft: '0.25rem' }}>*</span>}
+              {field.required && <span style={{ color: '#ef4444', marginLeft: 4 }}>*</span>}
             </label>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-              {field.options?.map(option => {
-                const isChecked = value === option;
-                return (
-                  <label key={option} style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', cursor: 'pointer', padding: '0.25rem 0' }}
-                    onClick={() => { if (!disabled) handleInputChange(fieldId, option); }}>
-                    <span style={{
-                      width: 20, height: 20, borderRadius: '50%', flexShrink: 0,
-                      border: `2px solid ${isChecked ? theme.accentColor : tickBorderColor}`,
-                      background: isChecked ? theme.accentColor : tickBgUnchecked,
-                      display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      transition: 'all 0.15s ease',
-                    }}>
-                      {isChecked && <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#fff' }} />}
-                    </span>
-                    <span style={{ color: theme.fontColor }}>{option}</span>
+            {field.displayAs === 'dropdown' ? (
+              <select
+                value={value as string ?? ''}
+                onChange={(e) => handleInputChange(fieldId, e.target.value)}
+                disabled={disabled}
+                style={{
+                  width: '100%',
+                  padding: '8px 12px',
+                  border: `1px solid ${theme.tableBorderColor || borderColor}`,
+                  borderRadius: theme.borderRadius,
+                  fontSize: 14,
+                  background: theme.inputBgColor,
+                  color: autoInputText,
+                  boxSizing: 'border-box',
+                  ...invalidize(fieldId)
+                }}
+              >
+                <option value="">Selecione uma opção</option>
+                {field.options?.map((option, i) => (
+                  <option key={i} value={option}>{option}</option>
+                ))}
+              </select>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {field.options?.map((option, i) => (
+                  <label key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, color: theme.fontColor }}>
+                    <input
+                      type="radio"
+                      name={fieldId}
+                      value={option}
+                      checked={value === option}
+                      onChange={() => { if (!disabled) handleInputChange(fieldId, option); }}
+                      disabled={disabled}
+                    />
+                    <span>{option}</span>
                   </label>
-                );
-              })}
-              {field.allowOther && (
-                <label style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', cursor: 'pointer', padding: '0.25rem 0' }}
-                  onClick={() => { if (!disabled) handleInputChange(fieldId, '___OTHER___'); }}>
-                  <span style={{
-                    width: 20, height: 20, borderRadius: '50%', flexShrink: 0,
-                    border: `2px solid ${value === '___OTHER___' ? theme.accentColor : tickBorderColor}`,
-                    background: value === '___OTHER___' ? theme.accentColor : tickBgUnchecked,
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    transition: 'all 0.15s ease',
-                  }}>
-                    {value === '___OTHER___' && <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#fff' }} />}
-                  </span>
-                  <span style={{ color: theme.fontColor }}>Outro:</span>
-                  <input
-                    type="text"
-                    value={otherInputValues[fieldId] || ''}
-                    onChange={(e) => handleOtherInputChange(fieldId, e.target.value)}
-                    placeholder="Especifique..."
-                    disabled={disabled || value !== '___OTHER___'}
-                    style={{
-                      flex: 1,
-                      padding: '0.5rem',
-                      border: `1px solid ${borderColor}`,
-                      borderRadius: theme.borderRadius,
-                      background: theme.inputBgColor,
-                      color: autoInputText
-                    }}
-                  />
-                </label>
-              )}
-            </div>
+                ))}
+                {field.allowOther && (
+                  <label style={{ display: 'flex', alignItems: 'center', gap: 8, color: theme.fontColor }}>
+                    <input
+                      type="radio"
+                      name={fieldId}
+                      value="___OTHER___"
+                      checked={value === '___OTHER___'}
+                      onChange={() => { if (!disabled) handleInputChange(fieldId, '___OTHER___'); }}
+                      disabled={disabled}
+                    />
+                    <span>Outro:</span>
+                    <input
+                      type="text"
+                      value={otherInputValues[fieldId] || ''}
+                      onChange={(e) => handleOtherInputChange(fieldId, e.target.value)}
+                      placeholder="Especifique..."
+                      disabled={disabled || value !== '___OTHER___'}
+                      style={{
+                        flex: 1, padding: '4px 8px',
+                        border: `1px solid ${theme.tableBorderColor || borderColor}`,
+                        borderRadius: theme.borderRadius,
+                        fontSize: 14,
+                        background: theme.inputBgColor,
+                        color: autoInputText,
+                      }}
+                    />
+                  </label>
+                )}
+              </div>
+            )}
             {invalid[fieldId] && (
               <p style={{ color: '#ef4444', fontSize: '0.875rem', marginTop: '0.25rem' }}>
                 {invalid[fieldId]}
@@ -599,64 +625,46 @@ export default function PublicFormPage() {
       case 'Caixa de Seleção':
         return (
           <div key={field.id} ref={(el) => { fieldRefs.current[fieldId] = el; }} style={{ marginBottom: '1rem' }}>
-            <label style={{ display: 'block', marginBottom: '0.5rem', color: theme.fontColor, fontWeight: 500 }}>
+            <label style={{ display: 'block', marginBottom: 8, color: theme.fontColor, fontWeight: 500 }}>
               {field.label}
-              {field.required && <span style={{ color: '#ef4444', marginLeft: '0.25rem' }}>*</span>}
+              {field.required && <span style={{ color: '#ef4444', marginLeft: 4 }}>*</span>}
             </label>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-              {field.options?.map(option => {
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {field.options?.map((option, i) => {
                 const isChecked = Array.isArray(value) && value.includes(option);
                 return (
-                  <label key={option} style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', cursor: 'pointer', padding: '0.25rem 0' }}
-                    onClick={() => {
-                      if (disabled) return;
-                      const current = Array.isArray(value) ? value : [];
-                      if (isChecked) handleInputChange(fieldId, current.filter(item => item !== option));
-                      else handleInputChange(fieldId, [...current, option]);
-                    }}>
-                    <span style={{
-                      width: 20, height: 20, borderRadius: 4, flexShrink: 0,
-                      border: `2px solid ${isChecked ? theme.accentColor : tickBorderColor}`,
-                      background: isChecked ? theme.accentColor : tickBgUnchecked,
-                      display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      transition: 'all 0.15s ease',
-                    }}>
-                      {isChecked && (
-                        <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
-                          <path d="M2 6L5 9L10 3" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                        </svg>
-                      )}
-                    </span>
-                    <span style={{ color: theme.fontColor }}>{option}</span>
+                  <label key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, color: theme.fontColor }}>
+                    <input
+                      type="checkbox"
+                      checked={isChecked}
+                      disabled={disabled}
+                      onChange={() => {
+                        if (disabled) return;
+                        const current = Array.isArray(value) ? value : [];
+                        if (isChecked) handleInputChange(fieldId, current.filter((item: string) => item !== option));
+                        else handleInputChange(fieldId, [...current, option]);
+                      }}
+                    />
+                    <span>{option}</span>
                   </label>
                 );
               })}
               {field.allowOther && (() => {
                 const isOtherChecked = Array.isArray(value) && value.includes('___OTHER___');
                 return (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
-                    <label style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', cursor: 'pointer', padding: '0.25rem 0' }}
-                      onClick={() => {
+                  <label style={{ display: 'flex', alignItems: 'center', gap: 8, color: theme.fontColor }}>
+                    <input
+                      type="checkbox"
+                      checked={isOtherChecked}
+                      disabled={disabled}
+                      onChange={() => {
                         if (disabled) return;
                         const current = Array.isArray(value) ? value : [];
-                        if (isOtherChecked) handleInputChange(fieldId, current.filter(item => item !== '___OTHER___'));
+                        if (isOtherChecked) handleInputChange(fieldId, current.filter((item: string) => item !== '___OTHER___'));
                         else handleInputChange(fieldId, [...current, '___OTHER___']);
-                      }}>
-                      <span style={{
-                        width: 20, height: 20, borderRadius: 4, flexShrink: 0,
-                        border: `2px solid ${isOtherChecked ? theme.accentColor : tickBorderColor}`,
-                        background: isOtherChecked ? theme.accentColor : tickBgUnchecked,
-                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        transition: 'all 0.15s ease',
-                      }}>
-                        {isOtherChecked && (
-                          <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
-                            <path d="M2 6L5 9L10 3" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                          </svg>
-                        )}
-                      </span>
-                      <span style={{ color: theme.fontColor }}>Outro:</span>
-                    </label>
+                      }}
+                    />
+                    <span>Outro:</span>
                     <input
                       type="text"
                       value={otherInputValues[fieldId] || ''}
@@ -664,15 +672,15 @@ export default function PublicFormPage() {
                       placeholder="Especifique..."
                       disabled={disabled || !isOtherChecked}
                       style={{
-                        flex: 1,
-                        padding: '0.5rem',
-                        border: `1px solid ${borderColor}`,
+                        flex: 1, padding: '4px 8px',
+                        border: `1px solid ${theme.tableBorderColor || borderColor}`,
                         borderRadius: theme.borderRadius,
+                        fontSize: 14,
                         background: theme.inputBgColor,
-                        color: autoInputText
+                        color: autoInputText,
                       }}
                     />
-                  </div>
+                  </label>
                 );
               })()}
             </div>
@@ -687,41 +695,30 @@ export default function PublicFormPage() {
       case 'Tabela':
         return (
           <div key={field.id} ref={(el) => { fieldRefs.current[fieldId] = el; }} style={{ marginBottom: '1rem' }}>
-            <label style={{ display: 'block', marginBottom: '0.5rem', color: theme.fontColor, fontWeight: 500 }}>
+            <label style={{ display: 'block', marginBottom: 8, color: theme.fontColor, fontWeight: 500 }}>
               {field.label}
-              {field.required && <span style={{ color: '#ef4444', marginLeft: '0.25rem' }}>*</span>}
+              {field.required && <span style={{ color: '#ef4444', marginLeft: 4 }}>*</span>}
             </label>
-            <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
+            <div style={{ overflowX: 'auto' }}>
               <table style={{
                 width: '100%',
                 borderCollapse: 'collapse',
-                border: `1.5px solid ${theme.tableBorderColor}`,
-                borderRadius: theme.borderRadius,
-                fontSize: 16,
-                background: theme.bgColor,
-                color: theme.tableCellFont,
-                overflow: 'hidden',
+                border: `1px solid ${theme.tableBorderColor}`,
               }}>
-                <colgroup>
-                  <col style={{ width: '40%' }} />
-                  {(field.columns || []).map((_, i) => (
-                    <col key={i} style={{ width: `${Math.floor(60 / (field.columns?.length || 1))}%` }} />
-                  ))}
-                </colgroup>
                 <thead>
                   <tr>
                     <th style={{
+                      border: `1px solid ${theme.tableBorderColor}`,
+                      padding: '8px',
                       background: theme.tableHeaderBg,
                       color: theme.tableHeaderFont,
-                      border: `1.5px solid ${theme.tableBorderColor}`,
-                      padding: 8, fontWeight: 'bold', fontSize: 16,
                     }} />
                     {field.columns?.map((col: any) => (
                       <th key={col.id} style={{
+                        border: `1px solid ${theme.tableBorderColor}`,
+                        padding: '8px',
                         background: theme.tableHeaderBg,
                         color: theme.tableHeaderFont,
-                        border: `1.5px solid ${theme.tableBorderColor}`,
-                        padding: 8, fontWeight: 600, fontSize: 16,
                       }}>
                         {col.label}
                       </th>
@@ -732,34 +729,31 @@ export default function PublicFormPage() {
                   {field.rows?.map((row: any, ridx: number) => (
                     <tr key={row.id} style={{
                       background: ridx % 2 === 0 ? theme.tableOddRowBg : theme.tableEvenRowBg,
-                      color: theme.tableCellFont,
                     }}>
                       <td style={{
+                        border: `1px solid ${theme.tableBorderColor}`,
+                        padding: '8px',
                         fontWeight: 500,
-                        border: `1.5px solid ${theme.tableBorderColor}`,
+                        color: theme.tableCellFont || theme.fontColor,
                         background: theme.tableHeaderBg,
-                        color: theme.tableHeaderFont,
-                        padding: 7,
                       }}>
                         {row.label}
                       </td>
                       {field.columns?.map((col: any) => {
                         const cellValue = responses[fieldId]?.[String(row.id)]?.[String(col.id)] ?? '';
-                        const cellBase: React.CSSProperties = {
+                        const cellInputStyle: React.CSSProperties = {
                           width: '100%',
+                          padding: '4px',
+                          border: 'none',
                           background: theme.inputBgColor,
                           color: autoInputText,
                           caretColor: autoInputText,
-                          borderWidth: 1.5, borderStyle: 'solid',
-                          borderColor: theme.tableBorderColor,
-                          borderRadius: theme.borderRadius,
-                          padding: '5px 10px', fontSize: 16,
                         };
                         let cellContent: React.ReactNode;
                         if (col.type === 'select') {
                           cellContent = (
                             <select
-                              style={cellBase}
+                              style={cellInputStyle}
                               value={cellValue}
                               onChange={e => handleTableInputChange(fieldId, String(row.id), String(col.id), e.target.value)}
                               disabled={disabled}
@@ -773,8 +767,8 @@ export default function PublicFormPage() {
                         } else if (col.type === 'date' || col.type === 'Data') {
                           cellContent = (
                             <input
-                              style={cellBase}
-                              type="datetime-local"
+                              style={cellInputStyle}
+                              type="date"
                               value={cellValue}
                               onChange={e => handleTableInputChange(fieldId, String(row.id), String(col.id), e.target.value)}
                               disabled={disabled}
@@ -783,9 +777,9 @@ export default function PublicFormPage() {
                         } else if (col.type === 'number') {
                           cellContent = (
                             <input
-                              style={cellBase}
-                              type="text"
-                              inputMode="decimal"
+                              style={cellInputStyle}
+                              type="number"
+                              step={col.numberType === 'integer' ? '1' : 'any'}
                               value={cellValue}
                               onChange={e => handleTableInputChange(fieldId, String(row.id), String(col.id), e.target.value)}
                               disabled={disabled}
@@ -795,7 +789,7 @@ export default function PublicFormPage() {
                         } else {
                           cellContent = (
                             <input
-                              style={cellBase}
+                              style={cellInputStyle}
                               type="text"
                               value={cellValue}
                               onChange={e => handleTableInputChange(fieldId, String(row.id), String(col.id), e.target.value)}
@@ -805,8 +799,9 @@ export default function PublicFormPage() {
                         }
                         return (
                           <td key={col.id} style={{
-                            border: `1.5px solid ${theme.tableBorderColor}`,
-                            padding: 4,
+                            border: `1px solid ${theme.tableBorderColor}`,
+                            padding: '4px',
+                            color: theme.tableCellFont || theme.fontColor,
                           }}>
                             {cellContent}
                           </td>
@@ -929,23 +924,26 @@ export default function PublicFormPage() {
       default:
         return (
           <div key={field.id} ref={(el) => { fieldRefs.current[fieldId] = el; }} style={{ marginBottom: '1rem' }}>
-            <label style={{ display: 'block', marginBottom: '0.5rem', color: theme.fontColor, fontWeight: 500 }}>
+            <label style={{ display: 'block', marginBottom: 8, color: theme.fontColor, fontWeight: 500 }}>
               {field.label}
-              {field.required && <span style={{ color: '#ef4444', marginLeft: '0.25rem' }}>*</span>}
+              {field.required && <span style={{ color: '#ef4444', marginLeft: 4 }}>*</span>}
             </label>
             <input
               type="text"
               value={value}
               onChange={(e) => handleInputChange(fieldId, e.target.value)}
               disabled={disabled}
-              placeholder={field.placeholder || ''}
+              placeholder={field.placeholder || 'Digite aqui...'}
               style={{
                 width: '100%',
-                padding: '0.75rem',
-                border: `2px solid ${borderColor}`,
+                padding: '8px 12px',
+                border: `1px solid ${theme.tableBorderColor || borderColor}`,
                 borderRadius: theme.borderRadius,
+                fontSize: 14,
                 background: theme.inputBgColor,
                 color: autoInputText,
+                caretColor: autoInputText,
+                boxSizing: 'border-box',
                 ...invalidize(fieldId)
               }}
             />
@@ -1053,7 +1051,7 @@ export default function PublicFormPage() {
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <div style={{ height: 1, width: 36, background: 'linear-gradient(90deg, transparent, rgba(56,189,248,0.5))' }} />
           <span style={{ fontSize: 11, color: 'rgba(148,163,184,0.55)', letterSpacing: '0.3em', textTransform: 'uppercase' }}>
-            Form Platform
+            Plataforma de Formulários
           </span>
           <div style={{ height: 1, width: 36, background: 'linear-gradient(90deg, rgba(56,189,248,0.5), transparent)' }} />
         </div>
@@ -1207,37 +1205,45 @@ export default function PublicFormPage() {
           background: theme.bgColor,
           borderRadius: Math.max(theme.borderRadius as number, 12),
           boxShadow: isDarkBg ? '0 8px 48px rgba(0,0,0,0.55)' : '0 8px 48px rgba(0,0,0,0.13)',
-          border: `1px solid ${isDarkBg ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.05)'}`,
+          border: `2px solid ${theme.accentColor}`,
           overflow: 'hidden',
         }}>
           {/* Header com logo e título */}
           <header style={{
-            padding: '2.5rem 2.5rem 2rem',
+            padding: '2rem 2rem 1.5rem',
             borderBottom: `1px solid ${isDarkBg ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.06)'}`,
-            textAlign: (form.logoAlignment === 'Direita' || form.logoAlignment === 'right') ? 'right' : (form.logoAlignment === 'Esquerda' || form.logoAlignment === 'left') ? 'left' : 'center',
           }}>
             {form.logoUrl && (
-              <div style={{ marginBottom: '1.25rem' }}>
+              <div style={{
+                width: '100%',
+                display: 'flex',
+                justifyContent:
+                  (form.logoAlignment === 'left' || form.logoAlignment === 'Esquerda') ? 'flex-start'
+                  : (form.logoAlignment === 'right' || form.logoAlignment === 'Direita') ? 'flex-end'
+                  : 'center',
+                marginBottom: 10,
+              }}>
                 <img
                   src={form.logoUrl}
                   alt="Logo"
                   style={{
-                    maxWidth: `${form.logoSize || 40}%`,
+                    width: form.logoSize ? `${form.logoSize}%` : '40%',
+                    maxWidth: 240,
                     height: 'auto',
                     objectFit: 'contain',
                   }}
                 />
               </div>
             )}
-            <h1 style={{
-              fontSize: '1.75rem',
+            <h2 style={{
+              fontSize: '1.5rem',
               fontWeight: 700,
-              marginBottom: '0.5rem',
+              margin: '0 0 0.5rem 0',
               color: theme.titleColor,
               lineHeight: 1.2,
             }}>
               {form.title}
-            </h1>
+            </h2>
             {form.description && (
               <p style={{ color: theme.descriptionColor, margin: 0, fontSize: '0.95rem' }}>
                 {form.description}
@@ -1341,6 +1347,13 @@ export default function PublicFormPage() {
         }
         select {
           color-scheme: ${isDarkBg ? 'dark' : 'light'};
+        }
+        input[type="radio"], input[type="checkbox"] {
+          accent-color: ${theme.accentColor};
+          width: 16px;
+          height: 16px;
+          cursor: pointer;
+          flex-shrink: 0;
         }
       `}</style>
     </div>

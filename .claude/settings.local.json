@@ -5,7 +5,15 @@
       "Bash(set SYNC_ALL=true)",
       "Bash(python scripts/sync-firestore-to-postgresql.py)",
       "Bash(python -c \"import os; os.environ[''SYNC_ALL'']=''true''; exec\\(open\\(''scripts/sync-firestore-to-postgresql.py''\\).read\\(\\)\\)\")",
-      "Bash(powershell -Command \"$env:SYNC_ALL=''true''; python scripts/sync-firestore-to-postgresql.py\")"
+      "Bash(powershell -Command \"$env:SYNC_ALL=''true''; python scripts/sync-firestore-to-postgresql.py\")",
+      "Bash(xargs grep:*)",
+      "Bash(grep -n \"preview\\\\|Preview\\\\|renderField\\\\|renderForm\\\\|PreviewPanel\" app/forms/builder/[id]/page.tsx)",
+      "Bash(grep -n \"logoAlignment\\\\|logo.*align\\\\|align.*logo\\\\|logo.*position\\\\|titleColor\\\\|descriptionColor\\\\|pageBg\\\\|cardBg\\\\|card.*bg\" app/forms/builder/[id]/page.tsx)",
+      "Bash(grep -n \"Cabeçalho\\\\|sectionHeader\\\\|displayAs\\\\|dropdown\\\\|Múltipla\\\\|Selecionar\" app/forms/public/[formId]/page.tsx)",
+      "Bash(grep -n \"Selecionar\\\\|select.*style\\\\|style.*select\" app/forms/public/[formId]/page.tsx)",
+      "Bash(grep -n \"Form Platform\\\\|BravoForm\" app/forms/public/[formId]/page.tsx)",
+      "Bash(npx tsc:*)",
+      "Bash(grep -n \"tableBorderColor\\\\|tableHeaderBg\\\\|tableHeaderFont\\\\|tableCellFont\\\\|tableOddRow\\\\|tableEvenRow\" app/forms/public/[formId]/page.tsx)"
     ]
   }
 }
