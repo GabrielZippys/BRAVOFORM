@@ -186,14 +186,17 @@ export default function PublicFormPage() {
   const autoPlaceholder = withAlpha(autoInputText, 0.6);
   const borderColor = theme.borderColor || "#e5e7eb";
 
-  // Contraste para radio/checkbox - detecta fundo e calcula cor inversa
+  // Contraste para radio/checkbox - detecta luminância do fundo e adapta cores
   const bgLuminance = (() => {
     const c = parseColor(theme.bgColor);
     return (0.299 * c.r + 0.587 * c.g + 0.114 * c.b) / 255;
   })();
   const isDarkBg = bgLuminance < 0.5;
-  const tickBorderColor = isDarkBg ? 'rgba(255,255,255,0.7)' : 'rgba(0,0,0,0.4)';
-  const tickBgUnchecked = isDarkBg ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)';
+
+  // Cores inteligentes para estado desmarcado: contraste garantido em fundos claros e escuros
+  const tickBorderColor   = isDarkBg ? 'rgba(255,255,255,0.6)' : 'rgba(0,0,0,0.35)';
+  const tickBgUnchecked   = isDarkBg ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.04)';
+  const tickLabelColor    = theme.fontColor;
 
   // Validação
   const isBlank = (v: any) => (typeof v === 'string' ? v.trim() === '' : v == null);
@@ -570,48 +573,62 @@ export default function PublicFormPage() {
                 ))}
               </select>
             ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                {field.options?.map((option, i) => (
-                  <label key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, color: theme.fontColor }}>
-                    <input
-                      type="radio"
-                      name={fieldId}
-                      value={option}
-                      checked={value === option}
-                      onChange={() => { if (!disabled) handleInputChange(fieldId, option); }}
-                      disabled={disabled}
-                    />
-                    <span>{option}</span>
-                  </label>
-                ))}
-                {field.allowOther && (
-                  <label style={{ display: 'flex', alignItems: 'center', gap: 8, color: theme.fontColor }}>
-                    <input
-                      type="radio"
-                      name={fieldId}
-                      value="___OTHER___"
-                      checked={value === '___OTHER___'}
-                      onChange={() => { if (!disabled) handleInputChange(fieldId, '___OTHER___'); }}
-                      disabled={disabled}
-                    />
-                    <span>Outro:</span>
-                    <input
-                      type="text"
-                      value={otherInputValues[fieldId] || ''}
-                      onChange={(e) => handleOtherInputChange(fieldId, e.target.value)}
-                      placeholder="Especifique..."
-                      disabled={disabled || value !== '___OTHER___'}
-                      style={{
-                        flex: 1, padding: '4px 8px',
-                        border: `1px solid ${theme.tableBorderColor || borderColor}`,
-                        borderRadius: theme.borderRadius,
-                        fontSize: 14,
-                        background: theme.inputBgColor,
-                        color: autoInputText,
-                      }}
-                    />
-                  </label>
-                )}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                {field.options?.map((option, i) => {
+                  const isChecked = value === option;
+                  return (
+                    <label key={i} onClick={() => { if (!disabled) handleInputChange(fieldId, option); }}
+                      style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: disabled ? 'default' : 'pointer', userSelect: 'none', padding: '3px 0' }}>
+                      {/* Círculo custom com contraste inteligente */}
+                      <span style={{
+                        flexShrink: 0,
+                        width: 18, height: 18, borderRadius: '50%',
+                        border: `2px solid ${isChecked ? theme.accentColor : tickBorderColor}`,
+                        background: isChecked ? theme.accentColor : tickBgUnchecked,
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        transition: 'border-color 0.15s, background 0.15s',
+                        boxShadow: isChecked ? `0 0 0 3px ${withAlpha(theme.accentColor, 0.18)}` : 'none',
+                      }}>
+                        {isChecked && <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#fff' }} />}
+                      </span>
+                      <span style={{ color: tickLabelColor, fontSize: 14 }}>{option}</span>
+                    </label>
+                  );
+                })}
+                {field.allowOther && (() => {
+                  const isOther = value === '___OTHER___';
+                  return (
+                    <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: disabled ? 'default' : 'pointer', userSelect: 'none', padding: '3px 0' }}>
+                      <span onClick={() => { if (!disabled) handleInputChange(fieldId, '___OTHER___'); }} style={{
+                        flexShrink: 0,
+                        width: 18, height: 18, borderRadius: '50%',
+                        border: `2px solid ${isOther ? theme.accentColor : tickBorderColor}`,
+                        background: isOther ? theme.accentColor : tickBgUnchecked,
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        transition: 'border-color 0.15s, background 0.15s',
+                        boxShadow: isOther ? `0 0 0 3px ${withAlpha(theme.accentColor, 0.18)}` : 'none',
+                      }}>
+                        {isOther && <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#fff' }} />}
+                      </span>
+                      <span style={{ color: tickLabelColor, fontSize: 14 }}>Outro:</span>
+                      <input
+                        type="text"
+                        value={otherInputValues[fieldId] || ''}
+                        onChange={(e) => handleOtherInputChange(fieldId, e.target.value)}
+                        placeholder="Especifique..."
+                        disabled={disabled || !isOther}
+                        style={{
+                          flex: 1, padding: '4px 8px',
+                          border: `1px solid ${theme.tableBorderColor || borderColor}`,
+                          borderRadius: theme.borderRadius,
+                          fontSize: 14,
+                          background: theme.inputBgColor,
+                          color: autoInputText,
+                        }}
+                      />
+                    </label>
+                  );
+                })()}
               </div>
             )}
             {invalid[fieldId] && (
@@ -629,42 +646,61 @@ export default function PublicFormPage() {
               {field.label}
               {field.required && <span style={{ color: '#ef4444', marginLeft: 4 }}>*</span>}
             </label>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
               {field.options?.map((option, i) => {
                 const isChecked = Array.isArray(value) && value.includes(option);
                 return (
-                  <label key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, color: theme.fontColor }}>
-                    <input
-                      type="checkbox"
-                      checked={isChecked}
-                      disabled={disabled}
-                      onChange={() => {
-                        if (disabled) return;
-                        const current = Array.isArray(value) ? value : [];
-                        if (isChecked) handleInputChange(fieldId, current.filter((item: string) => item !== option));
-                        else handleInputChange(fieldId, [...current, option]);
-                      }}
-                    />
-                    <span>{option}</span>
+                  <label key={i} onClick={() => {
+                    if (disabled) return;
+                    const current = Array.isArray(value) ? value : [];
+                    if (isChecked) handleInputChange(fieldId, current.filter((item: string) => item !== option));
+                    else handleInputChange(fieldId, [...current, option]);
+                  }} style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: disabled ? 'default' : 'pointer', userSelect: 'none', padding: '3px 0' }}>
+                    {/* Quadrado custom com contraste inteligente */}
+                    <span style={{
+                      flexShrink: 0,
+                      width: 18, height: 18, borderRadius: 4,
+                      border: `2px solid ${isChecked ? theme.accentColor : tickBorderColor}`,
+                      background: isChecked ? theme.accentColor : tickBgUnchecked,
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      transition: 'border-color 0.15s, background 0.15s',
+                      boxShadow: isChecked ? `0 0 0 3px ${withAlpha(theme.accentColor, 0.18)}` : 'none',
+                    }}>
+                      {isChecked && (
+                        <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+                          <path d="M1.5 5L4 7.5L8.5 2.5" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                        </svg>
+                      )}
+                    </span>
+                    <span style={{ color: tickLabelColor, fontSize: 14 }}>{option}</span>
                   </label>
                 );
               })}
               {field.allowOther && (() => {
                 const isOtherChecked = Array.isArray(value) && value.includes('___OTHER___');
                 return (
-                  <label style={{ display: 'flex', alignItems: 'center', gap: 8, color: theme.fontColor }}>
-                    <input
-                      type="checkbox"
-                      checked={isOtherChecked}
-                      disabled={disabled}
-                      onChange={() => {
-                        if (disabled) return;
-                        const current = Array.isArray(value) ? value : [];
-                        if (isOtherChecked) handleInputChange(fieldId, current.filter((item: string) => item !== '___OTHER___'));
-                        else handleInputChange(fieldId, [...current, '___OTHER___']);
-                      }}
-                    />
-                    <span>Outro:</span>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: disabled ? 'default' : 'pointer', userSelect: 'none', padding: '3px 0' }}>
+                    <span onClick={() => {
+                      if (disabled) return;
+                      const current = Array.isArray(value) ? value : [];
+                      if (isOtherChecked) handleInputChange(fieldId, current.filter((item: string) => item !== '___OTHER___'));
+                      else handleInputChange(fieldId, [...current, '___OTHER___']);
+                    }} style={{
+                      flexShrink: 0,
+                      width: 18, height: 18, borderRadius: 4,
+                      border: `2px solid ${isOtherChecked ? theme.accentColor : tickBorderColor}`,
+                      background: isOtherChecked ? theme.accentColor : tickBgUnchecked,
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      transition: 'border-color 0.15s, background 0.15s',
+                      boxShadow: isOtherChecked ? `0 0 0 3px ${withAlpha(theme.accentColor, 0.18)}` : 'none',
+                    }}>
+                      {isOtherChecked && (
+                        <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+                          <path d="M1.5 5L4 7.5L8.5 2.5" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                        </svg>
+                      )}
+                    </span>
+                    <span style={{ color: tickLabelColor, fontSize: 14 }}>Outro:</span>
                     <input
                       type="text"
                       value={otherInputValues[fieldId] || ''}
@@ -1347,13 +1383,6 @@ export default function PublicFormPage() {
         }
         select {
           color-scheme: ${isDarkBg ? 'dark' : 'light'};
-        }
-        input[type="radio"], input[type="checkbox"] {
-          accent-color: ${theme.accentColor};
-          width: 16px;
-          height: 16px;
-          cursor: pointer;
-          flex-shrink: 0;
         }
       `}</style>
     </div>
