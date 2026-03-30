@@ -20,6 +20,19 @@ interface DocumentData {
   data: Record<string, any>;
 }
 
+interface ColumnMeta {
+  name: string;
+  label: string;
+  type: string;
+  hidden: boolean;
+}
+
+interface TableMeta {
+  pkColumn: string;
+  columns: ColumnMeta[];
+  tableName: string;
+}
+
 export default function FirestoreExplorer() {
   const [collections, setCollections] = useState<CollectionInfo[]>([]);
   const [selectedCollection, setSelectedCollection] = useState<string | null>(null);
@@ -27,6 +40,7 @@ export default function FirestoreExplorer() {
 
   const [documents, setDocuments] = useState<DocumentData[]>([]);
   const [loadingDocs, setLoadingDocs] = useState(false);
+  const [tableMeta, setTableMeta] = useState<TableMeta | null>(null);
 
   const [allFields, setAllFields] = useState<string[]>([]);
   const [visibleFields, setVisibleFields] = useState<string[]>([]);
@@ -93,25 +107,42 @@ export default function FirestoreExplorer() {
     setSelectedIds(new Set());
     setShowDuplicates(false);
     setDuplicateField('');
+    setTableMeta(null);
     try {
       const response = await fetch(`/api/dataconnect/list-tables?table=${collectionName}`);
       const result = await response.json();
       
       if (result.success) {
+        const meta: TableMeta | null = result.meta || null;
+        setTableMeta(meta);
+        const pkCol = meta?.pkColumn || 'id';
+
         const docs: DocumentData[] = result.data.map((row: any) => {
-          const { id, ...data } = row;
-          return { id: String(id), data };
+          const id = String(row[pkCol] ?? row.id ?? '');
+          const data = { ...row };
+          delete data[pkCol]; // Don't show PK in data columns
+          return { id, data };
         });
         
-        const fieldsSet = new Set<string>();
-        docs.forEach(doc => {
-          Object.keys(doc.data).forEach(k => fieldsSet.add(k));
-        });
-        
-        const fields = Array.from(fieldsSet).sort();
+        // Build field list from metadata (respects column order)
+        let fields: string[];
+        if (meta?.columns) {
+          fields = meta.columns
+            .filter(c => c.name !== pkCol)
+            .map(c => c.name);
+        } else {
+          const fieldsSet = new Set<string>();
+          docs.forEach(doc => Object.keys(doc.data).forEach(k => fieldsSet.add(k)));
+          fields = Array.from(fieldsSet).sort();
+        }
+
+        // Auto-select visible: show non-hidden columns, max 10
+        const hiddenCols = new Set(meta?.columns?.filter(c => c.hidden).map(c => c.name) || []);
+        const defaultVisible = fields.filter(f => !hiddenCols.has(f)).slice(0, 10);
+
         setDocuments(docs);
         setAllFields(fields);
-        setVisibleFields(fields.slice(0, 8));
+        setVisibleFields(defaultVisible);
       }
     } catch (error) {
       console.error('Erro ao carregar documentos PostgreSQL:', error);
@@ -120,17 +151,99 @@ export default function FirestoreExplorer() {
     }
   };
 
-  const formatValue = (value: any): string => {
+  const getColumnLabel = (fieldName: string): string => {
+    if (!tableMeta?.columns) return fieldName;
+    const col = tableMeta.columns.find(c => c.name === fieldName);
+    return col?.label || fieldName;
+  };
+
+  const formatValue = (value: any, fieldName?: string): string => {
     if (value === null || value === undefined) return '—';
-    if (typeof value === 'boolean') return value ? 'true' : 'false';
+    if (typeof value === 'boolean') return value ? 'Sim' : 'Não';
     if (typeof value === 'number') return value.toLocaleString('pt-BR');
-    if (typeof value === 'string') return value;
-    if (value.toDate && typeof value.toDate === 'function') {
-      return value.toDate().toLocaleString('pt-BR');
+    if (typeof value === 'string') {
+      // Format ISO dates nicely
+      if (/^\d{4}-\d{2}-\d{2}T/.test(value)) {
+        try {
+          const d = new Date(value);
+          return d.toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+        } catch { return value; }
+      }
+      if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+        try {
+          const [y, m, d] = value.split('-');
+          return `${d}/${m}/${y}`;
+        } catch { return value; }
+      }
+      // Truncate long strings
+      if (value.length > 120) return value.slice(0, 117) + '…';
+      return value;
+    }
+    if (value instanceof Date || (value?.toDate && typeof value.toDate === 'function')) {
+      const d = value instanceof Date ? value : value.toDate();
+      return d.toLocaleString('pt-BR');
     }
     if (Array.isArray(value)) return `[${value.length} itens]`;
-    if (typeof value === 'object') return JSON.stringify(value);
+    if (typeof value === 'object') {
+      const s = JSON.stringify(value);
+      return s.length > 100 ? s.slice(0, 97) + '…' : s;
+    }
     return String(value);
+  };
+
+  const formatCellValue = (value: any, fieldName: string): React.ReactNode => {
+    if (value === null || value === undefined) return <span style={{ color: 'rgba(240,234,214,0.3)' }}>—</span>;
+    if (typeof value === 'boolean') {
+      return <span style={{ color: value ? '#10b981' : '#ef4444', fontWeight: 600 }}>{value ? 'Sim' : 'Não'}</span>;
+    }
+    if (typeof value === 'number') {
+      // Price/money columns
+      if (['price_snap', 'subtotal', 'preco_atual', 'preco'].some(c => fieldName.includes(c))) {
+        return <span style={{ fontFamily: 'monospace', color: '#10b981' }}>R$ {value.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>;
+      }
+      return <span style={{ fontFamily: 'monospace' }}>{value.toLocaleString('pt-BR')}</span>;
+    }
+    if (typeof value === 'string') {
+      // ISO datetime
+      if (/^\d{4}-\d{2}-\d{2}T/.test(value)) {
+        try {
+          const d = new Date(value);
+          return <span style={{ color: '#63b3ed', whiteSpace: 'nowrap' }}>{d.toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>;
+        } catch { /* fall through */ }
+      }
+      // Date only
+      if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+        const [y, m, d] = value.split('-');
+        return <span style={{ color: '#63b3ed' }}>{`${d}/${m}/${y}`}</span>;
+      }
+      // Status badges
+      if (fieldName === 'status') {
+        const colors: Record<string, string> = { pending: '#f59e0b', submitted: '#10b981', approved: '#10b981', rejected: '#ef4444' };
+        return <span style={{ color: colors[value] || '#f0ead6', background: `${colors[value] || '#555'}22`, padding: '2px 8px', borderRadius: '4px', fontSize: '0.8em', fontWeight: 600 }}>{value}</span>;
+      }
+      // Signature placeholder
+      if (value === '[assinatura-base64]') {
+        return <span style={{ color: '#a78bfa', fontStyle: 'italic' }}>✍️ Assinatura</span>;
+      }
+      // Firebase IDs — show truncated with monospace
+      if (fieldName.includes('firebase_id') || fieldName.includes('fb_id')) {
+        return <span style={{ fontFamily: 'monospace', fontSize: '0.8em', color: 'rgba(240,234,214,0.5)' }} title={value}>{value.length > 16 ? value.slice(0, 16) + '…' : value}</span>;
+      }
+      // JSON-like strings
+      if ((value.startsWith('{') || value.startsWith('[')) && value.length > 60) {
+        return <span style={{ fontFamily: 'monospace', fontSize: '0.75em', color: 'rgba(240,234,214,0.5)' }} title={value}>{value.slice(0, 60)}…</span>;
+      }
+      // Long text
+      if (value.length > 80) {
+        return <span title={value}>{value.slice(0, 77)}…</span>;
+      }
+      return <span>{value}</span>;
+    }
+    if (typeof value === 'object' && value !== null) {
+      const s = JSON.stringify(value);
+      return <span style={{ fontFamily: 'monospace', fontSize: '0.75em', color: 'rgba(240,234,214,0.5)' }} title={s}>{s.length > 60 ? s.slice(0, 57) + '…' : s}</span>;
+    }
+    return <span>{String(value)}</span>;
   };
 
   const getTypeLabel = (value: any): string => {
@@ -524,7 +637,7 @@ export default function FirestoreExplorer() {
                     style={{ flex: 1, minWidth: '140px' }}
                   >
                     <option value="">Campo...</option>
-                    {allFields.map(f => <option key={f} value={f}>{f}</option>)}
+                    {allFields.map(f => <option key={f} value={f}>{getColumnLabel(f)}</option>)}
                   </select>
 
                   {filterField && !showDuplicates && (
@@ -583,8 +696,9 @@ export default function FirestoreExplorer() {
                         key={field}
                         className={`${styles.columnTag} ${visibleFields.includes(field) ? styles.columnTagActive : ''}`}
                         onClick={() => toggleField(field)}
+                        title={field}
                       >
-                        {field}
+                        {getColumnLabel(field)}
                       </button>
                     ))}
                   </div>
@@ -612,7 +726,7 @@ export default function FirestoreExplorer() {
                       <tbody>
                         {Object.entries(selectedDocument.data).sort(([a], [b]) => a.localeCompare(b)).map(([key, value]) => (
                           <tr key={key}>
-                            <td className={styles.fieldNameCell}>{key}</td>
+                            <td className={styles.fieldNameCell}>{getColumnLabel(key)}<br/><span style={{fontSize:'0.7em',color:'rgba(240,234,214,0.4)'}}>{key}</span></td>
                             <td className={styles.fieldTypeCell}>{getTypeLabel(value)}</td>
                             <td className={styles.fieldValueCell}>
                               {typeof value === 'object' && value !== null && !(value.toDate)
@@ -645,16 +759,16 @@ export default function FirestoreExplorer() {
                               className={styles.checkbox}
                             />
                           </th>
-                          <th onClick={() => handleSort('_id')}>
+                          <th onClick={() => handleSort('_id')} style={{ whiteSpace: 'nowrap' }}>
                             <span className={`${styles.thContent} ${sortField === '_id' ? styles.thSorted : ''}`}>
-                              ID
+                              #
                               {sortField === '_id' && (sortDirection === 'asc' ? <ChevronUp size={14} /> : <ChevronDown size={14} />)}
                             </span>
                           </th>
                           {visibleFields.map(field => (
-                            <th key={field} onClick={() => handleSort(field)}>
+                            <th key={field} onClick={() => handleSort(field)} style={{ whiteSpace: 'nowrap' }}>
                               <span className={`${styles.thContent} ${sortField === field ? styles.thSorted : ''}`}>
-                                {field}
+                                {getColumnLabel(field)}
                                 {sortField === field && (sortDirection === 'asc' ? <ChevronUp size={14} /> : <ChevronDown size={14} />)}
                               </span>
                             </th>
@@ -680,8 +794,8 @@ export default function FirestoreExplorer() {
                                   className={styles.checkbox}
                                 />
                               </td>
-                              <td className={styles.idCell} title={docItem.id}>
-                                {docItem.id.length > 14 ? docItem.id.slice(0, 14) + '…' : docItem.id}
+                              <td className={styles.idCell} title={docItem.id} style={{ fontFamily: 'monospace', fontSize: '0.85em' }}>
+                                {docItem.id}
                               </td>
                               {visibleFields.map(field => {
                                 const isEditing = editingCell?.docId === docItem.id && editingCell?.field === field;
@@ -711,7 +825,7 @@ export default function FirestoreExplorer() {
                                         <button onClick={cancelEdit} className={styles.editCancelBtn}><X size={14} /></button>
                                       </div>
                                     ) : (
-                                      <span className={styles.cellValue}>{formatValue(val)}</span>
+                                      <span className={styles.cellValue}>{formatCellValue(val, field)}</span>
                                     )}
                                   </td>
                                 );
