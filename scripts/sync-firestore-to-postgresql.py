@@ -532,8 +532,8 @@ def sync_forms():
 # Roda sempre após sync_forms() — opera só sobre o PostgreSQL (sem Firestore).
 # ─────────────────────────────────────────────────────────────────────────────
 def sync_form_fields():
-    """Popula/atualiza dim_form_fields a partir de dim_forms.fields_json."""
-    log.info("Exportando campos de formulários para dim_form_fields...")
+    """Popula/atualiza dim_form_fields a partir de dim_forms.fields_json (estrutura explodida)."""
+    log.info("Exportando campos de formulários para dim_form_fields (explodido)...")
 
     TYPE_TO_INPUT = {
         'Tabela':           'table',
@@ -552,7 +552,7 @@ def sync_form_fields():
         cur.execute("SELECT form_key, firebase_id, fields_json FROM dim_forms WHERE fields_json IS NOT NULL")
         forms = cur.fetchall()
 
-        total_fields = 0
+        total_rows = 0
         for form_key, form_fb_id, fields_json in forms:
             if not isinstance(fields_json, list):
                 continue
@@ -569,42 +569,82 @@ def sync_form_fields():
 
                 input_type = field.get('inputType') or TYPE_TO_INPUT.get(field_type, 'text')
                 is_required = bool(field.get('required', False))
+                field_label = field.get('label', '')
 
-                rows_list = field.get('rows')
-                table_rows = json.dumps(rows_list, ensure_ascii=False) if isinstance(rows_list, list) else None
-
-                cols_list = field.get('columns')
-                table_cols = json.dumps(cols_list, ensure_ascii=False) if isinstance(cols_list, list) else None
-
+                # Opções para campos de seleção
                 opts_list = field.get('options')
                 options = json.dumps(opts_list, ensure_ascii=False) if isinstance(opts_list, list) else None
 
-                cur.execute("""
-                    INSERT INTO dim_form_fields (
-                        form_key, form_fb_id,
-                        field_id, field_label, field_type, input_type,
-                        field_order, is_required,
-                        table_rows_json, table_columns_json, options_json
-                    ) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s::jsonb,%s::jsonb,%s::jsonb)
-                    ON CONFLICT (form_key, field_id) DO UPDATE
-                        SET field_label        = EXCLUDED.field_label,
-                            field_type         = EXCLUDED.field_type,
-                            input_type         = EXCLUDED.input_type,
-                            field_order        = EXCLUDED.field_order,
-                            is_required        = EXCLUDED.is_required,
-                            table_rows_json    = EXCLUDED.table_rows_json,
-                            table_columns_json = EXCLUDED.table_columns_json,
-                            options_json       = EXCLUDED.options_json
-                """, (
-                    form_key, form_fb_id,
-                    str(field_id), field.get('label', ''), field_type, input_type,
-                    order_idx, is_required,
-                    table_rows, table_cols, options
-                ))
-                total_fields += 1
+                # Campos SIMPLES (não Tabela/Grade): 1 linha
+                if field_type not in ('Tabela', 'Grade de Pedidos'):
+                    cur.execute("""
+                        INSERT INTO dim_form_fields (
+                            form_key, form_fb_id, field_id, field_label, field_type, input_type,
+                            field_order, is_required, options_json,
+                            row_id, row_label, row_index, column_id, column_label, column_type, column_index
+                        ) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s::jsonb,NULL,NULL,NULL,NULL,NULL,NULL,NULL)
+                        ON CONFLICT (form_key, field_id, row_id, column_id) DO UPDATE
+                            SET field_label = EXCLUDED.field_label,
+                                field_type  = EXCLUDED.field_type,
+                                input_type  = EXCLUDED.input_type,
+                                field_order = EXCLUDED.field_order,
+                                is_required = EXCLUDED.is_required,
+                                options_json = EXCLUDED.options_json
+                    """, (form_key, form_fb_id, str(field_id), field_label, field_type, input_type,
+                          order_idx, is_required, options))
+                    total_rows += 1
+
+                # Campos TABELA/GRADE: N linhas (row × column)
+                else:
+                    rows_list = field.get('rows', [])
+                    cols_list = field.get('columns', [])
+                    
+                    if not isinstance(rows_list, list) or not isinstance(cols_list, list):
+                        continue
+                    
+                    for row_idx, row_def in enumerate(rows_list):
+                        if not isinstance(row_def, dict):
+                            continue
+                        row_id = row_def.get('id')
+                        if not row_id:
+                            continue
+                        row_label = row_def.get('label', '')
+                        
+                        for col_idx, col_def in enumerate(cols_list):
+                            if not isinstance(col_def, dict):
+                                continue
+                            col_id = col_def.get('id')
+                            if not col_id:
+                                continue
+                            col_label = col_def.get('label', '')
+                            col_type = col_def.get('type', 'text')
+                            
+                            cur.execute("""
+                                INSERT INTO dim_form_fields (
+                                    form_key, form_fb_id, field_id, field_label, field_type, input_type,
+                                    field_order, is_required, options_json,
+                                    row_id, row_label, row_index,
+                                    column_id, column_label, column_type, column_index
+                                ) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,NULL,%s,%s,%s,%s,%s,%s,%s)
+                                ON CONFLICT (form_key, field_id, row_id, column_id) DO UPDATE
+                                    SET field_label  = EXCLUDED.field_label,
+                                        field_type   = EXCLUDED.field_type,
+                                        input_type   = EXCLUDED.input_type,
+                                        field_order  = EXCLUDED.field_order,
+                                        is_required  = EXCLUDED.is_required,
+                                        row_label    = EXCLUDED.row_label,
+                                        row_index    = EXCLUDED.row_index,
+                                        column_label = EXCLUDED.column_label,
+                                        column_type  = EXCLUDED.column_type,
+                                        column_index = EXCLUDED.column_index
+                            """, (form_key, form_fb_id, str(field_id), field_label, field_type, input_type,
+                                  order_idx, is_required,
+                                  str(row_id), row_label, row_idx,
+                                  str(col_id), col_label, col_type, col_idx))
+                            total_rows += 1
 
         conn.commit()
-        log.info(f"dim_form_fields: {total_fields} campos sincronizados de {len(forms)} formulários")
+        log.info(f"dim_form_fields: {total_rows} linhas sincronizadas de {len(forms)} formulários")
     except Exception as e:
         conn.rollback(); raise
     finally:

@@ -585,23 +585,39 @@ function triggerToast(type: 'success' | 'error', message: string, duration = 260
 
   // Handlers
   const handleInputChange = (fieldId: string, value: any) => {
-  setResponses(prev => {
-    const next = { ...prev, [fieldId]: value };
-    return next;
-  });
-  // revalida só este campo
-  const field = (form.fields as EnhancedFormField[]).find(f => String(f.id) === fieldId);
-  const iType = (field as any)?.inputType || '';
-  const shouldValidate = field?.required || iType === 'cep' || iType === 'cpf';
-  if (shouldValidate && field) {
-    const err = validateRequiredField(field);
-    setInvalid(prev => {
-      const copy = { ...prev };
-      if (err) copy[fieldId] = err; else delete copy[fieldId];
-      return copy;
-    });
-  }
-};
+    setResponses(prev => ({ ...prev, [fieldId]: value }));
+    
+    // Limpa erro se o campo estava inválido e agora tem valor
+    if (invalid[fieldId]) {
+      const field = (form.fields as EnhancedFormField[]).find(f => String(f.id) === fieldId);
+      if (field) {
+        const err = validateRequiredField(field);
+        if (!err) {
+          setInvalid(prev => {
+            const copy = { ...prev };
+            delete copy[fieldId];
+            return copy;
+          });
+        }
+      }
+    }
+  };
+
+  const handleInputBlur = (fieldId: string) => {
+    const field = (form.fields as EnhancedFormField[]).find(f => String(f.id) === fieldId);
+    if (field) {
+      const iType = (field as any)?.inputType || '';
+      const shouldValidate = field?.required || iType === 'cep' || iType === 'cpf';
+      if (shouldValidate) {
+        const err = validateRequiredField(field);
+        setInvalid(prev => {
+          const copy = { ...prev };
+          if (err) copy[fieldId] = err; else delete copy[fieldId];
+          return copy;
+        });
+      }
+    }
+  };
 
 // Qual cor de texto usar sobre um bg (que pode ter alpha) em cima do card?
 const textOn = (

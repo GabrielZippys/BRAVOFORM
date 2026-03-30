@@ -329,7 +329,24 @@ export default function PublicFormPage() {
   // Handlers
   const handleInputChange = (fieldId: string, value: any) => {
     setResponses(prev => ({ ...prev, [fieldId]: value }));
+    
+    // Limpa erro se o campo estava inválido e agora tem valor
+    if (invalid[fieldId]) {
+      const field = form?.fields.find(f => String(f.id) === fieldId);
+      if (field) {
+        const err = validateRequiredField(field);
+        if (!err) {
+          setInvalid(prev => {
+            const copy = { ...prev };
+            delete copy[fieldId];
+            return copy;
+          });
+        }
+      }
+    }
+  };
 
+  const handleInputBlur = (fieldId: string) => {
     const field = form?.fields.find(f => String(f.id) === fieldId);
     if (field) {
       const iType = field.inputType || '';
@@ -348,12 +365,11 @@ export default function PublicFormPage() {
   const handleOtherInputChange = (fieldId: string, text: string) => {
     setOtherInputValues(prev => ({ ...prev, [fieldId]: text }));
     
-    const field = form?.fields.find(f => String(f.id) === fieldId);
-    if (field?.required) {
-      const err = validateRequiredField(field);
+    // Limpa erro se o campo estava inválido e agora tem valor
+    if (invalid[fieldId] && text.trim()) {
       setInvalid(prev => {
         const copy = { ...prev };
-        if (err) copy[fieldId] = err; else delete copy[fieldId];
+        delete copy[fieldId];
         return copy;
       });
     }
@@ -376,14 +392,19 @@ export default function PublicFormPage() {
       },
     }));
     
-    const field = form?.fields.find(f => String(f.id) === fieldId);
-    if (field?.required) {
-      const err = validateRequiredField(field);
-      setInvalid(prev => {
-        const copy = { ...prev };
-        if (err) copy[fieldId] = err; else delete copy[fieldId];
-        return copy;
-      });
+    // Limpa erro se o campo estava inválido e agora tem valor
+    if (invalid[fieldId]) {
+      const field = form?.fields.find(f => String(f.id) === fieldId);
+      if (field) {
+        const err = validateRequiredField(field);
+        if (!err) {
+          setInvalid(prev => {
+            const copy = { ...prev };
+            delete copy[fieldId];
+            return copy;
+          });
+        }
+      }
     }
   };
 
@@ -571,6 +592,7 @@ export default function PublicFormPage() {
                   <textarea
                     value={value as string}
                     onChange={(e) => handleInputChange(fieldId, e.target.value)}
+                    onBlur={() => handleInputBlur(fieldId)}
                     disabled={disabled}
                     placeholder={ph}
                     rows={4}
@@ -591,6 +613,7 @@ export default function PublicFormPage() {
                   }
                   value={value as string}
                   onChange={(e) => handleInputChange(fieldId, sanitizeByInputType(e.target.value, iType))}
+                  onBlur={() => handleInputBlur(fieldId)}
                   disabled={disabled}
                   placeholder={ph}
                   maxLength={iType === 'cep' ? 9 : iType === 'cpf' ? 14 : (field as any).maxLength || undefined}
@@ -618,6 +641,7 @@ export default function PublicFormPage() {
               type="date"
               value={value}
               onChange={(e) => handleInputChange(fieldId, e.target.value)}
+              onBlur={() => handleInputBlur(fieldId)}
               disabled={disabled}
               style={{
                 width: '100%',
