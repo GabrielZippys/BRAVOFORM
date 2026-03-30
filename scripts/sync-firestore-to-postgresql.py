@@ -527,6 +527,90 @@ def sync_forms():
         cur.close(); conn.close()
 
 # ─────────────────────────────────────────────────────────────────────────────
+# ETAPA 5b — Campos de formulário → dim_form_fields
+# Explode fields_json de dim_forms em uma linha por campo.
+# Roda sempre após sync_forms() — opera só sobre o PostgreSQL (sem Firestore).
+# ─────────────────────────────────────────────────────────────────────────────
+def sync_form_fields():
+    """Popula/atualiza dim_form_fields a partir de dim_forms.fields_json."""
+    log.info("Exportando campos de formulários para dim_form_fields...")
+
+    TYPE_TO_INPUT = {
+        'Tabela':           'table',
+        'Grade de Pedidos': 'order',
+        'Caixa de Seleção': 'checkbox',
+        'Data':             'date',
+        'Assinatura':       'signature',
+        'Anexo':            'attachment',
+        'Cabeçalho':        'header',
+        'Múltipla Escolha': 'radio',
+    }
+    SKIP_TYPES = {'Cabeçalho'}  # campos visuais sem resposta
+
+    conn = pg_connect(); cur = conn.cursor()
+    try:
+        cur.execute("SELECT form_key, firebase_id, fields_json FROM dim_forms WHERE fields_json IS NOT NULL")
+        forms = cur.fetchall()
+
+        total_fields = 0
+        for form_key, form_fb_id, fields_json in forms:
+            if not isinstance(fields_json, list):
+                continue
+
+            for order_idx, field in enumerate(fields_json):
+                if not isinstance(field, dict):
+                    continue
+                field_id = field.get('id')
+                if not field_id:
+                    continue
+                field_type = field.get('type', '')
+                if field_type in SKIP_TYPES:
+                    continue
+
+                input_type = field.get('inputType') or TYPE_TO_INPUT.get(field_type, 'text')
+                is_required = bool(field.get('required', False))
+
+                rows_list = field.get('rows')
+                table_rows = json.dumps(rows_list, ensure_ascii=False) if isinstance(rows_list, list) else None
+
+                cols_list = field.get('columns')
+                table_cols = json.dumps(cols_list, ensure_ascii=False) if isinstance(cols_list, list) else None
+
+                opts_list = field.get('options')
+                options = json.dumps(opts_list, ensure_ascii=False) if isinstance(opts_list, list) else None
+
+                cur.execute("""
+                    INSERT INTO dim_form_fields (
+                        form_key, form_fb_id,
+                        field_id, field_label, field_type, input_type,
+                        field_order, is_required,
+                        table_rows_json, table_columns_json, options_json
+                    ) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s::jsonb,%s::jsonb,%s::jsonb)
+                    ON CONFLICT (form_key, field_id) DO UPDATE
+                        SET field_label        = EXCLUDED.field_label,
+                            field_type         = EXCLUDED.field_type,
+                            input_type         = EXCLUDED.input_type,
+                            field_order        = EXCLUDED.field_order,
+                            is_required        = EXCLUDED.is_required,
+                            table_rows_json    = EXCLUDED.table_rows_json,
+                            table_columns_json = EXCLUDED.table_columns_json,
+                            options_json       = EXCLUDED.options_json
+                """, (
+                    form_key, form_fb_id,
+                    str(field_id), field.get('label', ''), field_type, input_type,
+                    order_idx, is_required,
+                    table_rows, table_cols, options
+                ))
+                total_fields += 1
+
+        conn.commit()
+        log.info(f"dim_form_fields: {total_fields} campos sincronizados de {len(forms)} formulários")
+    except Exception as e:
+        conn.rollback(); raise
+    finally:
+        cur.close(); conn.close()
+
+# ─────────────────────────────────────────────────────────────────────────────
 # ETAPA 6 — Respostas → fact_form_response + fact_answers + especializadas
 # ─────────────────────────────────────────────────────────────────────────────
 def _build_field_label_cache():
@@ -947,25 +1031,28 @@ def main():
     t0 = time.time()
     log.info("=== INÍCIO DA SINCRONIZAÇÃO FIRESTORE → POSTGRESQL (v2.0 Star Schema) ===")
     try:
-        log.info("Etapa 1/7: Empresas e departamentos...")
+        log.info("Etapa 1/8: Empresas e departamentos...")
         sync_companies_and_departments()
 
-        log.info("Etapa 2/7: Usuários...")
+        log.info("Etapa 2/8: Usuários...")
         sync_users()
 
-        log.info("Etapa 3/7: Colaboradores...")
+        log.info("Etapa 3/8: Colaboradores...")
         sync_collaborators()
 
-        log.info("Etapa 4/7: Catálogos e produtos...")
+        log.info("Etapa 4/8: Catálogos e produtos...")
         sync_catalogs_and_products()
 
-        log.info("Etapa 5/7: Formulários...")
+        log.info("Etapa 5/8: Formulários...")
         sync_forms()
 
-        log.info("Etapa 6/7: Workflows...")
+        log.info("Etapa 6/8: Campos de formulários (dim_form_fields)...")
+        sync_form_fields()
+
+        log.info("Etapa 7/8: Workflows...")
         sync_workflows()
 
-        log.info("Etapa 7/7: Respostas (fact_*)...")
+        log.info("Etapa 8/8: Respostas (fact_*)...")
         sync_responses()
 
         elapsed = time.time() - t0

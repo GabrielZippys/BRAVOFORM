@@ -42,6 +42,7 @@ Colaborador preenche formulário
 | `dim_users` | 2 | Dimensão |
 | `dim_collaborators` | 38 | Dimensão |
 | `dim_forms` | 18 | Dimensão |
+| `dim_form_fields` | — (populada via script 003) | Dimensão — 1 linha/campo/formulário |
 | `dim_product_catalogs` | 12 | Dimensão |
 | `dim_products` | 462 | Dimensão |
 | `dim_workflow_stages` | 4 | Dimensão |
@@ -273,6 +274,48 @@ CREATE INDEX idx_dim_forms_fields ON dim_forms USING GIN(fields_json);
 
 > `fields_json` como `JSONB` com índice GIN permite queries como:
 > `SELECT * FROM dim_forms WHERE fields_json @> '[{"type":"Grade de Pedidos"}]'`
+
+---
+
+#### `dim_form_fields` *(NOVA — campos explodidos por formulário)*
+Resolve o problema de ter que fazer ETL sobre `fields_json` toda vez que precisar saber o label de uma linha/coluna de Tabela ou o tipo de um campo. Uma linha por campo por formulário, `field_id` já separado, `rows` e `columns` já disponíveis como JSONB indexado.
+```sql
+CREATE TABLE dim_form_fields (
+    field_key          SERIAL       PRIMARY KEY,
+    form_key           INTEGER      NOT NULL REFERENCES dim_forms(form_key) ON DELETE CASCADE,
+    form_fb_id         VARCHAR(255) NOT NULL,   -- firebase_id do form (evita JOIN frequente)
+    field_id           VARCHAR(255) NOT NULL,   -- ID do campo dentro do formulário
+    field_label        VARCHAR(500),            -- rótulo legível do campo
+    field_type         VARCHAR(100),            -- 'Tabela' | 'Grade de Pedidos' | 'Texto' | etc.
+    input_type         VARCHAR(100),            -- subtipo: 'table' | 'order' | 'text' | 'date' | etc.
+    field_order        INTEGER,                 -- posição no formulário (0-based)
+    is_required        BOOLEAN      DEFAULT FALSE,
+    table_rows_json    JSONB,   -- [{"id":"row_seg","label":"Segunda-feira"}, ...]
+    table_columns_json JSONB,   -- [{"id":"col_aberto","label":"Aberto/Fechado","type":"select"}, ...]
+    options_json       JSONB,   -- ["Opção A", "Opção B"] para Múltipla Escolha / Checkbox
+    UNIQUE (form_key, field_id)
+);
+```
+
+**Como usar no Power BI:**
+```sql
+-- Saber o label de uma linha da tabela (sem ETL)
+SELECT
+    ta.response_key,
+    dff.field_label        AS pergunta,
+    row_def->>'id'         AS row_id,
+    row_def->>'label'      AS row_label,   -- "Segunda-feira", "Terça-feira"...
+    ta.table_data -> (row_def->>'id') AS valores_da_linha
+FROM fact_table_answers ta
+JOIN dim_form_fields dff
+    ON ta.form_key = dff.form_key
+   AND ta.field_id = dff.field_id
+JOIN LATERAL jsonb_array_elements(dff.table_rows_json) AS row_def ON TRUE
+WHERE dff.field_type = 'Tabela';
+```
+
+> **Script:** `scripts/sql/003_create_dim_form_fields.sql`
+> **Sincronização:** `sync_form_fields()` no script Python — Etapa 6/8, roda após `sync_forms()`
 
 ---
 
