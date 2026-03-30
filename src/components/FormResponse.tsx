@@ -86,12 +86,18 @@ const autoInputText = pickReadableTextColor(resolvedInputBg, theme.inputFontColo
 
 // abaixo do controlBase
 const tickBase: React.CSSProperties = {
-  accentColor: theme.accentColor,  // <- faz o quadrado/círculo ficar da cor do tema quando marcado
+  accentColor: theme.accentColor,
   width: 18,
   height: 18,
   margin: 0,
   cursor: 'pointer',
 };
+
+// Smart tick colors based on background luminance
+const bgLum = (() => { const c = parseColor(theme.bgColor); return (0.299*c.r + 0.587*c.g + 0.114*c.b)/255; })();
+const isDarkBg = bgLum < 0.5;
+const tickBorderColor   = isDarkBg ? 'rgba(255,255,255,0.6)' : 'rgba(0,0,0,0.35)';
+const tickBgUnchecked   = isDarkBg ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.04)';
 
 // placeholder/caret coerentes
 const autoPlaceholder = withAlpha(autoInputText, 0.6);
@@ -168,6 +174,22 @@ const INT_REGEX = /^\d+$/; // Regex for integer numbers
  * @param maxDecimals - Maximum number of decimal places (0 for integers)
  * @returns Sanitized number string
  */
+function sanitizeByInputType(value: string, iType: string): string {
+  switch (iType) {
+    case 'number':
+      return value.replace(/[^\d-]/g, '').replace(/(.)-/g, '$1');
+    case 'decimal':
+      return value
+        .replace(/[^\d,.-]/g, '')
+        .replace(/(.)-/g, '$1')
+        .replace(/(.*[,.].*)[,.]/g, '$1');
+    case 'tel':
+      return value.replace(/[^\d\s+\-()]/g, '');
+    default:
+      return value;
+  }
+}
+
 const sanitizeDecimal = (raw: string, maxDecimals = 2): string => {
   // Remove all non-digit characters except comma, minus, and decimal point
   let s = (raw ?? '').replace(/[^\d.,-]/g, '');
@@ -905,19 +927,17 @@ const handleAutoFillLeader = () => {
       ? responses[fieldId][rowId][colId]
       : '';
   const disabled = !canEdit && !!existingResponse;
-  const base = {
-  width: '100%',
-  background: theme.inputBgColor,
-  color: autoInputText,
-  caretColor: autoInputText,
-  borderWidth: 1.5,
-  borderStyle: 'solid',
-  borderColor: theme.tableBorderColor, // terá override do invalidize()
-  borderRadius: theme.borderRadius,
-  padding: '5px 10px',
-  fontSize: 16,
-  ...invalidize(fieldId),
-} as React.CSSProperties;
+  const base: React.CSSProperties = {
+    width: '100%',
+    background: theme.inputBgColor,
+    color: autoInputText,
+    caretColor: autoInputText,
+    border: 'none',
+    padding: '4px',
+    fontSize: 14,
+    fontFamily: 'inherit',
+    ...invalidize(fieldId),
+  };
 
   switch (col.type) {
     case 'text':
@@ -1035,98 +1055,62 @@ case 'Data':
   );
 
       case 'Tabela':
-  return (
-   <div style={{ overflowX: 'auto', marginBottom: 16, WebkitOverflowScrolling: 'touch' }}>
-  <table style={{
-          width: '100%',
-          borderCollapse: 'collapse',
-          border: `1.5px solid ${theme.tableBorderColor}`,
-          borderRadius: theme.borderRadius,
-          fontSize: 16,
-          background: theme.bgColor,
-          color: theme.tableCellFont,
-          overflow: 'hidden',
-        }}
-      >
-        {/* controla a largura das colunas */}
-       <colgroup>
-    <col style={{ width: '68%' }} />
-    {(field.columns || []).map((_, i) => (
-      <col key={i} style={{ width: `${Math.floor(32 / (field.columns?.length || 1))}%` }} />
-    ))}
-  </colgroup>
-
-
-
-        <thead>
-          <tr>
-            <th
-              style={{
-                background: theme.tableHeaderBg,
-                color: theme.tableHeaderFont,
-                border: `1.5px solid ${theme.tableBorderColor}`,
-                borderTopLeftRadius: theme.borderRadius,
-                padding: 8,
-                fontWeight: 'bold',
-                fontSize: 16,
-              }}
-            />
-            {field.columns?.map((col: any) => (
-              <th
-                key={col.id}
-                style={{
-                  background: theme.tableHeaderBg,
-                  color: theme.tableHeaderFont,
-                  border: `1.5px solid ${theme.tableBorderColor}`,
-                  padding: 8,
-                  fontWeight: 600,
-                  fontSize: 16,
-                }}
-              >
-                {col.label}
-              </th>
-            ))}
-          </tr>
-        </thead>
-
-        <tbody>
-          {field.rows?.map((row: any, ridx: number) => (
-            <tr
-              key={row.id}
-              style={{
-                background: ridx % 2 === 0 ? theme.tableOddRowBg : theme.tableEvenRowBg,
-                color: theme.tableCellFont,
-              }}
-            >
-              <td
-                style={{
-                  fontWeight: 500,
-                  border: `1.5px solid ${theme.tableBorderColor}`,
-                  background: theme.tableHeaderBg,
-                  color: theme.tableHeaderFont,
-                  padding: 7,
-                }}
-              >
-                {row.label}
-              </td>
-
-              {field.columns?.map((col: any) => (
-                <td
-                  key={col.id}
-                  style={{
-                    border: `1.5px solid ${theme.tableBorderColor}`,
-                    padding: 4,
-                  }}
-                >
-                  {renderTableCell(field, row, col)}
-                </td>
-              ))}
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  );
+        return (
+          <div style={{ overflowX: 'auto', marginBottom: 16, WebkitOverflowScrolling: 'touch' }}>
+            <table style={{
+              width: '100%',
+              borderCollapse: 'collapse',
+              border: `1px solid ${theme.tableBorderColor}`,
+            }}>
+              <thead>
+                <tr>
+                  <th style={{
+                    border: `1px solid ${theme.tableBorderColor}`,
+                    padding: '8px',
+                    background: theme.tableHeaderBg,
+                    color: theme.tableHeaderFont,
+                  }} />
+                  {field.columns?.map((col: any) => (
+                    <th key={col.id} style={{
+                      border: `1px solid ${theme.tableBorderColor}`,
+                      padding: '8px',
+                      background: theme.tableHeaderBg,
+                      color: theme.tableHeaderFont,
+                    }}>
+                      {col.label}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {field.rows?.map((row: any, ridx: number) => (
+                  <tr key={row.id} style={{
+                    background: ridx % 2 === 0 ? theme.tableOddRowBg : theme.tableEvenRowBg,
+                  }}>
+                    <td style={{
+                      border: `1px solid ${theme.tableBorderColor}`,
+                      padding: '8px',
+                      fontWeight: 500,
+                      color: theme.tableCellFont || theme.fontColor,
+                      background: theme.tableHeaderBg,
+                    }}>
+                      {row.label}
+                    </td>
+                    {field.columns?.map((col: any) => (
+                      <td key={col.id} style={{
+                        border: `1px solid ${theme.tableBorderColor}`,
+                        padding: '4px',
+                        color: theme.tableCellFont || theme.fontColor,
+                      }}>
+                        {renderTableCell(field, row, col)}
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        );
 
       case 'Anexo':
         return (
@@ -1207,90 +1191,77 @@ case 'Data':
         );
 
       case 'Caixa de Seleção':
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginBottom: 4 }}>
-      {field.options?.map((opt: string) => {
-
-        const autoBodyText = pickReadableTextColor(theme.bgColor, theme.fontColor);
-        const checked = (responses[fieldId] || []).includes(opt);
-        const checkedBg = withAlpha(theme.accentColor, 0.12);
-        const labelBg  = checked ? checkedBg : 'transparent';
-        const baseFg   = autoBodyText;                 // texto ideal sobre o card
-       const labelFg  = checked ? textOn(checkedBg, theme.bgColor, baseFg) : baseFg;
-
-
         return (
-          <label
-            key={opt}
-            style={{
-              display: 'flex', alignItems: 'center', gap: 8, fontSize: 16,
-              background: labelBg,
-              color: labelFg,                  
-              borderRadius: 8, padding: '6px 8px', transition: 'background .15s ease',
-            }}
-          >
-            <input
-              type="checkbox"
-              checked={checked}
-              onChange={e => {
-                const current = responses[fieldId] || [];
-                handleInputChange(
-                  fieldId,
-                  e.target.checked ? [...current, opt] : current.filter((v: string) => v !== opt)
-                );
-              }}
-              disabled={disabled}
-              style={tickBase}
-            />
-            <span>{opt}</span>
-          </label>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginBottom: 4 }}>
+            {field.options?.map((opt: string) => {
+              const checked = (responses[fieldId] || []).includes(opt);
+              return (
+                <label key={opt} onClick={() => {
+                  if (disabled) return;
+                  const current = responses[fieldId] || [];
+                  handleInputChange(fieldId, checked ? current.filter((v: string) => v !== opt) : [...current, opt]);
+                }} style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: disabled ? 'default' : 'pointer', userSelect: 'none', padding: '4px 0' }}>
+                  {/* Quadrado custom com contraste inteligente */}
+                  <span style={{
+                    flexShrink: 0, width: 18, height: 18, borderRadius: 4,
+                    border: `2px solid ${checked ? theme.accentColor : tickBorderColor}`,
+                    background: checked ? theme.accentColor : tickBgUnchecked,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    transition: 'border-color 0.15s, background 0.15s',
+                    boxShadow: checked ? `0 0 0 3px ${withAlpha(theme.accentColor, 0.18)}` : 'none',
+                  }}>
+                    {checked && (
+                      <svg width="11" height="8" viewBox="0 0 11 8" fill="none">
+                        <path d="M1 4L4 7L10 1" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                      </svg>
+                    )}
+                  </span>
+                  <span style={{ color: theme.fontColor, fontSize: 14 }}>{opt}</span>
+                </label>
+              );
+            })}
+
+            {field.allowOther && (
+              <>
+                {(() => {
+                  const checked = (responses[fieldId] || []).includes(otherVal);
+                  return (
+                    <label onClick={() => {
+                      if (disabled) return;
+                      const current = responses[fieldId] || [];
+                      handleInputChange(fieldId, checked ? current.filter((v: string) => v !== otherVal) : [...current, otherVal]);
+                    }} style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: disabled ? 'default' : 'pointer', userSelect: 'none', padding: '4px 0' }}>
+                      <span style={{
+                        flexShrink: 0, width: 18, height: 18, borderRadius: 4,
+                        border: `2px solid ${checked ? theme.accentColor : tickBorderColor}`,
+                        background: checked ? theme.accentColor : tickBgUnchecked,
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        transition: 'border-color 0.15s, background 0.15s',
+                        boxShadow: checked ? `0 0 0 3px ${withAlpha(theme.accentColor, 0.18)}` : 'none',
+                      }}>
+                        {checked && (
+                          <svg width="11" height="8" viewBox="0 0 11 8" fill="none">
+                            <path d="M1 4L4 7L10 1" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                          </svg>
+                        )}
+                      </span>
+                      <span style={{ color: theme.fontColor, fontSize: 14 }}>Outros</span>
+                    </label>
+                  );
+                })()}
+                {(responses[fieldId] || []).includes(otherVal) && (
+                  <input
+                    value={otherInputValues[fieldId] || ''}
+                    onChange={e => handleOtherInputChange(fieldId, e.target.value)}
+                    placeholder="Por favor, especifique"
+                    disabled={disabled}
+                    style={controlBase}
+                  />
+                )}
+              </>
+            )}
+          </div>
         );
-      })}
-
-      {field.allowOther && (
-        <>
-          {(() => {
-            const checked = (responses[fieldId] || []).includes(otherVal);
-            const checkedBg = withAlpha(theme.accentColor, 0.12);
-            const labelBg  = checked ? checkedBg : 'transparent';
-            const labelFg  = checked ? textOn(checkedBg) : theme.inputFontColor;
-
-            return (
-              <label style={{
-                display: 'flex', alignItems: 'center', gap: 8, fontSize: 16,
-                background: labelBg, color: labelFg, borderRadius: 8, padding: '6px 8px'
-              }}>
-                <input
-                  type="checkbox"
-                  checked={checked}
-                  onChange={e => {
-                    const current = responses[fieldId] || [];
-                    handleInputChange(
-                      fieldId,
-                      e.target.checked ? [...current, otherVal] : current.filter((v: string) => v !== otherVal)
-                    );
-                  }}
-                  disabled={disabled}
-                  style={tickBase}
-                />
-                <span>Outros</span>
-              </label>
-            );
-          })()}
-
-          {(responses[fieldId] || []).includes(otherVal) && (
-            <input
-              value={otherInputValues[fieldId] || ''}
-              onChange={e => handleOtherInputChange(fieldId, e.target.value)}
-              placeholder="Por favor, especifique"
-              disabled={disabled}
-              style={controlBase}
-            />
-          )}
-        </>
-      )}
-    </div>
-  );
 
 
       case 'Múltipla Escolha':
@@ -1310,39 +1281,49 @@ case 'Data':
             </select>
           );
         }
-        // Versão radio
+        // Versão radio - custom para funcionar em fundos claros e escuros
         return (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginBottom: 4 }}>
-            {field.options?.map((opt: string) => (
-              <label key={opt} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 16, color: theme.inputFontColor }}>
-                <input
-                  type="radio"
-                  name={`field_${field.id}`}
-                  checked={responses[fieldId] === opt}
-                  onChange={() => handleInputChange(fieldId, opt)}
-                  disabled={disabled}
-                  style={{
-                    accentColor: theme.accentColor
-                  }}
-                />
-                <span>{opt}</span>
-              </label>
-            ))}
+            {field.options?.map((opt: string) => {
+              const isChecked = responses[fieldId] === opt;
+              return (
+                <label key={opt} onClick={() => { if (!disabled) handleInputChange(fieldId, opt); }}
+                  style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: disabled ? 'default' : 'pointer', userSelect: 'none', padding: '4px 0' }}>
+                  <span style={{
+                    flexShrink: 0, width: 18, height: 18, borderRadius: '50%',
+                    border: `2px solid ${isChecked ? theme.accentColor : tickBorderColor}`,
+                    background: isChecked ? theme.accentColor : tickBgUnchecked,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    transition: 'border-color 0.15s, background 0.15s',
+                    boxShadow: isChecked ? `0 0 0 3px ${withAlpha(theme.accentColor, 0.18)}` : 'none',
+                  }}>
+                    {isChecked && <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#fff' }} />}
+                  </span>
+                  <span style={{ color: theme.fontColor, fontSize: 14 }}>{opt}</span>
+                </label>
+              );
+            })}
             {field.allowOther && (
               <>
-                <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 16, color: theme.inputFontColor }}>
-                  <input
-                    type="radio"
-                    name={`field_${field.id}`}
-                    checked={responses[fieldId] === '___OTHER___'}
-                    onChange={() => handleInputChange(fieldId, '___OTHER___')}
-                    disabled={disabled}
-                    style={{
-                      accentColor: theme.accentColor
-                    }}
-                  />
-                  <span>Outros</span>
-                </label>
+                {(() => {
+                  const isOther = responses[fieldId] === '___OTHER___';
+                  return (
+                    <label onClick={() => { if (!disabled) handleInputChange(fieldId, '___OTHER___'); }}
+                      style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: disabled ? 'default' : 'pointer', userSelect: 'none', padding: '4px 0' }}>
+                      <span style={{
+                        flexShrink: 0, width: 18, height: 18, borderRadius: '50%',
+                        border: `2px solid ${isOther ? theme.accentColor : tickBorderColor}`,
+                        background: isOther ? theme.accentColor : tickBgUnchecked,
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        transition: 'border-color 0.15s, background 0.15s',
+                        boxShadow: isOther ? `0 0 0 3px ${withAlpha(theme.accentColor, 0.18)}` : 'none',
+                      }}>
+                        {isOther && <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#fff' }} />}
+                      </span>
+                      <span style={{ color: theme.fontColor, fontSize: 14 }}>Outros</span>
+                    </label>
+                  );
+                })()}
                 {responses[fieldId] === '___OTHER___' && (
                   <input
                     value={otherInputValues[fieldId] || ''}
@@ -1355,7 +1336,7 @@ case 'Data':
                       border: `1.5px solid ${theme.accentColor}`,
                       borderRadius: theme.borderRadius,
                       padding: '8px 12px',
-                      fontSize: 16,
+                      fontSize: 14,
                       marginTop: 3,
                     }}
                   />
@@ -1364,15 +1345,45 @@ case 'Data':
             )}
           </div>
         );
-      case 'Texto':
+      case 'Texto': {
+        const iType = (field as any).inputType || 'text';
+        if (iType === 'paragraph') {
+          return (
+            <textarea
+              value={responses[fieldId] || ''}
+              onChange={e => handleInputChange(fieldId, e.target.value)}
+              disabled={disabled}
+              rows={4}
+              maxLength={(field as any).maxLength || undefined}
+              style={{ ...controlBase, resize: 'vertical', minHeight: 90, fontFamily: 'inherit' }}
+            />
+          );
+        }
+        const htmlType = iType === 'number' || iType === 'decimal' ? 'text' : iType;
+        const inputMode: React.InputHTMLAttributes<HTMLInputElement>['inputMode'] =
+          iType === 'number' ? 'numeric' :
+          iType === 'decimal' ? 'decimal' :
+          iType === 'tel' ? 'tel' :
+          iType === 'email' ? 'email' : 'text';
+        const placeholder =
+          (field as any).placeholder ||
+          (iType === 'number' ? '0' :
+           iType === 'decimal' ? '0,00' :
+           iType === 'email' ? 'exemplo@email.com' :
+           iType === 'tel' ? '(xx) xxxxx-xxxx' : '');
         return (
-          <textarea
+          <input
+            type={htmlType}
+            inputMode={inputMode}
             value={responses[fieldId] || ''}
-            onChange={e => handleInputChange(fieldId, e.target.value)}
+            onChange={e => handleInputChange(fieldId, sanitizeByInputType(e.target.value, iType))}
             disabled={disabled}
+            maxLength={(field as any).maxLength || undefined}
+            placeholder={placeholder}
             style={controlBase}
           />
         );
+      }
       case 'Data':
   return (
     <input

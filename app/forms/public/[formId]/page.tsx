@@ -198,6 +198,23 @@ export default function PublicFormPage() {
   const tickBgUnchecked   = isDarkBg ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.04)';
   const tickLabelColor    = theme.fontColor;
 
+  // Sanitização por tipo de campo
+  function sanitizeByInputType(value: string, iType: string): string {
+    switch (iType) {
+      case 'number':
+        return value.replace(/[^\d-]/g, '').replace(/(.)-/g, '$1');
+      case 'decimal':
+        return value
+          .replace(/[^\d,.-]/g, '')
+          .replace(/(.)-/g, '$1')
+          .replace(/(.*[,.].*)[,.]/g, '$1');
+      case 'tel':
+        return value.replace(/[^\d\s+\-()]/g, '');
+      default:
+        return value;
+    }
+  }
+
   // Validação
   const isBlank = (v: any) => (typeof v === 'string' ? v.trim() === '' : v == null);
 
@@ -476,32 +493,64 @@ export default function PublicFormPage() {
           </div>
         );
 
-      case 'Texto':
+      case 'Texto': {
+        const iType = (field as any).inputType || 'text';
+        const inputStyle: React.CSSProperties = {
+          width: '100%',
+          padding: '8px 12px',
+          border: `1px solid ${theme.tableBorderColor || borderColor}`,
+          borderRadius: theme.borderRadius,
+          fontSize: 14,
+          background: theme.inputBgColor,
+          color: autoInputText,
+          caretColor: autoInputText,
+          boxSizing: 'border-box',
+          fontFamily: 'inherit',
+          ...invalidize(fieldId)
+        };
         return (
           <div key={field.id} ref={(el) => { fieldRefs.current[fieldId] = el; }} style={{ marginBottom: '1rem' }}>
             <label style={{ display: 'block', marginBottom: 8, color: theme.fontColor, fontWeight: 500 }}>
               {field.label}
               {field.required && <span style={{ color: '#ef4444', marginLeft: 4 }}>*</span>}
             </label>
-            <input
-              type="text"
-              value={value}
-              onChange={(e) => handleInputChange(fieldId, e.target.value)}
-              disabled={disabled}
-              placeholder={field.placeholder || 'Digite aqui...'}
-              style={{
-                width: '100%',
-                padding: '8px 12px',
-                border: `1px solid ${theme.tableBorderColor || borderColor}`,
-                borderRadius: theme.borderRadius,
-                fontSize: 14,
-                background: theme.inputBgColor,
-                color: autoInputText,
-                caretColor: autoInputText,
-                boxSizing: 'border-box',
-                ...invalidize(fieldId)
-              }}
-            />
+            {(() => {
+              const ph = field.placeholder ||
+                (iType === 'number' ? '0' :
+                 iType === 'decimal' ? '0,00' :
+                 iType === 'email' ? 'exemplo@email.com' :
+                 iType === 'tel' ? '(xx) xxxxx-xxxx' : 'Digite aqui...');
+              if (iType === 'paragraph') {
+                return (
+                  <textarea
+                    value={value as string}
+                    onChange={(e) => handleInputChange(fieldId, e.target.value)}
+                    disabled={disabled}
+                    placeholder={ph}
+                    rows={4}
+                    maxLength={(field as any).maxLength || undefined}
+                    style={{ ...inputStyle, resize: 'vertical', minHeight: 90 }}
+                  />
+                );
+              }
+              return (
+                <input
+                  type={iType === 'number' || iType === 'decimal' ? 'text' : iType}
+                  inputMode={
+                    iType === 'number' ? 'numeric' :
+                    iType === 'decimal' ? 'decimal' :
+                    iType === 'tel' ? 'tel' :
+                    iType === 'email' ? 'email' : 'text'
+                  }
+                  value={value as string}
+                  onChange={(e) => handleInputChange(fieldId, sanitizeByInputType(e.target.value, iType))}
+                  disabled={disabled}
+                  placeholder={ph}
+                  maxLength={(field as any).maxLength || undefined}
+                  style={inputStyle}
+                />
+              );
+            })()}
             {invalid[fieldId] && (
               <p style={{ color: '#ef4444', fontSize: '0.875rem', marginTop: '0.25rem' }}>
                 {invalid[fieldId]}
@@ -509,6 +558,7 @@ export default function PublicFormPage() {
             )}
           </div>
         );
+      }
 
       case 'Data':
         return (

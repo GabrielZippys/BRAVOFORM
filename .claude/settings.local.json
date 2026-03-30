@@ -13,7 +13,12 @@
       "Bash(grep -n \"Selecionar\\\\|select.*style\\\\|style.*select\" app/forms/public/[formId]/page.tsx)",
       "Bash(grep -n \"Form Platform\\\\|BravoForm\" app/forms/public/[formId]/page.tsx)",
       "Bash(npx tsc:*)",
-      "Bash(grep -n \"tableBorderColor\\\\|tableHeaderBg\\\\|tableHeaderFont\\\\|tableCellFont\\\\|tableOddRow\\\\|tableEvenRow\" app/forms/public/[formId]/page.tsx)"
+      "Bash(grep -n \"tableBorderColor\\\\|tableHeaderBg\\\\|tableHeaderFont\\\\|tableCellFont\\\\|tableOddRow\\\\|tableEvenRow\" app/forms/public/[formId]/page.tsx)",
+      "Bash(grep -rn \"case ''Texto''\" \"C:\\\\Users\\\\OptiPlex 7080\\\\Desktop\\\\BRAVOFORM\\\\app\")",
+      "Bash(find 'C:\\\\Users\\\\OptiPlex 7080\\\\Desktop\\\\BRAVOFORM\\\\components' -name FormResponse* 2)",
+      "Bash(/dev/null grep:*)",
+      "Bash(find 'C:\\\\Users\\\\OptiPlex 7080\\\\Desktop\\\\BRAVOFORM' -name FormResponse*)",
+      "Bash(npx next:*)"
     ]
   }
 }

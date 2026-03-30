@@ -136,6 +136,27 @@ interface TableColumn {
 }
 interface TableRow { id: string; label: string; }
 
+type InputFieldType = 'text' | 'number' | 'decimal' | 'email' | 'tel' | 'paragraph';
+
+function sanitizeInput(value: string, iType: InputFieldType): string {
+  switch (iType) {
+    case 'number':
+      // Permite apenas dígitos e sinal de menos no início
+      return value.replace(/[^\d-]/g, '').replace(/(.)-/g, '$1');
+    case 'decimal':
+      // Permite dígitos, vírgula ou ponto (único), e sinal de menos no início
+      return value
+        .replace(/[^\d,.-]/g, '')
+        .replace(/(.)-/g, '$1')
+        .replace(/(.*[,.].*)[,.]/g, '$1');
+    case 'tel':
+      // Permite dígitos, espaço, +, -, (, )
+      return value.replace(/[^\d\s+\-()]/g, '');
+    default:
+      return value;
+  }
+}
+
 interface EnhancedFormField {
   id: string;
   type: FieldType;
@@ -148,6 +169,8 @@ interface EnhancedFormField {
   columns?: TableColumn[];
   rows?: TableRow[];
   style?: { width?: 'full' | 'half' | 'third'; alignment?: 'left' | 'center' | 'right'; };
+  inputType?: InputFieldType;
+  maxLength?: number;
 }
 
 // --- TEMA DO FORMULÁRIO (FormTheme) ---
@@ -761,7 +784,7 @@ const FIELD_TYPES: Array<{
   icon: React.ComponentType<{ size?: number }>;
   description: string;
 }> = [
-  { type: 'Texto', label: 'Campo de Texto', icon: Type, description: 'Entrada de texto simples' },
+  { type: 'Texto', label: 'Campo de Entrada', icon: Type, description: 'Texto, número, e-mail, telefone ou parágrafo' },
   { type: 'Caixa de Seleção', label: 'Caixa de Seleção', icon: CheckSquare, description: 'Opções com checkboxes' },
   { type: 'Múltipla Escolha', label: 'Múltipla Escolha', icon: List, description: 'Lista suspensa ou radio buttons' },
   { type: 'Data', label: 'Data', icon: Calendar, description: 'Seletor de data' },
@@ -1128,6 +1151,50 @@ function FieldProperties({ field, updateField, companyId }: {
         </div>
       )}
 
+      {field.type === 'Texto' && (
+        <div className={styles.propertyGroup}>
+          <label style={{ display: 'flex', alignItems: 'center' }}>
+            Tipo de dado aceito
+            <HelpTooltip text="Define qual tipo de informação o colaborador poderá digitar neste campo" />
+          </label>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 6 }}>
+            {([
+              { value: 'text',      label: 'Texto livre',   hint: 'abc...' },
+              { value: 'paragraph', label: 'Parágrafo',     hint: '¶ multilinha' },
+              { value: 'number',    label: 'Número inteiro',hint: '0–9' },
+              { value: 'decimal',   label: 'Número decimal',hint: '0,00' },
+              { value: 'email',     label: 'E-mail',        hint: '@' },
+              { value: 'tel',       label: 'Telefone',      hint: '(xx) xxxxx' },
+            ] as { value: InputFieldType; label: string; hint: string }[]).map(opt => {
+              const active = (field.inputType || 'text') === opt.value;
+              return (
+                <button
+                  key={opt.value}
+                  type="button"
+                  onClick={() => updateField({ inputType: opt.value })}
+                  style={{
+                    padding: '8px 6px',
+                    borderRadius: 8,
+                    border: active ? '2px solid #7dd3fc' : '1.5px solid rgba(255,255,255,0.12)',
+                    background: active ? 'rgba(125,211,252,0.12)' : 'rgba(255,255,255,0.04)',
+                    color: active ? '#7dd3fc' : '#94a3b8',
+                    cursor: 'pointer',
+                    fontSize: 11,
+                    fontWeight: active ? 600 : 400,
+                    textAlign: 'center',
+                    lineHeight: 1.3,
+                    transition: 'all 0.15s',
+                  }}
+                >
+                  <div style={{ fontSize: 9, color: active ? '#38bdf8' : '#64748b', marginBottom: 2 }}>{opt.hint}</div>
+                  {opt.label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       {(field.type === 'Texto' || field.type === 'Data') && (
         <div className={styles.propertyGroup}>
           <label style={{ display: 'flex', alignItems: 'center' }}>
@@ -1138,6 +1205,22 @@ function FieldProperties({ field, updateField, companyId }: {
             type="text"
             value={field.placeholder || ''}
             onChange={e => updateField({ placeholder: e.target.value })}
+            className={styles.propertyInput}
+          />
+        </div>
+      )}
+
+      {field.type === 'Texto' && (field.inputType === 'text' || field.inputType === 'paragraph' || !field.inputType) && (
+        <div className={styles.propertyGroup}>
+          <label style={{ display: 'flex', alignItems: 'center' }}>
+            Limite de caracteres
+            <HelpTooltip text="Máximo de caracteres que o colaborador pode digitar (deixe 0 para sem limite)" />
+          </label>
+          <input
+            type="number"
+            min={0}
+            value={field.maxLength || 0}
+            onChange={e => updateField({ maxLength: Number(e.target.value) || 0 })}
             className={styles.propertyInput}
           />
         </div>
@@ -1686,26 +1769,56 @@ const autoInputColor = ensureReadableText(baseInputBg, theme.inputFontColor);
                   </p>
                 )}
 
-                {/* TEXTO */}
-                {field.type === 'Texto' && (
-                  <input
-                    type="text"
-                    placeholder={field.placeholder}
-                    value={(v as string) ?? ''}
-                    onChange={(e) => onChange(field.id, e.target.value)}
-                    style={{
-                      width: '100%',
-                      padding: '8px 12px',
-                      border: `1px solid ${theme.tableBorderColor}`,
-                      borderRadius: '6px',
-                      fontSize: '14px',
-                      background: theme.inputBgColor,
-                      color: autoInputColor,
-caretColor: autoInputColor,   // (opcional) garante o cursor visível
-
-                    }}
-                  />
-                )}
+                {/* CAMPO DE ENTRADA */}
+                {field.type === 'Texto' && (() => {
+                  const inputStyle: React.CSSProperties = {
+                    width: '100%',
+                    padding: '8px 12px',
+                    border: `1px solid ${theme.tableBorderColor}`,
+                    borderRadius: theme.borderRadius || 6,
+                    fontSize: '14px',
+                    background: theme.inputBgColor,
+                    color: autoInputColor,
+                    caretColor: autoInputColor,
+                    fontFamily: 'inherit',
+                  };
+                  const iType = field.inputType || 'text';
+                  if (iType === 'paragraph') {
+                    return (
+                      <textarea
+                        placeholder={field.placeholder}
+                        value={(v as string) ?? ''}
+                        onChange={(e) => onChange(field.id, e.target.value)}
+                        rows={4}
+                        maxLength={field.maxLength || undefined}
+                        style={{ ...inputStyle, resize: 'vertical', minHeight: 90 }}
+                      />
+                    );
+                  }
+                  const htmlType = iType === 'number' || iType === 'decimal' ? 'text' : iType;
+                  const inputMode: React.HTMLAttributes<HTMLInputElement>['inputMode'] =
+                    iType === 'number' ? 'numeric' :
+                    iType === 'decimal' ? 'decimal' :
+                    iType === 'tel' ? 'tel' :
+                    iType === 'email' ? 'email' : 'text';
+                  const placeholder =
+                    iType === 'number' ? '0' :
+                    iType === 'decimal' ? '0,00' :
+                    iType === 'email' ? 'exemplo@email.com' :
+                    iType === 'tel' ? '(xx) xxxxx-xxxx' :
+                    field.placeholder || '';
+                  return (
+                    <input
+                      type={htmlType}
+                      inputMode={inputMode}
+                      placeholder={placeholder}
+                      value={(v as string) ?? ''}
+                      onChange={(e) => onChange(field.id, sanitizeInput(e.target.value, iType))}
+                      maxLength={field.maxLength || undefined}
+                      style={inputStyle}
+                    />
+                  );
+                })()}
 
                 {/* DATA */}
                 {field.type === 'Data' && (
