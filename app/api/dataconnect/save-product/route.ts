@@ -8,36 +8,47 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     const { productId, catalogId, nome, name, codigo, ean, unidade, 
-            quantidadeMax, quantidadeMin, preco, estoque, collection, companyId } = body;
+            quantidadeMax, quantidadeMin, preco, estoque, companyId } = body;
 
     // Firestore usa 'nome' (pt-BR), aceitar ambos
     const productName = nome || name || '';
 
     await client.query('BEGIN');
 
+    // Resolver surrogate keys
+    const catRes = await client.query(
+      'SELECT catalog_key FROM dim_product_catalogs WHERE firebase_id = $1', [catalogId]
+    );
+    const catalogKey = catRes.rows[0]?.catalog_key || null;
+
+    const companyRes = await client.query(
+      'SELECT company_key FROM dim_companies WHERE firebase_id = $1', [companyId]
+    );
+    const companyKey = companyRes.rows[0]?.company_key || null;
+
     // UPSERT produto
     await client.query(`
-      INSERT INTO products (
-        id, catalog_id, name, codigo, ean, unidade, quantidade_max,
-        quantidade_min, preco, estoque, collection, company_id, created_at, updated_at
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, NOW(), NOW())
-      ON CONFLICT (id) DO UPDATE SET
+      INSERT INTO dim_products (
+        firebase_id, catalog_key, company_key, name, codigo, ean, unidade,
+        quantidade_max, quantidade_min, preco_atual, estoque, created_at, updated_at
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, NOW(), NOW())
+      ON CONFLICT (firebase_id) DO UPDATE SET
         name = EXCLUDED.name,
+        catalog_key = EXCLUDED.catalog_key,
         codigo = EXCLUDED.codigo,
         ean = EXCLUDED.ean,
         unidade = EXCLUDED.unidade,
         quantidade_max = EXCLUDED.quantidade_max,
         quantidade_min = EXCLUDED.quantidade_min,
-        preco = EXCLUDED.preco,
+        preco_atual = EXCLUDED.preco_atual,
         estoque = EXCLUDED.estoque,
         updated_at = NOW()
-    `, [productId, catalogId, productName, codigo || '', ean || '', unidade || '',
-        quantidadeMax || null, quantidadeMin || null, preco || null, estoque || null,
-        collection || 'products', companyId || '']);
+    `, [productId, catalogKey, companyKey, productName, codigo || '', ean || '', unidade || '',
+        quantidadeMax || null, quantidadeMin || null, preco || null, estoque || null]);
 
     await client.query('COMMIT');
 
-    console.log(`✅ PostgreSQL: produto ${productId} salvo`);
+    console.log(`✅ PostgreSQL: produto ${productId} salvo (dim_products)`);
 
     return NextResponse.json({
       success: true,
@@ -71,9 +82,9 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
-    await client.query('DELETE FROM products WHERE id = $1', [productId]);
+    await client.query('DELETE FROM dim_products WHERE firebase_id = $1', [productId]);
 
-    console.log(`✅ PostgreSQL: produto ${productId} deletado`);
+    console.log(`✅ PostgreSQL: produto ${productId} deletado (dim_products)`);
 
     return NextResponse.json({ success: true });
 

@@ -10,12 +10,12 @@ export async function POST(request: NextRequest) {
     const { companyId, name } = body;
 
     await client.query(`
-      INSERT INTO companies (id, name, created_at)
+      INSERT INTO dim_companies (firebase_id, name, created_at)
       VALUES ($1, $2, NOW())
-      ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name
+      ON CONFLICT (firebase_id) DO UPDATE SET name = EXCLUDED.name
     `, [companyId, name]);
 
-    console.log(`✅ PostgreSQL: empresa ${companyId} salva`);
+    console.log(`✅ PostgreSQL: empresa ${companyId} salva (dim_companies)`);
     return NextResponse.json({ success: true, data: { company_id: companyId } });
 
   } catch (error: any) {
@@ -38,8 +38,8 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ success: false, error: 'Company ID required' }, { status: 400 });
     }
 
-    await client.query('DELETE FROM companies WHERE id = $1', [companyId]);
-    console.log(`✅ PostgreSQL: empresa ${companyId} deletada`);
+    await client.query('DELETE FROM dim_companies WHERE firebase_id = $1', [companyId]);
+    console.log(`✅ PostgreSQL: empresa ${companyId} deletada (dim_companies)`);
     return NextResponse.json({ success: true });
 
   } catch (error: any) {

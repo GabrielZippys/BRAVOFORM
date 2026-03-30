@@ -9,15 +9,21 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { departmentId, name, companyId } = body;
 
-    await client.query(`
-      INSERT INTO departments (id, name, company_id, created_at)
-      VALUES ($1, $2, $3, NOW())
-      ON CONFLICT (id) DO UPDATE SET 
-        name = EXCLUDED.name,
-        company_id = EXCLUDED.company_id
-    `, [departmentId, name, companyId]);
+    // Resolver company_key a partir do firebase_id
+    const companyRes = await client.query(
+      'SELECT company_key FROM dim_companies WHERE firebase_id = $1', [companyId]
+    );
+    const companyKey = companyRes.rows[0]?.company_key || null;
 
-    console.log(`✅ PostgreSQL: departamento ${departmentId} salvo`);
+    await client.query(`
+      INSERT INTO dim_departments (firebase_id, company_key, name, created_at)
+      VALUES ($1, $2, $3, NOW())
+      ON CONFLICT (firebase_id) DO UPDATE SET 
+        name = EXCLUDED.name,
+        company_key = EXCLUDED.company_key
+    `, [departmentId, companyKey, name]);
+
+    console.log(`✅ PostgreSQL: departamento ${departmentId} salvo (dim_departments)`);
     return NextResponse.json({ success: true, data: { department_id: departmentId } });
 
   } catch (error: any) {
@@ -40,8 +46,8 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ success: false, error: 'Department ID required' }, { status: 400 });
     }
 
-    await client.query('DELETE FROM departments WHERE id = $1', [departmentId]);
-    console.log(`✅ PostgreSQL: departamento ${departmentId} deletado`);
+    await client.query('DELETE FROM dim_departments WHERE firebase_id = $1', [departmentId]);
+    console.log(`✅ PostgreSQL: departamento ${departmentId} deletado (dim_departments)`);
     return NextResponse.json({ success: true });
 
   } catch (error: any) {
