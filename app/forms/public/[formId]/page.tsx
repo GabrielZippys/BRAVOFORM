@@ -198,7 +198,7 @@ export default function PublicFormPage() {
   const tickBgUnchecked   = isDarkBg ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.04)';
   const tickLabelColor    = theme.fontColor;
 
-  // Sanitização por tipo de campo
+  // Sanitização / máscara por tipo de campo
   function sanitizeByInputType(value: string, iType: string): string {
     switch (iType) {
       case 'number':
@@ -210,9 +210,35 @@ export default function PublicFormPage() {
           .replace(/(.*[,.].*)[,.]/g, '$1');
       case 'tel':
         return value.replace(/[^\d\s+\-()]/g, '');
+      case 'cep': {
+        const d = value.replace(/\D/g, '').slice(0, 8);
+        return d.length > 5 ? `${d.slice(0, 5)}-${d.slice(5)}` : d;
+      }
+      case 'cpf': {
+        const d = value.replace(/\D/g, '').slice(0, 11);
+        if (d.length > 9) return `${d.slice(0,3)}.${d.slice(3,6)}.${d.slice(6,9)}-${d.slice(9)}`;
+        if (d.length > 6) return `${d.slice(0,3)}.${d.slice(3,6)}.${d.slice(6)}`;
+        if (d.length > 3) return `${d.slice(0,3)}.${d.slice(3)}`;
+        return d;
+      }
       default:
         return value;
     }
+  }
+
+  function validateCpf(cpf: string): boolean {
+    const d = cpf.replace(/\D/g, '');
+    if (d.length !== 11 || /^(\d)\1+$/.test(d)) return false;
+    let sum = 0;
+    for (let i = 0; i < 9; i++) sum += parseInt(d[i]) * (10 - i);
+    let r = (sum * 10) % 11;
+    if (r === 10 || r === 11) r = 0;
+    if (r !== parseInt(d[9])) return false;
+    sum = 0;
+    for (let i = 0; i < 10; i++) sum += parseInt(d[i]) * (11 - i);
+    r = (sum * 10) % 11;
+    if (r === 10 || r === 11) r = 0;
+    return r === parseInt(d[10]);
   }
 
   // Validação
@@ -223,6 +249,19 @@ export default function PublicFormPage() {
     const val = responses[fieldId];
 
     if (field.type === 'Cabeçalho') return '';
+
+    // Validação de formato CEP/CPF independente de obrigatoriedade
+    if (field.type === 'Texto') {
+      const iType = (field as any).inputType || 'text';
+      const strVal = typeof val === 'string' ? val.trim() : '';
+      if (iType === 'cep' && strVal) {
+        if (strVal.replace(/\D/g, '').length !== 8) return 'CEP inválido (formato: 00000-000)';
+      }
+      if (iType === 'cpf' && strVal) {
+        if (!validateCpf(strVal)) return 'CPF inválido';
+      }
+    }
+
     if (!field.required) return '';
 
     switch (field.type) {
@@ -290,15 +329,19 @@ export default function PublicFormPage() {
   // Handlers
   const handleInputChange = (fieldId: string, value: any) => {
     setResponses(prev => ({ ...prev, [fieldId]: value }));
-    
+
     const field = form?.fields.find(f => String(f.id) === fieldId);
-    if (field?.required) {
-      const err = validateRequiredField(field);
-      setInvalid(prev => {
-        const copy = { ...prev };
-        if (err) copy[fieldId] = err; else delete copy[fieldId];
-        return copy;
-      });
+    if (field) {
+      const iType = field.inputType || '';
+      const shouldValidate = field.required || iType === 'cep' || iType === 'cpf';
+      if (shouldValidate) {
+        const err = validateRequiredField(field);
+        setInvalid(prev => {
+          const copy = { ...prev };
+          if (err) copy[fieldId] = err; else delete copy[fieldId];
+          return copy;
+        });
+      }
     }
   };
 
@@ -432,6 +475,7 @@ export default function PublicFormPage() {
         fieldMetadata[String(field.id)] = {
           label: field.label,
           type: field.type,
+          inputType: field.inputType,
           ...(field.type === 'Tabela' && {
             rows: field.rows?.map((r: any) => ({ id: r.id, label: r.label })),
             columns: field.columns?.map((c: any) => ({ id: c.id, label: c.label, type: c.type }))
@@ -519,7 +563,9 @@ export default function PublicFormPage() {
                 (iType === 'number' ? '0' :
                  iType === 'decimal' ? '0,00' :
                  iType === 'email' ? 'exemplo@email.com' :
-                 iType === 'tel' ? '(xx) xxxxx-xxxx' : 'Digite aqui...');
+                 iType === 'tel' ? '(xx) xxxxx-xxxx' :
+                 iType === 'cep' ? '00000-000' :
+                 iType === 'cpf' ? '000.000.000-00' : 'Digite aqui...');
               if (iType === 'paragraph') {
                 return (
                   <textarea
@@ -533,20 +579,21 @@ export default function PublicFormPage() {
                   />
                 );
               }
+              const isTextType = iType === 'number' || iType === 'decimal' || iType === 'cep' || iType === 'cpf';
               return (
                 <input
-                  type={iType === 'number' || iType === 'decimal' ? 'text' : iType}
+                  type={isTextType ? 'text' : iType}
                   inputMode={
                     iType === 'number' ? 'numeric' :
                     iType === 'decimal' ? 'decimal' :
-                    iType === 'tel' ? 'tel' :
+                    iType === 'tel' || iType === 'cep' || iType === 'cpf' ? 'numeric' :
                     iType === 'email' ? 'email' : 'text'
                   }
                   value={value as string}
                   onChange={(e) => handleInputChange(fieldId, sanitizeByInputType(e.target.value, iType))}
                   disabled={disabled}
                   placeholder={ph}
-                  maxLength={(field as any).maxLength || undefined}
+                  maxLength={iType === 'cep' ? 9 : iType === 'cpf' ? 14 : (field as any).maxLength || undefined}
                   style={inputStyle}
                 />
               );

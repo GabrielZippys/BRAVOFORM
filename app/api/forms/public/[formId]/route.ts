@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '../../../../../firebase/config';
 import { collection, addDoc, serverTimestamp, doc, getDoc } from 'firebase/firestore';
+import { saveResponseToPg } from '@/lib/db/saveResponse';
 
 export async function POST(
   request: NextRequest,
@@ -66,31 +67,22 @@ export async function POST(
     // Salvar no Firestore
     const docRef = await addDoc(collection(db, 'forms', formId, 'responses'), payload);
 
-    // Salvar no PostgreSQL (fire-and-forget)
-    try {
-      await fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/dataconnect/save-response`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          responseId: docRef.id,
-          formId: formId,
-          formTitle: formData.title,
-          companyId: formData.companyId || '',
-          departmentId: formData.departmentId || '',
-          department: '',
-          collaboratorId: '', // Vazio para anônimos
-          collaboratorUsername: 'Anônimo',
-          status: 'pending',
-          answers,
-          fieldMetadata,
-        }),
-      });
-    } catch (pgError) {
+    // Salvar no PostgreSQL (direto, sem HTTP self-call)
+    saveResponseToPg({
+      responseId: docRef.id,
+      formId: formId,
+      formTitle: formData.title,
+      companyId: formData.companyId || '',
+      departmentId: formData.departmentId || '',
+      department: '',
+      collaboratorId: '',
+      collaboratorUsername: 'Anônimo',
+      status: 'pending',
+      answers,
+      fieldMetadata,
+    }).catch((pgError: any) => {
       console.error('Erro ao salvar no PostgreSQL (não crítico):', pgError);
-      // Não falha a requisição se PostgreSQL falhar
-    }
+    });
 
     console.log(`✅ Resposta anônima salva: ${docRef.id} para formulário ${formId}`);
 

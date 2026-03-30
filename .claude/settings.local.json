@@ -22,7 +22,12 @@
       "Bash(PGPASSWORD='Br@v0x00' psql -h 34.39.165.146 -U ipanema -d \"formbravo-8854e-database\" -f \"C:/Users/OptiPlex 7080/Desktop/BRAVOFORM/scripts/sql/003_create_dim_form_fields.sql\")",
       "Bash(python3 -c \"import psycopg2; print\\(''psycopg2 ok''\\)\")",
       "Bash(python -c \"import psycopg2; print\\(''psycopg2 ok''\\)\")",
-      "Bash(python -:*)"
+      "Bash(python -:*)",
+      "Bash(find /c/Users/OptiPlex 7080/Desktop/BRAVOFORM/app -type f -name *.tsx -o -name *.ts)",
+      "Bash(grep -r banco /c/Users/OptiPlex 7080/Desktop/BRAVOFORM/app --include=*.tsx --include=*.ts)",
+      "Bash(find /c/Users/OptiPlex 7080/Desktop/BRAVOFORM -path */node_modules -prune -o -type d -name *banco* -o -type d -name *data*)",
+      "Bash(find /c/Users/OptiPlex 7080/Desktop/BRAVOFORM/src -type f \\\\\\(-name *.tsx -o -name *.ts \\\\\\))",
+      "Bash(grep -r 'Banco de Dados' /c/Users/OptiPlex 7080/Desktop/BRAVOFORM/src/components --include=*.tsx)"
     ]
   }
 }

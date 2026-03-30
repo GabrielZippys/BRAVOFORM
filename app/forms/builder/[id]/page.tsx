@@ -136,22 +136,36 @@ interface TableColumn {
 }
 interface TableRow { id: string; label: string; }
 
-type InputFieldType = 'text' | 'number' | 'decimal' | 'email' | 'tel' | 'paragraph';
+type InputFieldType = 'text' | 'number' | 'decimal' | 'email' | 'tel' | 'paragraph' | 'cep' | 'cpf';
+
+function maskCep(v: string): string {
+  const d = v.replace(/\D/g, '').slice(0, 8);
+  return d.length > 5 ? `${d.slice(0, 5)}-${d.slice(5)}` : d;
+}
+
+function maskCpf(v: string): string {
+  const d = v.replace(/\D/g, '').slice(0, 11);
+  if (d.length > 9) return `${d.slice(0,3)}.${d.slice(3,6)}.${d.slice(6,9)}-${d.slice(9)}`;
+  if (d.length > 6) return `${d.slice(0,3)}.${d.slice(3,6)}.${d.slice(6)}`;
+  if (d.length > 3) return `${d.slice(0,3)}.${d.slice(3)}`;
+  return d;
+}
 
 function sanitizeInput(value: string, iType: InputFieldType): string {
   switch (iType) {
     case 'number':
-      // Permite apenas dígitos e sinal de menos no início
       return value.replace(/[^\d-]/g, '').replace(/(.)-/g, '$1');
     case 'decimal':
-      // Permite dígitos, vírgula ou ponto (único), e sinal de menos no início
       return value
         .replace(/[^\d,.-]/g, '')
         .replace(/(.)-/g, '$1')
         .replace(/(.*[,.].*)[,.]/g, '$1');
     case 'tel':
-      // Permite dígitos, espaço, +, -, (, )
       return value.replace(/[^\d\s+\-()]/g, '');
+    case 'cep':
+      return maskCep(value);
+    case 'cpf':
+      return maskCpf(value);
     default:
       return value;
   }
@@ -1165,6 +1179,8 @@ function FieldProperties({ field, updateField, companyId }: {
               { value: 'decimal',   label: 'Número decimal',hint: '0,00' },
               { value: 'email',     label: 'E-mail',        hint: '@' },
               { value: 'tel',       label: 'Telefone',      hint: '(xx) xxxxx' },
+              { value: 'cep',       label: 'CEP',           hint: '00000-000' },
+              { value: 'cpf',       label: 'CPF',           hint: '000.000.000-00' },
             ] as { value: InputFieldType; label: string; hint: string }[]).map(opt => {
               const active = (field.inputType || 'text') === opt.value;
               return (
@@ -1795,17 +1811,19 @@ const autoInputColor = ensureReadableText(baseInputBg, theme.inputFontColor);
                       />
                     );
                   }
-                  const htmlType = iType === 'number' || iType === 'decimal' ? 'text' : iType;
+                  const htmlType = iType === 'number' || iType === 'decimal' || iType === 'cep' || iType === 'cpf' ? 'text' : iType;
                   const inputMode: React.HTMLAttributes<HTMLInputElement>['inputMode'] =
                     iType === 'number' ? 'numeric' :
                     iType === 'decimal' ? 'decimal' :
-                    iType === 'tel' ? 'tel' :
+                    iType === 'tel' || iType === 'cep' || iType === 'cpf' ? 'numeric' :
                     iType === 'email' ? 'email' : 'text';
                   const placeholder =
                     iType === 'number' ? '0' :
                     iType === 'decimal' ? '0,00' :
                     iType === 'email' ? 'exemplo@email.com' :
                     iType === 'tel' ? '(xx) xxxxx-xxxx' :
+                    iType === 'cep' ? '00000-000' :
+                    iType === 'cpf' ? '000.000.000-00' :
                     field.placeholder || '';
                   return (
                     <input
@@ -1814,7 +1832,7 @@ const autoInputColor = ensureReadableText(baseInputBg, theme.inputFontColor);
                       placeholder={placeholder}
                       value={(v as string) ?? ''}
                       onChange={(e) => onChange(field.id, sanitizeInput(e.target.value, iType))}
-                      maxLength={field.maxLength || undefined}
+                      maxLength={iType === 'cep' ? 9 : iType === 'cpf' ? 14 : field.maxLength || undefined}
                       style={inputStyle}
                     />
                   );
