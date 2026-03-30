@@ -638,6 +638,29 @@ def _build_field_label_cache():
         cur.close(); conn.close()
     return cache
 
+def _build_table_meta_cache():
+    """Constrói cache form_fb_id → { field_id → {rows: [...], columns: [...]} } para campos Tabela."""
+    cache = {}  # form_firebase_id → { field_id → {rows, columns} }
+    conn = pg_connect(); cur = conn.cursor()
+    try:
+        cur.execute("""
+            SELECT dff.form_fb_id, dff.field_id, dff.table_rows_json, dff.table_columns_json
+            FROM dim_form_fields dff
+            WHERE dff.input_type = 'table'
+              AND (dff.table_rows_json IS NOT NULL OR dff.table_columns_json IS NOT NULL)
+        """)
+        for row in cur.fetchall():
+            form_fb_id, field_id, rows_json, cols_json = row
+            if form_fb_id not in cache:
+                cache[form_fb_id] = {}
+            cache[form_fb_id][str(field_id)] = {
+                'rows': rows_json if isinstance(rows_json, list) else [],
+                'columns': cols_json if isinstance(cols_json, list) else [],
+            }
+    finally:
+        cur.close(); conn.close()
+    return cache
+
 def sync_responses():
     log.info("Exportando respostas de formulários...")
     if SYNC_ALL:
@@ -650,6 +673,10 @@ def sync_responses():
     # Cache de labels dos campos a partir de dim_forms.fields_json
     field_label_cache = _build_field_label_cache()
     log.info(f"Field label cache: {len(field_label_cache)} formulários")
+
+    # Cache de metadados de tabelas (rows/columns) a partir de dim_form_fields
+    table_meta_cache = _build_table_meta_cache()
+    log.info(f"Table meta cache: {len(table_meta_cache)} formulários com campos Tabela")
 
     responses = []
     answers_simple  = []  # campos simples APENAS
@@ -755,15 +782,43 @@ def sync_responses():
                         })
                     # NÃO duplica no fact_answers — dados estão em fact_checkbox_answers
 
-                # ── Tabela ──
+                # ── Tabela — explode cada célula em uma linha separada ──
                 elif input_type == 'table' or field_type in ('Tabela',):
                     tdata = json_val if isinstance(json_val, dict) else {}
                     if tdata:
-                        row_count = len(tdata)
-                        table_data_rows.append({**base,
-                            'table_data': to_json(tdata),
-                            'row_count':  row_count,
-                        })
+                        # Resolver labels de linhas/colunas via dim_form_fields (carregado no cache)
+                        row_label_map = {}
+                        col_label_map = {}
+                        tmeta = table_meta_cache.get(form_id, {}).get(fid_str, {})
+                        for ri, r in enumerate(tmeta.get('rows', [])):
+                            row_label_map[str(r.get('id', ''))] = {'label': r.get('label', ''), 'index': ri}
+                        for ci, c in enumerate(tmeta.get('columns', [])):
+                            col_label_map[str(c.get('id', ''))] = {'label': c.get('label', ''), 'index': ci}
+
+                        row_idx = 0
+                        for row_id, cols in tdata.items():
+                            if not isinstance(cols, dict):
+                                continue
+                            r_info = row_label_map.get(str(row_id), {})
+                            r_label = r_info.get('label', '') or str(row_id)
+                            r_idx = r_info.get('index', row_idx)
+                            col_idx = 0
+                            for col_id, cell_val in cols.items():
+                                c_info = col_label_map.get(str(col_id), {})
+                                c_label = c_info.get('label', '') or str(col_id)
+                                c_idx = c_info.get('index', col_idx)
+                                cell_str = None if cell_val is None else str(cell_val)
+                                table_data_rows.append({**base,
+                                    'row_id':       str(row_id),
+                                    'row_label':    r_label,
+                                    'column_id':    str(col_id),
+                                    'column_label': c_label,
+                                    'cell_value':   cell_str,
+                                    'row_index':    r_idx,
+                                    'column_index': c_idx,
+                                })
+                                col_idx += 1
+                            row_idx += 1
                     # NÃO duplica no fact_answers — dados estão em fact_table_answers
 
                 # ── Assinatura ──
@@ -818,7 +873,7 @@ def sync_responses():
     total_responses = len(responses)
     log.info(f"Coletados: {total_responses} respostas | {len(answers_simple)} simples | "
              f"{len(order_items)} itens pedido | {len(checkbox_opts)} checkboxes | "
-             f"{len(table_data_rows)} tabelas | {len(attachment_rows)} anexos")
+             f"{len(table_data_rows)} células tabela | {len(attachment_rows)} anexos")
 
     conn = pg_connect(); cur = conn.cursor()
     try:
@@ -924,20 +979,36 @@ def sync_responses():
                 """, (resp_key, form_key, cb['field_id'], cb['label'], cb['option_value'], cb['option_index']))
             conn.commit()
 
-        # ── fact_table_answers ──
+        # ── fact_table_answers (uma linha por célula — batch insert) ──
         if table_data_rows:
-            log.info(f"Inserindo {len(table_data_rows)} tabelas em fact_table_answers...")
+            log.info(f"Inserindo {len(table_data_rows)} células em fact_table_answers (batch)...")
+            batch_rows = []
             for td in table_data_rows:
                 resp_key = get_key(conn, 'fact_form_response', 'firebase_id', 'response_key', td['resp_fb_id'])
                 form_key = get_key(conn, 'dim_forms', 'firebase_id', 'form_key', td['form_fb_id'])
-                if not resp_key or not td['table_data']:
+                if not resp_key:
                     continue
-                cur.execute("""
-                    INSERT INTO fact_table_answers (
-                        response_key, form_key, field_id, field_label, table_data, row_count
-                    ) VALUES (%s,%s,%s,%s,%s::jsonb,%s)
-                """, (resp_key, form_key, td['field_id'], td['label'], td['table_data'], td['row_count']))
+                batch_rows.append({
+                    'response_key': resp_key, 'form_key': form_key,
+                    'field_id': td['field_id'], 'field_label': td['label'],
+                    'row_id': td['row_id'], 'row_label': td['row_label'],
+                    'column_id': td['column_id'], 'column_label': td['column_label'],
+                    'cell_value': td['cell_value'],
+                    'row_index': td['row_index'], 'column_index': td['column_index'],
+                })
+            execute_batch(cur, """
+                INSERT INTO fact_table_answers (
+                    response_key, form_key, field_id, field_label,
+                    row_id, row_label, column_id, column_label,
+                    cell_value, row_index, column_index
+                ) VALUES (
+                    %(response_key)s, %(form_key)s, %(field_id)s, %(field_label)s,
+                    %(row_id)s, %(row_label)s, %(column_id)s, %(column_label)s,
+                    %(cell_value)s, %(row_index)s, %(column_index)s
+                )
+            """, batch_rows, page_size=1000)
             conn.commit()
+            log.info(f"fact_table_answers: {len(batch_rows)} células inseridas")
 
         # ── fact_attachments ──
         if attachment_rows:

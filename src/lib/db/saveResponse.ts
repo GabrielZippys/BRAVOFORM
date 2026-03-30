@@ -133,15 +133,65 @@ export async function saveResponseToPg(data: SaveResponseInput): Promise<SaveRes
           continue;
         }
 
-        // Tabela
+        // Tabela — explode cada célula em uma linha separada (relacional puro)
         if (inputType === 'table' || fieldType === 'Tabela') {
           if (value && typeof value === 'object' && !Array.isArray(value)) {
-            const rowCount = Object.keys(value as object).length;
-            await client.query(`
-              INSERT INTO fact_table_answers (response_key, form_key, field_id, field_label, table_data, row_count)
-              VALUES ($1,$2,$3,$4,$5::jsonb,$6)
-            `, [responseKey, formKey, fieldId, fieldLabel, JSON.stringify(value), rowCount]);
-            tableCount++;
+            // Construir mapas de label a partir do fieldMetadata
+            const metaRows: Array<{id: string; label: string}> = meta.rows || [];
+            const metaCols: Array<{id: string; label: string}> = meta.columns || [];
+            const rowLabelMap: Record<string, {label: string; index: number}> = {};
+            const colLabelMap: Record<string, {label: string; index: number}> = {};
+            metaRows.forEach((r: any, i: number) => { rowLabelMap[String(r.id)] = { label: r.label || '', index: i }; });
+            metaCols.forEach((c: any, i: number) => { colLabelMap[String(c.id)] = { label: c.label || '', index: i }; });
+
+            // Se fieldMetadata não trouxe rows/cols, tentar buscar de dim_form_fields
+            if (metaRows.length === 0 || metaCols.length === 0) {
+              try {
+                const ffRes = await client.query(
+                  `SELECT table_rows_json, table_columns_json FROM dim_form_fields WHERE form_key = $1 AND field_id = $2`,
+                  [formKey, fieldId]
+                );
+                if (ffRes.rows[0]) {
+                  const dbRows = ffRes.rows[0].table_rows_json || [];
+                  const dbCols = ffRes.rows[0].table_columns_json || [];
+                  if (metaRows.length === 0 && Array.isArray(dbRows)) {
+                    dbRows.forEach((r: any, i: number) => { rowLabelMap[String(r.id)] = { label: r.label || '', index: i }; });
+                  }
+                  if (metaCols.length === 0 && Array.isArray(dbCols)) {
+                    dbCols.forEach((c: any, i: number) => { colLabelMap[String(c.id)] = { label: c.label || '', index: i }; });
+                  }
+                }
+              } catch (_) { /* fallback: labels ficam como IDs */ }
+            }
+
+            // Explodir: uma linha SQL por célula (row × column)
+            const tableObj = value as Record<string, Record<string, any>>;
+            let rowIdx = 0;
+            for (const [rowId, cols] of Object.entries(tableObj)) {
+              if (!cols || typeof cols !== 'object') continue;
+              const rowInfo  = rowLabelMap[rowId];
+              const rowLabel = rowInfo?.label || rowId;
+              const rIdx     = rowInfo?.index ?? rowIdx;
+              let colIdx = 0;
+              for (const [colId, cellVal] of Object.entries(cols)) {
+                const colInfo  = colLabelMap[colId];
+                const colLabel = colInfo?.label || colId;
+                const cIdx     = colInfo?.index ?? colIdx;
+                const cellStr  = cellVal === null || cellVal === undefined ? null : String(cellVal);
+                await client.query(`
+                  INSERT INTO fact_table_answers (
+                    response_key, form_key, field_id, field_label,
+                    row_id, row_label, column_id, column_label,
+                    cell_value, row_index, column_index
+                  ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
+                `, [responseKey, formKey, fieldId, fieldLabel,
+                    rowId, rowLabel, colId, colLabel,
+                    cellStr, rIdx, cIdx]);
+                tableCount++;
+                colIdx++;
+              }
+              rowIdx++;
+            }
           }
           continue;
         }

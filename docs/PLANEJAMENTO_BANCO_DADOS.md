@@ -50,7 +50,7 @@ Colaborador preenche formulário
 | `fact_answers` | 409 | Fato (somente campos simples, sem Cabeçalho/vazios) |
 | `fact_order_items` | 111 | Fato (48 com product_key) |
 | `fact_checkbox_answers` | 20 | Fato |
-| `fact_table_answers` | 15.704 | Fato (1 linha/campo tabela, JSONB completo) |
+| `fact_table_answers` | 355.984 | Fato (1 linha/célula — relacional puro, sem JSONB) |
 | `fact_attachments` | 26 | Fato (assinaturas base64) |
 | `fact_workflow_history` | 0 | Fato (workflow inativo) |
 
@@ -132,17 +132,17 @@ id, stageId, previousStageId, changedBy, changedAt, comment, actionType
 
 ## PARTE 2 — PROBLEMAS IDENTIFICADOS
 
-| # | Severidade | Problema | Impacto |
-|---|------------|----------|---------|
-| P1 | 🔴 Crítico | Tabela, Grade, Checkbox salvam como JSON blob | Impossível analisar no Power BI sem transformação complexa |
-| P2 | 🔴 Crítico | IDs Firebase (string) usados como FK nos JOINs | Performance ruim no VertiPaq — arquivo .pbix pesado |
-| P3 | 🟠 Alto | `field_type` não tem granularidade de subtipo | Não distingue número de texto, e-mail de telefone |
-| P4 | 🟠 Alto | `field_label` às vezes retorna o hash do field_id | Campo aparece como "xBhRswtdvO6Xxtz" no Power BI |
-| P5 | 🟠 Alto | Assinatura salva base64 (~100KB/linha) | Infla o banco, inútil para análise |
-| P6 | 🟠 Alto | Dual-write fire-and-forget pode ter perda silenciosa | Formulário existe no app mas não no Power BI |
-| P7 | 🟡 Médio | Workflow completamente ausente no PostgreSQL | SLA, gargalos, aprovações: impossível analisar |
-| P8 | 🟡 Médio | `fields_json` não é JSON válido (dump Python `str()`) | Não funciona como JSONB, impossível fazer queries |
-| P9 | 🟢 Baixo | Sem surrogate keys nas tabelas dimensão | Relacionamentos lentos conforme volume cresce |
+| # | Severidade | Problema | Status |
+|---|------------|----------|--------|
+| P1 | ~~🔴 Crítico~~ | Tabela, Grade, Checkbox salvam como JSON blob | ✅ RESOLVIDO — Tabela: 1 linha/célula (355K); Grade: fact_order_items; Checkbox: fact_checkbox_answers |
+| P2 | ~~🔴 Crítico~~ | IDs Firebase (string) usados como FK nos JOINs | ✅ RESOLVIDO — Surrogate keys SERIAL em todas as tabelas |
+| P3 | ~~🟠 Alto~~ | `field_type` não tem granularidade de subtipo | ✅ RESOLVIDO — `input_type` em fact_answers |
+| P4 | ~~🟠 Alto~~ | `field_label` às vezes retorna o hash do field_id | ✅ RESOLVIDO — fallback via dim_forms.fields_json (8 campos sem label na origem) |
+| P5 | ~~🟠 Alto~~ | Assinatura salva base64 (~100KB/linha) | ✅ RESOLVIDO — placeholder URL em fact_attachments |
+| P6 | 🟠 Alto | Dual-write fire-and-forget pode ter perda silenciosa | ⚠️ MITIGADO — sync script periódico compensa |
+| P7 | 🟡 Médio | Workflow completamente ausente no PostgreSQL | ⚠️ Infraestrutura pronta, dados virão com workflow ativo |
+| P8 | ~~🟡 Médio~~ | `fields_json` não é JSON válido (dump Python `str()`) | ✅ RESOLVIDO — JSONB válido com índice GIN |
+| P9 | ~~🟢 Baixo~~ | Sem surrogate keys nas tabelas dimensão | ✅ RESOLVIDO — SERIAL em todas as dim_* e fact_* |
 
 ---
 
@@ -179,9 +179,9 @@ Tabelas divididas em dois tipos:
 
 Preço, nome de produto e qualquer dado que pode mudar no catálogo deve ser copiado no momento da resposta. Se o preço do produto mudar amanhã, os pedidos do passado não podem mudar.
 
-**Princípio 4 — JSONB para dados estruturados complexos**
+**Princípio 4 — Relacional puro para dados estruturados**
 
-Em vez de explodir o campo Tabela em 50 linhas `table_cell` (10 linhas × 5 colunas = 50 registros por resposta), salvar como `JSONB` no PostgreSQL e criar Views com `crosstab()` ou extração direta. O banco processa, não o Power BI.
+> ⚠️ Atualizado em 30/03/2026: a abordagem JSONB para campos Tabela foi **abandonada** após feedback dos analistas. Dados concatenados (JSON blobs) são inutilizáveis no Power BI. A nova abordagem explode cada célula de uma tabela em uma linha separada com `row_label`, `column_label`, `cell_value`. Isso gera mais linhas (355K vs 15K) mas cada valor é acessível diretamente por SQL simples, sem operadores JSONB ou views dedicadas.
 
 ---
 
@@ -299,19 +299,17 @@ CREATE TABLE dim_form_fields (
 
 **Como usar no Power BI:**
 ```sql
--- Saber o label de uma linha da tabela (sem ETL)
+-- Com o modelo relacional, row_label e column_label já estão na fact_table_answers.
+-- dim_form_fields serve para consultar a definição do formulário (ex: opções de select).
 SELECT
     ta.response_key,
-    dff.field_label        AS pergunta,
-    row_def->>'id'         AS row_id,
-    row_def->>'label'      AS row_label,   -- "Segunda-feira", "Terça-feira"...
-    ta.table_data -> (row_def->>'id') AS valores_da_linha
+    ta.field_label  AS pergunta,
+    ta.row_label,                     -- "Segunda-feira", "Terça-feira"...
+    ta.column_label,                  -- "Aberto/Fechado", "Horário Inicial"...
+    ta.cell_value
 FROM fact_table_answers ta
-JOIN dim_form_fields dff
-    ON ta.form_key = dff.form_key
-   AND ta.field_id = dff.field_id
-JOIN LATERAL jsonb_array_elements(dff.table_rows_json) AS row_def ON TRUE
-WHERE dff.field_type = 'Tabela';
+WHERE ta.field_label = 'Horários de Recebimento'
+ORDER BY ta.response_key, ta.row_index, ta.column_index;
 ```
 
 > **Script:** `scripts/sql/003_create_dim_form_fields.sql`
@@ -490,8 +488,8 @@ CREATE INDEX idx_fca_field    ON fact_checkbox_answers(field_id);
 
 ---
 
-#### `fact_table_answers` *(NOVA — dados de campos Tabela como JSONB)*
-Em vez de explodir cada célula em uma linha separada (geraria 50 linhas por resposta para uma tabela 10×5), salva o JSONB validado e cria Views com `crosstab()` para o Power BI. O banco processa, não o Power BI.
+#### `fact_table_answers` *(REDESENHADA em 30/03/2026 — 1 linha por célula, relacional puro)*
+Cada célula de uma tabela (interseção linha × coluna) é salva como uma linha separada. Labels de linha e coluna são resolvidos no momento do save via `fieldMetadata` do frontend ou fallback para `dim_form_fields.table_rows_json` / `table_columns_json`. Elimina completamente JSONB concatenado — analistas podem filtrar, pivotar e agregar diretamente no Power BI.
 ```sql
 CREATE TABLE fact_table_answers (
     table_answer_key  SERIAL       PRIMARY KEY,
@@ -499,22 +497,38 @@ CREATE TABLE fact_table_answers (
     form_key          INTEGER,
     field_id          VARCHAR(255) NOT NULL,
     field_label       VARCHAR(500),            -- "Horários de Recebimento"
-    table_data        JSONB        NOT NULL,   -- JSON válido do objeto aninhado
-    row_count         INTEGER,                 -- qtd de linhas preenchidas
+    row_id            VARCHAR(255) NOT NULL,    -- ID da linha (ex: "row_seg", timestamp)
+    row_label         VARCHAR(500),            -- Label legível (ex: "Segunda-feira")
+    column_id         VARCHAR(255) NOT NULL,    -- ID da coluna (ex: "col_aberto")
+    column_label      VARCHAR(500),            -- Label legível (ex: "Aberto/Fechado")
+    cell_value        TEXT,                    -- Valor da célula
+    row_index         INTEGER,                 -- Posição da linha (0-based)
+    column_index      INTEGER,                 -- Posição da coluna (0-based)
     created_at        TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 CREATE INDEX idx_fta_response ON fact_table_answers(response_key);
-CREATE INDEX idx_fta_data     ON fact_table_answers USING GIN(table_data);
+CREATE INDEX idx_fta_field    ON fact_table_answers(field_id);
+CREATE INDEX idx_fta_row      ON fact_table_answers(row_id);
+CREATE INDEX idx_fta_col      ON fact_table_answers(column_id);
+CREATE INDEX idx_fta_label    ON fact_table_answers(field_label);
 ```
 
-> O índice GIN permite queries como:
+> Queries diretas sem JSONB:
 > ```sql
-> SELECT response_key,
->        table_data -> 'row_seg' ->> 'col_abertofechado' AS seg_status,
->        table_data -> 'row_seg' ->> 'col_horainicial'   AS seg_hora_ini
+> -- Estoque por produto (tabela "Preencha o ESTOQUE")
+> SELECT row_label AS produto, cell_value AS estoque
 > FROM fact_table_answers
-> WHERE field_label = 'Horários de Recebimento';
+> WHERE field_label = 'Preencha o ESTOQUE dos seguintes produtos'
+>   AND column_label = 'Estoque';
+>
+> -- Horários de recebimento (filtro por dia da semana)
+> SELECT row_label AS dia, column_label AS campo, cell_value
+> FROM fact_table_answers
+> WHERE field_label = 'Horários de Recebimento'
+>   AND row_label = 'Segunda-feira';
 > ```
+
+> **Script migração:** `scripts/sql/004_explode_fact_table_answers.sql`
 
 ---
 
@@ -626,22 +640,16 @@ WHERE fr.deleted_at IS NULL;
 ---
 
 ### `vw_horarios_recebimento`
-Exemplo de extração de campo Tabela via JSONB — específico para o formulário de horários.
+Exemplo de extração de campo Tabela — agora relacional puro, sem JSONB.
 ```sql
 CREATE OR REPLACE VIEW vw_horarios_recebimento AS
 SELECT
     fr.response_key, fr.submitted_at,
     col.username AS colaborador,
     d.name AS departamento,
-    -- Extração direta das células via operadores JSONB
-    ta.table_data -> 'row_seg' ->> 'col_abertofechado' AS seg_status,
-    ta.table_data -> 'row_seg' ->> 'col_horainicial'   AS seg_hora_ini,
-    ta.table_data -> 'row_seg' ->> 'col_horafinal'     AS seg_hora_fim,
-    ta.table_data -> 'row_ter' ->> 'col_abertofechado' AS ter_status,
-    ta.table_data -> 'row_qua' ->> 'col_abertofechado' AS qua_status,
-    ta.table_data -> 'row_qui' ->> 'col_abertofechado' AS qui_status,
-    ta.table_data -> 'row_sex' ->> 'col_abertofechado' AS sex_status,
-    ta.table_data -> 'row_sab' ->> 'col_abertofechado' AS sab_status
+    ta.row_label AS dia_semana,
+    ta.column_label AS campo,
+    ta.cell_value AS valor
 FROM fact_form_response fr
 JOIN dim_collaborators col ON fr.collaborator_key = col.collaborator_key
 JOIN dim_departments d     ON fr.department_key = d.department_key
@@ -649,7 +657,13 @@ JOIN fact_table_answers ta ON fr.response_key = ta.response_key
 WHERE ta.field_label = 'Horários de Recebimento'
   AND fr.deleted_at IS NULL;
 ```
-> Esta view é criada **especificamente** para esse formulário. Para cada formulário com Tabela, criar uma view dedicada com os `row_*` e `col_*` corretos.
+> Com o modelo relacional puro, **não é mais necessário criar views específicas por formulário**. Qualquer tabela pode ser consultada com filtros simples:
+> ```sql
+> SELECT row_label, column_label, cell_value
+> FROM fact_table_answers
+> WHERE field_label = 'Nome da Tabela'
+>   AND column_label = 'Coluna desejada';
+> ```
 
 ---
 
@@ -730,10 +744,10 @@ Reprocessar todo o histórico existente no novo modelo.
 1. ✅ Script Python `sync-firestore-to-postgresql.py` (v2.0) já grava direto nas tabelas `dim_*` e `fact_*`
 2. ✅ Surrogate keys geradas automaticamente (SERIAL) com lookup `firebase_id → *_key`
 3. ✅ Desnormalização executada pelo script:
-   - JSON de Tabela → `fact_table_answers` (15.609 registros)
-   - JSON de Grade → `fact_order_items` (111 registros)
-   - JSON de Checkbox → `fact_checkbox_answers` (20 registros)
-4. ✅ `SYNC_ALL=true` executado com sucesso (443s)
+   - Tabela → `fact_table_answers` (355.984 células — 1 linha por célula, relacional puro)
+   - Grade de Pedidos → `fact_order_items` (111 registros)
+   - Checkbox → `fact_checkbox_answers` (20 registros)
+4. ✅ `SYNC_ALL=true` executado com sucesso (241s com batch insert)
 
 **Contagem final após migração (30/03/2026):**
 
@@ -751,7 +765,7 @@ Reprocessar todo o histórico existente no novo modelo.
 | `fact_answers` | 409 (sem Cabeçalho/vazios) |
 | `fact_order_items` | 111 (48 com product_key) |
 | `fact_checkbox_answers` | 20 |
-| `fact_table_answers` | 15.704 |
+| `fact_table_answers` | 355.984 (1 linha/célula, sem JSONB) |
 | `fact_attachments` | 26 (assinaturas) |
 | `fact_workflow_history` | 0 |
 
@@ -774,7 +788,7 @@ Garantir que novas respostas já entrem no formato correto, eliminando JSON blob
    - Resolve surrogate keys (`form_key`, `company_key`, `department_key`, `collaborator_key`)
    - Detecta `input_type` via `fieldMetadata` de cada campo
    - Caixa de Seleção → `fact_checkbox_answers` (uma linha por opção)
-   - Tabela → `fact_table_answers` (JSONB válido)
+   - Tabela → `fact_table_answers` (**1 linha por célula**, labels resolvidos via fieldMetadata + dim_form_fields fallback)
    - Grade de Pedidos → `fact_order_items` (snapshot de `price_snap` e `product_name_snap`)
    - Assinatura → salva `[base64-signature]` em `fact_answers`, URL em `fact_attachments` se disponível
    - Anexo → `fact_attachments` + `fact_answers`
@@ -790,7 +804,8 @@ Garantir que novas respostas já entrem no formato correto, eliminando JSON blob
    - `update-status` → UPDATE real no `fact_form_response`
 3. ⬜ Garantir que o frontend envia `inputType` correto no `fieldMetadata` para cada campo
 
-> **Resultado:** novas respostas gravadas no modelo otimizado. JSON blobs eliminados para campos Tabela, Grade e Checkbox.
+> **Resultado:** novas respostas gravadas no modelo relacional puro. Zero JSONB/JSON concatenado em qualquer tabela fato. Campos Tabela explodidos em células individuais com `row_label`, `column_label`, `cell_value`.
+> **Migração 004:** `scripts/sql/004_explode_fact_table_answers.sql` — DROP/CREATE com schema cell-per-row.
 
 ---
 
@@ -870,13 +885,13 @@ dim_products.catalog_key            → dim_product_catalogs.catalog_key
 
 ## RESUMO EXECUTIVO
 
-| Prioridade | Ação | Por quê |
-|-----------|------|---------|
-| 🔴 #1 | Criar tabelas `fact_order_items` + `fact_checkbox_answers` | Destrava 80% das análises de pedidos e demografia |
-| 🔴 #2 | Adicionar `input_type` em `fact_answers` | Permite filtrar número/texto/email diretamente |
-| 🔴 #3 | Corrigir `fields_json` para `JSONB` válido | Permite queries SQL diretas nos campos do formulário |
-| 🟠 #4 | Surrogate keys (`SERIAL`) em todas as tabelas | Performance Power BI — arquivo .pbix mais leve |
-| 🟠 #5 | `fact_table_answers` com JSONB + views dedicadas | Análise de horários, tabelas, sem explosão de linhas |
-| 🟠 #6 | Assinatura → URL em vez de base64 | Remove ~100KB por linha do banco |
-| 🟡 #7 | `fact_workflow_history` + views SLA | Análise de aprovações, SLA, gargalos |
-| 🟡 #8 | Migrar dual-write para Cloud Functions | Elimina risco de perda silenciosa de dados |
+| Prioridade | Ação | Status |
+|-----------|------|--------|
+| ✅ #1 | Criar tabelas `fact_order_items` + `fact_checkbox_answers` | CONCLUÍDO — 111 itens + 20 checkboxes |
+| ✅ #2 | Adicionar `input_type` em `fact_answers` | CONCLUÍDO — subtipo em cada resposta |
+| ✅ #3 | Corrigir `fields_json` para `JSONB` válido | CONCLUÍDO — índice GIN ativo |
+| ✅ #4 | Surrogate keys (`SERIAL`) em todas as tabelas | CONCLUÍDO — JOINs por inteiro |
+| ✅ #5 | `fact_table_answers` relacional puro (1 linha/célula) | CONCLUÍDO — 355.984 células, zero JSONB |
+| ✅ #6 | Assinatura → placeholder URL em vez de base64 | CONCLUÍDO — 26 placeholders |
+| 🟡 #7 | `fact_workflow_history` + views SLA | Infraestrutura pronta, aguardando workflow ativo |
+| 🟡 #8 | Migrar dual-write para Cloud Functions | Pendente — mitigado pelo sync script periódico |
