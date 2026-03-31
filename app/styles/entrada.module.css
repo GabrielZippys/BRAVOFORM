@@ -1,907 +1,607 @@
 /* ===============================================================================
-   FORMBRAVO - Login Module CSS
-   Design escuro moderno com glassmorphism e animações de fundo sutis
+   FORMBRAVO — Login  ·  Mobile-first  ·  Dark glassmorphism
    =============================================================================== */
 
-/* ==================== KEYFRAMES E ANIMAÇÕES ==================== */
-@keyframes fadeInUp {
-  from {
-    opacity: 0;
-    transform: translateY(30px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+/* ── Keyframes ─────────────────────────────────────────────────────────────── */
+@keyframes meshDrift {
+  0%   { background-position: 0% 0%; }
+  50%  { background-position: 100% 100%; }
+  100% { background-position: 0% 0%; }
 }
-
-@keyframes floatAnimation {
-  0%, 100% {
-    transform: translateY(0px);
-  }
-  50% {
-    transform: translateY(-10px);
-  }
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(24px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
-
-@keyframes subtleWave {
-  0%, 100% {
-    transform: translateX(0) translateY(0) rotate(0deg);
-  }
-  25% {
-    transform: translateX(5px) translateY(-5px) rotate(1deg);
-  }
-  50% {
-    transform: translateX(-3px) translateY(-8px) rotate(-0.5deg);
-  }
-  75% {
-    transform: translateX(-5px) translateY(-3px) rotate(0.5deg);
-  }
+@keyframes scalePop {
+  0%   { opacity: 0; transform: scale(.6); }
+  60%  { transform: scale(1.06); }
+  100% { opacity: 1; transform: scale(1); }
 }
-
-@keyframes particleFloat {
-  0%, 100% {
-    transform: translateY(0px) translateX(0px);
-    opacity: 0.3;
-  }
-  50% {
-    transform: translateY(-20px) translateX(10px);
-    opacity: 0.6;
-  }
+@keyframes slideRight {
+  from { opacity: 0; transform: translateX(-18px); }
+  to   { opacity: 1; transform: translateX(0); }
 }
-
-@keyframes gradientShift {
-  0% {
-    background-position: 0% 50%;
-  }
-  50% {
-    background-position: 100% 50%;
-  }
-  100% {
-    background-position: 0% 50%;
-  }
-}
-
 @keyframes shimmer {
-  0% {
-    background-position: -200% 0;
-  }
-  100% {
-    background-position: 200% 0;
-  }
+  0%   { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
 }
-
-@keyframes pulse {
-  0%, 100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.8;
-  }
-}
-
-@keyframes ripple {
-  0% {
-    transform: scale(0);
-    opacity: 1;
-  }
-  100% {
-    transform: scale(4);
-    opacity: 0;
-  }
-}
-
-@keyframes glow {
-  0%, 100% {
-    box-shadow: 0 0 20px rgba(59, 130, 246, 0.2);
-  }
-  50% {
-    box-shadow: 0 0 30px rgba(59, 130, 246, 0.3);
-  }
-}
-
-@keyframes slideInFromLeft {
-  from {
-    opacity: 0;
-    transform: translateX(-50px);
-  }
-  to {
-    opacity: 1;
-    transform: translateX(0);
-  }
-}
-
-@keyframes bounceIn {
-  0% {
-    opacity: 0;
-    transform: scale(0.3);
-  }
-  50% {
-    opacity: 1;
-    transform: scale(1.05);
-  }
-  70% {
-    transform: scale(0.9);
-  }
-  100% {
-    opacity: 1;
-    transform: scale(1);
-  }
-}
-
-@keyframes shake {
-  0%, 100% {
-    transform: translateX(0);
-  }
-  10%, 30%, 50%, 70%, 90% {
-    transform: translateX(-5px);
-  }
-  20%, 40%, 60%, 80% {
-    transform: translateX(5px);
-  }
-}
-
 @keyframes spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
+  to { transform: rotate(360deg); }
+}
+@keyframes pulseGlow {
+  0%,100% { box-shadow: 0 0 20px rgba(59,130,246,.18); }
+  50%     { box-shadow: 0 0 36px rgba(59,130,246,.32); }
+}
+@keyframes shake {
+  0%,100% { transform: translateX(0); }
+  20%,60% { transform: translateX(-5px); }
+  40%,80% { transform: translateX(5px); }
+}
+@keyframes orbFloat {
+  0%,100% { transform: translate(0,0) scale(1); opacity: .12; }
+  50%     { transform: translate(30px,-40px) scale(1.15); opacity: .22; }
+}
+@keyframes orbFloat2 {
+  0%,100% { transform: translate(0,0) scale(1); opacity: .08; }
+  50%     { transform: translate(-25px,35px) scale(1.1); opacity: .18; }
+}
+@keyframes bounceIn {
+  0%   { opacity: 0; transform: scale(.3); }
+  50%  { opacity: 1; transform: scale(1.05); }
+  70%  { transform: scale(.95); }
+  100% { transform: scale(1); }
 }
 
-@keyframes backgroundOrbs {
-  0%, 100% {
-    transform: translate(0, 0) scale(1);
-    opacity: 0.1;
-  }
-  33% {
-    transform: translate(30px, -30px) scale(1.1);
-    opacity: 0.2;
-  }
-  66% {
-    transform: translate(-20px, 20px) scale(0.9);
-    opacity: 0.15;
-  }
-}
-
-/* ==================== CONTAINER PRINCIPAL ==================== */
+/* ── Full-screen canvas ────────────────────────────────────────────────────── */
 .main {
-  min-height: 100vh;
+  min-height: 100dvh;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 2rem;
-  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 25%, #0f3460 50%, #1a1a2e 100%);
-  background-size: 400% 400%;
-  animation: gradientShift 20s ease infinite;
+  padding: 1.25rem;
+  background: #0b1120;
+  background-image:
+    radial-gradient(ellipse 80% 60% at 20% 85%, rgba(59,130,246,.14) 0%, transparent 60%),
+    radial-gradient(ellipse 70% 50% at 85% 15%, rgba(99,60,255,.12) 0%, transparent 55%),
+    radial-gradient(ellipse 60% 50% at 50% 50%, rgba(16,185,129,.06) 0%, transparent 50%);
+  background-size: 200% 200%;
+  animation: meshDrift 28s ease-in-out infinite;
   position: relative;
   overflow: hidden;
 }
 
-/* Camada de animação sutil de fundo */
+/* orb 1 */
 .main::before {
   content: '';
   position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: 
-    radial-gradient(circle at 20% 80%, rgba(59, 130, 246, 0.08) 0%, transparent 50%),
-    radial-gradient(circle at 80% 20%, rgba(139, 92, 246, 0.06) 0%, transparent 50%),
-    radial-gradient(circle at 40% 40%, rgba(16, 185, 129, 0.04) 0%, transparent 50%);
-  animation: subtleWave 25s ease-in-out infinite;
+  width: 320px; height: 320px;
+  top: -60px; left: -80px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(59,130,246,.10) 0%, transparent 70%);
+  animation: orbFloat 22s ease-in-out infinite;
   pointer-events: none;
 }
-
-/* Partículas sutis flutuantes */
+/* orb 2 */
 .main::after {
   content: '';
   position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background-image: 
-    radial-gradient(circle at 25% 25%, rgba(255, 255, 255, 0.02) 1px, transparent 1px),
-    radial-gradient(circle at 75% 75%, rgba(255, 255, 255, 0.03) 1px, transparent 1px),
-    radial-gradient(circle at 50% 50%, rgba(59, 130, 246, 0.02) 1px, transparent 1px);
-  background-size: 80px 80px, 120px 120px, 60px 60px;
-  opacity: 0.4;
-  animation: particleFloat 30s ease-in-out infinite;
-  pointer-events: none;
-}
-
-/* ==================== SHAPES DE FUNDO ==================== */
-.backgroundShapes {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  pointer-events: none;
-  overflow: hidden;
-}
-
-.backgroundShapes::before {
-  content: '';
-  position: absolute;
-  top: -50%;
-  left: -50%;
-  width: 200%;
-  height: 200%;
-  background: 
-    radial-gradient(circle at 30% 20%, rgba(59, 130, 246, 0.05) 0%, transparent 50%),
-    radial-gradient(circle at 70% 80%, rgba(139, 92, 246, 0.04) 0%, transparent 50%);
-  animation: backgroundOrbs 40s ease-in-out infinite;
-}
-
-.backgroundShapes::after {
-  content: '';
-  position: absolute;
-  top: 20%;
-  right: 10%;
-  width: 300px;
-  height: 300px;
-  background: radial-gradient(circle, rgba(59, 130, 246, 0.03) 0%, transparent 70%);
+  width: 260px; height: 260px;
+  bottom: -40px; right: -60px;
   border-radius: 50%;
-  animation: backgroundOrbs 35s ease-in-out infinite reverse;
+  background: radial-gradient(circle, rgba(139,92,246,.09) 0%, transparent 70%);
+  animation: orbFloat2 26s ease-in-out infinite;
+  pointer-events: none;
 }
 
-/* ==================== CARD PRINCIPAL ==================== */
+.backgroundShapes { display: none; }        /* legacy div, não precisa mais */
+
+/* ── Card ──────────────────────────────────────────────────────────────────── */
 .frame {
   width: 100%;
-  max-width: 420px;
-  padding: 3rem 2.5rem;
-  background: rgba(30, 30, 46, 0.4);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border-radius: 24px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  box-shadow: 
-    0 25px 50px rgba(0, 0, 0, 0.5),
-    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  max-width: 400px;
+  padding: 2.5rem 1.75rem 2rem;
+  background: rgba(15,20,40,.55);
+  backdrop-filter: blur(24px) saturate(1.3);
+  -webkit-backdrop-filter: blur(24px) saturate(1.3);
+  border-radius: 28px;
+  border: 1px solid rgba(255,255,255,.08);
+  box-shadow:
+    0 2px 0 rgba(255,255,255,.06) inset,
+    0 24px 64px rgba(0,0,0,.55);
   position: relative;
-  animation: fadeInUp 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94);
-  transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  z-index: 1;
+  animation: fadeUp .7s cubic-bezier(.22,.68,.31,1.0);
+  transition: transform .35s, box-shadow .35s;
+}
+@media (hover:hover) {
+  .frame:hover {
+    transform: translateY(-4px);
+    box-shadow:
+      0 2px 0 rgba(255,255,255,.08) inset,
+      0 32px 72px rgba(0,0,0,.65);
+  }
 }
 
-.frame:hover {
-  transform: translateY(-5px);
-  box-shadow: 
-    0 35px 70px rgba(0, 0, 0, 0.6),
-    inset 0 1px 0 rgba(255, 255, 255, 0.15);
-  border-color: rgba(255, 255, 255, 0.15);
-}
-
-.frame::before {
-  content: '';
+/* top glow line */
+.cardTopGlow {
   position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0.02) 100%);
-  border-radius: 24px;
-  pointer-events: none;
+  top: -1px; left: 15%; right: 15%; height: 2px;
+  border-radius: 2px;
+  background: linear-gradient(90deg, transparent, rgba(59,130,246,.5), rgba(139,92,246,.4), transparent);
+  background-size: 200% 100%;
+  animation: shimmer 5s linear infinite;
 }
 
-/* ==================== LOGO ==================== */
+/* ── Logo ──────────────────────────────────────────────────────────────────── */
 .logoContainer {
   display: flex;
   justify-content: center;
-  align-items: center;
-  margin-bottom: 2rem;
-  animation: bounceIn 1s cubic-bezier(0.68, -0.55, 0.265, 1.55) 0.3s both;
+  margin-bottom: .5rem;
+  animation: scalePop .8s cubic-bezier(.34,1.56,.64,1) .15s both;
 }
 
 .logo {
-  width: 100px;
-  height: auto;
-  filter: drop-shadow(0 10px 20px rgba(0, 0, 0, 0.5));
-  transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  width: 88px; height: auto;
+  filter: drop-shadow(0 6px 18px rgba(59,130,246,.25));
+  transition: transform .3s, filter .3s;
 }
-
 .logo:hover {
-  transform: scale(1.05) rotate(5deg);
-  filter: drop-shadow(0 15px 30px rgba(0, 0, 0, 0.6));
+  transform: scale(1.08) rotate(3deg);
+  filter: drop-shadow(0 8px 24px rgba(59,130,246,.35));
 }
 
-/* ==================== FORMULÁRIO ==================== */
-.form {
-  display: flex;
-  flex-direction: column;
-  gap: 1.5rem;
+/* ── Greeting ─────────────────────────────────────────────────────────────── */
+.greeting {
+  text-align: center;
+  margin-bottom: 1.75rem;
+  animation: fadeUp .6s ease .3s both;
 }
-
-/* ==================== GRUPOS DE INPUT ==================== */
-.inputGroup {
-  position: relative;
-  animation: slideInFromLeft 0.6s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+.greetTitle {
+  margin: 0;
+  font-size: 1.35rem;
+  font-weight: 700;
+  color: #fff;
+  letter-spacing: -.02em;
 }
-
-.inputGroup:nth-child(2) {
-  animation-delay: 0.1s;
-}
-
-.inputGroup:nth-child(3) {
-  animation-delay: 0.2s;
-}
-
-/* ==================== ÍCONES DOS INPUTS ==================== */
-.inputIcon {
-  position: absolute;
-  left: 1rem; /* Voltando para posição mais próxima da borda */
-  top: 50%;
-  transform: translateY(-50%);
-  color: rgba(255, 255, 255, 0.5);
-  transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
-  z-index: 2;
-}
-
-/* ==================== INPUTS ==================== */
-.input {
-  width: 100%;
-  padding: 1rem 3rem 1rem 2.8rem; /* Reduzindo o padding-left para dar menos espaço */
-  background: rgba(255, 255, 255, 0.05);
-  border: 2px solid rgba(255, 255, 255, 0.1);
-  border-radius: 16px;
-  color: white;
-  font-size: 1rem;
-  font-weight: 500;
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-  transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
-  position: relative;
-  box-sizing: border-box;
-}
-
-.input::placeholder {
-  color: rgba(255, 255, 255, 0.4);
+.greetSub {
+  margin: .35rem 0 0;
+  font-size: .875rem;
+  color: rgba(255,255,255,.5);
   font-weight: 400;
 }
 
-.input:hover {
-  border-color: rgba(255, 255, 255, 0.2);
-  background: rgba(255, 255, 255, 0.08);
+/* ── Form ──────────────────────────────────────────────────────────────────── */
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
 }
 
+/* ── Input groups ─────────────────────────────────────────────────────────── */
+.inputGroup {
+  position: relative;
+  animation: slideRight .55s ease both;
+}
+.inputGroup:nth-child(1) { animation-delay: .35s; }
+.inputGroup:nth-child(2) { animation-delay: .45s; }
+
+.inputIcon {
+  position: absolute;
+  left: 14px; top: 50%;
+  transform: translateY(-50%);
+  color: rgba(255,255,255,.38);
+  transition: color .25s, transform .25s;
+  z-index: 2;
+  pointer-events: none;
+}
+
+.input {
+  width: 100%;
+  padding: 14px 48px 14px 44px;
+  background: rgba(255,255,255,.05);
+  border: 1.5px solid rgba(255,255,255,.10);
+  border-radius: 14px;
+  color: #fff;
+  font-size: 1rem;
+  font-weight: 500;
+  font-family: inherit;
+  box-sizing: border-box;
+  transition: border-color .25s, background .25s, box-shadow .25s, transform .2s;
+  -webkit-appearance: none;
+}
+.input::placeholder {
+  color: rgba(255,255,255,.34);
+  font-weight: 400;
+}
+.input:hover {
+  border-color: rgba(255,255,255,.18);
+  background: rgba(255,255,255,.07);
+}
 .input:focus {
   outline: none;
-  border-color: rgba(59, 130, 246, 0.6);
-  background: rgba(255, 255, 255, 0.1);
-  box-shadow: 
-    0 0 0 4px rgba(59, 130, 246, 0.15),
-    0 10px 25px rgba(0, 0, 0, 0.2);
-  transform: translateY(-2px);
+  border-color: rgba(59,130,246,.6);
+  background: rgba(255,255,255,.08);
+  box-shadow: 0 0 0 3px rgba(59,130,246,.14), 0 4px 16px rgba(0,0,0,.15);
+  transform: translateY(-1px);
+}
+.inputGroup:focus-within .inputIcon {
+  color: rgba(59,130,246,.85);
+  transform: translateY(-50%) scale(1.12);
 }
 
-.input:focus + .inputIcon {
-  color: rgba(59, 130, 246, 0.9);
-  transform: translateY(-50%) scale(1.1);
-}
-
-/* ==================== ESTADO DE AVISO (CAPS LOCK) ==================== */
+/* ── Caps-lock warning ────────────────────────────────────────────────────── */
 .inputWarn .input {
-  border-color: rgba(251, 191, 36, 0.6);
-  animation: shake 0.5s ease-in-out;
+  border-color: rgba(251,191,36,.55) !important;
+  animation: shake .45s ease;
 }
-
 .inputWarn .inputIcon {
-  color: rgba(251, 191, 36, 0.9);
+  color: rgba(251,191,36,.85) !important;
 }
-
 .hint {
-  color: rgba(251, 191, 36, 0.8);
-  font-size: 0.875rem;
-  margin-top: 0.5rem;
-  margin-left: 0.5rem;
+  color: rgba(251,191,36,.85);
+  font-size: .8rem;
+  margin: 4px 0 0 4px;
   font-weight: 500;
-  animation: fadeInUp 0.3s ease;
+  animation: fadeUp .25s ease;
 }
 
-/* ==================== BOTÃO MOSTRAR/OCULTAR SENHA ==================== */
+/* ── Show/hide password toggle ────────────────────────────────────────────── */
 .peek {
   position: absolute;
-  right: 1rem; /* Voltando para posição original */
-  top: 50%;
+  right: 10px; top: 50%;
   transform: translateY(-50%);
   background: none;
   border: none;
-  color: rgba(255, 255, 255, 0.5);
+  color: rgba(255,255,255,.38);
   cursor: pointer;
-  padding: 0.5rem;
-  border-radius: 8px;
-  transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  padding: 8px;
+  border-radius: 10px;
+  transition: color .25s, background .25s;
   z-index: 2;
 }
+.peek:hover { color: #fff; background: rgba(255,255,255,.08); }
 
-.peek:hover {
-  color: white;
-  background: rgba(255, 255, 255, 0.08);
-  transform: translateY(-50%) scale(1.1);
-}
-
-/* ==================== CONTAINER DE ERRO ==================== */
+/* ── Error ────────────────────────────────────────────────────────────────── */
 .errorContainer {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
-  padding: 1rem;
-  background: rgba(239, 68, 68, 0.08);
-  border: 1px solid rgba(239, 68, 68, 0.2);
+  gap: .6rem;
+  padding: .75rem 1rem;
+  background: rgba(239,68,68,.08);
+  border: 1px solid rgba(239,68,68,.22);
   border-radius: 12px;
-  color: rgba(254, 202, 202, 0.9);
-  animation: bounceIn 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
+  color: rgba(254,202,202,.9);
+  animation: bounceIn .5s cubic-bezier(.68,-.55,.265,1.55);
 }
+.error { margin: 0; font-size: .85rem; font-weight: 500; }
 
-.error {
-  margin: 0;
-  font-weight: 500;
-  font-size: 0.9rem;
-}
-
-/* ==================== BOTÃO PRINCIPAL ==================== */
+/* ── Submit button ────────────────────────────────────────────────────────── */
 .button {
   position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 0.75rem;
-  padding: 1.25rem 2rem;
-  background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
-  background-size: 200% 200%;
+  gap: .6rem;
+  padding: 14px 1.5rem;
+  margin-top: .25rem;
+  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 60%, #1d4ed8 100%);
   border: none;
-  border-radius: 16px;
-  color: white;
+  border-radius: 14px;
+  color: #fff;
   font-size: 1rem;
   font-weight: 700;
+  font-family: inherit;
   cursor: pointer;
-  transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
   overflow: hidden;
-  box-shadow: 0 10px 25px rgba(59, 130, 246, 0.2);
-  animation: glow 3s ease-in-out infinite alternate;
+  box-shadow: 0 8px 24px rgba(59,130,246,.22);
+  animation: pulseGlow 4s ease-in-out infinite, fadeUp .55s ease .55s both;
+  transition: transform .25s, box-shadow .25s;
+  -webkit-tap-highlight-color: transparent;
 }
-
+/* shimmer sweep */
 .button::before {
   content: '';
   position: absolute;
-  top: 0;
-  left: -100%;
-  width: 100%;
-  height: 100%;
-  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
-  transition: left 0.5s;
+  inset: 0;
+  background: linear-gradient(105deg, transparent 40%, rgba(255,255,255,.18) 50%, transparent 60%);
+  background-size: 250% 100%;
+  animation: shimmer 3.5s ease-in-out infinite;
+  pointer-events: none;
 }
-
 .button:hover {
-  transform: translateY(-3px);
-  box-shadow: 0 15px 35px rgba(59, 130, 246, 0.3);
-  background-position: 100% 0;
+  transform: translateY(-2px);
+  box-shadow: 0 12px 32px rgba(59,130,246,.32);
 }
-
-.button:hover::before {
-  left: 100%;
-}
-
 .button:active {
-  transform: translateY(-1px);
-  box-shadow: 0 8px 20px rgba(59, 130, 246, 0.25);
+  transform: translateY(0);
+  box-shadow: 0 6px 16px rgba(59,130,246,.2);
 }
-
 .button:disabled {
-  opacity: 0.6;
+  opacity: .55;
   cursor: not-allowed;
-  transform: none;
+  transform: none !important;
   animation: none;
 }
 
-.button:disabled:hover {
-  transform: none;
-  box-shadow: 0 10px 25px rgba(59, 130, 246, 0.2);
-}
-
-/* ==================== SPINNER ==================== */
+/* ── Spinner ──────────────────────────────────────────────────────────────── */
 .spinner {
-  width: 20px;
-  height: 20px;
-  border: 2px solid rgba(255, 255, 255, 0.3);
-  border-top: 2px solid white;
+  width: 22px; height: 22px;
+  border: 2.5px solid rgba(255,255,255,.25);
+  border-top-color: #fff;
   border-radius: 50%;
-  animation: spin 1s linear infinite;
+  animation: spin .7s linear infinite;
 }
 
-/* ==================== LINK ESQUECI SENHA ==================== */
+/* ── Forgot password ─────────────────────────────────────────────────────── */
 .forgotPasswordContainer {
   text-align: center;
-  margin-top: 1.5rem;
-  animation: fadeInUp 0.6s cubic-bezier(0.25, 0.46, 0.45, 0.94) 0.4s both;
+  margin-top: 1.25rem;
+  animation: fadeUp .55s ease .6s both;
 }
-
 .forgotPasswordButton {
   background: none;
   border: none;
-  color: rgba(255, 255, 255, 0.6);
-  font-size: 0.9rem;
+  color: rgba(255,255,255,.45);
+  font-size: .85rem;
+  font-family: inherit;
   cursor: pointer;
-  text-decoration: none;
-  transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
-  padding: 0.5rem 1rem;
-  border-radius: 8px;
-  position: relative;
-  overflow: hidden;
+  padding: 8px 14px;
+  border-radius: 10px;
+  transition: color .25s, background .25s;
 }
-
-.forgotPasswordButton::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: -100%;
-  width: 100%;
-  height: 100%;
-  background: rgba(255, 255, 255, 0.05);
-  transition: left 0.3s ease;
-}
-
 .forgotPasswordButton:hover {
-  color: rgba(255, 255, 255, 0.9);
-  transform: translateY(-2px);
+  color: rgba(255,255,255,.85);
+  background: rgba(255,255,255,.06);
 }
 
-.forgotPasswordButton:hover::before {
-  left: 0;
+/* ── Divider ─────────────────────────────────────────────────────────────── */
+.divider {
+  display: flex;
+  align-items: center;
+  gap: .75rem;
+  margin: .15rem 0;
+  animation: fadeUp .5s ease .5s both;
+}
+.dividerLine {
+  flex: 1;
+  height: 1px;
+  background: rgba(255,255,255,.08);
+}
+.dividerText {
+  font-size: .75rem;
+  color: rgba(255,255,255,.28);
+  text-transform: uppercase;
+  letter-spacing: .08em;
+  font-weight: 600;
 }
 
-.forgotPasswordButton:focus-visible {
-  outline: 2px solid rgba(59, 130, 246, 0.4);
-  outline-offset: 2px;
+/* ── Brand footer ────────────────────────────────────────────────────────── */
+.brandFooter {
+  text-align: center;
+  margin-top: 1.5rem;
+  animation: fadeUp .5s ease .7s both;
+}
+.brandText {
+  font-size: .7rem;
+  color: rgba(255,255,255,.2);
+  letter-spacing: .06em;
+  font-weight: 500;
 }
 
-/* ==================== MODAL ==================== */
+/* ── Modal (recuperar senha) ─────────────────────────────────────────────── */
 .modalOverlay {
   position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.8);
-  backdrop-filter: blur(5px);
-  -webkit-backdrop-filter: blur(5px);
+  inset: 0;
+  background: rgba(0,0,0,.75);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 1000;
-  animation: fadeInUp 0.3s ease;
   padding: 1rem;
+  animation: fadeUp .25s ease;
 }
-
 .modalContent {
   width: 100%;
-  max-width: 500px;
-  background: rgba(30, 30, 46, 0.6);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
+  max-width: 440px;
+  background: rgba(15,20,40,.7);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
   border-radius: 24px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  padding: 2.5rem;
+  border: 1px solid rgba(255,255,255,.1);
+  padding: 2rem 1.5rem;
   position: relative;
-  animation: bounceIn 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55);
-  box-shadow: 0 25px 50px rgba(0, 0, 0, 0.5);
+  animation: bounceIn .5s cubic-bezier(.68,-.55,.265,1.55);
+  box-shadow: 0 24px 56px rgba(0,0,0,.55);
 }
-
-/* Estilos específicos para elementos dentro do modal */
-.modalContent .inputGroup {
-  position: relative;
-  margin-bottom: 1.5rem;
-}
-
-.modalContent .inputIcon {
-  position: absolute;
-  left: 1rem;
-  top: 50%;
-  transform: translateY(-50%);
-  color: rgba(255, 255, 255, 0.5);
-  transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
-  z-index: 2;
-}
-
+.modalContent .inputGroup { margin-bottom: 1rem; }
 .modalContent .input {
   width: 100%;
-  padding: 1rem 1rem 1rem 3rem;
-  background: rgba(255, 255, 255, 0.05);
-  border: 2px solid rgba(255, 255, 255, 0.1);
-  border-radius: 16px;
-  color: white;
+  padding: 14px 14px 14px 44px;
+  background: rgba(255,255,255,.05);
+  border: 1.5px solid rgba(255,255,255,.10);
+  border-radius: 14px;
+  color: #fff;
   font-size: 1rem;
   font-weight: 500;
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-  transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
   box-sizing: border-box;
+  transition: border-color .25s, background .25s, box-shadow .25s;
 }
-
-.modalContent .input::placeholder {
-  color: rgba(255, 255, 255, 0.4);
-  font-weight: 400;
-}
-
-.modalContent .input:hover {
-  border-color: rgba(255, 255, 255, 0.2);
-  background: rgba(255, 255, 255, 0.08);
-}
-
+.modalContent .input::placeholder { color: rgba(255,255,255,.34); }
 .modalContent .input:focus {
   outline: none;
-  border-color: rgba(59, 130, 246, 0.6);
-  background: rgba(255, 255, 255, 0.1);
-  box-shadow: 
-    0 0 0 4px rgba(59, 130, 246, 0.15),
-    0 10px 25px rgba(0, 0, 0, 0.2);
-  transform: translateY(-2px);
+  border-color: rgba(59,130,246,.6);
+  background: rgba(255,255,255,.08);
+  box-shadow: 0 0 0 3px rgba(59,130,246,.14);
 }
-
-.modalContent .input:focus + .inputIcon {
-  color: rgba(59, 130, 246, 0.9);
-  transform: translateY(-50%) scale(1.1);
+.modalContent .inputIcon {
+  position: absolute;
+  left: 14px; top: 50%;
+  transform: translateY(-50%);
+  color: rgba(255,255,255,.38);
+  z-index: 2;
 }
-
 .modalContent .button {
-  position: relative;
+  width: 100%;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 0.75rem;
-  padding: 1.25rem 2rem;
-  background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
-  background-size: 200% 200%;
+  gap: .6rem;
+  padding: 14px;
+  margin-top: .75rem;
+  background: linear-gradient(135deg, #3b82f6, #1d4ed8);
   border: none;
-  border-radius: 16px;
-  color: white;
+  border-radius: 14px;
+  color: #fff;
   font-size: 1rem;
   font-weight: 700;
   cursor: pointer;
-  transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
-  overflow: hidden;
-  box-shadow: 0 10px 25px rgba(59, 130, 246, 0.2);
-  width: 100%;
-  margin-top: 1rem;
+  transition: transform .25s, box-shadow .25s;
 }
-
 .modalContent .button:hover {
-  transform: translateY(-3px);
-  box-shadow: 0 15px 35px rgba(59, 130, 246, 0.3);
-  background-position: 100% 0;
+  transform: translateY(-2px);
+  box-shadow: 0 12px 28px rgba(59,130,246,.28);
 }
-
-.modalContent .button:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-  transform: none;
-}
-
+.modalContent .button:disabled { opacity: .55; cursor: not-allowed; transform: none; }
 .modalContent .label {
   display: block;
-  color: rgba(255, 255, 255, 0.8);
-  font-size: 0.9rem;
+  color: rgba(255,255,255,.7);
+  font-size: .85rem;
   font-weight: 500;
-  margin-bottom: 0.5rem;
-  margin-left: 0.25rem;
+  margin-bottom: .4rem;
 }
-
 .closeModalButton {
   position: absolute;
-  top: 1rem;
-  right: 1rem;
-  background: rgba(255, 255, 255, 0.05);
+  top: .75rem; right: .75rem;
+  background: rgba(255,255,255,.05);
   border: none;
-  color: rgba(255, 255, 255, 0.6);
+  color: rgba(255,255,255,.5);
   cursor: pointer;
-  padding: 0.75rem;
-  border-radius: 12px;
-  transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  padding: .6rem;
+  border-radius: 10px;
+  transition: background .25s, color .25s, transform .3s;
 }
-
 .closeModalButton:hover {
-  background: rgba(255, 255, 255, 0.1);
-  color: white;
+  background: rgba(255,255,255,.1);
+  color: #fff;
   transform: rotate(90deg);
 }
-
 .modalTitle {
-  color: white;
-  font-size: 1.5rem;
+  color: #fff;
+  font-size: 1.3rem;
   font-weight: 700;
-  margin: 0 0 1rem 0;
+  margin: 0 0 .75rem;
   text-align: center;
 }
-
 .modalDescription {
-  color: rgba(255, 255, 255, 0.7);
-  font-size: 1rem;
-  margin: 0 0 2rem 0;
+  color: rgba(255,255,255,.6);
+  font-size: .9rem;
+  margin: 0 0 1.5rem;
   text-align: center;
   line-height: 1.5;
 }
-
-.successStep {
-  text-align: center;
-}
-
+.successStep { text-align: center; }
 .successIcon {
   color: #10b981;
-  margin-bottom: 1rem;
-  animation: bounceIn 0.8s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+  margin-bottom: .75rem;
+  animation: bounceIn .8s cubic-bezier(.68,-.55,.265,1.55);
 }
 
-/* ==================== CLASSES AUXILIARES ==================== */
-.floatUp {
-  animation: fadeInUp 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94);
-}
+/* ── Utility / legacy classes ────────────────────────────────────────────── */
+.floatUp { /* consumed by JSX, animation on .frame already handles it */ }
+.popIn   { animation: bounceIn .5s cubic-bezier(.68,-.55,.265,1.55); }
+.sweep   { position: relative; overflow: hidden; }
 
-.popIn {
-  animation: bounceIn 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55);
-}
+/* ── Responsive ──────────────────────────────────────────────────────────── */
 
-.sweep {
-  position: relative;
-  overflow: hidden;
-}
-
-.cardTopGlow {
-  position: absolute;
-  top: -2px;
-  left: 20%;
-  right: 20%;
-  height: 1px;
-  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
-  animation: shimmer 4s ease-in-out infinite;
-}
-
-/* ==================== RESPONSIVIDADE ==================== */
+/* Motorola telas médias (360-412px) */
 @media (max-width: 480px) {
-  .main {
-    padding: 1rem;
-  }
-  
+  .main { padding: .75rem; }
   .frame {
-    padding: 2rem 1.5rem;
-    border-radius: 20px;
+    padding: 2rem 1.25rem 1.75rem;
+    border-radius: 24px;
+    max-width: 100%;
   }
-  
+  .logo { width: 72px; }
+  .greetTitle { font-size: 1.2rem; }
   .input {
-    padding: 0.875rem 0.875rem 0.875rem 2.75rem;
-    font-size: 0.9rem;
+    padding: 13px 44px 13px 40px;
+    font-size: .95rem;
+    border-radius: 12px;
   }
-  
+  .inputIcon { left: 12px; }
+  .peek { right: 8px; }
   .button {
-    padding: 1rem 1.5rem;
-    font-size: 0.9rem;
+    padding: 13px;
+    border-radius: 12px;
+    font-size: .95rem;
   }
-  
-  .modalContent {
-    padding: 2rem 1.5rem;
-    margin: 1rem;
-  }
+  .modalContent { padding: 1.5rem 1.25rem; }
 }
 
 @media (max-width: 360px) {
-  .frame {
-    padding: 1.5rem 1rem;
-  }
-  
-  .input {
-    padding: 0.75rem 0.75rem 0.75rem 2.5rem;
-  }
-  
-  .inputIcon {
-    left: 0.75rem;
-  }
-  
-  .peek {
-    right: 0.75rem;
-  }
+  .frame { padding: 1.75rem 1rem 1.5rem; }
+  .logo { width: 64px; }
+  .greetTitle { font-size: 1.1rem; }
+  .input { padding: 12px 40px 12px 38px; font-size: .9rem; }
+  .inputIcon { left: 10px; }
+  .peek { right: 6px; padding: 6px; }
+  .button { padding: 12px; font-size: .9rem; }
 }
 
-
-
-/* ==================== MODO ESCURO FORÇADO ==================== */
-@media (prefers-color-scheme: dark) {
-  .frame {
-    background: rgba(20, 20, 35, 0.5);
-    border-color: rgba(255, 255, 255, 0.08);
-  }
-  
-  .input {
-    background: rgba(255, 255, 255, 0.03);
-    border-color: rgba(255, 255, 255, 0.08);
-  }
-  
-  .input:hover {
-    background: rgba(255, 255, 255, 0.05);
-  }
-  
-  .input:focus {
-    background: rgba(255, 255, 255, 0.08);
-  }
+/* Tall phones — empurra o card um pouco pra cima */
+@media (min-height: 700px) and (max-width: 480px) {
+  .main { padding-bottom: 15dvh; }
 }
 
-/* ==================== ALTO CONTRASTE ==================== */
-@media (prefers-contrast: high) {
-  .frame {
-    border-width: 2px;
-  }
-  
-  .input {
-    border-width: 2px;
-  }
-  
-  .button {
-    border: 2px solid rgba(255, 255, 255, 0.2);
-  }
+/* Landscape phone */
+@media (max-height: 500px) {
+  .main { padding: .5rem; }
+  .frame { padding: 1.25rem 1rem; }
+  .logoContainer { margin-bottom: .25rem; }
+  .logo { width: 48px; }
+  .greeting { margin-bottom: .75rem; }
+  .form { gap: .6rem; }
 }
 
-/* ===== Isolamento do Login: neutraliza regras globais que quebram o alinhamento ===== */
-
-/* Escopo do card de login (ajuste o seletor se seu container for outro) */
+/* ── Forçar estilos do card (override globals) ───────────────────────────── */
 .frame .input,
 .frame input[type="text"],
 .frame input[type="email"],
 .frame input[type="password"] {
-  padding: 1rem 3rem 1rem 2.8rem !important;   /* espaço para o ícone à esquerda e o "peek" à direita */
-  background: rgba(255,255,255,0.05) !important;
-  border: 2px solid rgba(255,255,255,0.1) !important;
-  border-radius: 16px !important;
+  padding: 14px 48px 14px 44px !important;
+  background: rgba(255,255,255,.05) !important;
+  border: 1.5px solid rgba(255,255,255,.10) !important;
+  border-radius: 14px !important;
   color: #fff !important;
   width: 100% !important;
   box-sizing: border-box !important;
 }
-
-/* Garante posição correta dos ícones do input */
-.frame .inputGroup { position: relative; }
-.frame .inputIcon { 
-  position: absolute; 
-  left: 1rem; 
-  top: 50%; 
-  transform: translateY(-50%); 
-  z-index: 2;
-}
-.frame .peek { 
-  position: absolute; 
-  right: 1rem; 
-  top: 50%; 
-  transform: translateY(-50%); 
-  z-index: 2;
-}
-
-/* Se algum campo estiver dentro de <label>, não queremos o flex global aqui */
-.frame label {
-  display: block;           /* neutraliza o label global */
-  align-items: initial;
-  gap: 0;
-}
-
-/* Por segurança, evita que o “input global” (FormBuilder) vaze para o login */
-.frame select,
-.frame textarea,
-.frame input[type="number"],
-.frame input[type="date"],
-.frame input[type="time"],
-.frame input[type="datetime-local"],
-.frame input[type="url"],
-.frame input[type="tel"] {
-  background: rgba(255,255,255,0.05) !important;
-  border: 2px solid rgba(255,255,255,0.1) !important;
-  border-radius: 16px !important;
-  color: #fff !important;
-}
-
-/* Evita que o efeito de foco global mude o padding e “puxe” o conteúdo */
 .frame .input:focus,
 .frame input[type="text"]:focus,
 .frame input[type="email"]:focus,
 .frame input[type="password"]:focus {
-  padding: 1rem 3rem 1rem 2.8rem !important;
+  padding: 14px 48px 14px 44px !important;
+  border-color: rgba(59,130,246,.6) !important;
+  background: rgba(255,255,255,.08) !important;
+}
+.frame .inputGroup { position: relative; }
+.frame .inputIcon {
+  position: absolute;
+  left: 14px; top: 50%;
+  transform: translateY(-50%);
+  z-index: 2;
+}
+.frame .peek {
+  position: absolute;
+  right: 10px; top: 50%;
+  transform: translateY(-50%);
+  z-index: 2;
+}
+.frame label {
+  display: block;
+  align-items: initial;
+  gap: 0;
 }

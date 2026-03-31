@@ -308,37 +308,43 @@ export default function LoginPage() {
 
   return (
     <main className={styles.main}>
-      <div className={styles.backgroundShapes} />
-      <div className={`${styles.frame} ${styles.floatUp}`}>
+      <div className={styles.frame}>
         <div className={styles.cardTopGlow} />
+
         <div className={styles.logoContainer}>
           <Image
             src="/formbravo-logo.png"
             alt="Logo FORMBRAVO"
-            width={120}
-            height={120}
+            width={100}
+            height={100}
             priority
             className={styles.logo}
           />
         </div>
 
+        <div className={styles.greeting}>
+          <h1 className={styles.greetTitle}>Bem-vindo de volta</h1>
+          <p className={styles.greetSub}>Faça login para continuar</p>
+        </div>
+
         <form onSubmit={handleLogin} className={styles.form}>
           <div className={styles.inputGroup}>
-            <User className={styles.inputIcon} size={20} />
+            <User className={styles.inputIcon} size={18} />
             <input
               type="text"
               id="credential"
               value={credential}
               onChange={(e) => setCredential(e.target.value)}
               className={styles.input}
-              placeholder="Email ou Nome de Usuário"
+              placeholder="Email ou Usuário"
               required
+              autoComplete="username"
               disabled={isLoading}
             />
           </div>
 
           <div className={`${styles.inputGroup} ${capsOn ? styles.inputWarn : ''}`}>
-            <KeyRound className={styles.inputIcon} size={20} />
+            <KeyRound className={styles.inputIcon} size={18} />
             <input
               type={showPass ? 'text' : 'password'}
               id="password"
@@ -348,6 +354,7 @@ export default function LoginPage() {
               className={styles.input}
               placeholder="Senha"
               required
+              autoComplete="current-password"
               disabled={isLoading}
             />
             <button
@@ -360,17 +367,22 @@ export default function LoginPage() {
               {showPass ? <EyeOff size={18} /> : <Eye size={18} />}
             </button>
           </div>
-          {capsOn && <div className={styles.hint}>Caps Lock está ativado</div>}
+          {capsOn && <div className={styles.hint}>Caps Lock ativado</div>}
 
           {error && (
             <div className={`${styles.errorContainer} ${styles.popIn}`}>
-              <AlertCircle size={18} />
+              <AlertCircle size={16} />
               <p className={styles.error}>{error}</p>
             </div>
           )}
 
-          <button type="submit" className={`${styles.button} ${styles.sweep}`} disabled={isLoading}>
-            {isLoading ? <div className={styles.spinner} /> : (<><LogIn size={18} /><span>Acessar</span></>)}
+          <div className={styles.divider}>
+            <span className={styles.dividerLine} />
+            <span className={styles.dividerLine} />
+          </div>
+
+          <button type="submit" className={styles.button} disabled={isLoading}>
+            {isLoading ? <div className={styles.spinner} /> : (<><LogIn size={18} /><span>Entrar</span></>)}
           </button>
         </form>
 
@@ -378,6 +390,10 @@ export default function LoginPage() {
           <button onClick={() => router.push('/forgot-password')} className={styles.forgotPasswordButton}>
             Esqueci minha senha
           </button>
+        </div>
+
+        <div className={styles.brandFooter}>
+          <span className={styles.brandText}>FORMBRAVO</span>
         </div>
       </div>
     </main>
