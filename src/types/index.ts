@@ -345,8 +345,7 @@ export interface WorkflowTrigger {
   enabled: boolean;
   type: 'sql_database' | 'webhook' | 'schedule';
   sqlConfig?: {
-    profileId: string;           // ID do perfil SQL configurado
-    tableName: string;            // Tabela a monitorar
+    tableName: string;            // Tabela a monitorar (PostgreSQL Data Connect)
     triggerColumn: string;        // Coluna para detectar novos registros
     lastProcessedValue?: any;     // Último valor processado
     pollingInterval: number;      // Intervalo de verificação (minutos)

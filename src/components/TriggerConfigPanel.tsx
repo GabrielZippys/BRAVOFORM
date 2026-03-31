@@ -3,15 +3,15 @@
 import React, { useState, useEffect } from 'react';
 import { WorkflowTrigger } from '@/types';
 import { Database, Webhook, Clock, ChevronDown, ChevronUp, AlertCircle } from 'lucide-react';
+import SQLTriggerConfig from './SQLTriggerConfig';
 import styles from '../../app/styles/TriggerConfigPanel.module.css';
 
 interface TriggerConfigPanelProps {
   trigger?: WorkflowTrigger;
   onUpdate: (trigger: WorkflowTrigger | undefined) => void;
-  sqlProfiles: Array<{ id: string; name: string }>;
 }
 
-export default function TriggerConfigPanel({ trigger, onUpdate, sqlProfiles }: TriggerConfigPanelProps) {
+export default function TriggerConfigPanel({ trigger, onUpdate }: TriggerConfigPanelProps) {
   const [enabled, setEnabled] = useState(trigger?.enabled || false);
   const [triggerType, setTriggerType] = useState<'sql_database' | 'webhook' | 'schedule'>(
     trigger?.type || 'sql_database'
@@ -19,7 +19,6 @@ export default function TriggerConfigPanel({ trigger, onUpdate, sqlProfiles }: T
   const [showAdvanced, setShowAdvanced] = useState(false);
 
   // SQL Config
-  const [profileId, setProfileId] = useState(trigger?.sqlConfig?.profileId || '');
   const [tableName, setTableName] = useState(trigger?.sqlConfig?.tableName || '');
   const [triggerColumn, setTriggerColumn] = useState(trigger?.sqlConfig?.triggerColumn || '');
   const [pollingInterval, setPollingInterval] = useState(trigger?.sqlConfig?.pollingInterval || 5);
@@ -46,9 +45,8 @@ export default function TriggerConfigPanel({ trigger, onUpdate, sqlProfiles }: T
       type: triggerType,
     };
 
-    if (triggerType === 'sql_database' && profileId && tableName && triggerColumn) {
+    if (triggerType === 'sql_database' && tableName && triggerColumn) {
       newTrigger.sqlConfig = {
-        profileId,
         tableName,
         triggerColumn,
         pollingInterval,
@@ -67,7 +65,7 @@ export default function TriggerConfigPanel({ trigger, onUpdate, sqlProfiles }: T
     }
 
     onUpdate(newTrigger);
-  }, [enabled, triggerType, profileId, tableName, triggerColumn, pollingInterval, webhookUrl, webhookSecret, webhookMethod, cronExpression, timezone]);
+  }, [enabled, triggerType, tableName, triggerColumn, pollingInterval, webhookUrl, webhookSecret, webhookMethod, cronExpression, timezone]);
 
   return (
     <div className={styles.triggerPanel}>
@@ -114,92 +112,20 @@ export default function TriggerConfigPanel({ trigger, onUpdate, sqlProfiles }: T
               <div className={styles.infoBox}>
                 <AlertCircle size={16} />
                 <p>
-                  O sistema monitorará a tabela SQL e criará workflows automaticamente quando novos registros forem detectados.
+                  O sistema monitorará a tabela SQL do PostgreSQL Data Connect e <strong>ativará esta etapa automaticamente</strong> quando novos registros forem detectados.
                 </p>
               </div>
 
-              {sqlProfiles.length === 0 ? (
-                <div className={styles.emptyState}>
-                  <Database size={48} />
-                  <h4>Nenhum Perfil SQL Configurado</h4>
-                  <p>
-                    Você precisa configurar uma conexão SQL no menu de Integrações antes de usar triggers automáticos.
-                  </p>
-                  <a 
-                    href="/dashboard/integrations" 
-                    className={styles.linkButton}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    Ir para Integrações
-                  </a>
-                </div>
-              ) : (
-                <>
-                  <div className={styles.formGroup}>
-                    <label>Perfil SQL *</label>
-                    <select
-                      value={profileId}
-                      onChange={(e) => setProfileId(e.target.value)}
-                      className={styles.select}
-                    >
-                      <option value="">Selecione um perfil SQL</option>
-                      {sqlProfiles.map((profile) => (
-                        <option key={profile.id} value={profile.id}>
-                          {profile.name}
-                        </option>
-                      ))}
-                    </select>
-                    <small>Perfil de conexão SQL configurado via Tailscale</small>
-                  </div>
-
-                  <div className={styles.formRow}>
-                    <div className={styles.formGroup}>
-                      <label>Tabela *</label>
-                      <input
-                        type="text"
-                        value={tableName}
-                        onChange={(e) => setTableName(e.target.value)}
-                        placeholder="Ex: pedidos_compra"
-                        className={styles.input}
-                      />
-                      <small>Nome da tabela a monitorar</small>
-                    </div>
-
-                    <div className={styles.formGroup}>
-                      <label>Coluna de Trigger *</label>
-                      <input
-                        type="text"
-                        value={triggerColumn}
-                        onChange={(e) => setTriggerColumn(e.target.value)}
-                        placeholder="Ex: id"
-                        className={styles.input}
-                      />
-                      <small>Coluna para detectar novos registros</small>
-                    </div>
-                  </div>
-
-                  <div className={styles.formGroup}>
-                    <label>Intervalo de Verificação (minutos)</label>
-                    <input
-                      type="number"
-                      value={pollingInterval}
-                      onChange={(e) => setPollingInterval(parseInt(e.target.value))}
-                      min={1}
-                      max={60}
-                      className={styles.input}
-                    />
-                    <small>Frequência de verificação de novos registros (recomendado: 5 minutos)</small>
-                  </div>
-
-                  <div className={styles.exampleBox}>
-                    <strong>Exemplo de Query:</strong>
-                    <code>
-                      SELECT * FROM {tableName || 'tabela'} WHERE {triggerColumn || 'coluna'} &gt; lastProcessedValue
-                    </code>
-                  </div>
-                </>
-              )}
+              <SQLTriggerConfig
+                tableName={tableName}
+                triggerColumn={triggerColumn}
+                pollingInterval={pollingInterval}
+                onUpdate={(config) => {
+                  setTableName(config.tableName);
+                  setTriggerColumn(config.triggerColumn);
+                  setPollingInterval(config.pollingInterval);
+                }}
+              />
             </div>
           )}
 
@@ -296,25 +222,6 @@ export default function TriggerConfigPanel({ trigger, onUpdate, sqlProfiles }: T
             </div>
           )}
 
-          <button
-            className={styles.advancedToggle}
-            onClick={() => setShowAdvanced(!showAdvanced)}
-          >
-            {showAdvanced ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-            <span>{showAdvanced ? 'Ocultar' : 'Mostrar'} Configurações Avançadas</span>
-          </button>
-
-          {showAdvanced && (
-            <div className={styles.advancedSection}>
-              <h4>Configurações Avançadas</h4>
-              <div className={styles.infoBox}>
-                <AlertCircle size={16} />
-                <p>
-                  Configurações avançadas como mapeamento de dados e filtros personalizados serão implementadas em breve.
-                </p>
-              </div>
-            </div>
-          )}
         </>
       )}
     </div>

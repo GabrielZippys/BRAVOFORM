@@ -375,13 +375,11 @@ export default function LoginPage() {
         </form>
 
         <div className={styles.forgotPasswordContainer}>
-          <button onClick={() => setIsRecovering(true)} className={styles.forgotPasswordButton}>
+          <button onClick={() => router.push('/forgot-password')} className={styles.forgotPasswordButton}>
             Esqueci minha senha
           </button>
         </div>
       </div>
-
-      {isRecovering && <ForgotPasswordModal onClose={() => setIsRecovering(false)} />}
     </main>
   );
 }

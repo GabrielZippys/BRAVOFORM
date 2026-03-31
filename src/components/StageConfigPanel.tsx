@@ -28,13 +28,11 @@ export default function StageConfigPanel({
   const [forms, setForms] = useState<any[]>([]);
   const [departments, setDepartments] = useState<Department[]>([]);
   const [collaborators, setCollaborators] = useState<Collaborator[]>([]);
-  const [sqlProfiles, setSqlProfiles] = useState<Array<{ id: string; name: string }>>([]);
   const [loading, setLoading] = useState(true);
   const [isFormModalOpen, setIsFormModalOpen] = useState(false);
 
   useEffect(() => {
     loadDepartmentsAndUsers();
-    loadSqlProfiles();
   }, []);
 
   // Inicializar timer para etapas de aguardo
@@ -138,18 +136,6 @@ export default function StageConfigPanel({
     }
   };
 
-  const loadSqlProfiles = async () => {
-    try {
-      const profilesSnapshot = await getDocs(collection(db, 'sql_profiles'));
-      const profiles = profilesSnapshot.docs.map(doc => ({
-        id: doc.id,
-        name: doc.data().name || 'Perfil sem nome'
-      }));
-      setSqlProfiles(profiles);
-    } catch (error) {
-      console.error('Erro ao carregar perfis SQL:', error);
-    }
-  };
 
   const handleDepartmentToggle = (deptId: string) => {
     const newRoles = stage.allowedRoles.includes(deptId)
@@ -292,7 +278,6 @@ export default function StageConfigPanel({
                   <TriggerConfigPanel
                     trigger={stage.trigger}
                     onUpdate={(trigger) => onUpdate({ trigger })}
-                    sqlProfiles={sqlProfiles}
                   />
                 ) : (
                   <div className={styles.checkboxGroup}>
