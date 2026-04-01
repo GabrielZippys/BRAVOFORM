@@ -168,19 +168,13 @@ export default function SQLTriggerConfig({
   return (
     <div className={styles.sqlTriggerConfig}>
       {/* Status da Conexão - Auto-conecta ao carregar */}
-      {connectionStatus === 'success' && (
-        <div className={styles.connectionStatusSuccess}>
-          <CheckCircle size={18} />
-          <span>Conectado ao banco SQL</span>
-        </div>
-      )}
       {connectionStatus === 'error' && (
         <div className={styles.connectionStatusError}>
           <XCircle size={18} />
           <div>
-            <strong>Erro de Conexão</strong>
+            <strong>Banco não conectado</strong>
             <p>{errorMessage}</p>
-            <small>Verifique se o banco PostgreSQL está acessível</small>
+            <small>Por favor, verifique com a equipe responsável</small>
           </div>
         </div>
       )}
@@ -191,7 +185,8 @@ export default function SQLTriggerConfig({
         </div>
       )}
 
-      {/* Seleção de Tabela */}
+      {/* Seleção de Tabela - Só exibe se conectado */}
+      {connectionStatus === 'success' && (
       <div className={styles.formGroup}>
         <label>Tabela *</label>
         {loadingTables ? (
@@ -229,9 +224,10 @@ export default function SQLTriggerConfig({
         )}
         <small>Tabela do banco de dados a ser monitorada</small>
       </div>
+      )}
 
       {/* Seleção de Coluna de Trigger */}
-      {tableName && (
+      {connectionStatus === 'success' && tableName && (
         <div className={styles.formGroup}>
           <label>Coluna de Trigger *</label>
           {loadingColumns ? (
@@ -266,6 +262,7 @@ export default function SQLTriggerConfig({
       )}
 
       {/* Intervalo de Polling */}
+      {connectionStatus === 'success' && (
       <div className={styles.formGroup}>
         <label>Intervalo de Verificação</label>
         <div className={styles.intervalInput}>
@@ -284,9 +281,10 @@ export default function SQLTriggerConfig({
           {pollingInterval < 5 && <span className={styles.warning}> ⚠️ Intervalos muito curtos podem sobrecarregar o banco</span>}
         </small>
       </div>
+      )}
 
       {/* Editor de Query SQL */}
-      {tableName && triggerColumn && (
+      {connectionStatus === 'success' && tableName && triggerColumn && (
         <div className={styles.formGroup}>
           <label>Query SQL Personalizada</label>
           <textarea
