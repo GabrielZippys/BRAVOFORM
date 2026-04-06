@@ -218,7 +218,7 @@ export async function PATCH(request: NextRequest) {
   const client = await pool.connect();
   try {
     const body = await request.json();
-    const { id, restore, deletedBy, deletedByUsername } = body;
+    const { id, restore, deletedBy, deletedByUsername, deletedAt } = body;
 
     if (!id) return NextResponse.json({ success: false, error: 'id required' }, { status: 400 });
 
@@ -228,10 +228,11 @@ export async function PATCH(request: NextRequest) {
         [id]
       );
     } else {
-      // soft-delete
+      // soft-delete — aceita data customizada (para migração) ou usa NOW()
+      const ts = deletedAt ? new Date(deletedAt) : new Date();
       await client.query(
-        'UPDATE fact_form_response SET deleted_at=NOW(), deleted_by=$2, deleted_by_username=$3 WHERE firebase_id=$1',
-        [id, deletedBy || 'admin', deletedByUsername || 'Administrador']
+        'UPDATE fact_form_response SET deleted_at=$2, deleted_by=$3, deleted_by_username=$4 WHERE firebase_id=$1',
+        [id, ts, deletedBy || 'admin', deletedByUsername || 'Administrador']
       );
     }
 
