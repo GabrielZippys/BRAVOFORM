@@ -258,14 +258,29 @@ export default function HistoryPanel({ collaboratorId, canEdit = false, canDelet
 
     setConfirmModalOpen(false);
     setDeletingId(responseToDelete.id);
-    
+
     try {
+      const deletedByUsername = responseToDelete.collaboratorUsername || 'Desconhecido';
+
+      // Firestore (hybrid: reports ainda consomem daqui)
       const responseRef = fsDoc(db, responseToDelete.path!);
       await updateDoc(responseRef, {
         deletedAt: Timestamp.now(),
         deletedBy: collaboratorId,
-        deletedByUsername: responseToDelete.collaboratorUsername || 'Desconhecido'
+        deletedByUsername,
       });
+
+      // SQL (fonte principal)
+      await fetch('/api/dataconnect/responses', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: responseToDelete.id,
+          deletedBy: collaboratorId,
+          deletedByUsername,
+        }),
+      });
+
       console.log('✅ Resposta movida para lixeira:', responseToDelete.id);
     } catch (error) {
       console.error('❌ Erro ao excluir resposta:', error);

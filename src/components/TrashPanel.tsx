@@ -119,14 +119,23 @@ export default function TrashPanel({ collaboratorId, onOpen = () => {}, isAdmin 
 
     setConfirmModalOpen(false);
     setRestoringId(responseToRestore.id);
-    
+
     try {
+      // Firestore (hybrid)
       const responseRef = fsDoc(db, responseToRestore.path!);
       await updateDoc(responseRef, {
         deletedAt: null,
         deletedBy: null,
-        deletedByUsername: null
+        deletedByUsername: null,
       });
+
+      // SQL
+      await fetch('/api/dataconnect/responses', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: responseToRestore.id, restore: true }),
+      });
+
       console.log('✅ Resposta restaurada:', responseToRestore.id);
     } catch (error) {
       console.error('❌ Erro ao restaurar resposta:', error);
