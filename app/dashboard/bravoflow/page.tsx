@@ -3,12 +3,10 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Plus, Edit, Trash2, Eye, Copy } from 'lucide-react';
-import { collection, getDocs, doc, deleteDoc, addDoc, updateDoc } from 'firebase/firestore';
-import { db } from '../../../firebase/config';
+import { WorkflowServicePg } from '@/services/workflowServicePg';
 import { useAuth } from '@/hooks/useAuth';
 import type { WorkflowStage } from '@/types';
 import WorkflowSetupModal from '@/components/WorkflowSetupModal';
-import { WorkflowInstanceService } from '@/services/workflowInstanceService';
 import styles from '../../styles/BravoFlow.module.css';
 
 interface WorkflowTemplate {
@@ -46,14 +44,8 @@ export default function BravoFlowPage() {
 
   const loadWorkflows = async () => {
     try {
-      const workflowsSnapshot = await getDocs(collection(db, 'workflows'));
-      const workflowsData = workflowsSnapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data(),
-        createdAt: doc.data().createdAt?.toDate() || new Date()
-      })) as WorkflowTemplate[];
-
-      setWorkflows(workflowsData);
+      const workflowsData = await WorkflowServicePg.listWorkflows();
+      setWorkflows(workflowsData as WorkflowTemplate[]);
     } catch (error) {
       console.error('Erro ao carregar workflows:', error);
     } finally {
@@ -75,7 +67,7 @@ export default function BravoFlowPage() {
     if (!editingWorkflow) return;
 
     try {
-      await updateDoc(doc(db, 'workflows', editingWorkflow.id), {
+      await WorkflowServicePg.updateWorkflow(editingWorkflow.id, {
         name: config.name,
         description: config.description || '',
         companies: config.companies,
@@ -103,7 +95,7 @@ export default function BravoFlowPage() {
     if (!deleteConfirmModal.workflowId) return;
 
     try {
-      await deleteDoc(doc(db, 'workflows', deleteConfirmModal.workflowId));
+      await WorkflowServicePg.deleteWorkflow(deleteConfirmModal.workflowId);
       setWorkflows(workflows.filter(w => w.id !== deleteConfirmModal.workflowId));
       setDeleteConfirmModal({ show: false, workflowId: null });
     } catch (error) {
@@ -115,9 +107,7 @@ export default function BravoFlowPage() {
   const handleToggleActive = async (e: React.MouseEvent, workflowId: string, currentStatus: boolean) => {
     e.stopPropagation();
     try {
-      await updateDoc(doc(db, 'workflows', workflowId), {
-        isActive: !currentStatus
-      });
+      await WorkflowServicePg.toggleWorkflowActive(workflowId, !currentStatus);
       setWorkflows(workflows.map(w => 
         w.id === workflowId ? { ...w, isActive: !currentStatus } : w
       ));
@@ -129,16 +119,18 @@ export default function BravoFlowPage() {
 
   const handleDuplicate = async (workflow: WorkflowTemplate) => {
     try {
-      const newWorkflow = {
-        name: `${workflow.name} (Cópia)`,
-        description: workflow.description,
-        stages: workflow.stages,
-        createdAt: new Date(),
-        createdBy: user?.uid || '',
-        isActive: false
-      };
-
-      await addDoc(collection(db, 'workflows'), newWorkflow);
+      await WorkflowServicePg.saveWorkflow(
+        {
+          name: `${workflow.name} (Cópia)`,
+          description: workflow.description,
+          stages: workflow.stages || [],
+          companies: workflow.companies,
+          departments: workflow.departments,
+          isActive: false
+        },
+        user?.uid || '',
+        user?.email || 'Admin'
+      );
       loadWorkflows();
     } catch (error) {
       console.error('Erro ao duplicar workflow:', error);
@@ -274,7 +266,7 @@ export default function BravoFlowPage() {
 
               <div className={styles.cardFooter}>
                 <span className={styles.stageCount}>
-                  {workflow.stages.length} etapa{workflow.stages.length !== 1 ? 's' : ''}
+                  {((workflow as any).stageCount ?? workflow.stages?.length ?? 0)} etapa{((workflow as any).stageCount ?? workflow.stages?.length ?? 0) !== 1 ? 's' : ''}
                 </span>
                 <span className={`${styles.status} ${workflow.isActive ? styles.active : styles.inactive}`}>
                   {workflow.isActive ? 'Ativo' : 'Inativo'}

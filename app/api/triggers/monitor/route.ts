@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { Pool } from 'pg';
-import { db } from '../../../../firebase/config';
-import { collection, query, where, getDocs, doc, getDoc, updateDoc, addDoc, serverTimestamp } from 'firebase/firestore';
+import { getPool } from '@/lib/db/postgresql';
 
 // Credenciais do PostgreSQL Data Connect (hardcoded)
 const PG_CONFIG = {
@@ -32,16 +31,37 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Buscar workflow
-    const workflowDoc = await getDoc(doc(db, 'workflows', workflowId));
-    if (!workflowDoc.exists()) {
+    // Buscar workflow do PostgreSQL
+    const pgPool = getPool();
+    const pgClient = await pgPool.connect();
+    
+    const wfRes = await pgClient.query(
+      `SELECT firebase_id, workflow_name as name, stage_name, stage_order, 
+              is_initial, is_final, require_comment, stage_type
+       FROM dim_workflow_stages WHERE workflow_fb_id = $1 ORDER BY stage_order`,
+      [workflowId]
+    );
+    
+    if (wfRes.rows.length === 0) {
+      pgClient.release();
       return NextResponse.json(
         { success: false, error: 'Workflow não encontrado' },
         { status: 404 }
       );
     }
 
-    const workflow = workflowDoc.data();
+    const workflow = {
+      name: wfRes.rows[0].name,
+      stages: wfRes.rows.map((r: any) => ({
+        id: r.firebase_id,
+        name: r.stage_name,
+        order: r.stage_order,
+        type: r.stage_type,
+        isInitial: r.is_initial,
+        isFinal: r.is_final,
+        requireComment: r.require_comment
+      }))
+    };
     const stage = workflow.stages?.find((s: any) => s.id === stageId);
 
     if (!stage || !stage.trigger?.enabled || stage.trigger.type !== 'sql_database') {
@@ -108,9 +128,26 @@ export async function POST(request: NextRequest) {
           }
         };
 
-        const instanceRef = await addDoc(collection(db, 'workflow_instances'), instanceData);
+        const instanceId = `trigger_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        await fetch(`${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/api/dataconnect/workflow-instances`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            instanceId,
+            workflowId,
+            workflowName: workflow.name,
+            currentStageId: stage.id,
+            currentStageIndex: workflow.stages.findIndex((s: any) => s.id === stageId),
+            assignedTo: stage.assignedUsers?.[0] || '',
+            assignedToName: 'Sistema',
+            status: 'in_progress',
+            companyId: '',
+            departmentId: '',
+            fieldData: record
+          })
+        });
         instancesCreated.push({
-          instanceId: instanceRef.id,
+          instanceId,
           recordId: record[triggerConfig.triggerColumn]
         });
       }
@@ -133,10 +170,11 @@ export async function POST(request: NextRequest) {
         return s;
       });
 
-      await updateDoc(doc(db, 'workflows', workflowId), {
-        stages: updatedStages
-      });
+      // Atualizar no PostgreSQL (trigger config é armazenado no stage)
+      // Por ora, apenas logamos - trigger config pode ser persistido em tabela separada futuramente
+      console.log(`✅ Trigger processado: lastProcessedValue = ${maxValue}`);
 
+      pgClient.release();
       await pool.end();
 
       return NextResponse.json({

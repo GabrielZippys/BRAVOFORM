@@ -3,8 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { ArrowLeft } from 'lucide-react';
-import { doc, getDoc, updateDoc } from 'firebase/firestore';
-import { db } from '../../../../../firebase/config';
+import { WorkflowServicePg } from '@/services/workflowServicePg';
 import { useAuth } from '@/hooks/useAuth';
 import WorkflowBuilder from '@/components/WorkflowBuilder';
 import ConfirmModal from '@/components/ConfirmModal';
@@ -41,23 +40,12 @@ export default function EditWorkflowPage() {
 
   const loadWorkflow = async (workflowId: string) => {
     try {
-      const workflowDoc = await getDoc(doc(db, 'workflows', workflowId));
+      const workflowData = await WorkflowServicePg.loadWorkflow(workflowId);
       
-      if (workflowDoc.exists()) {
-        const data = workflowDoc.data();
-        const workflowData = {
-          id: workflowDoc.id,
-          name: data.name,
-          description: data.description || '',
-          companies: data.companies || [],
-          departments: data.departments || [],
-          stages: data.stages || [],
-          isActive: data.isActive || false
-        };
-
-        setWorkflow(workflowData);
+      if (workflowData) {
+        setWorkflow(workflowData as WorkflowTemplate);
         setWorkflowName(workflowData.name);
-        setWorkflowDescription(workflowData.description);
+        setWorkflowDescription(workflowData.description || '');
       } else {
         console.log('Workflow não encontrado, redirecionando...');
         router.push('/dashboard/bravoflow');
@@ -86,11 +74,10 @@ export default function EditWorkflowPage() {
 
     setIsSaving(true);
     try {
-      await updateDoc(doc(db, 'workflows', workflow.id), {
+      await WorkflowServicePg.updateWorkflow(workflow.id, {
         name: workflowName,
         description: workflowDescription,
-        stages: stages,
-        updatedAt: new Date()
+        stages: stages
       });
 
       router.push('/dashboard/bravoflow');

@@ -1,8 +1,8 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { WorkflowInstanceService } from '@/services/workflowInstanceService';
-import { WorkflowService } from '@/services/workflowService';
+import { WorkflowInstanceServicePg as WorkflowInstanceService } from '@/services/workflowInstanceServicePg';
+import { WorkflowServicePg as WorkflowService } from '@/services/workflowServicePg';
 import { CheckCircle, XCircle, Clock, Send } from 'lucide-react';
 import type { WorkflowInstance, WorkflowDocument, WorkflowStage } from '@/types';
 
@@ -89,19 +89,14 @@ export default function WorkflowExecutionModal({
     setSubmitting(true);
     try {
       await WorkflowInstanceService.advanceStage(
-        instanceId,
-        userId,
-        userName,
-        'validated',
-        fieldData,
+        instanceId, userId, userName, 'validated',
+        workflow!, instance!, fieldData,
         comment || undefined,
         attachments.length > 0 ? attachments : undefined
       );
-
       await loadData();
       setComment('');
       setAttachments([]);
-
       alert('Etapa validada com sucesso!');
       if (onComplete) onComplete();
     } catch (error) {
@@ -113,22 +108,16 @@ export default function WorkflowExecutionModal({
   };
 
   const handleReject = async () => {
-    if (!instance) return;
-
+    if (!instance || !workflow) return;
     if (!confirm('Deseja realmente rejeitar esta etapa?')) return;
-
     setSubmitting(true);
     try {
       await WorkflowInstanceService.advanceStage(
-        instanceId,
-        userId,
-        userName,
-        'rejected',
-        fieldData,
+        instanceId, userId, userName, 'rejected',
+        workflow, instance, fieldData,
         comment || 'Etapa rejeitada',
         attachments.length > 0 ? attachments : undefined
       );
-
       await loadData();
       alert('Etapa rejeitada. Voltando para etapa anterior.');
       if (onComplete) onComplete();

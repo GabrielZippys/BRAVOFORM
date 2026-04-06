@@ -4,8 +4,6 @@ import React, { useState, useEffect } from 'react';
 import { Plus, Trash2 } from 'lucide-react';
 import type { OrderGridField, VariationConfig, QuantityConfig } from '@/types';
 import ProductCatalogManager from './ProductCatalogManager';
-import { collection, getDocs, query, where } from 'firebase/firestore';
-import { db } from '../../firebase/config';
 
 interface OrderGridBuilderProps {
   field: Partial<OrderGridField>;
@@ -37,18 +35,22 @@ const OrderGridBuilder: React.FC<OrderGridBuilderProps> = ({ field, updateField,
 
   const loadCatalogs = async () => {
     try {
-      const q = query(
-        collection(db, 'product_catalogs'),
-        where('companyId', '==', companyId)
-      );
-      const snapshot = await getDocs(q);
-      const catalogsData = snapshot.docs.map(doc => ({
-        id: doc.id,
-        name: doc.data().name,
-        collection: doc.data().collection,
-        fields: doc.data().fields,
-      })) as ProductCatalog[];
-      setCatalogs(catalogsData);
+      const res = await fetch(`/api/dataconnect/save-catalog?companyId=${encodeURIComponent(companyId)}`);
+      const result = await res.json();
+      if (result.success) {
+        setCatalogs(result.data.map((c: any) => ({
+          id: c.id,
+          name: c.name,
+          collection: 'products',
+          fields: {
+            displayField: c.displayField || 'nome',
+            valueField: c.valueField || 'id',
+            searchFields: Array.isArray(c.searchFields)
+              ? c.searchFields
+              : (c.searchFields ? JSON.parse(c.searchFields) : ['nome']),
+          },
+        })));
+      }
     } catch (error) {
       console.error('Erro ao carregar catálogos:', error);
     }

@@ -285,29 +285,28 @@ useEffect(() => {
   return () => unsub();
 }, [collaborator?.id]);
 
-  // Buscar workflow_instances atribuídas ao colaborador atual
-  // Cada colaborador só vê workflows onde ele é o assignedTo da etapa atual
+  // Buscar workflow_instances atribuídas ao colaborador atual (PostgreSQL)
   useEffect(() => {
     if (!collaborator?.id) {
       return;
     }
 
-    // Query: busca workflows onde o colaborador atual é o responsável pela etapa atual
-    const qWorkflows = query(
-      collection(db, 'workflow_instances'),
-      where('assignedTo', '==', collaborator.id),
-      where('status', '==', 'in_progress')
-    );
+    const loadWorkflowTasks = async () => {
+      try {
+        const res = await fetch(`/api/dataconnect/workflow-instances?assignedTo=${collaborator.id}&status=in_progress`);
+        const result = await res.json();
+        if (result.success) {
+          setWorkflowTasks(result.data);
+        }
+      } catch (error) {
+        console.error('Erro ao carregar workflow tasks:', error);
+      }
+    };
 
-    const unsub = onSnapshot(qWorkflows, (snapshot) => {
-      const tasks = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      }));
-      setWorkflowTasks(tasks);
-    });
-
-    return () => unsub();
+    loadWorkflowTasks();
+    // Polling a cada 30s para manter atualizado (substituindo onSnapshot)
+    const interval = setInterval(loadWorkflowTasks, 30000);
+    return () => clearInterval(interval);
   }, [collaborator?.id]);
 
   const handleLogout = () => {

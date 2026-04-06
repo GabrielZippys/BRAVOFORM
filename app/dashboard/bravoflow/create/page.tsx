@@ -3,8 +3,7 @@
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft } from 'lucide-react';
-import { collection, addDoc } from 'firebase/firestore';
-import { db } from '../../../../firebase/config';
+import { WorkflowServicePg } from '@/services/workflowServicePg';
 import { useAuth } from '@/hooks/useAuth';
 import WorkflowBuilder from '@/components/WorkflowBuilder';
 import WorkflowSetupModal from '@/components/WorkflowSetupModal';
@@ -31,20 +30,20 @@ export default function CreateWorkflowPage() {
     departments: string[];
   }) => {
     try {
-      // Salvar workflow inicial no Firestore
-      const docRef = await addDoc(collection(db, 'workflows'), {
-        name: config.name,
-        description: '',
-        companies: config.companies,
-        departments: config.departments,
-        stages: [], // Inicialmente vazio, será preenchido ao adicionar etapas
-        createdAt: new Date(),
-        createdBy: user?.uid || '',
-        isActive: false
-      });
+      const workflowId = await WorkflowServicePg.saveWorkflow(
+        {
+          name: config.name,
+          description: '',
+          companies: config.companies,
+          departments: config.departments,
+          stages: [],
+          isActive: false
+        },
+        user?.uid || '',
+        user?.email || 'Admin'
+      );
 
-      // Redirecionar para página de edição
-      router.push(`/dashboard/bravoflow/edit/${docRef.id}`);
+      router.push(`/dashboard/bravoflow/edit/${workflowId}`);
     } catch (error) {
       console.error('Erro ao criar workflow:', error);
       await alert('Erro', 'Erro ao criar workflow. Tente novamente.');
@@ -64,16 +63,18 @@ export default function CreateWorkflowPage() {
 
     setIsSaving(true);
     try {
-      await addDoc(collection(db, 'workflows'), {
-        name: workflowName,
-        description: workflowDescription,
-        companies: workflowCompanies,
-        departments: workflowDepartments,
-        stages: stages,
-        createdAt: new Date(),
-        createdBy: user?.uid || '',
-        isActive: false
-      });
+      await WorkflowServicePg.saveWorkflow(
+        {
+          name: workflowName,
+          description: workflowDescription,
+          companies: workflowCompanies,
+          departments: workflowDepartments,
+          stages: stages,
+          isActive: false
+        },
+        user?.uid || '',
+        user?.email || 'Admin'
+      );
 
       router.push('/dashboard/bravoflow');
     } catch (error) {

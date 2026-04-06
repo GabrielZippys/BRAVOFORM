@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, CheckCircle, XCircle, Clock, User, Calendar, FileText, Paperclip, Download } from 'lucide-react';
 import type { WorkflowInstance, WorkflowDocument, StageHistoryEntry } from '@/types';
-import { WorkflowService } from '@/services/workflowService';
+import { WorkflowServicePg as WorkflowService } from '@/services/workflowServicePg';
 import styles from '../../app/styles/WorkflowInstanceDetailModal.module.css';
 
 interface WorkflowInstanceDetailModalProps {

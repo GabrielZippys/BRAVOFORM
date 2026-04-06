@@ -2,9 +2,6 @@
 
 import React, { useState, useEffect } from 'react';
 import { Plus, Trash2, Edit2, X, Save, FolderOpen } from 'lucide-react';
-import { db } from '../../firebase/config';
-import { collection, addDoc, getDocs, updateDoc, deleteDoc, doc, query, where, serverTimestamp } from 'firebase/firestore';
-import { dualSave } from '@/services/dualSaveService';
 
 interface ProductCatalog {
   id: string;
@@ -79,16 +76,32 @@ const ProductCatalogManager: React.FC<ProductCatalogManagerProps> = ({ companyId
   const loadCatalogs = async () => {
     try {
       setLoading(true);
-      const q = query(
-        collection(db, 'product_catalogs'),
-        where('companyId', '==', companyId)
-      );
-      const snapshot = await getDocs(q);
-      const catalogsData = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      })) as ProductCatalog[];
-      setCatalogs(catalogsData);
+      const res = await fetch(`/api/dataconnect/save-catalog?companyId=${encodeURIComponent(companyId)}`);
+      const result = await res.json();
+      if (result.success) {
+        // Normaliza: SQL retorna campos no nível raiz, interface espera sub-objeto fields
+        const normalized: ProductCatalog[] = result.data.map((c: any) => ({
+          id: c.id,
+          name: c.name,
+          description: c.description || '',
+          collection: 'products',
+          companyId: c.companyId || companyId,
+          createdAt: c.createdAt,
+          updatedAt: c.updatedAt,
+          fields: {
+            displayField:    c.displayField    || c.fields?.displayField    || 'nome',
+            valueField:      c.valueField      || c.fields?.valueField      || 'id',
+            searchFields:    Array.isArray(c.searchFields)
+              ? c.searchFields
+              : (typeof c.searchFields === 'string' ? JSON.parse(c.searchFields || '[]') : []),
+            additionalFields: c.additionalFields || c.fields?.additionalFields || [],
+          },
+        }));
+        setCatalogs(normalized);
+      } else {
+        console.error('Erro ao carregar catálogos:', result.error);
+        alert('Erro ao carregar catálogos');
+      }
     } catch (error) {
       console.error('Erro ao carregar catálogos:', error);
       alert('Erro ao carregar catálogos');
@@ -102,149 +115,68 @@ const ProductCatalogManager: React.FC<ProductCatalogManagerProps> = ({ companyId
       alert('Preencha o nome do catálogo');
       return;
     }
-
     if (products.length === 0) {
       alert('Adicione pelo menos um produto ao catálogo');
       return;
     }
 
     try {
-      const catalogData = {
-        name: formData.name,
-        description: formData.description,
-        collection: 'products', // Sempre usa a coleção 'products'
-        companyId,
-        fields: {
+      // Gerar ou reutilizar ID do catálogo
+      const catalogId = editingCatalog?.id || `cat_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
+
+      // Salvar catálogo no SQL
+      const catRes = await fetch('/api/dataconnect/save-catalog', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          catalogId,
+          name: formData.name,
+          description: formData.description,
+          companyId,
           displayField: 'nome',
           valueField: 'id',
           searchFields: ['nome', 'codigo', 'ean'],
           additionalFields: formData.additionalFields,
-        },
-        updatedAt: serverTimestamp(),
-      };
+        }),
+      });
+      if (!(await catRes.json()).success) throw new Error('Falha ao salvar catálogo');
 
       if (editingCatalog) {
-        // Atualizar catálogo existente
-        await updateDoc(doc(db, 'product_catalogs', editingCatalog.id), {
-          ...catalogData,
-          updatedAt: serverTimestamp(),
-        });
-        dualSave.saveCatalog({
-          catalogId: editingCatalog.id,
-          name: catalogData.name,
-          description: catalogData.description,
-          companyId: catalogData.companyId,
-          displayField: catalogData.displayField,
-          valueField: catalogData.valueField,
-          searchFields: catalogData.searchFields,
-          fields: catalogData.fields,
-          additionalFields: catalogData.additionalFields,
-        });
-
-        // Remover produtos que foram deletados
-        const currentProductsQuery = query(
-          collection(db, 'products'),
-          where('catalogId', '==', editingCatalog.id)
-        );
-        const currentProductsSnapshot = await getDocs(currentProductsQuery);
-        
-        // Remover produtos que foram deletados
-        for (const productDoc of currentProductsSnapshot.docs) {
-          const existsInNewList = products.some(p => p.id === productDoc.id);
-          if (!existsInNewList) {
-            await deleteDoc(doc(db, 'products', productDoc.id));
+        // Deletar produtos que foram removidos da lista
+        const prevRes = await fetch(`/api/dataconnect/save-catalog?catalogId=${encodeURIComponent(catalogId)}`);
+        const prevResult = await prevRes.json();
+        const prevProducts: any[] = prevResult.success ? prevResult.data : [];
+        for (const prev of prevProducts) {
+          if (!products.some(p => p.id === prev.id)) {
+            await fetch(`/api/dataconnect/save-product?id=${encodeURIComponent(prev.id)}`, { method: 'DELETE' });
           }
         }
-
-        // Adicionar novos produtos (que não têm ID)
-        for (const product of products) {
-          if (!product.id) {
-            const docRef = await addDoc(collection(db, 'products'), {
-              catalogId: editingCatalog.id,
-              nome: product.nome,
-              codigo: product.codigo || '',
-              unidade: product.unidade,
-              quantidadeMin: product.quantidadeMin,
-              quantidadeMax: product.quantidadeMax,
-              createdAt: serverTimestamp(),
-              updatedAt: serverTimestamp(),
-            });
-            dualSave.saveProduct({
-              productId: docRef.id,
-              catalogId: editingCatalog.id,
-              nome: product.nome,
-              codigo: product.codigo || '',
-              unidade: product.unidade,
-              quantidadeMax: product.quantidadeMax,
-              quantidadeMin: product.quantidadeMin,
-            });
-          } else {
-            // Atualizar produto existente
-            await updateDoc(doc(db, 'products', product.id), {
-              nome: product.nome,
-              codigo: product.codigo || '',
-              unidade: product.unidade,
-              quantidadeMin: product.quantidadeMin,
-              quantidadeMax: product.quantidadeMax,
-              updatedAt: serverTimestamp(),
-            });
-            dualSave.saveProduct({
-              productId: product.id,
-              catalogId: editingCatalog.id,
-              nome: product.nome,
-              codigo: product.codigo || '',
-              unidade: product.unidade,
-              quantidadeMax: product.quantidadeMax,
-              quantidadeMin: product.quantidadeMin,
-            });
-          }
-        }
-
-        setSuccessMessage(`Catálogo atualizado com sucesso!\n${products.length} produto(s) no catálogo ✨`);
-      } else {
-        // Criar novo catálogo
-        const docRef = await addDoc(collection(db, 'product_catalogs'), {
-          ...catalogData,
-          createdAt: serverTimestamp(),
-        });
-        dualSave.saveCatalog({
-          catalogId: docRef.id,
-          name: catalogData.name,
-          description: catalogData.description,
-          companyId: catalogData.companyId,
-          displayField: catalogData.displayField,
-          valueField: catalogData.valueField,
-          searchFields: catalogData.searchFields,
-          fields: catalogData.fields,
-          additionalFields: catalogData.additionalFields,
-        });
-
-        // Salvar produtos
-        for (const product of products) {
-          const productRef = await addDoc(collection(db, 'products'), {
-            catalogId: docRef.id,
-            nome: product.nome,
-            codigo: product.codigo || '',
-            unidade: product.unidade,
-            quantidadeMin: product.quantidadeMin,
-            quantidadeMax: product.quantidadeMax,
-            createdAt: serverTimestamp(),
-            updatedAt: serverTimestamp(),
-          });
-          dualSave.saveProduct({
-            productId: productRef.id,
-            catalogId: docRef.id,
-            nome: product.nome,
-            codigo: product.codigo || '',
-            unidade: product.unidade,
-            quantidadeMax: product.quantidadeMax,
-            quantidadeMin: product.quantidadeMin,
-          });
-        }
-
-        setSuccessMessage(`Catálogo criado com sucesso!\n${products.length} produto(s) adicionado(s) ✨`);
       }
 
+      // Upsert todos os produtos
+      for (const product of products) {
+        const productId = product.id || `prod_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
+        await fetch('/api/dataconnect/save-product', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            productId,
+            catalogId,
+            nome: product.nome,
+            codigo: product.codigo || '',
+            unidade: product.unidade,
+            quantidadeMin: product.quantidadeMin,
+            quantidadeMax: product.quantidadeMax,
+            companyId,
+          }),
+        });
+      }
+
+      setSuccessMessage(
+        editingCatalog
+          ? `Catálogo atualizado com sucesso!\n${products.length} produto(s) no catálogo ✨`
+          : `Catálogo criado com sucesso!\n${products.length} produto(s) adicionado(s) ✨`
+      );
       setShowForm(false);
       setEditingCatalog(null);
       resetForm();
@@ -261,8 +193,7 @@ const ProductCatalogManager: React.FC<ProductCatalogManagerProps> = ({ companyId
     if (!confirm('Tem certeza que deseja excluir este catálogo?')) return;
 
     try {
-      await deleteDoc(doc(db, 'product_catalogs', catalogId));
-      dualSave.deleteCatalog(catalogId);
+      await fetch(`/api/dataconnect/save-catalog?id=${encodeURIComponent(catalogId)}`, { method: 'DELETE' });
       alert('Catálogo excluído com sucesso!');
       loadCatalogs();
     } catch (error) {
@@ -283,21 +214,18 @@ const ProductCatalogManager: React.FC<ProductCatalogManagerProps> = ({ companyId
       additionalFields: catalog.fields.additionalFields || [],
     });
 
-    // Carregar produtos do catálogo
+    // Carregar produtos do catálogo via SQL
     try {
-      const q = query(
-        collection(db, 'products'),
-        where('catalogId', '==', catalog.id)
-      );
-      const snapshot = await getDocs(q);
-      const productsData = snapshot.docs.map(doc => ({
-        id: doc.id,
-        nome: doc.data().nome,
-        codigo: doc.data().codigo || '',
-        unidade: doc.data().unidade || 'UN',
-        quantidadeMin: doc.data().quantidadeMin || 1,
-        quantidadeMax: doc.data().quantidadeMax || 999,
-      }));
+      const res = await fetch(`/api/dataconnect/save-catalog?catalogId=${encodeURIComponent(catalog.id)}`);
+      const result = await res.json();
+      const productsData = result.success ? result.data.map((p: any) => ({
+        id: p.id,
+        nome: p.nome,
+        codigo: p.codigo || '',
+        unidade: p.unidade || 'UN',
+        quantidadeMin: p.quantidadeMin || 1,
+        quantidadeMax: p.quantidadeMax || 999,
+      })) : [];
       // Ordenar alfabeticamente por nome
       productsData.sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
       setProducts(productsData);
@@ -514,32 +442,42 @@ const ProductCatalogManager: React.FC<ProductCatalogManagerProps> = ({ companyId
     left: 0,
     right: 0,
     bottom: 0,
-    background: 'rgba(0, 0, 0, 0.8)',
+    width: '100vw',
+    height: '100vh',
+    background: 'rgba(0, 0, 0, 0.85)',
+    backdropFilter: 'blur(8px)',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
     zIndex: 9999,
+    padding: '20px',
   };
 
   const contentStyle: React.CSSProperties = {
-    background: '#1e293b',
-    borderRadius: '12px',
-    padding: '24px',
+    background: 'linear-gradient(135deg, #1F2937 0%, #111827 100%)',
+    borderRadius: '16px',
+    padding: '28px',
     maxWidth: '700px',
     width: '90%',
-    maxHeight: '80vh',
-    overflow: 'auto',
+    maxHeight: '85vh',
+    overflowY: 'auto',
     color: '#fff',
+    border: '1px solid rgba(99, 102, 241, 0.2)',
+    boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(99, 102, 241, 0.1)',
+    position: 'relative',
+    margin: 'auto',
   };
 
   const inputStyle: React.CSSProperties = {
     width: '100%',
-    padding: '10px 12px',
-    background: '#0f172a',
-    border: '1px solid #334155',
-    borderRadius: '6px',
+    padding: '12px 14px',
+    background: 'rgba(15, 23, 42, 0.6)',
+    border: '1px solid rgba(51, 65, 85, 0.6)',
+    borderRadius: '8px',
     color: '#fff',
     fontSize: '14px',
+    transition: 'all 0.2s',
+    outline: 'none',
   };
 
   const buttonStyle = (variant: 'primary' | 'secondary' | 'danger' = 'primary'): React.CSSProperties => ({
@@ -559,9 +497,22 @@ const ProductCatalogManager: React.FC<ProductCatalogManagerProps> = ({ companyId
     <div style={modalStyle}>
       <div style={contentStyle}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-          <div>
-            <h2 style={{ margin: 0, fontSize: '20px', color: '#fff' }}>
-              📁 Gerenciar Catálogos
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <div style={{
+              width: '48px',
+              height: '48px',
+              borderRadius: '12px',
+              background: 'linear-gradient(135deg, #6366F1 0%, #8B5CF6 100%)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: '24px',
+              boxShadow: '0 8px 16px rgba(99, 102, 241, 0.3)'
+            }}>
+              📁
+            </div>
+            <h2 style={{ margin: 0, fontSize: '24px', color: '#fff', fontWeight: 700 }}>
+              Gerenciar Catálogos
             </h2>
           </div>
           <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
@@ -574,17 +525,27 @@ const ProductCatalogManager: React.FC<ProductCatalogManagerProps> = ({ companyId
                   setProducts([]);
                 }}
                 style={{
-                  background: '#3b82f6',
+                  background: 'linear-gradient(135deg, #6366F1 0%, #8B5CF6 100%)',
                   border: 'none',
-                  borderRadius: '6px',
+                  borderRadius: '10px',
                   color: '#fff',
                   cursor: 'pointer',
-                  padding: '8px',
+                  padding: '10px 12px',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
+                  boxShadow: '0 4px 12px rgba(99, 102, 241, 0.4)',
+                  transition: 'all 0.2s',
                 }}
                 title="Novo catálogo"
+                onMouseOver={(e) => {
+                  e.currentTarget.style.transform = 'translateY(-2px)';
+                  e.currentTarget.style.boxShadow = '0 6px 16px rgba(99, 102, 241, 0.5)';
+                }}
+                onMouseOut={(e) => {
+                  e.currentTarget.style.transform = 'translateY(0)';
+                  e.currentTarget.style.boxShadow = '0 4px 12px rgba(99, 102, 241, 0.4)';
+                }}
               >
                 <Plus size={20} />
               </button>
@@ -592,11 +553,21 @@ const ProductCatalogManager: React.FC<ProductCatalogManagerProps> = ({ companyId
             <button
               onClick={onClose}
               style={{
-                background: 'none',
+                background: 'rgba(51, 65, 85, 0.3)',
                 border: 'none',
+                borderRadius: '10px',
                 color: '#94a3b8',
                 cursor: 'pointer',
-                padding: '8px',
+                padding: '10px',
+                transition: 'all 0.2s',
+              }}
+              onMouseOver={(e) => {
+                e.currentTarget.style.background = 'rgba(239, 68, 68, 0.2)';
+                e.currentTarget.style.color = '#ef4444';
+              }}
+              onMouseOut={(e) => {
+                e.currentTarget.style.background = 'rgba(51, 65, 85, 0.3)';
+                e.currentTarget.style.color = '#94a3b8';
               }}
             >
               <X size={24} />

@@ -50,6 +50,7 @@
     "@types/recharts": "^1.8.29",
     "eslint": "^9",
     "eslint-config-next": "15.3.3",
+    "firebase-admin": "^13.7.0",
     "tsx": "^4.7.0",
     "typescript": "^5"
   }

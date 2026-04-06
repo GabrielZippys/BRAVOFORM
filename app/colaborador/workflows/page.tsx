@@ -2,10 +2,8 @@
 
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { collection, getDocs, query, where } from 'firebase/firestore';
-import { db } from '../../../firebase/config';
 import { useAuth } from '@/hooks/useAuth';
-import { WorkflowInstanceService } from '@/services/workflowInstanceService';
+import { WorkflowServicePg } from '@/services/workflowServicePg';
 import { Play, Clock, CheckCircle, FileText, ArrowRight } from 'lucide-react';
 import type { WorkflowDocument, WorkflowInstance } from '@/types';
 import styles from './workflows.module.css';
@@ -28,24 +26,14 @@ export default function ColaboradorWorkflowsPage() {
 
     setLoading(true);
     try {
-      // Carregar workflows ativos
-      const workflowsSnapshot = await getDocs(
-        query(collection(db, 'workflows'), where('isActive', '==', true))
-      );
-      const workflows = workflowsSnapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      } as WorkflowDocument));
+      // Carregar workflows ativos do PostgreSQL
+      const workflows = await WorkflowServicePg.listWorkflows({ isActive: true });
+      setAvailableWorkflows(workflows as unknown as WorkflowDocument[]);
 
-      setAvailableWorkflows(workflows);
-
-      // Carregar minhas instâncias em andamento
-      const instances = await WorkflowInstanceService.listInstances({
-        assignedTo: user.uid,
-        status: 'in_progress'
-      });
-
-      setMyInstances(instances);
+      // Carregar minhas instâncias em andamento do PostgreSQL
+      const res = await fetch(`/api/dataconnect/workflow-instances?assignedTo=${user.uid}&status=in_progress`);
+      const result = await res.json();
+      setMyInstances(result.success ? result.data : []);
     } catch (error) {
       console.error('Erro ao carregar dados:', error);
     } finally {
@@ -57,20 +45,29 @@ export default function ColaboradorWorkflowsPage() {
     if (!user) return;
 
     try {
-      // TODO: Obter empresa e departamento do colaborador
       const companyId = 'default-company';
       const departmentId = 'default-department';
 
-      const instanceId = await WorkflowInstanceService.createInstance(
-        workflow.id,
-        user.uid,
-        user.displayName || user.email || 'Colaborador',
-        companyId,
-        departmentId
-      );
+      const res = await fetch('/api/dataconnect/workflow-instances', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          workflowId: workflow.id,
+          workflowName: workflow.name,
+          assignedTo: user.uid,
+          assignedToName: user.displayName || user.email || 'Colaborador',
+          companyId,
+          departmentId,
+          status: 'in_progress'
+        })
+      });
+      const result = await res.json();
 
-      // Redirecionar para execução
-      router.push(`/colaborador/workflows/${instanceId}`);
+      if (result.success) {
+        router.push(`/colaborador/workflows/${result.data.instance_id}`);
+      } else {
+        throw new Error(result.error);
+      }
     } catch (error) {
       console.error('Erro ao iniciar workflow:', error);
       alert('Erro ao iniciar workflow. Tente novamente.');

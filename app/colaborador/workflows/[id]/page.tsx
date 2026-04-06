@@ -2,8 +2,8 @@
 
 import React, { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
-import { WorkflowInstanceService } from '@/services/workflowInstanceService';
-import { WorkflowService } from '@/services/workflowService';
+import { WorkflowInstanceServicePg as WorkflowInstanceService } from '@/services/workflowInstanceServicePg';
+import { WorkflowServicePg as WorkflowService } from '@/services/workflowServicePg';
 import { useAuth } from '@/hooks/useAuth';
 import { CheckCircle, XCircle, Clock, ArrowLeft, Send } from 'lucide-react';
 import type { WorkflowInstance, WorkflowDocument, WorkflowStage } from '@/types';
@@ -96,18 +96,15 @@ export default function WorkflowExecutionPage() {
         user.uid,
         user.displayName || user.email || 'Colaborador',
         'validated',
+        workflow!,
+        instance!,
         fieldData,
         comment || undefined,
         attachments.length > 0 ? attachments : undefined
       );
-
-      // Recarregar dados
       await loadData();
-
-      // Limpar campos
       setComment('');
       setAttachments([]);
-
       alert('Etapa validada com sucesso!');
     } catch (error) {
       console.error('Erro ao validar etapa:', error);
@@ -118,22 +115,17 @@ export default function WorkflowExecutionPage() {
   };
 
   const handleReject = async () => {
-    if (!instance || !user) return;
-
+    if (!instance || !user || !workflow) return;
     if (!confirm('Deseja realmente rejeitar esta etapa?')) return;
-
     setSubmitting(true);
     try {
       await WorkflowInstanceService.advanceStage(
-        instanceId,
-        user.uid,
+        instanceId, user.uid,
         user.displayName || user.email || 'Colaborador',
-        'rejected',
-        fieldData,
+        'rejected', workflow, instance, fieldData,
         comment || 'Etapa rejeitada',
         attachments.length > 0 ? attachments : undefined
       );
-
       await loadData();
       alert('Etapa rejeitada. Voltando para etapa anterior.');
     } catch (error) {
@@ -145,21 +137,16 @@ export default function WorkflowExecutionPage() {
   };
 
   const handleCancel = async () => {
-    if (!instance || !user) return;
-
+    if (!instance || !user || !workflow) return;
     if (!confirm('Deseja realmente cancelar este workflow?')) return;
-
     setSubmitting(true);
     try {
       await WorkflowInstanceService.advanceStage(
-        instanceId,
-        user.uid,
+        instanceId, user.uid,
         user.displayName || user.email || 'Colaborador',
-        'cancelled',
-        fieldData,
+        'cancelled', workflow, instance, fieldData,
         comment || 'Workflow cancelado'
       );
-
       alert('Workflow cancelado com sucesso');
       router.push('/colaborador/workflows');
     } catch (error) {

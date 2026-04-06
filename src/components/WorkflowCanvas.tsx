@@ -19,7 +19,7 @@ import ReactFlow, {
 import 'reactflow/dist/style.css';
 import { Plus, Save, Settings, Trash2, GitBranch, Eye, Power, PowerOff } from 'lucide-react';
 import type { WorkflowStage, RoutingCondition, ActivationSettings, ActivationMode } from '@/types';
-import { WorkflowService } from '@/services/workflowService';
+import { WorkflowServicePg as WorkflowService } from '@/services/workflowServicePg';
 import { useAuth } from '@/hooks/useAuth';
 import StageNode from './StageNode';
 import StageConfigPanel from './StageConfigPanel';

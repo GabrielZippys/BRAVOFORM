@@ -1,6 +1,71 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getPool } from '@/lib/db/postgresql';
 
+// GET - Listar catálogos por empresa + produtos de um catálogo
+export async function GET(request: NextRequest) {
+  const pool = getPool();
+  const client = await pool.connect();
+  try {
+    const { searchParams } = new URL(request.url);
+    const companyId  = searchParams.get('companyId');
+    const catalogId  = searchParams.get('catalogId'); // lista produtos deste catálogo
+
+    // Listar produtos de um catálogo específico
+    if (catalogId) {
+      const res = await client.query(`
+        SELECT
+          p.firebase_id  AS id,
+          p.name         AS nome,
+          p.codigo,
+          p.unidade,
+          p.quantidade_min AS "quantidadeMin",
+          p.quantidade_max AS "quantidadeMax",
+          p.preco_atual    AS preco,
+          p.estoque
+        FROM dim_products p
+        JOIN dim_product_catalogs c ON p.catalog_key = c.catalog_key
+        WHERE c.firebase_id = $1
+        ORDER BY p.name ASC
+      `, [catalogId]);
+      return NextResponse.json({ success: true, data: res.rows });
+    }
+
+    // Listar catálogos da empresa
+    if (!companyId) {
+      return NextResponse.json({ success: false, error: 'companyId ou catalogId obrigatório' }, { status: 400 });
+    }
+
+    const res = await client.query(`
+      SELECT
+        c.firebase_id  AS id,
+        c.name,
+        c.description,
+        c.display_field  AS "displayField",
+        c.value_field    AS "valueField",
+        c.search_fields  AS "searchFields",
+        c.created_at     AS "createdAt",
+        c.updated_at     AS "updatedAt",
+        co.firebase_id   AS "companyId",
+        COUNT(p.product_key) AS product_count
+      FROM dim_product_catalogs c
+      LEFT JOIN dim_companies co ON co.company_key = c.company_key
+      LEFT JOIN dim_products   p  ON p.catalog_key  = c.catalog_key
+      WHERE co.firebase_id = $1
+      GROUP BY c.catalog_key, c.firebase_id, c.name, c.description,
+               c.display_field, c.value_field, c.search_fields,
+               c.created_at, c.updated_at, co.firebase_id
+      ORDER BY c.name ASC
+    `, [companyId]);
+
+    return NextResponse.json({ success: true, data: res.rows });
+  } catch (error: any) {
+    console.error('❌ Erro ao listar catálogos:', error.message);
+    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+  } finally {
+    client.release();
+  }
+}
+
 export async function POST(request: NextRequest) {
   const pool = getPool();
   const client = await pool.connect();

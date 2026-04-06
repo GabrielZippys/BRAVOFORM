@@ -2,8 +2,6 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { db } from '../../firebase/config';
-import { collection, query, where, getDocs } from 'firebase/firestore';
 
 interface OrderGridFieldResponseProps {
   field: any;
@@ -47,19 +45,14 @@ export default function OrderGridFieldResponse({
     const loadProducts = async () => {
       setLoading(true);
       try {
-        const q = query(collection(db, 'products'), where('catalogId', '==', catalogId));
-        const snapshot = await getDocs(q);
-        const productsData = snapshot.docs.map(doc => ({
-          id: doc.id,
-          nome: doc.data().nome || '',
-          codigo: doc.data().codigo || '',
-          unidade: doc.data().unidade || 'UN',
-          quantidadeMin: doc.data().quantidadeMin || 1,
-          quantidadeMax: doc.data().quantidadeMax || 999,
-        }));
-        // Ordenar alfabeticamente por nome
-        productsData.sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
-        setProducts(productsData);
+        const response = await fetch(`/api/dataconnect/products?catalogId=${catalogId}`);
+        const result = await response.json();
+        
+        if (result.success) {
+          setProducts(result.data);
+        } else {
+          console.error('Erro ao carregar produtos:', result.error);
+        }
       } catch (error) {
         console.error('Erro ao carregar produtos:', error);
       } finally {
