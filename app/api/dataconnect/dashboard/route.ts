@@ -3,6 +3,7 @@ import { getPool } from '@/lib/db/postgresql';
 
 /**
  * GET /api/dataconnect/dashboard
+ *   ?type=all                          → companies + forms + responses em uma chamada
  *   ?type=companies
  *   ?type=departments&companyId=xxx
  *   ?type=forms[&companyId=xxx][&departmentId=xxx]
@@ -15,6 +16,52 @@ export async function GET(request: NextRequest) {
     const type       = searchParams.get('type');
     const companyId  = searchParams.get('companyId');
     const deptId     = searchParams.get('departmentId');
+
+    // ── Carga inicial única: companies + forms + responses ──────────────────
+    if (type === 'all') {
+      const [companiesRes, formsRes, responsesRes] = await Promise.all([
+        client.query(`SELECT firebase_id AS id, name FROM dim_companies ORDER BY name`),
+        client.query(`
+          SELECT
+            df.firebase_id AS id,
+            df.title,
+            df.created_at AS "createdAt",
+            dc.firebase_id AS "companyId",
+            dd.firebase_id AS "departmentId"
+          FROM dim_forms df
+          LEFT JOIN dim_companies   dc ON dc.company_key    = df.company_key
+          LEFT JOIN dim_departments dd ON dd.department_key = df.department_key
+          WHERE df.is_active = true
+          ORDER BY df.created_at DESC
+        `),
+        client.query(`
+          SELECT
+            fr.firebase_id              AS id,
+            df.firebase_id              AS "formId",
+            COALESCE(fr.form_title, df.title, '') AS "formTitle",
+            fr.collaborator_username    AS "collaboratorUsername",
+            dcol.firebase_id            AS "collaboratorId",
+            dc.firebase_id              AS "companyId",
+            dd.firebase_id              AS "departmentId",
+            fr.submitted_at             AS "submittedAt",
+            fr.created_at               AS "createdAt"
+          FROM fact_form_response fr
+          LEFT JOIN dim_forms         df   ON df.form_key         = fr.form_key
+          LEFT JOIN dim_companies     dc   ON dc.company_key      = fr.company_key
+          LEFT JOIN dim_departments   dd   ON dd.department_key   = fr.department_key
+          LEFT JOIN dim_collaborators dcol ON dcol.collaborator_key = fr.collaborator_key
+          WHERE fr.deleted_at IS NULL
+          ORDER BY COALESCE(fr.submitted_at, fr.created_at) DESC
+          LIMIT 2000
+        `),
+      ]);
+      return NextResponse.json({
+        success: true,
+        companies:  companiesRes.rows,
+        forms:      formsRes.rows,
+        responses:  responsesRes.rows,
+      });
+    }
 
     if (type === 'companies') {
       const result = await client.query(

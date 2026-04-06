@@ -71,56 +71,16 @@ export default function DashboardPage() {
     const [loading, setLoading]       = useState({ companies: true, departments: false, responses: true, forms: true });
     const [error, setError]           = useState('');
 
-    // Carregar empresas do SQL
-    useEffect(() => {
-        fetch('/api/dataconnect/dashboard?type=companies')
-            .then(r => r.json())
-            .then(res => {
-                if (res.success) setCompanies(res.data);
-            })
-            .catch(e => setError(e.message))
-            .finally(() => setLoading(l => ({ ...l, companies: false })));
-    }, []);
-
-    // Carregar departamentos do SQL quando empresa muda
-    useEffect(() => {
-        if (selectedCompanyId === 'all') {
-            setDepartments([]);
-            setLoading(l => ({ ...l, departments: false }));
-            return;
-        }
-        setLoading(l => ({ ...l, departments: true }));
-        fetch(`/api/dataconnect/dashboard?type=departments&companyId=${encodeURIComponent(selectedCompanyId)}`)
-            .then(r => r.json())
-            .then(res => {
-                if (res.success) setDepartments(res.data);
-            })
-            .catch(e => setError(e.message))
-            .finally(() => setLoading(l => ({ ...l, departments: false })));
-    }, [selectedCompanyId]);
-
-    // Carregar formulários do SQL
+    // Carga inicial única: companies + forms + responses em paralelo no servidor
     useEffect(() => {
         if (!user) return;
-        setLoading(l => ({ ...l, forms: true }));
-        fetch('/api/dataconnect/dashboard?type=forms')
-            .then(r => r.json())
-            .then(res => {
-                if (res.success) setAllForms(res.data);
-            })
-            .catch(e => setError(e.message))
-            .finally(() => setLoading(l => ({ ...l, forms: false })));
-    }, [user]);
-
-    // Carregar respostas do SQL
-    useEffect(() => {
-        if (!user) return;
-        setLoading(l => ({ ...l, responses: true }));
-        fetch('/api/dataconnect/responses?limit=2000')
+        fetch('/api/dataconnect/dashboard?type=all')
             .then(r => r.json())
             .then(res => {
                 if (res.success) {
-                    const sorted = [...(res.data || [])].sort((a, b) => {
+                    setCompanies(res.companies || []);
+                    setAllForms(res.forms || []);
+                    const sorted = [...(res.responses || [])].sort((a: any, b: any) => {
                         const da = new Date(a.submittedAt || a.createdAt || 0).getTime();
                         const db = new Date(b.submittedAt || b.createdAt || 0).getTime();
                         return db - da;
@@ -129,8 +89,22 @@ export default function DashboardPage() {
                 }
             })
             .catch(e => setError(e.message))
-            .finally(() => setLoading(l => ({ ...l, responses: false })));
+            .finally(() => setLoading({ companies: false, departments: false, responses: false, forms: false }));
     }, [user]);
+
+    // Carregar departamentos do SQL quando empresa muda
+    useEffect(() => {
+        if (selectedCompanyId === 'all') {
+            setDepartments([]);
+            return;
+        }
+        setLoading(l => ({ ...l, departments: true }));
+        fetch(`/api/dataconnect/dashboard?type=departments&companyId=${encodeURIComponent(selectedCompanyId)}`)
+            .then(r => r.json())
+            .then(res => { if (res.success) setDepartments(res.data); })
+            .catch(e => setError(e.message))
+            .finally(() => setLoading(l => ({ ...l, departments: false })));
+    }, [selectedCompanyId]);
 
 
     // Filtros por empresa / departamento
