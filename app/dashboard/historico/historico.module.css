@@ -828,64 +828,81 @@
 .pagination {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
-  padding: 1rem 1.5rem;
-  background: white;
+  justify-content: center;
+  gap: 1.5rem;
+  padding: 1.5rem 2rem;
+  background: #F9FAFB;
   border-top: 1px solid #E5E7EB;
   border-radius: 0 0 0.75rem 0.75rem;
 }
 
 .paginationBtn {
-  padding: 0.5rem 1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.625rem 1.25rem;
   background: white;
   border: 1px solid #D1D5DB;
-  border-radius: 0.375rem;
+  border-radius: 0.5rem;
   color: #374151;
   font-size: 0.875rem;
-  font-weight: 500;
+  font-weight: 600;
   cursor: pointer;
   transition: all 0.2s;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
 }
 
 .paginationBtn:hover:not(:disabled) {
-  background: #F9FAFB;
-  border-color: #3B82F6;
-  color: #3B82F6;
+  background: #6366F1;
+  border-color: #6366F1;
+  color: white;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 6px rgba(99, 102, 241, 0.25);
 }
 
 .paginationBtn:disabled {
-  opacity: 0.5;
+  opacity: 0.4;
   cursor: not-allowed;
+  background: #F3F4F6;
+  color: #9CA3AF;
 }
 
 .paginationInfo {
-  flex: 1;
-  text-align: center;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.625rem 1.25rem;
+  background: white;
+  border: 1px solid #E5E7EB;
+  border-radius: 0.5rem;
   font-size: 0.875rem;
-  color: #6B7280;
-  font-weight: 500;
+  color: #374151;
+  font-weight: 600;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
 }
 
 .itemsPerPageSelect {
-  padding: 0.5rem 0.75rem;
+  padding: 0.625rem 1rem;
   background: white;
   border: 1px solid #D1D5DB;
-  border-radius: 0.375rem;
+  border-radius: 0.5rem;
   color: #374151;
   font-size: 0.875rem;
+  font-weight: 600;
   cursor: pointer;
   transition: all 0.2s;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
 }
 
 .itemsPerPageSelect:hover {
-  border-color: #3B82F6;
+  border-color: #6366F1;
+  box-shadow: 0 2px 4px rgba(99, 102, 241, 0.15);
 }
 
 .itemsPerPageSelect:focus {
   outline: none;
-  border-color: #3B82F6;
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+  border-color: #6366F1;
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
 }
 
 .btnDelete {
