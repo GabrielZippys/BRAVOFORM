@@ -36,6 +36,12 @@ export default function HistoricoPage() {
   const [searchFormTerm, setSearchFormTerm] = useState('');
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
 
+  // Paginação
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(20);
+  const [trashPage, setTrashPage] = useState(1);
+  const [trashItemsPerPage, setTrashItemsPerPage] = useState(20);
+
   // Modais
   const [selectedInstance, setSelectedInstance] = useState<WorkflowInstance | null>(null);
   const [selectedResponse, setSelectedResponse] = useState<FormResponse | null>(null);
@@ -221,8 +227,25 @@ export default function HistoricoPage() {
       const s = searchFormTerm.toLowerCase();
       f = f.filter(r => r.formTitle?.toLowerCase().includes(s) || r.collaboratorUsername?.toLowerCase().includes(s));
     }
+    setCurrentPage(1);
     return f;
   }, [formResponses, formFilter, companyFilter, departmentFilter, statusFilter, userFilter, dateRangeFilter, searchFormTerm]);
+
+  const paginatedFormResponses = React.useMemo(() => {
+    const start = (currentPage - 1) * itemsPerPage;
+    const end = start + itemsPerPage;
+    return filteredFormResponses.slice(start, end);
+  }, [filteredFormResponses, currentPage, itemsPerPage]);
+
+  const totalPages = Math.ceil(filteredFormResponses.length / itemsPerPage);
+
+  const paginatedTrashItems = React.useMemo(() => {
+    const start = (trashPage - 1) * trashItemsPerPage;
+    const end = start + trashItemsPerPage;
+    return deletedItems.slice(start, end);
+  }, [deletedItems, trashPage, trashItemsPerPage]);
+
+  const totalTrashPages = Math.ceil(deletedItems.length / trashItemsPerPage);
 
   // ── Helpers ────────────────────────────────────────────────────────────────
 
@@ -306,7 +329,7 @@ export default function HistoricoPage() {
                 <div className={styles.tableHeader}>
                   <span>Formulário</span><span>Usuário</span><span>Empresa</span><span>Data de Exclusão</span><span>Ações</span>
                 </div>
-                {deletedItems.slice(0, 20).map(item => (
+                {paginatedTrashItems.map(item => (
                   <div key={item.id} className={styles.tableRow} onClick={() => setSelectedResponse(item)} style={{ cursor: 'pointer' }}>
                     <div className={styles.formInfo}><FileText size={16} />{item.formTitle || 'Formulário'}</div>
                     <div className={styles.userInfo}><User size={16} />{item.collaboratorUsername || 'Usuário'}</div>
@@ -327,8 +350,20 @@ export default function HistoricoPage() {
                     </div>
                   </div>
                 ))}
-                {deletedItems.length > 20 && <div className={styles.moreResults}>E mais {deletedItems.length - 20} itens...</div>}
               </div>
+              {totalTrashPages > 1 && (
+                <div className={styles.pagination}>
+                  <button onClick={() => setTrashPage(p => Math.max(1, p - 1))} disabled={trashPage === 1} className={styles.paginationBtn}>
+                    Anterior
+                  </button>
+                  <div className={styles.paginationInfo}>
+                    Página {trashPage} de {totalTrashPages} ({deletedItems.length} itens)
+                  </div>
+                  <button onClick={() => setTrashPage(p => Math.min(totalTrashPages, p + 1))} disabled={trashPage === totalTrashPages} className={styles.paginationBtn}>
+                    Próxima
+                  </button>
+                </div>
+              )}
             </div>
           )
         )}
@@ -497,7 +532,7 @@ export default function HistoricoPage() {
                   <div className={styles.tableHeader}>
                     <span>Formulário</span><span>Usuário</span><span>Empresa</span><span>Data</span><span>Status</span><span>Ações</span>
                   </div>
-                  {filteredFormResponses.slice(0, 20).map(response => (
+                  {paginatedFormResponses.map(response => (
                     <div key={response.id} className={styles.tableRow} onClick={() => setSelectedResponse(response)}>
                       <div className={styles.formInfo}><FileText size={16} />{response.formTitle || 'Formulário'}</div>
                       <div className={styles.userInfo}><User size={16} />{response.collaboratorUsername || 'Usuário'}</div>
@@ -517,7 +552,24 @@ export default function HistoricoPage() {
                       </div>
                     </div>
                   ))}
-                  {filteredFormResponses.length > 20 && <div className={styles.moreResults}>E mais {filteredFormResponses.length - 20} respostas...</div>}
+                </div>
+              )}
+              {totalPages > 1 && (
+                <div className={styles.pagination}>
+                  <button onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1} className={styles.paginationBtn}>
+                    Anterior
+                  </button>
+                  <div className={styles.paginationInfo}>
+                    Página {currentPage} de {totalPages} ({filteredFormResponses.length} respostas)
+                  </div>
+                  <select value={itemsPerPage} onChange={e => { setItemsPerPage(Number(e.target.value)); setCurrentPage(1); }} className={styles.itemsPerPageSelect}>
+                    <option value="20">20 por página</option>
+                    <option value="50">50 por página</option>
+                    <option value="100">100 por página</option>
+                  </select>
+                  <button onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages} className={styles.paginationBtn}>
+                    Próxima
+                  </button>
                 </div>
               )}
             </div>

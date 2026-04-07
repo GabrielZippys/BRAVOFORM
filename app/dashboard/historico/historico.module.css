@@ -745,117 +745,154 @@
   font-style: italic;
 }
 
-/* Responses Section (Inline) */
-.responsesSection {
+.responsesTable {
   background: white;
   border-radius: 0.75rem;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
   overflow: hidden;
 }
 
-.responsesInfo {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 1.5rem;
-  border-bottom: 1px solid #E5E7EB;
-}
-
-.responsesInfo h3 {
-  margin: 0;
-  font-size: 1.125rem;
-  font-weight: 600;
-  color: #111827;
-}
-
-.responsesTable {
-  padding: 1rem;
-}
-
 .tableHeader {
   display: grid;
-  grid-template-columns: 2fr 1.5fr 1.5fr 1.5fr 1fr 80px;
+  grid-template-columns: 2fr 1.5fr 1.5fr 1.5fr 1fr 0.8fr;
   gap: 1rem;
-  padding: 1rem;
+  padding: 1rem 1.5rem;
   background: #F9FAFB;
-  border-radius: 0.5rem;
+  border-bottom: 1px solid #E5E7EB;
   font-size: 0.75rem;
   font-weight: 600;
   color: #6B7280;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  margin-bottom: 0.5rem;
 }
 
 .tableRow {
   display: grid;
-  grid-template-columns: 2fr 1.5fr 1.5fr 1.5fr 1fr 80px;
+  grid-template-columns: 2fr 1.5fr 1.5fr 1.5fr 1fr 0.8fr;
   gap: 1rem;
-  padding: 1rem;
-  border: 1px solid #E5E7EB;
-  border-radius: 0.5rem;
-  margin-bottom: 0.5rem;
-  transition: all 0.2s;
+  padding: 1rem 1.5rem;
+  border-bottom: 1px solid #F3F4F6;
   cursor: pointer;
+  transition: all 0.2s;
+  align-items: center;
 }
 
 .tableRow:hover {
   background: #F9FAFB;
-  border-color: #3B82F6;
-  transform: translateX(4px);
+}
+
+.tableRow:last-child {
+  border-bottom: none;
 }
 
 .formInfo,
-.userInfo {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  font-size: 0.875rem;
-  color: #111827;
-}
-
+.userInfo,
 .companyInfo,
-.dateInfo {
-  display: flex;
-  align-items: center;
-  font-size: 0.875rem;
-  color: #6B7280;
-}
-
+.dateInfo,
 .statusInfo {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  font-size: 0.75rem;
-  font-weight: 500;
+  font-size: 0.875rem;
+  color: #374151;
 }
 
-.statusInfo .approved {
+.formInfo {
+  font-weight: 500;
+  color: #111827;
+}
+
+.userInfo svg,
+.formInfo svg {
+  color: #9CA3AF;
+  flex-shrink: 0;
+}
+
+.statusInfo {
+  justify-content: flex-start;
+}
+
+.statusInfo.approved {
   color: #10B981;
 }
 
-.statusInfo .rejected {
+.statusInfo.rejected {
   color: #EF4444;
 }
 
-.statusInfo .submitted {
-  color: #3B82F6;
-}
-
-.statusInfo .pending {
+.statusInfo.pending {
   color: #F59E0B;
 }
 
-.actionsCell {
+/* Paginação */
+.pagination {
   display: flex;
   align-items: center;
-  justify-content: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1rem 1.5rem;
+  background: white;
+  border-top: 1px solid #E5E7EB;
+  border-radius: 0 0 0.75rem 0.75rem;
+}
+
+.paginationBtn {
+  padding: 0.5rem 1rem;
+  background: white;
+  border: 1px solid #D1D5DB;
+  border-radius: 0.375rem;
+  color: #374151;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.paginationBtn:hover:not(:disabled) {
+  background: #F9FAFB;
+  border-color: #3B82F6;
+  color: #3B82F6;
+}
+
+.paginationBtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.paginationInfo {
+  flex: 1;
+  text-align: center;
+  font-size: 0.875rem;
+  color: #6B7280;
+  font-weight: 500;
+}
+
+.itemsPerPageSelect {
+  padding: 0.5rem 0.75rem;
+  background: white;
+  border: 1px solid #D1D5DB;
+  border-radius: 0.375rem;
+  color: #374151;
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.itemsPerPageSelect:hover {
+  border-color: #3B82F6;
+}
+
+.itemsPerPageSelect:focus {
+  outline: none;
+  border-color: #3B82F6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
 }
 
 .btnDelete {
   transition: all 0.2s;
 }
 
+/* ... rest of the code remains the same ... */
 .btnDelete:hover {
   background: #dc2626 !important;
   transform: scale(1.05);
