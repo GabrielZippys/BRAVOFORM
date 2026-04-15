@@ -297,11 +297,19 @@ function CatalogSelector({ value, onChange, companyId }: { value?: string; onCha
 }
 
 // ---- COMPONENTE: OrderGridPreview
+const PREVIEW_UNITS = [
+  { value: 'UNI', label: 'Unidade' },
+  { value: 'KG',  label: 'Quilo'   },
+  { value: 'G',   label: 'Grama'   },
+  { value: 'FD',  label: 'Fardo'   },
+  { value: 'DP',  label: 'Display' },
+];
+
 function OrderGridPreview({ catalogId, theme, required }: { catalogId?: string; theme: any; required?: boolean }) {
-  const [products, setProducts] = useState<Array<{ 
-    id: string; 
-    nome: string; 
-    codigo?: string; 
+  const [products, setProducts] = useState<Array<{
+    id: string;
+    nome: string;
+    codigo?: string;
     unidade?: string;
     quantidadeMin: number;
     quantidadeMax: number;
@@ -310,11 +318,12 @@ function OrderGridPreview({ catalogId, theme, required }: { catalogId?: string; 
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedProductId, setSelectedProductId] = useState('');
   const [quantity, setQuantity] = useState(1);
+  const [selectedUnit, setSelectedUnit] = useState('UNI');
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
-  const [addedItems, setAddedItems] = useState<Array<{ 
-    id: string; 
+  const [addedItems, setAddedItems] = useState<Array<{
+    id: string;
     productId: string;
-    nome: string; 
+    nome: string;
     codigo?: string;
     unidade?: string;
     quantidade: number;
@@ -329,19 +338,12 @@ function OrderGridPreview({ catalogId, theme, required }: { catalogId?: string; 
     const loadProducts = async () => {
       setLoading(true);
       try {
-        const q = query(collection(db, 'products'), where('catalogId', '==', catalogId));
-        const snapshot = await getDocs(q);
-        const productsData = snapshot.docs.map(doc => ({
-          id: doc.id,
-          nome: doc.data().nome || '',
-          codigo: doc.data().codigo || '',
-          unidade: doc.data().unidade || 'UN',
-          quantidadeMin: doc.data().quantidadeMin || 1,
-          quantidadeMax: doc.data().quantidadeMax || 999,
-        }));
-        // Ordenar alfabeticamente por nome
-        productsData.sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
-        setProducts(productsData);
+        // Carrega do SQL (produtos migrados do Firestore)
+        const res = await fetch(`/api/dataconnect/products?catalogId=${catalogId}`);
+        const result = await res.json();
+        if (result.success) {
+          setProducts(result.data);
+        }
       } catch (error) {
         console.error('Erro ao carregar produtos:', error);
       } finally {
@@ -352,12 +354,15 @@ function OrderGridPreview({ catalogId, theme, required }: { catalogId?: string; 
     loadProducts();
   }, [catalogId]);
 
-  // Atualizar quantidade quando produto é selecionado
+  // Atualizar quantidade e unidade quando produto é selecionado
   useEffect(() => {
     if (selectedProductId) {
       const product = products.find(p => p.id === selectedProductId);
       if (product) {
         setQuantity(product.quantidadeMin);
+        const catalogUnit = (product.unidade || '').toUpperCase();
+        const valid = PREVIEW_UNITS.find(u => u.value === catalogUnit);
+        setSelectedUnit(valid ? catalogUnit : 'UNI');
       }
     }
   }, [selectedProductId, products]);
@@ -387,13 +392,14 @@ function OrderGridPreview({ catalogId, theme, required }: { catalogId?: string; 
       productId: product.id,
       nome: product.nome,
       codigo: product.codigo,
-      unidade: product.unidade,
+      unidade: selectedUnit,
       quantidade: quantity
     };
 
     setAddedItems([...addedItems, newItem]);
     setSelectedProductId('');
     setQuantity(1);
+    setSelectedUnit('UNI');
     setSearchTerm('');
   };
 
@@ -405,7 +411,7 @@ function OrderGridPreview({ catalogId, theme, required }: { catalogId?: string; 
     const product = products.find(p => p.id === selectedProductId);
     const min = product?.quantidadeMin || 1;
     const max = product?.quantidadeMax || 999;
-    
+
     if (value >= min && value <= max) {
       setQuantity(value);
     }
@@ -414,10 +420,12 @@ function OrderGridPreview({ catalogId, theme, required }: { catalogId?: string; 
   const handleEditItem = (itemId: string) => {
     const item = addedItems.find(i => i.id === itemId);
     if (!item) return;
-
+    const product = products.find(p => p.id === item.productId);
     setSelectedProductId(item.productId);
     setQuantity(item.quantidade);
+    setSelectedUnit(item.unidade || 'UNI');
     setEditingItemId(itemId);
+    if (product) setSearchTerm(product.codigo ? `${product.nome} - ${product.codigo}` : product.nome);
   };
 
   const handleUpdateItem = () => {
@@ -426,26 +434,25 @@ function OrderGridPreview({ catalogId, theme, required }: { catalogId?: string; 
     const product = products.find(p => p.id === selectedProductId);
     if (!product) return;
 
-    // Validar quantidade
     if (quantity < product.quantidadeMin) {
-      alert(`Quantidade mínima para ${product.nome}: ${product.quantidadeMin} ${product.unidade}`);
+      alert(`Quantidade mínima para ${product.nome}: ${product.quantidadeMin}`);
       return;
     }
-
     if (quantity > product.quantidadeMax) {
-      alert(`Quantidade máxima para ${product.nome}: ${product.quantidadeMax} ${product.unidade}`);
+      alert(`Quantidade máxima para ${product.nome}: ${product.quantidadeMax}`);
       return;
     }
 
-    setAddedItems(addedItems.map(item => 
-      item.id === editingItemId 
-        ? { ...item, quantidade: quantity }
+    setAddedItems(addedItems.map(item =>
+      item.id === editingItemId
+        ? { ...item, quantidade: quantity, unidade: selectedUnit }
         : item
     ));
 
     setEditingItemId(null);
     setSelectedProductId('');
     setQuantity(1);
+    setSelectedUnit('UNI');
     setSearchTerm('');
   };
 
@@ -453,6 +460,7 @@ function OrderGridPreview({ catalogId, theme, required }: { catalogId?: string; 
     setEditingItemId(null);
     setSelectedProductId('');
     setQuantity(1);
+    setSelectedUnit('UNI');
     setSearchTerm('');
   };
 
@@ -589,6 +597,39 @@ function OrderGridPreview({ catalogId, theme, required }: { catalogId?: string; 
         </div>
       </div>
 
+      {/* Unidade de Medida */}
+      <div style={{ marginBottom: '16px' }}>
+        <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', fontWeight: 500, color: '#374151' }}>
+          Unidade de Medida
+        </label>
+        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+          {PREVIEW_UNITS.map(unit => (
+            <button
+              key={unit.value}
+              type="button"
+              onClick={() => setSelectedUnit(unit.value)}
+              style={{
+                padding: '8px 16px',
+                border: `2px solid ${selectedUnit === unit.value ? theme.accentColor : '#d1d5db'}`,
+                borderRadius: theme.borderRadius,
+                background: selectedUnit === unit.value ? theme.accentColor : '#fff',
+                color: selectedUnit === unit.value ? '#fff' : '#374151',
+                fontSize: '13px',
+                fontWeight: 600,
+                cursor: 'pointer',
+                transition: 'all 0.15s',
+                minWidth: '64px',
+              }}
+            >
+              {unit.value}
+              <span style={{ display: 'block', fontSize: '10px', fontWeight: 400, opacity: 0.85, marginTop: '1px' }}>
+                {unit.label}
+              </span>
+            </button>
+          ))}
+        </div>
+      </div>
+
       {/* Botões Adicionar/Atualizar */}
       <div style={{ display: 'flex', gap: '8px', marginBottom: '20px' }}>
         <button
@@ -653,26 +694,13 @@ function OrderGridPreview({ catalogId, theme, required }: { catalogId?: string; 
               }}>
                 Produto
               </th>
-              <th style={{ 
-                padding: '10px 12px', 
-                textAlign: 'center',
-                color: theme.tableHeaderFont,
-                fontSize: '13px',
-                fontWeight: 600,
-                borderBottom: `1px solid ${theme.tableBorderColor}`,
-                width: '120px'
-              }}>
+              <th style={{ padding: '10px 12px', textAlign: 'center', color: theme.tableHeaderFont, fontSize: '13px', fontWeight: 600, borderBottom: `1px solid ${theme.tableBorderColor}`, width: '80px' }}>
                 Qtd
               </th>
-              <th style={{ 
-                padding: '10px 12px', 
-                textAlign: 'center',
-                color: theme.tableHeaderFont,
-                fontSize: '13px',
-                fontWeight: 600,
-                borderBottom: `1px solid ${theme.tableBorderColor}`,
-                width: '80px'
-              }}>
+              <th style={{ padding: '10px 12px', textAlign: 'center', color: theme.tableHeaderFont, fontSize: '13px', fontWeight: 600, borderBottom: `1px solid ${theme.tableBorderColor}`, width: '70px' }}>
+                UN
+              </th>
+              <th style={{ padding: '10px 12px', textAlign: 'center', color: theme.tableHeaderFont, fontSize: '13px', fontWeight: 600, borderBottom: `1px solid ${theme.tableBorderColor}`, width: '80px' }}>
                 Ações
               </th>
             </tr>
@@ -680,44 +708,23 @@ function OrderGridPreview({ catalogId, theme, required }: { catalogId?: string; 
           <tbody>
             {addedItems.length === 0 ? (
               <tr>
-                <td colSpan={3} style={{ 
-                  padding: '24px',
-                  textAlign: 'center',
-                  color: '#94a3b8',
-                  fontSize: '13px',
-                  fontStyle: 'italic',
-                  background: theme.tableOddRowBg
-                }}>
+                <td colSpan={4} style={{ padding: '24px', textAlign: 'center', color: '#94a3b8', fontSize: '13px', fontStyle: 'italic', background: theme.tableOddRowBg }}>
                   Os itens adicionados aparecerão aqui
                 </td>
               </tr>
             ) : (
               addedItems.map((item, index) => (
-                <tr key={item.id} style={{ 
-                  background: index % 2 === 0 ? theme.tableEvenRowBg : theme.tableOddRowBg 
-                }}>
-                  <td style={{ 
-                    padding: '10px 12px',
-                    fontSize: '13px',
-                    color: '#374151',
-                    borderBottom: `1px solid ${theme.tableBorderColor}`
-                  }}>
+                <tr key={item.id} style={{ background: index % 2 === 0 ? theme.tableEvenRowBg : theme.tableOddRowBg }}>
+                  <td style={{ padding: '10px 12px', fontSize: '13px', color: '#374151', borderBottom: `1px solid ${theme.tableBorderColor}` }}>
                     {item.codigo ? `${item.nome} - ${item.codigo}` : item.nome}
                   </td>
-                  <td style={{ 
-                    padding: '10px 12px',
-                    fontSize: '13px',
-                    color: '#374151',
-                    textAlign: 'center',
-                    borderBottom: `1px solid ${theme.tableBorderColor}`
-                  }}>
-                    {item.quantidade} {item.unidade}
+                  <td style={{ padding: '10px 12px', fontSize: '13px', color: '#374151', textAlign: 'center', borderBottom: `1px solid ${theme.tableBorderColor}` }}>
+                    {item.quantidade}
                   </td>
-                  <td style={{ 
-                    padding: '10px 12px',
-                    textAlign: 'center',
-                    borderBottom: `1px solid ${theme.tableBorderColor}`
-                  }}>
+                  <td style={{ padding: '10px 12px', fontSize: '13px', fontWeight: 600, color: theme.accentColor, textAlign: 'center', borderBottom: `1px solid ${theme.tableBorderColor}` }}>
+                    {item.unidade || 'UNI'}
+                  </td>
+                  <td style={{ padding: '10px 12px', textAlign: 'center', borderBottom: `1px solid ${theme.tableBorderColor}` }}>
                     <div style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
                       <button
                         type="button"
@@ -775,13 +782,10 @@ function OrderGridPreview({ catalogId, theme, required }: { catalogId?: string; 
                   textAlign: 'center',
                   borderTop: `2px solid ${theme.tableBorderColor}`
                 }}>
-                  Total: {addedItems.reduce((sum, item) => sum + (parseFloat(String(item.quantidade)) || 0), 0)}
+                  {addedItems.reduce((sum, item) => sum + (parseFloat(String(item.quantidade)) || 0), 0)}
                 </td>
-                <td style={{ 
-                  padding: '10px 12px',
-                  borderTop: `2px solid ${theme.tableBorderColor}`
-                }}>
-                </td>
+                <td style={{ padding: '10px 12px', borderTop: `2px solid ${theme.tableBorderColor}` }} />
+                <td style={{ padding: '10px 12px', borderTop: `2px solid ${theme.tableBorderColor}` }} />
               </tr>
             </tfoot>
           )}
