@@ -244,9 +244,9 @@ export default function PublicFormPage() {
   // Validação
   const isBlank = (v: any) => (typeof v === 'string' ? v.trim() === '' : v == null);
 
-  function validateRequiredField(field: EnhancedFormField): string | '' {
+  function validateRequiredField(field: EnhancedFormField, overrideVal?: any): string | '' {
     const fieldId = String(field.id);
-    const val = responses[fieldId];
+    const val = overrideVal !== undefined ? overrideVal : responses[fieldId];
 
     if (field.type === 'Cabeçalho') return '';
 
@@ -313,7 +313,13 @@ export default function PublicFormPage() {
 
       case 'Grade de Pedidos': {
         const arr = Array.isArray(val) ? val : [];
-        return arr.length === 0 ? 'Preencha a grade de pedidos' : '';
+        if (arr.length === 0) return 'Adicione pelo menos um produto ao pedido';
+        for (const item of arr) {
+          const qty = parseFloat(item.quantidade ?? item.quantity ?? 0);
+          if (!qty || qty <= 0) return `"${item.nome || item.productName || 'Produto'}" precisa de quantidade maior que zero`;
+          if (!item.unidade && !item.unit) return `"${item.nome || item.productName || 'Produto'}" precisa de unidade de medida selecionada`;
+        }
+        return '';
       }
 
       default:
@@ -329,12 +335,13 @@ export default function PublicFormPage() {
   // Handlers
   const handleInputChange = (fieldId: string, value: any) => {
     setResponses(prev => ({ ...prev, [fieldId]: value }));
-    
+
     // Limpa erro se o campo estava inválido e agora tem valor
+    // Passa o novo valor diretamente para evitar closure stale (ex: Grade de Pedidos)
     if (invalid[fieldId]) {
       const field = form?.fields.find(f => String(f.id) === fieldId);
       if (field) {
-        const err = validateRequiredField(field);
+        const err = validateRequiredField(field, value);
         if (!err) {
           setInvalid(prev => {
             const copy = { ...prev };
@@ -1073,6 +1080,28 @@ export default function PublicFormPage() {
             </div>
             {invalid[fieldId] && (
               <p style={{ color: '#ef4444', fontSize: '0.875rem', marginTop: '0.25rem' }}>
+                {invalid[fieldId]}
+              </p>
+            )}
+          </div>
+        );
+
+      case 'Grade de Pedidos':
+        return (
+          <div key={field.id} ref={(el) => { fieldRefs.current[fieldId] = el; }} style={{ marginBottom: '1rem' }}>
+            <label style={{ display: 'block', marginBottom: 8, color: theme.fontColor, fontWeight: 500 }}>
+              {field.label}
+              {field.required && <span style={{ color: '#ef4444', marginLeft: 4 }}>*</span>}
+            </label>
+            <OrderGridFieldResponse
+              field={field}
+              value={Array.isArray(responses[fieldId]) ? responses[fieldId] : []}
+              onChange={(val) => handleInputChange(fieldId, val)}
+              theme={theme}
+              disabled={disabled}
+            />
+            {invalid[fieldId] && (
+              <p style={{ color: '#ef4444', fontSize: '0.875rem', marginTop: '0.5rem' }}>
                 {invalid[fieldId]}
               </p>
             )}

@@ -35,6 +35,7 @@ export default function OrderGridFieldResponse({
   const [quantity, setQuantity] = useState(1);
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
   const [selectedUnit, setSelectedUnit] = useState<string>('UNI');
+  const [addError, setAddError] = useState<string>('');
 
   const UNITS = [
     { value: 'UNI', label: 'UNI — Unidade' },
@@ -88,20 +89,30 @@ export default function OrderGridFieldResponse({
 
   const handleAddItem = () => {
     if (!selectedProductId) {
-      alert('Selecione um produto');
+      setAddError('Selecione um produto antes de adicionar');
       return;
     }
 
     const product = products.find(p => p.id === selectedProductId);
     if (!product) return;
 
+    if (!quantity || quantity <= 0) {
+      setAddError('Informe uma quantidade maior que zero');
+      return;
+    }
+
     if (quantity < product.quantidadeMin) {
-      alert(`Quantidade mínima para ${product.nome}: ${product.quantidadeMin} ${product.unidade}`);
+      setAddError(`Quantidade mínima para "${product.nome}": ${product.quantidadeMin}`);
       return;
     }
 
     if (quantity > product.quantidadeMax) {
-      alert(`Quantidade máxima para ${product.nome}: ${product.quantidadeMax} ${product.unidade}`);
+      setAddError(`Quantidade máxima para "${product.nome}": ${product.quantidadeMax}`);
+      return;
+    }
+
+    if (!selectedUnit) {
+      setAddError('Selecione a unidade de medida');
       return;
     }
 
@@ -115,6 +126,7 @@ export default function OrderGridFieldResponse({
     };
 
     onChange([...value, newItem]);
+    setAddError('');
     setSelectedProductId('');
     setQuantity(1);
     setSelectedUnit('UNI');
@@ -129,9 +141,9 @@ export default function OrderGridFieldResponse({
     const product = products.find(p => p.id === selectedProductId);
     const min = product?.quantidadeMin || 1;
     const max = product?.quantidadeMax || 999;
-    
     if (newValue >= min && newValue <= max) {
       setQuantity(newValue);
+      setAddError('');
     }
   };
 
@@ -152,19 +164,30 @@ export default function OrderGridFieldResponse({
     const product = products.find(p => p.id === selectedProductId);
     if (!product) return;
 
+    if (!quantity || quantity <= 0) {
+      setAddError('Informe uma quantidade maior que zero');
+      return;
+    }
+
     if (quantity < product.quantidadeMin) {
-      alert(`Quantidade mínima para ${product.nome}: ${product.quantidadeMin} ${product.unidade}`);
+      setAddError(`Quantidade mínima para "${product.nome}": ${product.quantidadeMin}`);
       return;
     }
 
     if (quantity > product.quantidadeMax) {
-      alert(`Quantidade máxima para ${product.nome}: ${product.quantidadeMax} ${product.unidade}`);
+      setAddError(`Quantidade máxima para "${product.nome}": ${product.quantidadeMax}`);
+      return;
+    }
+
+    if (!selectedUnit) {
+      setAddError('Selecione a unidade de medida');
       return;
     }
 
     onChange(value.map(item =>
       item.id === editingItemId ? { ...item, quantidade: quantity, unidade: selectedUnit } : item
     ));
+    setAddError('');
     setEditingItemId(null);
     setSelectedProductId('');
     setQuantity(1);
@@ -178,6 +201,7 @@ export default function OrderGridFieldResponse({
     setQuantity(1);
     setSelectedUnit('UNI');
     setSearchTerm('');
+    setAddError('');
   };
 
   // Filtrar produtos baseado no termo de busca
@@ -200,13 +224,13 @@ export default function OrderGridFieldResponse({
       border: `1px solid ${theme.tableBorderColor}`,
       borderRadius: theme.borderRadius
     }}>
-      <h4 style={{ 
-        margin: '0 0 16px 0', 
-        fontSize: '14px', 
+      <h4 style={{
+        margin: '0 0 16px 0',
+        fontSize: '14px',
         fontWeight: 600,
         color: '#374151'
       }}>
-        Preview: Formulário de inclusão de produto
+        Adicionar item ao pedido
       </h4>
 
       {/* Campo de Busca e Seleção de Produtos */}
@@ -226,13 +250,14 @@ export default function OrderGridFieldResponse({
           onChange={(e) => {
             const value = e.target.value;
             setSearchTerm(value);
-            
+            setAddError('');
+
             // Tentar encontrar produto correspondente
             const matchedProduct = products.find(p => {
               const productDisplay = p.codigo ? `${p.nome} - ${p.codigo}` : p.nome;
               return productDisplay === value;
             });
-            
+
             if (matchedProduct) {
               setSelectedProductId(matchedProduct.id);
             } else {
@@ -363,6 +388,24 @@ export default function OrderGridFieldResponse({
           ))}
         </div>
       </div>
+
+      {/* Mensagem de erro inline (substitui alert) */}
+      {addError && (
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: 8,
+          background: '#fef2f2', border: '1px solid #fecaca',
+          borderRadius: 8, padding: '10px 14px', marginBottom: '12px',
+          color: '#dc2626', fontSize: '14px',
+        }}>
+          <span style={{ fontSize: 16 }}>⚠️</span>
+          <span>{addError}</span>
+          <button
+            type="button"
+            onClick={() => setAddError('')}
+            style={{ marginLeft: 'auto', background: 'none', border: 'none', color: '#dc2626', cursor: 'pointer', fontSize: 16, lineHeight: 1 }}
+          >✕</button>
+        </div>
+      )}
 
       {/* Botões Adicionar/Atualizar */}
       <div style={{ display: 'flex', gap: '8px', marginBottom: '20px' }}>
