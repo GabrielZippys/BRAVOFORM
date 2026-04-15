@@ -244,12 +244,13 @@ export default function OrderGridFieldResponse({
           list={`products-datalist-${catalogId}`}
           style={{
             width: '100%',
-            padding: '10px 12px',
+            padding: '12px 14px',
             border: '1px solid #d1d5db',
             borderRadius: theme.borderRadius,
             fontSize: '16px',
             background: '#fff',
             color: '#374151',
+            boxSizing: 'border-box',
           }}
         />
         <datalist id={`products-datalist-${catalogId}`}>
@@ -276,21 +277,14 @@ export default function OrderGridFieldResponse({
             onClick={() => handleQuantityChange(quantity - 1)}
             disabled={disabled}
             style={{
-              width: '36px',
-              height: '36px',
+              width: '44px', height: '44px', minWidth: '44px',
               border: '1px solid #d1d5db',
               borderRadius: theme.borderRadius,
-              background: '#fff',
-              color: '#374151',
-              fontSize: '18px',
-              cursor: disabled ? 'not-allowed' : 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
+              background: '#fff', color: '#374151',
+              fontSize: '20px', cursor: disabled ? 'not-allowed' : 'pointer',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
             }}
-          >
-            −
-          </button>
+          >−</button>
           <input
             type="number"
             value={quantity}
@@ -300,13 +294,11 @@ export default function OrderGridFieldResponse({
             max={products.find(p => p.id === selectedProductId)?.quantidadeMax || 999}
             step="0.01"
             style={{
-              flex: 1,
-              padding: '10px 12px',
+              flex: 1, padding: '10px 12px',
               border: '1px solid #d1d5db',
               borderRadius: theme.borderRadius,
-              fontSize: '14px',
-              background: '#fff',
-              color: '#374151',
+              fontSize: '16px',   /* 16px evita auto-zoom iOS */
+              background: '#fff', color: '#374151',
               textAlign: 'center',
             }}
           />
@@ -315,21 +307,14 @@ export default function OrderGridFieldResponse({
             onClick={() => handleQuantityChange(quantity + 1)}
             disabled={disabled}
             style={{
-              width: '36px',
-              height: '36px',
+              width: '44px', height: '44px', minWidth: '44px',
               border: '1px solid #d1d5db',
               borderRadius: theme.borderRadius,
-              background: '#fff',
-              color: '#374151',
-              fontSize: '18px',
-              cursor: disabled ? 'not-allowed' : 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
+              background: '#fff', color: '#374151',
+              fontSize: '20px', cursor: disabled ? 'not-allowed' : 'pointer',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
             }}
-          >
-            +
-          </button>
+          >+</button>
         </div>
       </div>
 
@@ -430,9 +415,10 @@ export default function OrderGridFieldResponse({
       <div style={{
         borderRadius: theme.borderRadius,
         border: `1px solid ${theme.tableBorderColor}`,
-        overflow: 'hidden'
+        overflowX: 'auto',   /* scroll horizontal em telas pequenas */
+        WebkitOverflowScrolling: 'touch',
       }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+        <table style={{ width: '100%', minWidth: '320px', borderCollapse: 'collapse' }}>
           <thead>
             <tr style={{ background: theme.tableHeaderBg }}>
               <th style={{ 
@@ -537,33 +523,29 @@ export default function OrderGridFieldResponse({
                         onClick={() => handleEditItem(item.id)}
                         disabled={disabled}
                         style={{
-                          background: 'none',
-                          border: 'none',
+                          background: 'none', border: 'none',
                           color: '#3b82f6',
                           cursor: disabled ? 'not-allowed' : 'pointer',
-                          padding: '4px',
-                          fontSize: '18px'
+                          padding: '8px', fontSize: '20px',
+                          minWidth: '44px', minHeight: '44px',
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
                         }}
                         title="Editar item"
-                      >
-                        ✏️
-                      </button>
+                      >✏️</button>
                       <button
                         type="button"
                         onClick={() => handleRemoveItem(item.id)}
                         disabled={disabled}
                         style={{
-                          background: 'none',
-                          border: 'none',
+                          background: 'none', border: 'none',
                           color: '#ef4444',
                           cursor: disabled ? 'not-allowed' : 'pointer',
-                          padding: '4px',
-                          fontSize: '18px'
+                          padding: '8px', fontSize: '20px',
+                          minWidth: '44px', minHeight: '44px',
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
                         }}
                         title="Remover item"
-                      >
-                        🗑️
-                      </button>
+                      >🗑️</button>
                     </div>
                   </td>
                 </tr>

@@ -562,10 +562,10 @@ export default function PublicFormPage() {
         const iType = (field as any).inputType || 'text';
         const inputStyle: React.CSSProperties = {
           width: '100%',
-          padding: '8px 12px',
+          padding: '10px 12px',
           border: `1px solid ${theme.tableBorderColor || borderColor}`,
           borderRadius: theme.borderRadius,
-          fontSize: 14,
+          fontSize: 16,   /* 16px evita auto-zoom iOS */
           background: theme.inputBgColor,
           color: autoInputText,
           caretColor: autoInputText,
@@ -645,10 +645,10 @@ export default function PublicFormPage() {
               disabled={disabled}
               style={{
                 width: '100%',
-                padding: '8px 12px',
+                padding: '10px 12px',
                 border: `1px solid ${theme.tableBorderColor || borderColor}`,
                 borderRadius: theme.borderRadius,
-                fontSize: 14,
+                fontSize: 16,
                 background: theme.inputBgColor,
                 color: autoInputText,
                 caretColor: autoInputText,
@@ -678,10 +678,10 @@ export default function PublicFormPage() {
                 disabled={disabled}
                 style={{
                   width: '100%',
-                  padding: '8px 12px',
+                  padding: '10px 12px',
                   border: `1px solid ${theme.tableBorderColor || borderColor}`,
                   borderRadius: theme.borderRadius,
-                  fontSize: 14,
+                  fontSize: 16,
                   background: theme.inputBgColor,
                   color: autoInputText,
                   boxSizing: 'border-box',
@@ -699,11 +699,11 @@ export default function PublicFormPage() {
                   const isChecked = value === option;
                   return (
                     <label key={i} onClick={() => { if (!disabled) handleInputChange(fieldId, option); }}
-                      style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: disabled ? 'default' : 'pointer', userSelect: 'none', padding: '3px 0' }}>
+                      style={{ display: 'flex', alignItems: 'center', gap: 12, cursor: disabled ? 'default' : 'pointer', userSelect: 'none', padding: '6px 0', minHeight: '44px' }}>
                       {/* Círculo custom com contraste inteligente */}
                       <span style={{
                         flexShrink: 0,
-                        width: 18, height: 18, borderRadius: '50%',
+                        width: 22, height: 22, borderRadius: '50%',
                         border: `2px solid ${isChecked ? theme.accentColor : tickBorderColor}`,
                         background: isChecked ? theme.accentColor : tickBgUnchecked,
                         display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -712,7 +712,7 @@ export default function PublicFormPage() {
                       }}>
                         {isChecked && <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#fff' }} />}
                       </span>
-                      <span style={{ color: tickLabelColor, fontSize: 14 }}>{option}</span>
+                      <span style={{ color: tickLabelColor, fontSize: 16 }}>{option}</span>
                     </label>
                   );
                 })}
@@ -722,7 +722,7 @@ export default function PublicFormPage() {
                     <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: disabled ? 'default' : 'pointer', userSelect: 'none', padding: '3px 0' }}>
                       <span onClick={() => { if (!disabled) handleInputChange(fieldId, '___OTHER___'); }} style={{
                         flexShrink: 0,
-                        width: 18, height: 18, borderRadius: '50%',
+                        width: 22, height: 22, borderRadius: '50%',
                         border: `2px solid ${isOther ? theme.accentColor : tickBorderColor}`,
                         background: isOther ? theme.accentColor : tickBgUnchecked,
                         display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -731,7 +731,7 @@ export default function PublicFormPage() {
                       }}>
                         {isOther && <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#fff' }} />}
                       </span>
-                      <span style={{ color: tickLabelColor, fontSize: 14 }}>Outro:</span>
+                      <span style={{ color: tickLabelColor, fontSize: 16 }}>Outro:</span>
                       <input
                         type="text"
                         value={otherInputValues[fieldId] || ''}
@@ -739,10 +739,10 @@ export default function PublicFormPage() {
                         placeholder="Especifique..."
                         disabled={disabled || !isOther}
                         style={{
-                          flex: 1, padding: '4px 8px',
+                          flex: 1, padding: '8px 10px',
                           border: `1px solid ${theme.tableBorderColor || borderColor}`,
                           borderRadius: theme.borderRadius,
-                          fontSize: 14,
+                          fontSize: 16,
                           background: theme.inputBgColor,
                           color: autoInputText,
                         }}
@@ -780,7 +780,7 @@ export default function PublicFormPage() {
                     {/* Quadrado custom com contraste inteligente */}
                     <span style={{
                       flexShrink: 0,
-                      width: 18, height: 18, borderRadius: 4,
+                      width: 22, height: 22, borderRadius: 4,
                       border: `2px solid ${isChecked ? theme.accentColor : tickBorderColor}`,
                       background: isChecked ? theme.accentColor : tickBgUnchecked,
                       display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -793,7 +793,7 @@ export default function PublicFormPage() {
                         </svg>
                       )}
                     </span>
-                    <span style={{ color: tickLabelColor, fontSize: 14 }}>{option}</span>
+                    <span style={{ color: tickLabelColor, fontSize: 16 }}>{option}</span>
                   </label>
                 );
               })}
@@ -808,7 +808,7 @@ export default function PublicFormPage() {
                       else handleInputChange(fieldId, [...current, '___OTHER___']);
                     }} style={{
                       flexShrink: 0,
-                      width: 18, height: 18, borderRadius: 4,
+                      width: 22, height: 22, borderRadius: 4,
                       border: `2px solid ${isOtherChecked ? theme.accentColor : tickBorderColor}`,
                       background: isOtherChecked ? theme.accentColor : tickBgUnchecked,
                       display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -821,7 +821,7 @@ export default function PublicFormPage() {
                         </svg>
                       )}
                     </span>
-                    <span style={{ color: tickLabelColor, fontSize: 14 }}>Outro:</span>
+                    <span style={{ color: tickLabelColor, fontSize: 16 }}>Outro:</span>
                     <input
                       type="text"
                       value={otherInputValues[fieldId] || ''}
@@ -829,10 +829,10 @@ export default function PublicFormPage() {
                       placeholder="Especifique..."
                       disabled={disabled || !isOtherChecked}
                       style={{
-                        flex: 1, padding: '4px 8px',
+                        flex: 1, padding: '8px 10px',
                         border: `1px solid ${theme.tableBorderColor || borderColor}`,
                         borderRadius: theme.borderRadius,
-                        fontSize: 14,
+                        fontSize: 16,
                         background: theme.inputBgColor,
                         color: autoInputText,
                       }}
@@ -1007,7 +1007,7 @@ export default function PublicFormPage() {
                 <span>{file.name}</span>
                 <button
                   onClick={() => removeFile(fieldId, i)}
-                  style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', fontSize: 14 }}
+                  style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', fontSize: 18, minWidth: 44, minHeight: 44, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                 >✕</button>
               </div>
             ))}
@@ -1037,8 +1037,8 @@ export default function PublicFormPage() {
                 ref={(el) => {
                   if (el) setSignaturePads(prev => ({ ...prev, [fieldId]: el }));
                 }}
-                width={600} height={150}
-                style={{ width: '100%', height: 150, cursor: 'crosshair', touchAction: 'none' }}
+                width={600} height={200}
+                style={{ width: '100%', height: 'clamp(120px, 30vw, 200px)', cursor: 'crosshair', touchAction: 'none', display: 'block' }}
                 onMouseDown={(e) => {
                   const canvas = signaturePads[fieldId];
                   if (!canvas) return;
@@ -1063,10 +1063,11 @@ export default function PublicFormPage() {
               <button
                 onClick={() => clearSignature(fieldId)}
                 style={{
-                  position: 'absolute', top: 4, right: 4,
-                  background: 'rgba(0,0,0,0.1)', border: 'none',
-                  borderRadius: 4, padding: '2px 8px', cursor: 'pointer',
-                  fontSize: 12, color: '#666',
+                  position: 'absolute', top: 6, right: 6,
+                  background: 'rgba(0,0,0,0.15)', border: 'none',
+                  borderRadius: 6, padding: '8px 14px', cursor: 'pointer',
+                  fontSize: 14, color: '#fff', fontWeight: 500,
+                  minHeight: 44, minWidth: 44,
                 }}
               >Limpar</button>
             </div>
@@ -1093,10 +1094,10 @@ export default function PublicFormPage() {
               placeholder={field.placeholder || 'Digite aqui...'}
               style={{
                 width: '100%',
-                padding: '8px 12px',
+                padding: '10px 12px',
                 border: `1px solid ${theme.tableBorderColor || borderColor}`,
                 borderRadius: theme.borderRadius,
-                fontSize: 14,
+                fontSize: 16,
                 background: theme.inputBgColor,
                 color: autoInputText,
                 caretColor: autoInputText,
@@ -1268,7 +1269,7 @@ export default function PublicFormPage() {
         <div style={{
           background: isDarkBg ? 'rgba(255,255,255,0.06)' : '#fff',
           borderRadius: 16,
-          padding: '3rem 4rem',
+          padding: 'clamp(1.5rem, 5vw, 3rem) clamp(1rem, 6vw, 4rem)',
           boxShadow: isDarkBg ? '0 8px 40px rgba(0,0,0,0.5)' : '0 8px 40px rgba(0,0,0,0.12)',
           display: 'flex',
           flexDirection: 'column',
@@ -1299,7 +1300,7 @@ export default function PublicFormPage() {
         <div style={{
           background: isDarkBg ? 'rgba(255,255,255,0.06)' : '#fff',
           borderRadius: 16,
-          padding: '3rem 4rem',
+          padding: 'clamp(1.5rem, 5vw, 3rem) clamp(1rem, 6vw, 4rem)',
           boxShadow: isDarkBg ? '0 8px 40px rgba(0,0,0,0.5)' : '0 8px 40px rgba(0,0,0,0.12)',
           display: 'flex',
           flexDirection: 'column',
@@ -1332,7 +1333,7 @@ export default function PublicFormPage() {
         <div style={{
           background: isDarkBg ? 'rgba(255,255,255,0.06)' : '#fff',
           borderRadius: 16,
-          padding: '3rem 4rem',
+          padding: 'clamp(1.5rem, 5vw, 3rem) clamp(1rem, 6vw, 4rem)',
           boxShadow: isDarkBg ? '0 8px 40px rgba(0,0,0,0.5)' : '0 8px 40px rgba(0,0,0,0.12)',
           textAlign: 'center',
         }}>
@@ -1349,7 +1350,7 @@ export default function PublicFormPage() {
       minHeight: '100vh',
       background: pageBg,
       color: theme.fontColor,
-      padding: '2.5rem 1rem',
+      padding: 'clamp(1rem, 4vw, 2.5rem) clamp(0.75rem, 3vw, 1.5rem)',
       fontFamily: 'system-ui, -apple-system, sans-serif',
     }}>
       {showSplash && <SplashScreen />}
@@ -1409,7 +1410,7 @@ export default function PublicFormPage() {
           </header>
 
           {/* Campos do formulário */}
-          <div style={{ padding: '2rem 2.5rem' }}>
+          <div style={{ padding: 'clamp(1rem, 4vw, 2rem) clamp(1rem, 4vw, 2.5rem)' }}>
             <form onSubmit={(e) => { e.preventDefault(); handleSubmit(); }}>
               {form.fields.map(renderField)}
 
@@ -1418,7 +1419,7 @@ export default function PublicFormPage() {
                   type="submit"
                   disabled={isSubmitting}
                   style={{
-                    padding: '0.8rem 2.5rem',
+                    padding: 'clamp(0.75rem, 2vw, 0.8rem) clamp(1.5rem, 5vw, 2.5rem)',
                     background: theme.buttonBg,
                     color: theme.buttonFont,
                     border: 'none',
@@ -1429,9 +1430,12 @@ export default function PublicFormPage() {
                     opacity: isSubmitting ? 0.6 : 1,
                     display: 'flex',
                     alignItems: 'center',
+                    justifyContent: 'center',
                     gap: '0.5rem',
                     boxShadow: isSubmitting ? 'none' : `0 4px 14px ${withAlpha(theme.buttonBg, 0.4)}`,
                     transition: 'all 0.2s ease',
+                    width: '100%',
+                    minHeight: 48,
                   }}
                 >
                   {isSubmitting ? (
