@@ -3466,13 +3466,12 @@ const toggleAutofill = useCallback((checked: boolean) => {
         </DndContext>
       </div>
 
-      {/* Modal de Gerenciamento de Catálogos */}
-      {catalogManagerOpen && companyId && (
+      {/* Modal de Gerenciamento de Catálogos — Portal no document.body para evitar stacking context */}
+      {catalogManagerOpen && companyId && createPortal(
         <ProductCatalogManager
           companyId={companyId}
           onClose={() => setCatalogManagerOpen(false)}
           onSelectCatalog={(catalogId) => {
-            // Atualizar o campo selecionado com o catálogo escolhido
             if (selectedFieldId) {
               updateField({
                 dataSource: {
@@ -3486,7 +3485,8 @@ const toggleAutofill = useCallback((checked: boolean) => {
             }
             setCatalogManagerOpen(false);
           }}
-        />
+        />,
+        document.body
       )}
     </div>
   );
