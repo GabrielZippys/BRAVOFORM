@@ -220,11 +220,31 @@ export default function OrderGridFieldResponse({
         </datalist>
       </div>
 
-      {/* Quantidade */}
+      {/* Quantidade + Unidade */}
       <div style={{ marginBottom: '16px' }}>
-        <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', fontWeight: 500, color: '#374151' }}>
-          Quantidade
-        </label>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
+          <label style={{ fontSize: '13px', fontWeight: 500, color: '#374151' }}>
+            Quantidade
+          </label>
+          {/* Badge de unidade — aparece ao selecionar produto */}
+          {selectedProductId && (() => {
+            const product = products.find(p => p.id === selectedProductId);
+            if (!product?.unidade) return null;
+            return (
+              <span style={{
+                background: theme.accentColor,
+                color: '#fff',
+                padding: '3px 12px',
+                borderRadius: 20,
+                fontSize: '12px',
+                fontWeight: 700,
+                letterSpacing: '0.05em',
+              }}>
+                {product.unidade}
+              </span>
+            );
+          })()}
+        </div>
         <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
           <button
             type="button"
@@ -363,8 +383,20 @@ export default function OrderGridFieldResponse({
                   <td style={{ padding: '10px 12px', fontSize: '13px', color: '#374151', borderBottom: `1px solid ${theme.tableBorderColor}` }}>
                     {item.codigo ? `${item.codigo} - ${item.nome}` : item.nome}
                   </td>
-                  <td style={{ padding: '10px 12px', fontSize: '13px', color: '#374151', textAlign: 'center', borderBottom: `1px solid ${theme.tableBorderColor}` }}>
-                    {item.quantidade} {item.unidade}
+                  <td style={{ padding: '10px 12px', textAlign: 'center', borderBottom: `1px solid ${theme.tableBorderColor}` }}>
+                    <span style={{ fontSize: '14px', fontWeight: 600, color: '#374151' }}>{item.quantidade}</span>
+                    {item.unidade && (
+                      <span style={{
+                        marginLeft: 6,
+                        background: theme.accentColor,
+                        color: '#fff',
+                        padding: '2px 8px',
+                        borderRadius: 12,
+                        fontSize: '11px',
+                        fontWeight: 700,
+                        letterSpacing: '0.04em',
+                      }}>{item.unidade}</span>
+                    )}
                   </td>
                   <td style={{ padding: '10px 12px', textAlign: 'center', borderBottom: `1px solid ${theme.tableBorderColor}` }}>
                     <div style={{ display: 'flex', gap: '4px', justifyContent: 'center' }}>

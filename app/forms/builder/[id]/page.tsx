@@ -409,9 +409,20 @@ function OrderGridPreview({ catalogId, theme, required }: { catalogId?: string; 
         </datalist>
       </div>
 
-      {/* Quantidade */}
+      {/* Quantidade + badge de unidade */}
       <div style={{ marginBottom: '16px' }}>
-        <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', fontWeight: 500, color: '#374151' }}>Quantidade</label>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
+          <label style={{ fontSize: '13px', fontWeight: 500, color: '#374151' }}>Quantidade</label>
+          {selectedProductId && (() => {
+            const product = products.find(p => p.id === selectedProductId);
+            if (!product?.unidade) return null;
+            return (
+              <span style={{ background: theme.accentColor, color: '#fff', padding: '3px 12px', borderRadius: 20, fontSize: '12px', fontWeight: 700, letterSpacing: '0.05em' }}>
+                {product.unidade}
+              </span>
+            );
+          })()}
+        </div>
         <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
           <button type="button" onClick={() => handleQuantityChange(quantity - 1)} style={{ width: '36px', height: '36px', border: '1px solid #d1d5db', borderRadius: theme.borderRadius, background: '#fff', color: '#374151', fontSize: '18px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>−</button>
           <input type="number" value={quantity} onChange={(e) => handleQuantityChange(parseFloat(e.target.value) || 1)} min={products.find(p => p.id === selectedProductId)?.quantidadeMin || 1} max={products.find(p => p.id === selectedProductId)?.quantidadeMax || 999} step="0.01" style={{ flex: 1, padding: '10px 12px', border: '1px solid #d1d5db', borderRadius: theme.borderRadius, fontSize: '16px', background: '#fff', color: '#374151', textAlign: 'center' }} />
@@ -448,7 +459,12 @@ function OrderGridPreview({ catalogId, theme, required }: { catalogId?: string; 
               addedItems.map((item, index) => (
                 <tr key={item.id} style={{ background: index % 2 === 0 ? theme.tableEvenRowBg : theme.tableOddRowBg }}>
                   <td style={{ padding: '10px 12px', fontSize: '13px', color: '#374151', borderBottom: `1px solid ${theme.tableBorderColor}` }}>{item.codigo ? `${item.nome} - ${item.codigo}` : item.nome}</td>
-                  <td style={{ padding: '10px 12px', fontSize: '13px', color: '#374151', textAlign: 'center', borderBottom: `1px solid ${theme.tableBorderColor}` }}>{item.quantidade} {item.unidade}</td>
+                  <td style={{ padding: '10px 12px', textAlign: 'center', borderBottom: `1px solid ${theme.tableBorderColor}` }}>
+                    <span style={{ fontSize: '14px', fontWeight: 600, color: '#374151' }}>{item.quantidade}</span>
+                    {item.unidade && (
+                      <span style={{ marginLeft: 6, background: theme.accentColor, color: '#fff', padding: '2px 8px', borderRadius: 12, fontSize: '11px', fontWeight: 700, letterSpacing: '0.04em' }}>{item.unidade}</span>
+                    )}
+                  </td>
                   <td style={{ padding: '10px 12px', textAlign: 'center', borderBottom: `1px solid ${theme.tableBorderColor}` }}>
                     <div style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
                       <button type="button" onClick={() => handleEditItem(item.id)} style={{ background: 'none', border: 'none', color: '#3b82f6', cursor: 'pointer', padding: '4px', fontSize: '18px' }} title="Editar">✏️</button>
