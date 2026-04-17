@@ -955,7 +955,7 @@ const ProductCatalogManager: React.FC<ProductCatalogManagerProps> = ({ companyId
                 Cancelar
               </button>
               <button onClick={handleSaveCatalog} style={buttonStyle('primary')}>
-                <Save size={16} /> {editingCatalog ? 'Atualizar' : 'Criar'} Catálogo
+                <Save size={16} /> Salvar
               </button>
             </div>
           </div>
