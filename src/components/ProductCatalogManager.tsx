@@ -33,12 +33,6 @@ const ProductCatalogManager: React.FC<ProductCatalogManagerProps> = ({ companyId
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
 
-  // Travar scroll do body enquanto modal está aberto
-  useEffect(() => {
-    document.body.style.overflow = 'hidden';
-    return () => { document.body.style.overflow = ''; };
-  }, []);
-  
   // Form state
   const [formData, setFormData] = useState({
     name: '',
@@ -500,7 +494,11 @@ const ProductCatalogManager: React.FC<ProductCatalogManagerProps> = ({ companyId
   });
 
   return (
-    <div style={modalStyle}>
+    <div
+      style={modalStyle}
+      onWheel={(e) => e.stopPropagation()}
+      onTouchMove={(e) => e.stopPropagation()}
+    >
       <div style={contentStyle}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
