@@ -809,11 +809,11 @@ const ProductCatalogManager: React.FC<ProductCatalogManagerProps> = ({ companyId
                       onChange={(e) => setNewProduct({ ...newProduct, unidade: e.target.value as any })}
                       style={inputStyle}
                     >
-                      <option value="UN">Unidade (UN)</option>
-                      <option value="KG">Quilograma (KG)</option>
-                      <option value="L">Litro (L)</option>
-                      <option value="CX">Caixa (CX)</option>
-                      <option value="PC">Peça (PC)</option>
+                      <option value="UNI">Unidade (UNI)</option>
+                      <option value="KG">Quilo (KG)</option>
+                      <option value="G">Grama (G)</option>
+                      <option value="FD">Fardo (FD)</option>
+                      <option value="DP">Display (DP)</option>
                     </select>
                   </div>
 
