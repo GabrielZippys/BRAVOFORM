@@ -297,14 +297,6 @@ function CatalogSelector({ value, onChange, companyId }: { value?: string; onCha
 }
 
 // ---- COMPONENTE: OrderGridPreview
-const PREVIEW_UNITS = [
-  { value: 'UNI', label: 'Unidade' },
-  { value: 'KG',  label: 'Quilo'   },
-  { value: 'G',   label: 'Grama'   },
-  { value: 'FD',  label: 'Fardo'   },
-  { value: 'DP',  label: 'Display' },
-];
-
 function OrderGridPreview({ catalogId, theme, required }: { catalogId?: string; theme: any; required?: boolean }) {
   const [products, setProducts] = useState<Array<{
     id: string;
@@ -314,108 +306,54 @@ function OrderGridPreview({ catalogId, theme, required }: { catalogId?: string; 
     quantidadeMin: number;
     quantidadeMax: number;
   }>>([]);
-  const [loading, setLoading] = useState(false);
-  const [searchTerm, setSearchTerm] = useState('');
+  const [loading, setLoading]               = useState(false);
+  const [searchTerm, setSearchTerm]         = useState('');
   const [selectedProductId, setSelectedProductId] = useState('');
-  const [quantity, setQuantity] = useState(1);
-  const [selectedUnit, setSelectedUnit] = useState('UNI');
-  const [editingItemId, setEditingItemId] = useState<string | null>(null);
-  const [addedItems, setAddedItems] = useState<Array<{
-    id: string;
-    productId: string;
-    nome: string;
-    codigo?: string;
-    unidade?: string;
-    quantidade: number;
+  const [quantity, setQuantity]             = useState(1);
+  const [editingItemId, setEditingItemId]   = useState<string | null>(null);
+  const [addedItems, setAddedItems]         = useState<Array<{
+    id: string; productId: string; nome: string; codigo?: string; unidade?: string; quantidade: number;
   }>>([]);
 
   useEffect(() => {
-    if (!catalogId) {
-      setProducts([]);
-      return;
-    }
-
-    const loadProducts = async () => {
+    if (!catalogId) { setProducts([]); return; }
+    const load = async () => {
       setLoading(true);
       try {
-        // Carrega do SQL (produtos migrados do Firestore)
-        const res = await fetch(`/api/dataconnect/products?catalogId=${catalogId}`);
+        const res    = await fetch(`/api/dataconnect/products?catalogId=${catalogId}`);
         const result = await res.json();
-        if (result.success) {
-          setProducts(result.data);
-        }
-      } catch (error) {
-        console.error('Erro ao carregar produtos:', error);
-      } finally {
-        setLoading(false);
-      }
+        if (result.success) setProducts(result.data);
+      } catch (e) { console.error('Erro ao carregar produtos:', e); }
+      finally { setLoading(false); }
     };
-
-    loadProducts();
+    load();
   }, [catalogId]);
 
-  // Atualizar quantidade e unidade quando produto é selecionado
   useEffect(() => {
     if (selectedProductId) {
       const product = products.find(p => p.id === selectedProductId);
-      if (product) {
-        setQuantity(product.quantidadeMin);
-        const catalogUnit = (product.unidade || '').toUpperCase();
-        const valid = PREVIEW_UNITS.find(u => u.value === catalogUnit);
-        setSelectedUnit(valid ? catalogUnit : 'UNI');
-      }
+      if (product) setQuantity(product.quantidadeMin);
     }
   }, [selectedProductId, products]);
 
-  const handleAddItem = () => {
-    if (!selectedProductId) {
-      alert('Selecione um produto');
-      return;
-    }
-
-    const product = products.find(p => p.id === selectedProductId);
-    if (!product) return;
-
-    // Validar quantidade
-    if (quantity < product.quantidadeMin) {
-      alert(`Quantidade mínima para ${product.nome}: ${product.quantidadeMin} ${product.unidade}`);
-      return;
-    }
-
-    if (quantity > product.quantidadeMax) {
-      alert(`Quantidade máxima para ${product.nome}: ${product.quantidadeMax} ${product.unidade}`);
-      return;
-    }
-
-    const newItem = {
-      id: `${Date.now()}`,
-      productId: product.id,
-      nome: product.nome,
-      codigo: product.codigo,
-      unidade: selectedUnit,
-      quantidade: quantity
-    };
-
-    setAddedItems([...addedItems, newItem]);
-    setSelectedProductId('');
-    setQuantity(1);
-    setSelectedUnit('UNI');
-    setSearchTerm('');
-  };
-
-  const handleRemoveItem = (itemId: string) => {
-    setAddedItems(addedItems.filter(item => item.id !== itemId));
-  };
-
-  const handleQuantityChange = (value: number) => {
+  const handleQuantityChange = (v: number) => {
     const product = products.find(p => p.id === selectedProductId);
     const min = product?.quantidadeMin || 1;
     const max = product?.quantidadeMax || 999;
-
-    if (value >= min && value <= max) {
-      setQuantity(value);
-    }
+    if (v >= min && v <= max) setQuantity(v);
   };
+
+  const handleAddItem = () => {
+    if (!selectedProductId) { alert('Selecione um produto'); return; }
+    const product = products.find(p => p.id === selectedProductId);
+    if (!product) return;
+    if (quantity < product.quantidadeMin) { alert(`Mínimo: ${product.quantidadeMin}`); return; }
+    if (quantity > product.quantidadeMax) { alert(`Máximo: ${product.quantidadeMax}`); return; }
+    setAddedItems([...addedItems, { id: `${Date.now()}`, productId: product.id, nome: product.nome, codigo: product.codigo, unidade: product.unidade, quantidade: quantity }]);
+    setSelectedProductId(''); setQuantity(1); setSearchTerm('');
+  };
+
+  const handleRemoveItem = (id: string) => setAddedItems(addedItems.filter(i => i.id !== id));
 
   const handleEditItem = (itemId: string) => {
     const item = addedItems.find(i => i.id === itemId);
@@ -423,339 +361,102 @@ function OrderGridPreview({ catalogId, theme, required }: { catalogId?: string; 
     const product = products.find(p => p.id === item.productId);
     setSelectedProductId(item.productId);
     setQuantity(item.quantidade);
-    setSelectedUnit(item.unidade || 'UNI');
     setEditingItemId(itemId);
     if (product) setSearchTerm(product.codigo ? `${product.nome} - ${product.codigo}` : product.nome);
   };
 
   const handleUpdateItem = () => {
     if (!editingItemId) return;
-
     const product = products.find(p => p.id === selectedProductId);
     if (!product) return;
-
-    if (quantity < product.quantidadeMin) {
-      alert(`Quantidade mínima para ${product.nome}: ${product.quantidadeMin}`);
-      return;
-    }
-    if (quantity > product.quantidadeMax) {
-      alert(`Quantidade máxima para ${product.nome}: ${product.quantidadeMax}`);
-      return;
-    }
-
-    setAddedItems(addedItems.map(item =>
-      item.id === editingItemId
-        ? { ...item, quantidade: quantity, unidade: selectedUnit }
-        : item
-    ));
-
-    setEditingItemId(null);
-    setSelectedProductId('');
-    setQuantity(1);
-    setSelectedUnit('UNI');
-    setSearchTerm('');
+    if (quantity < product.quantidadeMin) { alert(`Mínimo: ${product.quantidadeMin}`); return; }
+    if (quantity > product.quantidadeMax) { alert(`Máximo: ${product.quantidadeMax}`); return; }
+    setAddedItems(addedItems.map(item => item.id === editingItemId ? { ...item, quantidade: quantity } : item));
+    setEditingItemId(null); setSelectedProductId(''); setQuantity(1); setSearchTerm('');
   };
 
   const handleCancelEdit = () => {
-    setEditingItemId(null);
-    setSelectedProductId('');
-    setQuantity(1);
-    setSelectedUnit('UNI');
-    setSearchTerm('');
+    setEditingItemId(null); setSelectedProductId(''); setQuantity(1); setSearchTerm('');
   };
 
-  // Filtrar produtos baseado no termo de busca
-  const filteredProducts = products.filter(product => {
+  const filteredProducts = products.filter(p => {
     if (!searchTerm) return true;
-    const search = searchTerm.toLowerCase();
-    const nome = product.nome.toLowerCase();
-    const codigo = (product.codigo || '').toLowerCase();
-    return nome.includes(search) || codigo.includes(search);
+    const s = searchTerm.toLowerCase();
+    return p.nome.toLowerCase().includes(s) || (p.codigo || '').toLowerCase().includes(s);
   });
 
   return (
     <>
-      {/* Campo de Busca e Seleção de Produtos */}
+      {/* Busca de produto */}
       <div style={{ marginBottom: '16px' }}>
-        <label style={{ 
-          display: 'block', 
-          marginBottom: '6px', 
-          fontSize: '13px',
-          fontWeight: 500,
-          color: '#374151'
-        }}>
+        <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', fontWeight: 500, color: '#374151' }}>
           Referência ou Nome do Produto {required && <span style={{ color: '#ef4444' }}>*</span>}
         </label>
         <input
           type="text"
           value={searchTerm}
           onChange={(e) => {
-            const value = e.target.value;
-            setSearchTerm(value);
-            
-            // Tentar encontrar produto correspondente
-            const matchedProduct = products.find(p => {
-              const productDisplay = p.codigo ? `${p.nome} - ${p.codigo}` : p.nome;
-              return productDisplay === value;
-            });
-            
-            if (matchedProduct) {
-              setSelectedProductId(matchedProduct.id);
-            } else {
-              setSelectedProductId('');
-            }
+            const v = e.target.value;
+            setSearchTerm(v);
+            const match = products.find(p => (p.codigo ? `${p.nome} - ${p.codigo}` : p.nome) === v);
+            setSelectedProductId(match ? match.id : '');
           }}
           placeholder={loading ? 'Carregando produtos...' : 'Digite para buscar...'}
           disabled={loading}
           list={`products-datalist-${catalogId}`}
-          style={{
-            width: '100%',
-            padding: '10px 12px',
-            border: '1px solid #d1d5db',
-            borderRadius: theme.borderRadius,
-            fontSize: '16px',
-            background: '#fff',
-            color: '#374151',
-            maxHeight: '200px',
-          }}
+          style={{ width: '100%', padding: '10px 12px', border: '1px solid #d1d5db', borderRadius: theme.borderRadius, fontSize: '16px', background: '#fff', color: '#374151' }}
         />
         <datalist id={`products-datalist-${catalogId}`}>
-          {filteredProducts.map(product => (
-            <option key={product.id} value={product.codigo ? `${product.nome} - ${product.codigo}` : product.nome} />
+          {filteredProducts.map(p => (
+            <option key={p.id} value={p.codigo ? `${p.nome} - ${p.codigo}` : p.nome} />
           ))}
         </datalist>
       </div>
 
-      {/* Campo de Quantidade */}
+      {/* Quantidade */}
       <div style={{ marginBottom: '16px' }}>
-        <label style={{ 
-          display: 'block', 
-          marginBottom: '6px', 
-          fontSize: '13px',
-          fontWeight: 500,
-          color: '#374151'
-        }}>
-          Quantidade
-        </label>
+        <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', fontWeight: 500, color: '#374151' }}>Quantidade</label>
         <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-          <button
-            type="button"
-            onClick={() => handleQuantityChange(quantity - 1)}
-            style={{
-              width: '36px',
-              height: '36px',
-              border: '1px solid #d1d5db',
-              borderRadius: theme.borderRadius,
-              background: '#fff',
-              color: '#374151',
-              fontSize: '18px',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-          >
-            −
-          </button>
-          <input
-              type="number"
-              value={quantity}
-              onChange={(e) => handleQuantityChange(parseFloat(e.target.value) || 1)}
-              min={products.find(p => p.id === selectedProductId)?.quantidadeMin || 1}
-              max={products.find(p => p.id === selectedProductId)?.quantidadeMax || 999}
-              step="0.01"
-              style={{
-                flex: 1,
-                padding: '10px 12px',
-                border: '1px solid #d1d5db',
-                borderRadius: theme.borderRadius,
-                fontSize: '16px',
-                background: '#fff',
-                color: '#374151',
-                textAlign: 'center',
-              }}
-            />
-          <button
-            type="button"
-            onClick={() => handleQuantityChange(quantity + 1)}
-            style={{
-              width: '36px',
-              height: '36px',
-              border: '1px solid #d1d5db',
-              borderRadius: theme.borderRadius,
-              background: '#fff',
-              color: '#374151',
-              fontSize: '18px',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-          >
-            +
-          </button>
+          <button type="button" onClick={() => handleQuantityChange(quantity - 1)} style={{ width: '36px', height: '36px', border: '1px solid #d1d5db', borderRadius: theme.borderRadius, background: '#fff', color: '#374151', fontSize: '18px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>−</button>
+          <input type="number" value={quantity} onChange={(e) => handleQuantityChange(parseFloat(e.target.value) || 1)} min={products.find(p => p.id === selectedProductId)?.quantidadeMin || 1} max={products.find(p => p.id === selectedProductId)?.quantidadeMax || 999} step="0.01" style={{ flex: 1, padding: '10px 12px', border: '1px solid #d1d5db', borderRadius: theme.borderRadius, fontSize: '16px', background: '#fff', color: '#374151', textAlign: 'center' }} />
+          <button type="button" onClick={() => handleQuantityChange(quantity + 1)} style={{ width: '36px', height: '36px', border: '1px solid #d1d5db', borderRadius: theme.borderRadius, background: '#fff', color: '#374151', fontSize: '18px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>+</button>
         </div>
       </div>
 
-      {/* Unidade de Medida */}
-      <div style={{ marginBottom: '16px' }}>
-        <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', fontWeight: 500, color: '#374151' }}>
-          Unidade de Medida
-        </label>
-        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-          {PREVIEW_UNITS.map(unit => (
-            <button
-              key={unit.value}
-              type="button"
-              onClick={() => setSelectedUnit(unit.value)}
-              style={{
-                padding: '8px 16px',
-                border: `2px solid ${selectedUnit === unit.value ? theme.accentColor : '#d1d5db'}`,
-                borderRadius: theme.borderRadius,
-                background: selectedUnit === unit.value ? theme.accentColor : '#fff',
-                color: selectedUnit === unit.value ? '#fff' : '#374151',
-                fontSize: '13px',
-                fontWeight: 600,
-                cursor: 'pointer',
-                transition: 'all 0.15s',
-                minWidth: '64px',
-              }}
-            >
-              {unit.value}
-              <span style={{ display: 'block', fontSize: '10px', fontWeight: 400, opacity: 0.85, marginTop: '1px' }}>
-                {unit.label}
-              </span>
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Botões Adicionar/Atualizar */}
+      {/* Botões */}
       <div style={{ display: 'flex', gap: '8px', marginBottom: '20px' }}>
-        <button
-          type="button"
-          onClick={editingItemId ? handleUpdateItem : handleAddItem}
-          style={{
-            flex: 1,
-            padding: '12px',
-            background: editingItemId ? '#10b981' : theme.accentColor,
-            border: 'none',
-            borderRadius: theme.borderRadius,
-            color: '#fff',
-            fontSize: '14px',
-            fontWeight: 600,
-            cursor: 'pointer',
-            transition: 'all 0.2s',
-          }}
-          onMouseOver={(e) => e.currentTarget.style.opacity = '0.9'}
-          onMouseOut={(e) => e.currentTarget.style.opacity = '1'}
-        >
+        <button type="button" onClick={editingItemId ? handleUpdateItem : handleAddItem} style={{ flex: 1, padding: '12px', background: editingItemId ? '#10b981' : theme.accentColor, border: 'none', borderRadius: theme.borderRadius, color: '#fff', fontSize: '14px', fontWeight: 600, cursor: 'pointer', transition: 'all 0.2s' }} onMouseOver={(e) => e.currentTarget.style.opacity = '0.9'} onMouseOut={(e) => e.currentTarget.style.opacity = '1'}>
           {editingItemId ? '✓ Atualizar Item' : 'Adicionar ao Pedido +'}
         </button>
         {editingItemId && (
-          <button
-            type="button"
-            onClick={handleCancelEdit}
-            style={{
-              padding: '12px 20px',
-              background: '#6b7280',
-              border: 'none',
-              borderRadius: theme.borderRadius,
-              color: '#fff',
-              fontSize: '14px',
-              fontWeight: 600,
-              cursor: 'pointer',
-              transition: 'all 0.2s',
-            }}
-            onMouseOver={(e) => e.currentTarget.style.opacity = '0.9'}
-            onMouseOut={(e) => e.currentTarget.style.opacity = '1'}
-          >
+          <button type="button" onClick={handleCancelEdit} style={{ padding: '12px 20px', background: '#6b7280', border: 'none', borderRadius: theme.borderRadius, color: '#fff', fontSize: '14px', fontWeight: 600, cursor: 'pointer', transition: 'all 0.2s' }} onMouseOver={(e) => e.currentTarget.style.opacity = '0.9'} onMouseOut={(e) => e.currentTarget.style.opacity = '1'}>
             Cancelar
           </button>
         )}
       </div>
 
-      {/* Tabela de Itens */}
-      <div style={{
-        borderRadius: theme.borderRadius,
-        border: `1px solid ${theme.tableBorderColor}`,
-        overflow: 'hidden'
-      }}>
+      {/* Tabela */}
+      <div style={{ borderRadius: theme.borderRadius, border: `1px solid ${theme.tableBorderColor}`, overflow: 'hidden' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse' }}>
           <thead>
             <tr style={{ background: theme.tableHeaderBg }}>
-              <th style={{ 
-                padding: '10px 12px', 
-                textAlign: 'left',
-                color: theme.tableHeaderFont,
-                fontSize: '13px',
-                fontWeight: 600,
-                borderBottom: `1px solid ${theme.tableBorderColor}`
-              }}>
-                Produto
-              </th>
-              <th style={{ padding: '10px 12px', textAlign: 'center', color: theme.tableHeaderFont, fontSize: '13px', fontWeight: 600, borderBottom: `1px solid ${theme.tableBorderColor}`, width: '80px' }}>
-                Qtd
-              </th>
-              <th style={{ padding: '10px 12px', textAlign: 'center', color: theme.tableHeaderFont, fontSize: '13px', fontWeight: 600, borderBottom: `1px solid ${theme.tableBorderColor}`, width: '70px' }}>
-                UN
-              </th>
-              <th style={{ padding: '10px 12px', textAlign: 'center', color: theme.tableHeaderFont, fontSize: '13px', fontWeight: 600, borderBottom: `1px solid ${theme.tableBorderColor}`, width: '80px' }}>
-                Ações
-              </th>
+              <th style={{ padding: '10px 12px', textAlign: 'left', color: theme.tableHeaderFont, fontSize: '13px', fontWeight: 600, borderBottom: `1px solid ${theme.tableBorderColor}` }}>Produto</th>
+              <th style={{ padding: '10px 12px', textAlign: 'center', color: theme.tableHeaderFont, fontSize: '13px', fontWeight: 600, borderBottom: `1px solid ${theme.tableBorderColor}`, width: '120px' }}>Qtd / UN</th>
+              <th style={{ padding: '10px 12px', textAlign: 'center', color: theme.tableHeaderFont, fontSize: '13px', fontWeight: 600, borderBottom: `1px solid ${theme.tableBorderColor}`, width: '80px' }}>Ações</th>
             </tr>
           </thead>
           <tbody>
             {addedItems.length === 0 ? (
-              <tr>
-                <td colSpan={4} style={{ padding: '24px', textAlign: 'center', color: '#94a3b8', fontSize: '13px', fontStyle: 'italic', background: theme.tableOddRowBg }}>
-                  Os itens adicionados aparecerão aqui
-                </td>
-              </tr>
+              <tr><td colSpan={3} style={{ padding: '24px', textAlign: 'center', color: '#94a3b8', fontSize: '13px', fontStyle: 'italic', background: theme.tableOddRowBg }}>Os itens adicionados aparecerão aqui</td></tr>
             ) : (
               addedItems.map((item, index) => (
                 <tr key={item.id} style={{ background: index % 2 === 0 ? theme.tableEvenRowBg : theme.tableOddRowBg }}>
-                  <td style={{ padding: '10px 12px', fontSize: '13px', color: '#374151', borderBottom: `1px solid ${theme.tableBorderColor}` }}>
-                    {item.codigo ? `${item.nome} - ${item.codigo}` : item.nome}
-                  </td>
-                  <td style={{ padding: '10px 12px', fontSize: '13px', color: '#374151', textAlign: 'center', borderBottom: `1px solid ${theme.tableBorderColor}` }}>
-                    {item.quantidade}
-                  </td>
-                  <td style={{ padding: '10px 12px', fontSize: '13px', fontWeight: 600, color: theme.accentColor, textAlign: 'center', borderBottom: `1px solid ${theme.tableBorderColor}` }}>
-                    {item.unidade || 'UNI'}
-                  </td>
+                  <td style={{ padding: '10px 12px', fontSize: '13px', color: '#374151', borderBottom: `1px solid ${theme.tableBorderColor}` }}>{item.codigo ? `${item.nome} - ${item.codigo}` : item.nome}</td>
+                  <td style={{ padding: '10px 12px', fontSize: '13px', color: '#374151', textAlign: 'center', borderBottom: `1px solid ${theme.tableBorderColor}` }}>{item.quantidade} {item.unidade}</td>
                   <td style={{ padding: '10px 12px', textAlign: 'center', borderBottom: `1px solid ${theme.tableBorderColor}` }}>
                     <div style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
-                      <button
-                        type="button"
-                        onClick={() => handleEditItem(item.id)}
-                        style={{
-                          background: 'none',
-                          border: 'none',
-                          color: '#3b82f6',
-                          cursor: 'pointer',
-                          padding: '4px',
-                          fontSize: '18px'
-                        }}
-                        title="Editar item"
-                      >
-                        ✏️
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleRemoveItem(item.id)}
-                        style={{
-                          background: 'none',
-                          border: 'none',
-                          color: '#ef4444',
-                          cursor: 'pointer',
-                          padding: '4px',
-                          fontSize: '18px'
-                        }}
-                        title="Remover item"
-                      >
-                        🗑️
-                      </button>
+                      <button type="button" onClick={() => handleEditItem(item.id)} style={{ background: 'none', border: 'none', color: '#3b82f6', cursor: 'pointer', padding: '4px', fontSize: '18px' }} title="Editar">✏️</button>
+                      <button type="button" onClick={() => handleRemoveItem(item.id)} style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', padding: '4px', fontSize: '18px' }} title="Remover">🗑️</button>
                     </div>
                   </td>
                 </tr>
@@ -765,26 +466,8 @@ function OrderGridPreview({ catalogId, theme, required }: { catalogId?: string; 
           {addedItems.length > 0 && (
             <tfoot>
               <tr style={{ background: theme.tableHeaderBg }}>
-                <td style={{ 
-                  padding: '10px 12px',
-                  fontSize: '13px',
-                  fontWeight: 700,
-                  color: theme.tableHeaderFont,
-                  borderTop: `2px solid ${theme.tableBorderColor}`
-                }}>
-                  Total de Produtos: {addedItems.length}
-                </td>
-                <td style={{ 
-                  padding: '10px 12px',
-                  fontSize: '13px',
-                  fontWeight: 700,
-                  color: theme.tableHeaderFont,
-                  textAlign: 'center',
-                  borderTop: `2px solid ${theme.tableBorderColor}`
-                }}>
-                  {addedItems.reduce((sum, item) => sum + (parseFloat(String(item.quantidade)) || 0), 0)}
-                </td>
-                <td style={{ padding: '10px 12px', borderTop: `2px solid ${theme.tableBorderColor}` }} />
+                <td style={{ padding: '10px 12px', fontSize: '13px', fontWeight: 700, color: theme.tableHeaderFont, borderTop: `2px solid ${theme.tableBorderColor}` }}>Total: {addedItems.length} produto(s)</td>
+                <td style={{ padding: '10px 12px', fontSize: '13px', fontWeight: 700, color: theme.tableHeaderFont, textAlign: 'center', borderTop: `2px solid ${theme.tableBorderColor}` }}>{addedItems.reduce((s, i) => s + (parseFloat(String(i.quantidade)) || 0), 0)}</td>
                 <td style={{ padding: '10px 12px', borderTop: `2px solid ${theme.tableBorderColor}` }} />
               </tr>
             </tfoot>

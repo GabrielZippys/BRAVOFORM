@@ -20,7 +20,7 @@ export default function OrderGridFieldResponse({
 }: OrderGridFieldResponseProps) {
   const catalogId = field.dataSource?.catalogId;
   const required = field.required;
-  
+
   const [products, setProducts] = useState<Array<{
     id: string;
     nome: string;
@@ -29,61 +29,37 @@ export default function OrderGridFieldResponse({
     quantidadeMin: number;
     quantidadeMax: number;
   }>>([]);
-  const [loading, setLoading] = useState(false);
-  const [searchTerm, setSearchTerm] = useState('');
+  const [loading, setLoading]               = useState(false);
+  const [searchTerm, setSearchTerm]         = useState('');
   const [selectedProductId, setSelectedProductId] = useState('');
-  const [quantity, setQuantity] = useState(1);
-  const [editingItemId, setEditingItemId] = useState<string | null>(null);
-  const [selectedUnit, setSelectedUnit] = useState<string>('UNI');
-  const [addError, setAddError] = useState<string>('');
-
-  const UNITS = [
-    { value: 'UNI', label: 'UNI — Unidade' },
-    { value: 'KG',  label: 'KG — Quilo'    },
-    { value: 'G',   label: 'G — Grama'     },
-    { value: 'FD',  label: 'FD — Fardo'    },
-    { value: 'DP',  label: 'DP — Display'  },
-  ];
+  const [quantity, setQuantity]             = useState(1);
+  const [editingItemId, setEditingItemId]   = useState<string | null>(null);
+  const [addError, setAddError]             = useState<string>('');
 
   // Carregar produtos do catálogo
   useEffect(() => {
-    if (!catalogId) {
-      setProducts([]);
-      return;
-    }
-
-    const loadProducts = async () => {
+    if (!catalogId) { setProducts([]); return; }
+    const load = async () => {
       setLoading(true);
       try {
-        const response = await fetch(`/api/dataconnect/products?catalogId=${catalogId}`);
-        const result = await response.json();
-        
-        if (result.success) {
-          setProducts(result.data);
-        } else {
-          console.error('Erro ao carregar produtos:', result.error);
-        }
-      } catch (error) {
-        console.error('Erro ao carregar produtos:', error);
+        const res    = await fetch(`/api/dataconnect/products?catalogId=${catalogId}`);
+        const result = await res.json();
+        if (result.success) setProducts(result.data);
+        else console.error('Erro ao carregar produtos:', result.error);
+      } catch (e) {
+        console.error('Erro ao carregar produtos:', e);
       } finally {
         setLoading(false);
       }
     };
-
-    loadProducts();
+    load();
   }, [catalogId]);
 
-  // Atualizar quantidade e unidade quando produto é selecionado
+  // Resetar quantidade ao trocar produto
   useEffect(() => {
     if (selectedProductId) {
       const product = products.find(p => p.id === selectedProductId);
-      if (product) {
-        setQuantity(product.quantidadeMin);
-        // Pré-selecionar unidade do catálogo se for uma das opções válidas
-        const catalogUnit = (product.unidade || '').toUpperCase();
-        const validUnit = UNITS.find(u => u.value === catalogUnit);
-        setSelectedUnit(validUnit ? catalogUnit : 'UNI');
-      }
+      if (product) setQuantity(product.quantidadeMin);
     }
   }, [selectedProductId, products]);
 
@@ -92,7 +68,6 @@ export default function OrderGridFieldResponse({
       setAddError('Selecione um produto antes de adicionar');
       return;
     }
-
     const product = products.find(p => p.id === selectedProductId);
     if (!product) return;
 
@@ -100,36 +75,28 @@ export default function OrderGridFieldResponse({
       setAddError('Informe uma quantidade maior que zero');
       return;
     }
-
     if (quantity < product.quantidadeMin) {
       setAddError(`Quantidade mínima para "${product.nome}": ${product.quantidadeMin}`);
       return;
     }
-
     if (quantity > product.quantidadeMax) {
       setAddError(`Quantidade máxima para "${product.nome}": ${product.quantidadeMax}`);
       return;
     }
 
-    if (!selectedUnit) {
-      setAddError('Selecione a unidade de medida');
-      return;
-    }
-
     const newItem = {
-      id: `${Date.now()}`,
+      id:        `${Date.now()}`,
       productId: product.id,
-      nome: product.nome,
-      codigo: product.codigo,
-      unidade: selectedUnit,
-      quantidade: quantity
+      nome:      product.nome,
+      codigo:    product.codigo,
+      unidade:   product.unidade,   // unidade vem do catálogo
+      quantidade: quantity,
     };
 
     onChange([...value, newItem]);
     setAddError('');
     setSelectedProductId('');
     setQuantity(1);
-    setSelectedUnit('UNI');
     setSearchTerm('');
   };
 
@@ -152,9 +119,7 @@ export default function OrderGridFieldResponse({
     if (!item) return;
     setSelectedProductId(item.productId);
     setQuantity(item.quantidade);
-    setSelectedUnit(item.unidade || 'UNI');
     setEditingItemId(itemId);
-    // Restaurar nome no campo de busca
     const product = products.find(p => p.id === item.productId);
     if (product) setSearchTerm(product.codigo ? `${product.nome} - ${product.codigo}` : product.nome);
   };
@@ -168,30 +133,22 @@ export default function OrderGridFieldResponse({
       setAddError('Informe uma quantidade maior que zero');
       return;
     }
-
     if (quantity < product.quantidadeMin) {
       setAddError(`Quantidade mínima para "${product.nome}": ${product.quantidadeMin}`);
       return;
     }
-
     if (quantity > product.quantidadeMax) {
       setAddError(`Quantidade máxima para "${product.nome}": ${product.quantidadeMax}`);
       return;
     }
 
-    if (!selectedUnit) {
-      setAddError('Selecione a unidade de medida');
-      return;
-    }
-
     onChange(value.map(item =>
-      item.id === editingItemId ? { ...item, quantidade: quantity, unidade: selectedUnit } : item
+      item.id === editingItemId ? { ...item, quantidade: quantity } : item
     ));
     setAddError('');
     setEditingItemId(null);
     setSelectedProductId('');
     setQuantity(1);
-    setSelectedUnit('UNI');
     setSearchTerm('');
   };
 
@@ -199,18 +156,15 @@ export default function OrderGridFieldResponse({
     setEditingItemId(null);
     setSelectedProductId('');
     setQuantity(1);
-    setSelectedUnit('UNI');
     setSearchTerm('');
     setAddError('');
   };
 
-  // Filtrar produtos baseado no termo de busca
   const filteredProducts = products.filter(product => {
     if (!searchTerm) return true;
     const search = searchTerm.toLowerCase();
-    const nome = product.nome.toLowerCase();
-    const codigo = (product.codigo || '').toLowerCase();
-    return nome.includes(search) || codigo.includes(search);
+    return product.nome.toLowerCase().includes(search) ||
+           (product.codigo || '').toLowerCase().includes(search);
   });
 
   if (!catalogId) {
@@ -222,47 +176,28 @@ export default function OrderGridFieldResponse({
       padding: '20px',
       background: '#fff',
       border: `1px solid ${theme.tableBorderColor}`,
-      borderRadius: theme.borderRadius
+      borderRadius: theme.borderRadius,
     }}>
-      <h4 style={{
-        margin: '0 0 16px 0',
-        fontSize: '14px',
-        fontWeight: 600,
-        color: '#374151'
-      }}>
+      <h4 style={{ margin: '0 0 16px 0', fontSize: '14px', fontWeight: 600, color: '#374151' }}>
         Adicionar item ao pedido
       </h4>
 
-      {/* Campo de Busca e Seleção de Produtos */}
+      {/* Busca de produto */}
       <div style={{ marginBottom: '16px' }}>
-        <label style={{ 
-          display: 'block', 
-          marginBottom: '6px', 
-          fontSize: '13px',
-          fontWeight: 500,
-          color: '#374151'
-        }}>
+        <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', fontWeight: 500, color: '#374151' }}>
           Referência ou Nome do Produto {required && <span style={{ color: '#ef4444' }}>*</span>}
         </label>
         <input
           type="text"
           value={searchTerm}
           onChange={(e) => {
-            const value = e.target.value;
-            setSearchTerm(value);
+            const v = e.target.value;
+            setSearchTerm(v);
             setAddError('');
-
-            // Tentar encontrar produto correspondente
-            const matchedProduct = products.find(p => {
-              const productDisplay = p.codigo ? `${p.nome} - ${p.codigo}` : p.nome;
-              return productDisplay === value;
-            });
-
-            if (matchedProduct) {
-              setSelectedProductId(matchedProduct.id);
-            } else {
-              setSelectedProductId('');
-            }
+            const match = products.find(p =>
+              (p.codigo ? `${p.nome} - ${p.codigo}` : p.nome) === v
+            );
+            setSelectedProductId(match ? match.id : '');
           }}
           placeholder={loading ? 'Carregando produtos...' : 'Digite para buscar...'}
           disabled={disabled || loading}
@@ -285,15 +220,9 @@ export default function OrderGridFieldResponse({
         </datalist>
       </div>
 
-      {/* Campo de Quantidade */}
+      {/* Quantidade */}
       <div style={{ marginBottom: '16px' }}>
-        <label style={{ 
-          display: 'block', 
-          marginBottom: '6px', 
-          fontSize: '13px',
-          fontWeight: 500,
-          color: '#374151'
-        }}>
+        <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', fontWeight: 500, color: '#374151' }}>
           Quantidade
         </label>
         <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
@@ -322,7 +251,7 @@ export default function OrderGridFieldResponse({
               flex: 1, padding: '10px 12px',
               border: '1px solid #d1d5db',
               borderRadius: theme.borderRadius,
-              fontSize: '16px',   /* 16px evita auto-zoom iOS */
+              fontSize: '16px',
               background: '#fff', color: '#374151',
               textAlign: 'center',
             }}
@@ -343,53 +272,7 @@ export default function OrderGridFieldResponse({
         </div>
       </div>
 
-      {/* Campo de Unidade de Medida */}
-      <div style={{ marginBottom: '16px' }}>
-        <label style={{
-          display: 'block',
-          marginBottom: '6px',
-          fontSize: '13px',
-          fontWeight: 500,
-          color: '#374151'
-        }}>
-          Unidade de Medida
-        </label>
-        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-          {UNITS.map(unit => (
-            <button
-              key={unit.value}
-              type="button"
-              onClick={() => !disabled && setSelectedUnit(unit.value)}
-              disabled={disabled}
-              style={{
-                padding: '8px 16px',
-                border: `2px solid ${selectedUnit === unit.value ? theme.accentColor : '#d1d5db'}`,
-                borderRadius: theme.borderRadius,
-                background: selectedUnit === unit.value ? theme.accentColor : '#fff',
-                color: selectedUnit === unit.value ? '#fff' : '#374151',
-                fontSize: '13px',
-                fontWeight: 600,
-                cursor: disabled ? 'not-allowed' : 'pointer',
-                transition: 'all 0.15s',
-                minWidth: '64px',
-              }}
-            >
-              {unit.value}
-              <span style={{
-                display: 'block',
-                fontSize: '10px',
-                fontWeight: 400,
-                opacity: 0.85,
-                marginTop: '1px',
-              }}>
-                {unit.label.split(' — ')[1]}
-              </span>
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Mensagem de erro inline (substitui alert) */}
+      {/* Erro inline */}
       {addError && (
         <div style={{
           display: 'flex', alignItems: 'center', gap: 8,
@@ -407,23 +290,19 @@ export default function OrderGridFieldResponse({
         </div>
       )}
 
-      {/* Botões Adicionar/Atualizar */}
+      {/* Botões Adicionar / Atualizar */}
       <div style={{ display: 'flex', gap: '8px', marginBottom: '20px' }}>
         <button
           type="button"
           onClick={editingItemId ? handleUpdateItem : handleAddItem}
           disabled={disabled}
           style={{
-            flex: 1,
-            padding: '12px',
+            flex: 1, padding: '12px',
             background: editingItemId ? '#10b981' : theme.accentColor,
-            border: 'none',
-            borderRadius: theme.borderRadius,
-            color: '#fff',
-            fontSize: '14px',
-            fontWeight: 600,
+            border: 'none', borderRadius: theme.borderRadius,
+            color: '#fff', fontSize: '14px', fontWeight: 600,
             cursor: disabled ? 'not-allowed' : 'pointer',
-            transition: 'all 0.2s',
+            transition: 'all 0.2s', minHeight: 48,
           }}
           onMouseOver={(e) => !disabled && (e.currentTarget.style.opacity = '0.9')}
           onMouseOut={(e) => !disabled && (e.currentTarget.style.opacity = '1')}
@@ -437,14 +316,10 @@ export default function OrderGridFieldResponse({
             disabled={disabled}
             style={{
               padding: '12px 20px',
-              background: '#6b7280',
-              border: 'none',
-              borderRadius: theme.borderRadius,
-              color: '#fff',
-              fontSize: '14px',
-              fontWeight: 600,
+              background: '#6b7280', border: 'none', borderRadius: theme.borderRadius,
+              color: '#fff', fontSize: '14px', fontWeight: 600,
               cursor: disabled ? 'not-allowed' : 'pointer',
-              transition: 'all 0.2s',
+              transition: 'all 0.2s', minHeight: 48,
             }}
             onMouseOver={(e) => !disabled && (e.currentTarget.style.opacity = '0.9')}
             onMouseOut={(e) => !disabled && (e.currentTarget.style.opacity = '1')}
@@ -454,57 +329,23 @@ export default function OrderGridFieldResponse({
         )}
       </div>
 
-      {/* Tabela de Itens */}
+      {/* Tabela de itens */}
       <div style={{
         borderRadius: theme.borderRadius,
         border: `1px solid ${theme.tableBorderColor}`,
-        overflowX: 'auto',   /* scroll horizontal em telas pequenas */
+        overflowX: 'auto',
         WebkitOverflowScrolling: 'touch',
       }}>
         <table style={{ width: '100%', minWidth: '320px', borderCollapse: 'collapse' }}>
           <thead>
             <tr style={{ background: theme.tableHeaderBg }}>
-              <th style={{ 
-                padding: '10px 12px', 
-                textAlign: 'left',
-                color: theme.tableHeaderFont,
-                fontSize: '13px',
-                fontWeight: 600,
-                borderBottom: `1px solid ${theme.tableBorderColor}`
-              }}>
+              <th style={{ padding: '10px 12px', textAlign: 'left', color: theme.tableHeaderFont, fontSize: '13px', fontWeight: 600, borderBottom: `1px solid ${theme.tableBorderColor}` }}>
                 Produto
               </th>
-              <th style={{
-                padding: '10px 12px',
-                textAlign: 'center',
-                color: theme.tableHeaderFont,
-                fontSize: '13px',
-                fontWeight: 600,
-                borderBottom: `1px solid ${theme.tableBorderColor}`,
-                width: '80px'
-              }}>
-                Qtd
+              <th style={{ padding: '10px 12px', textAlign: 'center', color: theme.tableHeaderFont, fontSize: '13px', fontWeight: 600, borderBottom: `1px solid ${theme.tableBorderColor}`, width: '120px' }}>
+                Qtd / UN
               </th>
-              <th style={{
-                padding: '10px 12px',
-                textAlign: 'center',
-                color: theme.tableHeaderFont,
-                fontSize: '13px',
-                fontWeight: 600,
-                borderBottom: `1px solid ${theme.tableBorderColor}`,
-                width: '70px'
-              }}>
-                UN
-              </th>
-              <th style={{
-                padding: '10px 12px',
-                textAlign: 'center',
-                color: theme.tableHeaderFont,
-                fontSize: '13px',
-                fontWeight: 600,
-                borderBottom: `1px solid ${theme.tableBorderColor}`,
-                width: '80px'
-              }}>
+              <th style={{ padding: '10px 12px', textAlign: 'center', color: theme.tableHeaderFont, fontSize: '13px', fontWeight: 600, borderBottom: `1px solid ${theme.tableBorderColor}`, width: '80px' }}>
                 Ações
               </th>
             </tr>
@@ -512,81 +353,33 @@ export default function OrderGridFieldResponse({
           <tbody>
             {value.length === 0 ? (
               <tr>
-                <td colSpan={4} style={{
-                  padding: '24px',
-                  textAlign: 'center',
-                  color: '#94a3b8',
-                  fontSize: '13px',
-                  fontStyle: 'italic',
-                  background: theme.tableOddRowBg
-                }}>
+                <td colSpan={3} style={{ padding: '24px', textAlign: 'center', color: '#94a3b8', fontSize: '13px', fontStyle: 'italic', background: theme.tableOddRowBg }}>
                   Os itens adicionados aparecerão aqui
                 </td>
               </tr>
             ) : (
               value.map((item, index) => (
-                <tr key={item.id} style={{ 
-                  background: index % 2 === 0 ? theme.tableEvenRowBg : theme.tableOddRowBg 
-                }}>
-                  <td style={{ 
-                    padding: '10px 12px',
-                    fontSize: '13px',
-                    color: '#374151',
-                    borderBottom: `1px solid ${theme.tableBorderColor}`
-                  }}>
+                <tr key={item.id} style={{ background: index % 2 === 0 ? theme.tableEvenRowBg : theme.tableOddRowBg }}>
+                  <td style={{ padding: '10px 12px', fontSize: '13px', color: '#374151', borderBottom: `1px solid ${theme.tableBorderColor}` }}>
                     {item.codigo ? `${item.codigo} - ${item.nome}` : item.nome}
                   </td>
-                  <td style={{
-                    padding: '10px 12px',
-                    fontSize: '13px',
-                    color: '#374151',
-                    textAlign: 'center',
-                    borderBottom: `1px solid ${theme.tableBorderColor}`
-                  }}>
-                    {item.quantidade}
+                  <td style={{ padding: '10px 12px', fontSize: '13px', color: '#374151', textAlign: 'center', borderBottom: `1px solid ${theme.tableBorderColor}` }}>
+                    {item.quantidade} {item.unidade}
                   </td>
-                  <td style={{
-                    padding: '10px 12px',
-                    fontSize: '13px',
-                    fontWeight: 600,
-                    color: theme.accentColor,
-                    textAlign: 'center',
-                    borderBottom: `1px solid ${theme.tableBorderColor}`
-                  }}>
-                    {item.unidade || 'UNI'}
-                  </td>
-                  <td style={{
-                    padding: '10px 12px',
-                    textAlign: 'center',
-                    borderBottom: `1px solid ${theme.tableBorderColor}`
-                  }}>
-                    <div style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
+                  <td style={{ padding: '10px 12px', textAlign: 'center', borderBottom: `1px solid ${theme.tableBorderColor}` }}>
+                    <div style={{ display: 'flex', gap: '4px', justifyContent: 'center' }}>
                       <button
                         type="button"
                         onClick={() => handleEditItem(item.id)}
                         disabled={disabled}
-                        style={{
-                          background: 'none', border: 'none',
-                          color: '#3b82f6',
-                          cursor: disabled ? 'not-allowed' : 'pointer',
-                          padding: '8px', fontSize: '20px',
-                          minWidth: '44px', minHeight: '44px',
-                          display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        }}
+                        style={{ background: 'none', border: 'none', color: '#3b82f6', cursor: disabled ? 'not-allowed' : 'pointer', padding: '8px', fontSize: '20px', minWidth: '44px', minHeight: '44px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                         title="Editar item"
                       >✏️</button>
                       <button
                         type="button"
                         onClick={() => handleRemoveItem(item.id)}
                         disabled={disabled}
-                        style={{
-                          background: 'none', border: 'none',
-                          color: '#ef4444',
-                          cursor: disabled ? 'not-allowed' : 'pointer',
-                          padding: '8px', fontSize: '20px',
-                          minWidth: '44px', minHeight: '44px',
-                          display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        }}
+                        style={{ background: 'none', border: 'none', color: '#ef4444', cursor: disabled ? 'not-allowed' : 'pointer', padding: '8px', fontSize: '20px', minWidth: '44px', minHeight: '44px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                         title="Remover item"
                       >🗑️</button>
                     </div>
@@ -598,26 +391,12 @@ export default function OrderGridFieldResponse({
           {value.length > 0 && (
             <tfoot>
               <tr style={{ background: theme.tableHeaderBg }}>
-                <td style={{ 
-                  padding: '10px 12px',
-                  fontSize: '13px',
-                  fontWeight: 700,
-                  color: theme.tableHeaderFont,
-                  borderTop: `2px solid ${theme.tableBorderColor}`
-                }}>
+                <td style={{ padding: '10px 12px', fontSize: '13px', fontWeight: 700, color: theme.tableHeaderFont, borderTop: `2px solid ${theme.tableBorderColor}` }}>
                   Total de Produtos: {value.length}
                 </td>
-                <td style={{
-                  padding: '10px 12px',
-                  fontSize: '13px',
-                  fontWeight: 700,
-                  color: theme.tableHeaderFont,
-                  textAlign: 'center',
-                  borderTop: `2px solid ${theme.tableBorderColor}`
-                }}>
-                  {value.reduce((sum, item) => sum + (parseFloat(item.quantidade) || 0), 0)}
+                <td style={{ padding: '10px 12px', fontSize: '13px', fontWeight: 700, color: theme.tableHeaderFont, textAlign: 'center', borderTop: `2px solid ${theme.tableBorderColor}` }}>
+                  Total: {value.reduce((sum, item) => sum + (parseFloat(item.quantidade) || 0), 0)}
                 </td>
-                <td style={{ padding: '10px 12px', borderTop: `2px solid ${theme.tableBorderColor}` }} />
                 <td style={{ padding: '10px 12px', borderTop: `2px solid ${theme.tableBorderColor}` }} />
               </tr>
             </tfoot>
