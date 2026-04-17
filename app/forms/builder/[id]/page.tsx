@@ -243,32 +243,28 @@ const defaultTheme: FormTheme = {
   tableCellFont: '#e0e6f7'
 };
 
-// ---- COMPONENTE: CatalogSelector
+// ---- COMPONENTE: CatalogSelector (lê do SQL — Firestore migrado)
 function CatalogSelector({ value, onChange, companyId }: { value?: string; onChange: (catalogId: string) => void; companyId?: string }) {
   const [catalogs, setCatalogs] = useState<Array<{ id: string; name: string }>>([]);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     if (!companyId) return;
-
-    const loadCatalogs = async () => {
+    const load = async () => {
       setLoading(true);
       try {
-        const q = query(collection(db, 'product_catalogs'), where('companyId', '==', companyId));
-        const snapshot = await getDocs(q);
-        const catalogsData = snapshot.docs.map(doc => ({
-          id: doc.id,
-          name: doc.data().name || 'Sem nome'
-        }));
-        setCatalogs(catalogsData);
-      } catch (error) {
-        console.error('Erro ao carregar catálogos:', error);
+        const res    = await fetch(`/api/dataconnect/save-catalog?companyId=${companyId}`);
+        const result = await res.json();
+        if (result.success) {
+          setCatalogs(result.data.map((c: any) => ({ id: c.id, name: c.name || 'Sem nome' })));
+        }
+      } catch (e) {
+        console.error('Erro ao carregar catálogos:', e);
       } finally {
         setLoading(false);
       }
     };
-
-    loadCatalogs();
+    load();
   }, [companyId]);
 
   return (
@@ -1803,13 +1799,13 @@ caretColor: autoInputColor,   // (opcional) garante o cursor visível
                         border: `1px solid ${theme.tableBorderColor}`,
                         borderRadius: theme.borderRadius
                       }}>
-                        <h4 style={{ 
-                          margin: '0 0 16px 0', 
-                          fontSize: '14px', 
+                        <h4 style={{
+                          margin: '0 0 16px 0',
+                          fontSize: '14px',
                           fontWeight: 600,
                           color: '#374151'
                         }}>
-                          Preview: Formulário de inclusão de produto
+                          Adicionar item ao pedido
                         </h4>
 
                         {/* Componente completo de Grade de Pedidos */}
