@@ -1893,6 +1893,12 @@ const [autoFill, setAutoFill] = useState<boolean>(false);
   const [catalogManagerOpen, setCatalogManagerOpen] = useState<boolean>(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
+  // Travar scroll do body enquanto o modal de catálogo está aberto
+  useEffect(() => {
+    document.body.style.overflow = catalogManagerOpen ? 'hidden' : '';
+    return () => { document.body.style.overflow = ''; };
+  }, [catalogManagerOpen]);
+
   // Estados dos dados
   const [companyId, setCompanyId] = useState<string>('');
   const [departmentId, setDepartmentId] = useState<string>('');
