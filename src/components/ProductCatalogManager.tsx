@@ -32,6 +32,12 @@ const ProductCatalogManager: React.FC<ProductCatalogManagerProps> = ({ companyId
   const [editingCatalog, setEditingCatalog] = useState<ProductCatalog | null>(null);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
+
+  // Travar scroll do body enquanto modal está aberto
+  useEffect(() => {
+    document.body.style.overflow = 'hidden';
+    return () => { document.body.style.overflow = ''; };
+  }, []);
   
   // Form state
   const [formData, setFormData] = useState({
@@ -49,7 +55,7 @@ const ProductCatalogManager: React.FC<ProductCatalogManagerProps> = ({ companyId
     id?: string;
     nome: string;
     codigo?: string;
-    unidade: 'UN' | 'KG' | 'L' | 'CX' | 'PC';
+    unidade: 'UNI' | 'KG' | 'G' | 'FD' | 'DP';
     quantidadeMin: number;
     quantidadeMax: number;
   }>>([]);
@@ -57,7 +63,7 @@ const ProductCatalogManager: React.FC<ProductCatalogManagerProps> = ({ companyId
   const [newProduct, setNewProduct] = useState({
     nome: '',
     codigo: '',
-    unidade: 'UN' as 'UN' | 'KG' | 'L' | 'CX' | 'PC',
+    unidade: 'UNI' as 'UNI' | 'KG' | 'G' | 'FD' | 'DP',
     quantidadeMin: 1,
     quantidadeMax: 999,
   });
@@ -268,7 +274,7 @@ const ProductCatalogManager: React.FC<ProductCatalogManagerProps> = ({ companyId
     setNewProduct({ 
       nome: '', 
       codigo: '',
-      unidade: 'UN',
+      unidade: 'UNI',
       quantidadeMin: 1,
       quantidadeMax: 999,
     });
@@ -290,7 +296,7 @@ const ProductCatalogManager: React.FC<ProductCatalogManagerProps> = ({ companyId
     setNewProduct({ 
       nome: '', 
       codigo: '',
-      unidade: 'UN',
+      unidade: 'UNI',
       quantidadeMin: 1,
       quantidadeMax: 999,
     });
@@ -418,7 +424,7 @@ const ProductCatalogManager: React.FC<ProductCatalogManagerProps> = ({ companyId
         importedProducts.push({
           nome,
           codigo,
-          unidade: 'UN',
+          unidade: 'UNI',
           quantidadeMin: 1,
           quantidadeMax: 999,
         });
