@@ -142,20 +142,29 @@ const ProductCatalogManager: React.FC<ProductCatalogManagerProps> = ({ companyId
       if (!(await catRes.json()).success) throw new Error('Falha ao salvar catálogo');
 
       if (editingCatalog) {
-        // Deletar produtos que foram removidos da lista
+        // Deletar TODOS os produtos existentes do catálogo antes de reinserir
+        // (evita acúmulo de duplicatas causado por importações repetidas ou IDs perdidos)
         const prevRes = await fetch(`/api/dataconnect/save-catalog?catalogId=${encodeURIComponent(catalogId)}`);
         const prevResult = await prevRes.json();
         const prevProducts: any[] = prevResult.success ? prevResult.data : [];
         for (const prev of prevProducts) {
-          if (!products.some(p => p.id === prev.id)) {
-            await fetch(`/api/dataconnect/save-product?id=${encodeURIComponent(prev.id)}`, { method: 'DELETE' });
-          }
+          await fetch(`/api/dataconnect/save-product?id=${encodeURIComponent(prev.id)}`, { method: 'DELETE' });
         }
       }
 
-      // Upsert todos os produtos
-      for (const product of products) {
-        const productId = product.id || `prod_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
+      // Deduplicar lista atual por nome+código antes de salvar
+      const seen = new Set<string>();
+      const uniqueProducts = products.filter(p => {
+        const key = `${p.nome.trim().toLowerCase()}|${(p.codigo || '').trim().toLowerCase()}`;
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
+
+      // Inserir todos os produtos únicos
+      for (let i = 0; i < uniqueProducts.length; i++) {
+        const product = uniqueProducts[i];
+        const productId = product.id || `prod_${Date.now()}_${i}_${Math.random().toString(36).slice(2, 9)}`;
         await fetch('/api/dataconnect/save-product', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -174,8 +183,8 @@ const ProductCatalogManager: React.FC<ProductCatalogManagerProps> = ({ companyId
 
       setSuccessMessage(
         editingCatalog
-          ? `Catálogo atualizado com sucesso!\n${products.length} produto(s) no catálogo ✨`
-          : `Catálogo criado com sucesso!\n${products.length} produto(s) adicionado(s) ✨`
+          ? `Catálogo atualizado com sucesso!\n${uniqueProducts.length} produto(s) no catálogo ✨`
+          : `Catálogo criado com sucesso!\n${uniqueProducts.length} produto(s) adicionado(s) ✨`
       );
       setShowForm(false);
       setEditingCatalog(null);
@@ -255,9 +264,12 @@ const ProductCatalogManager: React.FC<ProductCatalogManagerProps> = ({ companyId
     }
 
     if (editingProductIndex !== null) {
-      // Atualizar produto existente
+      // Atualizar produto existente — preservar o id original para não gerar duplicata no banco
       const updatedProducts = [...products];
-      updatedProducts[editingProductIndex] = { ...newProduct };
+      updatedProducts[editingProductIndex] = {
+        ...newProduct,
+        id: products[editingProductIndex].id,
+      };
       setProducts(updatedProducts);
       setEditingProductIndex(null);
     } else {
