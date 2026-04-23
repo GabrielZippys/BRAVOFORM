@@ -49,7 +49,7 @@ const ProductCatalogManager: React.FC<ProductCatalogManagerProps> = ({ companyId
     id?: string;
     nome: string;
     codigo?: string;
-    unidade: 'UNI' | 'KG' | 'G' | 'FD' | 'DP';
+    unidade: 'UNI' | 'KG' | 'G' | 'FD' | 'DP' | 'CX';
     quantidadeMin: number;
     quantidadeMax: number;
   }>>([]);
@@ -57,7 +57,7 @@ const ProductCatalogManager: React.FC<ProductCatalogManagerProps> = ({ companyId
   const [newProduct, setNewProduct] = useState({
     nome: '',
     codigo: '',
-    unidade: 'UNI' as 'UNI' | 'KG' | 'G' | 'FD' | 'DP',
+    unidade: 'UNI' as 'UNI' | 'KG' | 'G' | 'FD' | 'DP' | 'CX',
     quantidadeMin: 1,
     quantidadeMax: 999,
   });
@@ -830,6 +830,7 @@ const ProductCatalogManager: React.FC<ProductCatalogManagerProps> = ({ companyId
                       <option value="G">Grama (G)</option>
                       <option value="FD">Fardo (FD)</option>
                       <option value="DP">Display (DP)</option>
+                      <option value="CX">Caixa (CX)</option>
                     </select>
                   </div>
 
