@@ -90,10 +90,15 @@ export default function TrashPanel({ collaboratorId, onOpen = () => {}, isAdmin 
   const [error, setError] = useState<string>('');
   const [responses, setResponses] = useState<TrashResp[]>([]);
   const [restoringId, setRestoringId] = useState<string | null>(null);
-  
-  // Modal de confirmação
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+
+  // Modal de confirmação de restauração
   const [confirmModalOpen, setConfirmModalOpen] = useState(false);
   const [responseToRestore, setResponseToRestore] = useState<TrashResp | null>(null);
+
+  // Modal de confirmação de exclusão permanente
+  const [confirmDeleteModalOpen, setConfirmDeleteModalOpen] = useState(false);
+  const [responseToDelete, setResponseToDelete] = useState<TrashResp | null>(null);
 
   const [schemas, setSchemas] = useState<Record<string, FormSchema>>({});
   const fetchingForms = useRef<Set<string>>(new Set());
@@ -146,6 +151,38 @@ export default function TrashPanel({ collaboratorId, onOpen = () => {}, isAdmin 
     }
   };
 
+  // Exclusão permanente: remove do Firestore e de todas as tabelas SQL
+  const permanentlyDelete = async (resp: TrashResp) => {
+    if (!resp.path) return;
+    setDeletingId(resp.id);
+    try {
+      // SQL: apaga de fact_form_response, fact_answers, fact_order_items, etc.
+      await fetch(`/api/dataconnect/responses?id=${encodeURIComponent(resp.id)}`, {
+        method: 'DELETE',
+      });
+      // Firestore
+      await deleteDoc(fsDoc(db, resp.path));
+      console.log('✅ Resposta excluída permanentemente:', resp.id);
+    } catch (error) {
+      console.error('❌ Erro ao excluir permanentemente:', error);
+      alert('Erro ao excluir permanentemente. Tente novamente.');
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
+  const openDeleteConfirmation = (resp: TrashResp) => {
+    setResponseToDelete(resp);
+    setConfirmDeleteModalOpen(true);
+  };
+
+  const handlePermanentDelete = async () => {
+    if (!responseToDelete) return;
+    setConfirmDeleteModalOpen(false);
+    await permanentlyDelete(responseToDelete);
+    setResponseToDelete(null);
+  };
+
   // Carrega respostas deletadas
   useEffect(() => {
     if (!collaboratorId && !isAdmin) {
@@ -191,7 +228,27 @@ export default function TrashPanel({ collaboratorId, onOpen = () => {}, isAdmin 
         });
 
         items.sort((a, b) => (b.deletedAt?.toMillis() ?? 0) - (a.deletedAt?.toMillis() ?? 0));
-        setResponses(items);
+
+        // Auto-cleanup: excluir permanentemente itens com 30+ dias na lixeira
+        const expired = items.filter(item => {
+          const deletedDate = toJSDate(item.deletedAt);
+          return getDaysRemaining(deletedDate) === 0;
+        });
+        if (expired.length > 0) {
+          console.log(`🧹 Auto-limpeza: ${expired.length} item(ns) expirado(s) serão excluídos permanentemente`);
+          Promise.all(
+            expired.map(async (item) => {
+              try {
+                await fetch(`/api/dataconnect/responses?id=${encodeURIComponent(item.id)}`, { method: 'DELETE' });
+                if (item.path) await deleteDoc(fsDoc(db, item.path));
+              } catch (e) {
+                console.error('❌ Erro no auto-cleanup:', item.id, e);
+              }
+            })
+          );
+        }
+
+        setResponses(items.filter(item => getDaysRemaining(toJSDate(item.deletedAt)) > 0));
         setLoading(false);
       },
       (err) => {
@@ -444,27 +501,50 @@ export default function TrashPanel({ collaboratorId, onOpen = () => {}, isAdmin 
                   >
                     👁️ Ver
                   </button>
-                  <button 
-                    className={styles.cardButton} 
+                  <button
+                    className={styles.cardButton}
                     onClick={() => openRestoreConfirmation(r)}
-                    disabled={restoringId === r.id}
-                    style={{ 
+                    disabled={restoringId === r.id || deletingId === r.id}
+                    style={{
                       background: restoringId === r.id ? '#9ca3af' : '#22c55e',
                       color: '#fff',
                       fontWeight: 500,
                       padding: '0.5rem 0.75rem',
                       borderRadius: '6px',
                       border: 'none',
-                      cursor: restoringId === r.id ? 'not-allowed' : 'pointer',
+                      cursor: (restoringId === r.id || deletingId === r.id) ? 'not-allowed' : 'pointer',
                       transition: 'all 0.2s ease',
                       fontSize: '0.85rem',
                       whiteSpace: 'nowrap'
                     }}
                     title="Restaurar resposta"
-                    onMouseEnter={(e) => !restoringId && (e.currentTarget.style.background = '#16a34a')}
+                    onMouseEnter={(e) => !restoringId && !deletingId && (e.currentTarget.style.background = '#16a34a')}
                     onMouseLeave={(e) => !restoringId && (e.currentTarget.style.background = '#22c55e')}
                   >
                     {restoringId === r.id ? '⏳...' : '↩️ Restaurar'}
+                  </button>
+
+                  <button
+                    className={styles.cardButton}
+                    onClick={() => openDeleteConfirmation(r)}
+                    disabled={deletingId === r.id || restoringId === r.id}
+                    style={{
+                      background: deletingId === r.id ? '#9ca3af' : '#ef4444',
+                      color: '#fff',
+                      fontWeight: 500,
+                      padding: '0.5rem 0.75rem',
+                      borderRadius: '6px',
+                      border: 'none',
+                      cursor: (deletingId === r.id || restoringId === r.id) ? 'not-allowed' : 'pointer',
+                      transition: 'all 0.2s ease',
+                      fontSize: '0.85rem',
+                      whiteSpace: 'nowrap'
+                    }}
+                    title="Excluir permanentemente do banco"
+                    onMouseEnter={(e) => !deletingId && !restoringId && (e.currentTarget.style.background = '#dc2626')}
+                    onMouseLeave={(e) => !deletingId && (e.currentTarget.style.background = '#ef4444')}
+                  >
+                    {deletingId === r.id ? '⏳...' : '🗑️ Excluir'}
                   </button>
                 </div>
               </div>
@@ -491,6 +571,27 @@ export default function TrashPanel({ collaboratorId, onOpen = () => {}, isAdmin 
         }
         confirmText="Restaurar"
         cancelText="Cancelar"
+      />
+
+      {/* Modal de Confirmação de Exclusão Permanente */}
+      <ConfirmModal
+        isOpen={confirmDeleteModalOpen}
+        onCancel={() => {
+          setConfirmDeleteModalOpen(false);
+          setResponseToDelete(null);
+        }}
+        onConfirm={handlePermanentDelete}
+        title="⚠️ Excluir permanentemente?"
+        message={
+          responseToDelete
+            ? `Formulário: ${responseToDelete.formTitle || 'Sem título'}\n` +
+              `Excluída em: ${formatPTDate(toJSDate(responseToDelete.deletedAt))}\n\n` +
+              `Esta ação não pode ser desfeita. O item será removido definitivamente do banco de dados.`
+            : ''
+        }
+        confirmText="Excluir permanentemente"
+        cancelText="Cancelar"
+        isDanger={true}
       />
     </div>
   );
