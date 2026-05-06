@@ -4,7 +4,7 @@ import React from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
-import { LayoutDashboard, FileText, Users, PlugZap, DatabaseBackup, LogOut, Workflow, History } from 'lucide-react'; 
+import { LayoutDashboard, FileText, Users, PlugZap, DatabaseBackup, LogOut, Workflow, History, Truck, Trash2 } from 'lucide-react';
 import { auth } from '../../firebase/config';
 import { signOut } from 'firebase/auth';
 import styles from '../../app/styles/Sidebar.module.css';
@@ -14,6 +14,8 @@ const mainLinks = [
   { href: '/dashboard/historico', label: 'Histórico', icon: History },
   { href: '/dashboard/forms', label: 'Formulários', icon: FileText },
   { href: '/dashboard/bravoflow', label: 'BravoFlow', icon: Workflow },
+  { href: '/dashboard/retiradas', label: 'Painel Retiradas', icon: Truck },
+  { href: '/dashboard/trash', label: 'Lixeira', icon: Trash2 },
 ];
 
 const settingsLinks = [
