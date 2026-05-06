@@ -8,6 +8,8 @@ import type { WorkflowStage, Department, Collaborator } from '@/types';
 import { STAGE_TYPES, getDefaultColorForType, getStageTypeDefinition, getAdvanceLabel } from '@/utils/stageTypes';
 import FormSelectionModal from './FormSelectionModal';
 import TriggerConfigPanel from './TriggerConfigPanel';
+import StageCommentsPanel from './StageCommentsPanel';
+import { useAuth } from '@/hooks/useAuth';
 import styles from '../../app/styles/StageConfigPanel.module.css';
 
 interface StageConfigPanelProps {
@@ -16,6 +18,8 @@ interface StageConfigPanelProps {
   onClose: () => void;
   workflowCompanies?: string[];
   workflowDepartments?: string[];
+  /** ID do workflow — usado para os comentários colaborativos. */
+  workflowId?: string;
   /** Posição da etapa no workflow (1-indexed). Usado para exibir "Etapa 1 de N". */
   stagePosition?: number;
   /** Total de etapas no workflow. */
@@ -32,11 +36,13 @@ export default function StageConfigPanel({
   onClose,
   workflowCompanies = [],
   workflowDepartments = [],
+  workflowId,
   stagePosition,
   totalStages,
   isFirstStage,
   isLastStage,
 }: StageConfigPanelProps) {
+  const { user, appUser } = useAuth();
   const [forms, setForms] = useState<any[]>([]);
   const [departments, setDepartments] = useState<Department[]>([]);
   const [collaborators, setCollaborators] = useState<Collaborator[]>([]);
@@ -1086,6 +1092,30 @@ export default function StageConfigPanel({
                     </div>
                   </div>
                 )}
+              </div>
+            </>
+          )}
+
+          {/* ─── Discussão colaborativa (diferencial vs Pipefy/Asana) ─── */}
+          {workflowId && stage.id && user && (
+            <>
+              <div className={styles.divider}></div>
+              <div className={styles.sectionGroup}>
+                <div className={styles.sectionGroupHeader}>
+                  💬 Discussão técnica desta etapa
+                </div>
+                <div className={styles.sectionGroupBody}>
+                  <StageCommentsPanel
+                    workflowId={workflowId}
+                    stageId={stage.id}
+                    currentUser={{
+                      id: user.uid,
+                      username: appUser?.username || user.email?.split('@')[0],
+                      name: appUser?.name || user.displayName || user.email || 'Usuário',
+                      avatarUrl: user.photoURL || undefined,
+                    }}
+                  />
+                </div>
               </div>
             </>
           )}

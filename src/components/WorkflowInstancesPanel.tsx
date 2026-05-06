@@ -12,15 +12,16 @@
  * marcar retirado, cancelar). Auto-refresh a cada 60s.
  */
 
-import { useEffect, useState, useCallback } from 'react';
+import { useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   Truck, CheckCircle2, XCircle, AlertCircle, RefreshCw, Filter,
-  PackageCheck, Printer, User, Clock,
+  PackageCheck, Printer, User, Clock, Wifi, WifiOff,
 } from 'lucide-react';
 import RetiradaActionModal from './RetiradaActionModal';
 import { SkeletonList } from './Skeleton';
 import { logger } from '@/lib/logger';
+import { useInstancesStream, StreamStatus } from '@/hooks/useInstancesStream';
 
 interface Instance {
   id: string;
@@ -63,8 +64,6 @@ interface Props {
 
 export default function WorkflowInstancesPanel({ workflowId: _workflowId }: Props) {
   const router = useRouter();
-  const [instances, setInstances] = useState<Instance[]>([]);
-  const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [actionModal, setActionModal] = useState<{
@@ -73,47 +72,34 @@ export default function WorkflowInstancesPanel({ workflowId: _workflowId }: Prop
     instance: Instance | null;
   }>({ open: false, action: null, instance: null });
 
-  const loadInstances = useCallback(async () => {
-    setLoading(true);
-    try {
-      // workflowOnly=true filtra no SQL: só respostas de forms com workflow
-      // habilitado, ou que já tenham dados de roteirização/aprovação.
-      const res = await fetch('/api/dataconnect/responses?workflowOnly=true&limit=500');
-      const json = await res.json();
-      if (!json.success) throw new Error(json.error);
-      const mapped: Instance[] = (json.data || []).map((r: any) => ({
-        id: r.id,
-        formTitle: r.formTitle,
-        solicitante: r.collaboratorUsername,
-        status: r.status,
-        currentStageId: r.current_stage_fb_id,
-        motorista: r.motorista,
-        placa: r.placa,
-        setorEntrega: r.setor_entrega,
-        enderecoEntrega: r.endereco_entrega,
-        diasEntrega: r.dias_entrega,
-        boletim: r.boletim,
-        protocoloCancelamento: r.protocolo_cancelamento,
-        motivoCancelamento: r.motivo_cancelamento,
-        replicaCount: r.replica_count || 0,
-        parentResponseId: r.parent_response_fb_id,
-        submittedAt: r.submittedAt,
-        approvedAt: r.approved_at,
-        rejectionReason: r.rejection_reason,
-      }));
-      setInstances(mapped);
-    } catch (e) {
-      logger.error('Erro ao carregar instâncias', e);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  // ─── Stream em tempo real (SSE) com fallback automático ────────────────
+  const { instances: streamInstances, status: streamStatus, lastUpdate, reconnect } =
+    useInstancesStream();
 
-  useEffect(() => {
-    loadInstances();
-    const interval = setInterval(loadInstances, 60_000);
-    return () => clearInterval(interval);
-  }, [loadInstances]);
+  // Mapeia o formato do stream para o Instance esperado pelo componente
+  const instances: Instance[] = useMemo(
+    () =>
+      streamInstances.map((r) => ({
+        id: r.id,
+        formTitle: r.formTitle || '',
+        solicitante: r.collaboratorUsername || '',
+        status: r.status,
+        currentStageId: r.currentStageId || undefined,
+        motorista: r.motorista || undefined,
+        placa: r.placa || undefined,
+        setorEntrega: r.setorEntrega || undefined,
+        enderecoEntrega: r.enderecoEntrega || undefined,
+        boletim: r.boletim || undefined,
+        replicaCount: r.replicaCount || 0,
+        submittedAt: r.submittedAt || '',
+        approvedAt: r.approvedAt || undefined,
+        rejectionReason: r.rejectionReason || undefined,
+      })),
+    [streamInstances]
+  );
+
+  // Loading: enquanto não recebemos primeiro snapshot
+  const loading = streamStatus === 'connecting' && instances.length === 0;
 
   const filtered = instances.filter(r => {
     if (statusFilter !== 'all' && r.status !== statusFilter) return false;
@@ -131,7 +117,8 @@ export default function WorkflowInstancesPanel({ workflowId: _workflowId }: Prop
 
   const closeAction = (refresh = false) => {
     setActionModal({ open: false, action: null, instance: null });
-    if (refresh) loadInstances();
+    // SSE refresca automaticamente — apenas força reconexão se solicitado
+    if (refresh) reconnect();
   };
 
   return (
@@ -171,7 +158,8 @@ export default function WorkflowInstancesPanel({ workflowId: _workflowId }: Prop
           style={{ padding: '8px 12px', border: '1px solid #d1d5db', borderRadius: 6, fontSize: 14, flex: 1, minWidth: 220 }}
         />
         <button
-          onClick={loadInstances}
+          onClick={reconnect}
+          title="Forçar reconexão do stream"
           style={{
             padding: '8px 14px', background: '#3b82f6', color: '#fff', border: 'none',
             borderRadius: 6, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, fontSize: 14,
@@ -179,6 +167,7 @@ export default function WorkflowInstancesPanel({ workflowId: _workflowId }: Prop
         >
           <RefreshCw size={16} /> Atualizar
         </button>
+        <StreamStatusBadge status={streamStatus} lastUpdate={lastUpdate} />
         <span style={{ marginLeft: 'auto', fontSize: 13, color: '#6b7280' }}>
           {filtered.length} instância{filtered.length !== 1 ? 's' : ''}
         </span>
@@ -336,4 +325,70 @@ function btnStyle(color: string): React.CSSProperties {
     fontWeight: 500,
     cursor: 'pointer',
   };
+}
+
+/**
+ * Badge que mostra o status da conexão SSE em tempo real.
+ * Padrão dos SaaS modernos (Linear, Notion) — dá confiança ao usuário
+ * de que os dados estão atualizados.
+ */
+function StreamStatusBadge({
+  status,
+  lastUpdate,
+}: {
+  status: StreamStatus;
+  lastUpdate: string | null;
+}) {
+  const config = {
+    connecting: { color: '#9CA3AF', bg: '#F3F4F6', icon: Wifi,    label: 'Conectando…', pulse: true },
+    connected:  { color: '#059669', bg: '#D1FAE5', icon: Wifi,    label: 'Tempo real',  pulse: true },
+    fallback:   { color: '#D97706', bg: '#FEF3C7', icon: Wifi,    label: 'Polling',     pulse: false },
+    disconnected: { color: '#9CA3AF', bg: '#F3F4F6', icon: WifiOff, label: 'Reconectando…', pulse: true },
+    error:      { color: '#B91C1C', bg: '#FEE2E2', icon: WifiOff, label: 'Erro',        pulse: false },
+  }[status];
+
+  const Icon = config.icon;
+
+  // "há X seg" — atualiza visualmente a percepção de "vivo"
+  const ago = lastUpdate ? Math.floor((Date.now() - new Date(lastUpdate).getTime()) / 1000) : null;
+  const agoLabel = ago === null ? '' : ago < 5 ? 'agora' : ago < 60 ? `há ${ago}s` : `há ${Math.floor(ago / 60)}min`;
+
+  return (
+    <span
+      title={lastUpdate ? `Última atualização: ${new Date(lastUpdate).toLocaleString('pt-BR')}` : ''}
+      style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: 4,
+        padding: '4px 10px',
+        background: config.bg,
+        color: config.color,
+        borderRadius: 999,
+        fontSize: 11,
+        fontWeight: 600,
+        position: 'relative',
+      }}
+    >
+      <Icon size={12} />
+      {config.pulse && (
+        <span
+          style={{
+            width: 6, height: 6, borderRadius: '50%',
+            background: config.color,
+            animation: 'sse-pulse 1.5s ease-in-out infinite',
+          }}
+        />
+      )}
+      {config.label}
+      {agoLabel && status === 'connected' && (
+        <span style={{ opacity: 0.7, marginLeft: 4, fontWeight: 400 }}>· {agoLabel}</span>
+      )}
+      <style jsx>{`
+        @keyframes sse-pulse {
+          0%, 100% { opacity: 1; transform: scale(1); }
+          50% { opacity: 0.4; transform: scale(0.7); }
+        }
+      `}</style>
+    </span>
+  );
 }

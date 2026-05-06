@@ -15,6 +15,9 @@ import ReactFlow, {
   Panel,
   EdgeProps,
   getBezierPath,
+  MiniMap,
+  useReactFlow,
+  ReactFlowProvider,
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 import { Plus, Save, Settings, Trash2, GitBranch, Eye, Power, PowerOff, Sparkles, ArrowLeft, ArrowRight, Wand2 } from 'lucide-react';
@@ -86,6 +89,7 @@ export default function WorkflowCanvas({
   const [showActivationSettings, setShowActivationSettings] = useState(false);
   const [showPresetPicker, setShowPresetPicker] = useState(false);
   const [showAIGenerator, setShowAIGenerator] = useState(false);
+  const [showShortcuts, setShowShortcuts] = useState(false);
   const { confirm, alert, confirmState } = useConfirm();
 
   // Inicializar com stages existentes
@@ -484,6 +488,78 @@ export default function WorkflowCanvas({
     );
   }, [selectedSourceStage, setNodes]);
 
+  /**
+   * Atalhos de teclado profissionais (table stakes 2026):
+   *   Ctrl/Cmd + S → Salvar
+   *   Ctrl/Cmd + N → Adicionar etapa
+   *   Ctrl/Cmd + K → Abrir AI Generator
+   *   Ctrl/Cmd + P → Abrir Preset Picker
+   *   Delete       → Excluir etapa selecionada (com confirmação)
+   *   ? (Shift+/)  → Mostra/esconde overlay de atalhos
+   *   Esc          → Fecha painéis abertos
+   */
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      // Ignora se foco está em input/textarea/contentEditable
+      const target = e.target as HTMLElement;
+      const tag = target?.tagName?.toLowerCase();
+      const isEditing =
+        tag === 'input' || tag === 'textarea' || target?.isContentEditable;
+
+      const cmd = e.ctrlKey || e.metaKey;
+
+      // ? abre help (mesmo se modal aberta — ajuda contextual)
+      if (e.key === '?' && !isEditing) {
+        e.preventDefault();
+        setShowShortcuts((s) => !s);
+        return;
+      }
+
+      if (isEditing) return;
+
+      // Cmd/Ctrl + S → Salvar
+      if (cmd && e.key.toLowerCase() === 's') {
+        e.preventDefault();
+        handleSave();
+        return;
+      }
+      // Cmd/Ctrl + N → Nova etapa
+      if (cmd && e.key.toLowerCase() === 'n') {
+        e.preventDefault();
+        handleAddStage();
+        return;
+      }
+      // Cmd/Ctrl + K → AI Generator
+      if (cmd && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        setShowAIGenerator(true);
+        return;
+      }
+      // Cmd/Ctrl + P → Preset Picker
+      if (cmd && e.key.toLowerCase() === 'p') {
+        e.preventDefault();
+        setShowPresetPicker(true);
+        return;
+      }
+      // Delete → remove etapa selecionada
+      if ((e.key === 'Delete' || e.key === 'Backspace') && selectedNode) {
+        e.preventDefault();
+        handleDeleteNode(selectedNode.id, selectedNode.data.stage.name);
+        return;
+      }
+      // Esc → fecha painéis
+      if (e.key === 'Escape') {
+        if (selectedNode) setSelectedNode(null);
+        if (showShortcuts) setShowShortcuts(false);
+        if (showPresetPicker) setShowPresetPicker(false);
+        if (showAIGenerator) setShowAIGenerator(false);
+      }
+    };
+
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [selectedNode, handleAddStage, handleDeleteNode, showShortcuts, showPresetPicker, showAIGenerator]);
+
   const handleSave = async () => {
     if (nodes.length === 0) {
       await alert('Aviso', 'Adicione pelo menos uma etapa antes de salvar.');
@@ -575,8 +651,20 @@ export default function WorkflowCanvas({
           className={styles.reactFlow}
         >
           <Background variant={BackgroundVariant.Dots} gap={16} size={1} />
-          <Controls />
-          
+          <Controls showInteractive={false} />
+          <MiniMap
+            nodeColor={(node) => (node.data?.stage?.color as string) || '#3B82F6'}
+            nodeStrokeWidth={3}
+            zoomable
+            pannable
+            position="bottom-right"
+            style={{
+              background: 'var(--surface-card)',
+              border: '1px solid var(--color-border-subtle)',
+              borderRadius: 'var(--radius-md)',
+            }}
+          />
+
           <Panel position="top-left" className={styles.panel}>
             <button onClick={handleAddStage} className={styles.btnAdd}>
               <Plus size={20} />
@@ -619,13 +707,28 @@ export default function WorkflowCanvas({
               {isActive ? <Power size={20} /> : <PowerOff size={20} />}
               {isActive ? 'Ativo' : 'Inativo'}
             </button>
-            <button 
+            <button
               onClick={() => setShowActivationSettings(true)}
               className={styles.btnSettings}
               title="Configurações de Ativação"
             >
               <Settings size={20} />
               Configurações
+            </button>
+            <button
+              onClick={() => setShowShortcuts(true)}
+              className={styles.btnSettings}
+              title="Atalhos de teclado (?)"
+              aria-label="Mostrar atalhos de teclado"
+              style={{ minWidth: 'auto', padding: 'var(--space-2) var(--space-3)' }}
+            >
+              <kbd style={{
+                fontFamily: 'monospace',
+                fontSize: '0.75rem',
+                padding: '2px 6px',
+                background: 'rgba(255,255,255,0.2)',
+                borderRadius: '4px',
+              }}>?</kbd>
             </button>
           </Panel>
 
@@ -647,6 +750,7 @@ export default function WorkflowCanvas({
             onClose={() => setSelectedNode(null)}
             workflowCompanies={workflowCompanies}
             workflowDepartments={workflowDepartments}
+            workflowId={workflowId}
             stagePosition={selectedNode.data.stagePosition}
             totalStages={selectedNode.data.totalStages}
             isFirstStage={selectedNode.data.isFirstStage}
@@ -668,6 +772,106 @@ export default function WorkflowCanvas({
         onApply={(stages) => handleApplyPreset(stages)}
         willOverwrite={nodes.length > 0}
       />
+
+      {/* Modal de atalhos de teclado */}
+      {showShortcuts && (
+        <div
+          onClick={() => setShowShortcuts(false)}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="shortcuts-title"
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'var(--surface-overlay)',
+            zIndex: 99999,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: 'var(--space-4)',
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              background: 'var(--surface-card)',
+              borderRadius: 'var(--radius-xl)',
+              maxWidth: 480,
+              width: '100%',
+              padding: 'var(--space-6)',
+              boxShadow: 'var(--shadow-xl)',
+              border: '1px solid var(--color-border-subtle)',
+            }}
+          >
+            <h3 id="shortcuts-title" style={{
+              margin: '0 0 var(--space-4)',
+              fontSize: 'var(--font-size-lg)',
+              fontWeight: 'var(--font-weight-bold)',
+              color: 'var(--color-text-primary)',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 'var(--space-2)',
+            }}>
+              ⌨️ Atalhos de teclado
+            </h3>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
+              {[
+                { keys: ['Ctrl', 'S'], label: 'Salvar workflow' },
+                { keys: ['Ctrl', 'N'], label: 'Adicionar etapa' },
+                { keys: ['Ctrl', 'K'], label: 'Gerar com IA' },
+                { keys: ['Ctrl', 'P'], label: 'Aplicar preset' },
+                { keys: ['Delete'],    label: 'Excluir etapa selecionada' },
+                { keys: ['Esc'],       label: 'Fechar painéis' },
+                { keys: ['?'],         label: 'Mostrar/esconder este menu' },
+              ].map((sc, i) => (
+                <div
+                  key={i}
+                  style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    padding: 'var(--space-2) var(--space-3)',
+                    background: 'var(--surface-page)',
+                    borderRadius: 'var(--radius-md)',
+                    fontSize: 'var(--font-size-sm)',
+                  }}
+                >
+                  <span style={{ color: 'var(--color-text-secondary)' }}>{sc.label}</span>
+                  <span style={{ display: 'flex', gap: 4 }}>
+                    {sc.keys.map((k, j) => (
+                      <kbd
+                        key={j}
+                        style={{
+                          fontFamily: 'monospace',
+                          fontSize: 'var(--font-size-xs)',
+                          padding: '2px 8px',
+                          background: 'var(--surface-card)',
+                          color: 'var(--color-text-primary)',
+                          border: '1px solid var(--color-border-default)',
+                          borderRadius: 'var(--radius-sm)',
+                          boxShadow: 'var(--shadow-xs)',
+                          minWidth: 28,
+                          textAlign: 'center',
+                        }}
+                      >
+                        {k}
+                      </kbd>
+                    ))}
+                  </span>
+                </div>
+              ))}
+            </div>
+            <p style={{
+              marginTop: 'var(--space-4)',
+              fontSize: 'var(--font-size-xs)',
+              color: 'var(--color-text-tertiary)',
+              textAlign: 'center',
+            }}>
+              No macOS use ⌘ no lugar de Ctrl
+            </p>
+          </div>
+        </div>
+      )}
 
       {isRoutingModalOpen && selectedSourceStage && (
         <RoutingConditionModal
