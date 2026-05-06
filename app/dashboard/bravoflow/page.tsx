@@ -2,19 +2,20 @@
 
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Plus, Edit, Trash2, Eye, Copy, BarChart3, Workflow as WorkflowIcon, ListChecks } from 'lucide-react';
+import { Plus, Edit, Trash2, Eye, Copy, BarChart3, Workflow as WorkflowIcon, ListChecks, TrendingUp } from 'lucide-react';
 import { WorkflowServicePg } from '@/services/workflowServicePg';
 import { useAuth } from '@/hooks/useAuth';
 import type { WorkflowStage } from '@/types';
 import WorkflowSetupModal from '@/components/WorkflowSetupModal';
 import WorkflowInstancesPanel from '@/components/WorkflowInstancesPanel';
 import WorkflowMetricsPanel from '@/components/WorkflowMetricsPanel';
+import SLAInsightsPanel from '@/components/SLAInsightsPanel';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import { SkeletonList } from '@/components/Skeleton';
 import { logger } from '@/lib/logger';
 import styles from '../../styles/BravoFlow.module.css';
 
-type TabId = 'workflows' | 'instances' | 'metrics';
+type TabId = 'workflows' | 'instances' | 'sla' | 'metrics';
 
 interface WorkflowTemplate {
   id: string;
@@ -160,7 +161,8 @@ export default function BravoFlowPage() {
   const TABS = [
     { id: 'workflows' as const, label: 'Workflows', icon: WorkflowIcon, hint: 'Templates de fluxo' },
     { id: 'instances' as const, label: 'Instâncias', icon: ListChecks, hint: 'Fila de execução com ações' },
-    { id: 'metrics'   as const, label: 'Métricas',   icon: BarChart3,  hint: 'KPIs e SLA' },
+    { id: 'sla'       as const, label: 'SLA Preditivo', icon: TrendingUp, hint: 'Predição de estouro + sugestões' },
+    { id: 'metrics'   as const, label: 'Métricas',   icon: BarChart3,  hint: 'KPIs históricos' },
   ];
 
   return (
@@ -200,6 +202,11 @@ export default function BravoFlowPage() {
         {activeTab === 'instances' && (
           <div role="tabpanel" id="tabpanel-instances">
             <WorkflowInstancesPanel />
+          </div>
+        )}
+        {activeTab === 'sla' && (
+          <div role="tabpanel" id="tabpanel-sla">
+            <SLAInsightsPanel />
           </div>
         )}
         {activeTab === 'metrics' && (

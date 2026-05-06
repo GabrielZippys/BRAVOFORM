@@ -1096,6 +1096,103 @@ export default function StageConfigPanel({
             </>
           )}
 
+          {/* ─── SLA Preditivo (diferencial #3) ─── */}
+          <div className={styles.divider}></div>
+          <div className={styles.sectionGroup}>
+            <div className={styles.sectionGroupHeader}>
+              ⏱️ SLA Preditivo
+            </div>
+            <div className={styles.sectionGroupBody}>
+              <p className={styles.hint} style={{ margin: '0 0 var(--space-3)' }}>
+                Configure o tempo alvo para esta etapa. O sistema vai prever automaticamente
+                quando uma instância está prestes a estourar o SLA, baseado no histórico real
+                de execução, e sugerir reatribuição quando necessário.
+              </p>
+
+              <label className={styles.label}>
+                <span>Tempo alvo (em horas)</span>
+              </label>
+              <input
+                type="number"
+                step="0.5"
+                min="0"
+                value={stage.slaTargetMinutes ? (stage.slaTargetMinutes / 60).toString() : ''}
+                onChange={(e) => {
+                  const hours = parseFloat(e.target.value);
+                  onUpdate({
+                    slaTargetMinutes: isFinite(hours) && hours > 0 ? Math.round(hours * 60) : undefined,
+                  });
+                }}
+                placeholder="Ex: 2 (= 2h)  · deixe vazio para desativar"
+                className={styles.input}
+              />
+
+              {stage.slaTargetMinutes && stage.slaTargetMinutes > 0 && (
+                <>
+                  <div style={{ marginTop: 'var(--space-3)', display: 'flex', gap: 'var(--space-3)', flexWrap: 'wrap' }}>
+                    <div style={{ flex: 1, minWidth: 100 }}>
+                      <label className={styles.label}>
+                        <span>⚠️ Aviso (%)</span>
+                      </label>
+                      <input
+                        type="number"
+                        min="0"
+                        max="200"
+                        value={stage.slaWarnThreshold ?? 80}
+                        onChange={(e) => onUpdate({
+                          slaWarnThreshold: parseInt(e.target.value, 10) || 80,
+                        })}
+                        className={styles.input}
+                      />
+                    </div>
+                    <div style={{ flex: 1, minWidth: 100 }}>
+                      <label className={styles.label}>
+                        <span>🔥 Crítico (%)</span>
+                      </label>
+                      <input
+                        type="number"
+                        min="0"
+                        max="200"
+                        value={stage.slaCriticalThreshold ?? 100}
+                        onChange={(e) => onUpdate({
+                          slaCriticalThreshold: parseInt(e.target.value, 10) || 100,
+                        })}
+                        className={styles.input}
+                      />
+                    </div>
+                    <div style={{ flex: 1, minWidth: 100 }}>
+                      <label className={styles.label}>
+                        <span>🚨 Estouro (%)</span>
+                      </label>
+                      <input
+                        type="number"
+                        min="0"
+                        max="500"
+                        value={stage.slaBreachThreshold ?? 150}
+                        onChange={(e) => onUpdate({
+                          slaBreachThreshold: parseInt(e.target.value, 10) || 150,
+                        })}
+                        className={styles.input}
+                      />
+                    </div>
+                  </div>
+
+                  <div className={styles.techHint} style={{ marginTop: 'var(--space-3)' }}>
+                    <span>💡</span>
+                    <span>
+                      Com SLA de <code>{stage.slaTargetMinutes}min</code>, alertas serão
+                      disparados quando a predição passar de{' '}
+                      <code>{Math.round(stage.slaTargetMinutes * (stage.slaWarnThreshold ?? 80) / 100)}min</code> (aviso),{' '}
+                      <code>{Math.round(stage.slaTargetMinutes * (stage.slaCriticalThreshold ?? 100) / 100)}min</code> (crítico)
+                      e{' '}
+                      <code>{Math.round(stage.slaTargetMinutes * (stage.slaBreachThreshold ?? 150) / 100)}min</code> (estouro).
+                    </span>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+
           {/* ─── Discussão colaborativa (diferencial vs Pipefy/Asana) ─── */}
           {workflowId && stage.id && user && (
             <>

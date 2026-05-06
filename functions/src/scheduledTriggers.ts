@@ -388,3 +388,55 @@ export const limpezaLixeira = onSchedule(
     }
   }
 );
+
+// ─────────────────────────────────────────────────────────────────────────────
+// CRON 3 — A cada 10 minutos — Recompute SLA Predictive
+//
+// Atualiza fact_form_response.sla_status e dispara escalations automáticas
+// para todas as instances ativas. O endpoint chamado também escreve audit
+// events de severity=warn/critical conforme o status piora.
+// ─────────────────────────────────────────────────────────────────────────────
+export const recomputeSlaPredictions = onSchedule(
+  {
+    schedule:       "every 10 minutes",
+    timeZone:       "America/Sao_Paulo",
+    memory:         "256MiB",
+    timeoutSeconds: 540,
+  },
+  async (_event) => {
+    const apiBase = bravoformApiUrl.value();
+    if (!apiBase) {
+      logger.warn("⚠️ BRAVOFORM_API_URL não configurada — SLA recompute pulado.");
+      return;
+    }
+
+    logger.info("📊 [SLA] Recomputing predictions for all active instances");
+
+    try {
+      const res = await fetch(`${apiBase}/api/sla/forecast`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({}),
+      });
+
+      if (!res.ok) {
+        logger.warn(`⚠️ SLA recompute HTTP ${res.status}`);
+        return;
+      }
+
+      const json = await res.json();
+      logger.info(`✅ SLA recompute concluído`, {
+        processed: json.processed,
+        escalations: json.escalations,
+      });
+
+      if (json.escalations > 0) {
+        logger.warn(`🚨 ${json.escalations} escalation(s) detectada(s) neste ciclo`, {
+          detail: json.escalationsDetail?.slice(0, 10),
+        });
+      }
+    } catch (error) {
+      logger.error("❌ Erro no SLA recompute:", error);
+    }
+  }
+);

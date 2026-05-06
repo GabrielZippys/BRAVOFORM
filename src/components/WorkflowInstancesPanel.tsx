@@ -44,6 +44,10 @@ interface Instance {
   submittedAt: string;
   approvedAt?: string;
   rejectionReason?: string;
+  // SLA preditivo
+  slaStatus?: 'ok' | 'at_risk' | 'critical' | 'breached' | 'no_target' | null;
+  slaPercentOfTarget?: number | null;
+  slaTargetMinutes?: number | null;
 }
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; icon: any }> = {
@@ -98,6 +102,9 @@ export default function WorkflowInstancesPanel({ workflowId: _workflowId }: Prop
         submittedAt: r.submittedAt || '',
         approvedAt: r.approvedAt || undefined,
         rejectionReason: r.rejectionReason || undefined,
+        slaStatus: r.slaStatus || undefined,
+        slaPercentOfTarget: r.slaPercentOfTarget || undefined,
+        slaTargetMinutes: r.slaTargetMinutes || undefined,
       })),
     [streamInstances]
   );
@@ -280,13 +287,18 @@ export default function WorkflowInstancesPanel({ workflowId: _workflowId }: Prop
                     </div>
                     </div>
                   </div>
-                  <span style={{
-                    display: 'flex', alignItems: 'center', gap: 4,
-                    padding: '3px 10px', borderRadius: 999, fontSize: 11, fontWeight: 600,
-                    background: `${cfg.color}20`, color: cfg.color,
-                  }}>
-                    <StatusIcon size={12} /> {cfg.label}
-                  </span>
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4 }}>
+                    <span style={{
+                      display: 'flex', alignItems: 'center', gap: 4,
+                      padding: '3px 10px', borderRadius: 999, fontSize: 11, fontWeight: 600,
+                      background: `${cfg.color}20`, color: cfg.color,
+                    }}>
+                      <StatusIcon size={12} /> {cfg.label}
+                    </span>
+                    {r.slaStatus && r.slaStatus !== 'ok' && r.slaStatus !== 'no_target' && (
+                      <SlaBadge status={r.slaStatus} percent={r.slaPercentOfTarget ?? null} />
+                    )}
+                  </div>
                 </div>
 
                 {(r.motorista || r.placa) && (
@@ -407,6 +419,53 @@ function btnStyle(color: string): React.CSSProperties {
  * Padrão dos SaaS modernos (Linear, Notion) — dá confiança ao usuário
  * de que os dados estão atualizados.
  */
+/**
+ * Badge de SLA preditivo no card.
+ * Visualmente destacado para chamar atenção sem poluir.
+ */
+function SlaBadge({
+  status,
+  percent,
+}: {
+  status: 'at_risk' | 'critical' | 'breached' | 'ok' | 'no_target';
+  percent: number | null;
+}) {
+  const config = {
+    at_risk:   { label: 'SLA em risco',  color: '#D97706', bg: '#FEF3C7', icon: '⚠️' },
+    critical:  { label: 'SLA crítico',   color: '#DC2626', bg: '#FEE2E2', icon: '🔥' },
+    breached:  { label: 'SLA estourado', color: '#7F1D1D', bg: '#FECACA', icon: '🚨' },
+    ok:        { label: 'No prazo',      color: '#059669', bg: '#D1FAE5', icon: '✓' },
+    no_target: { label: '',              color: '',        bg: '',        icon: '' },
+  }[status];
+
+  if (!config.label) return null;
+
+  return (
+    <span
+      style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: 4,
+        padding: '2px 8px',
+        borderRadius: 999,
+        fontSize: 10,
+        fontWeight: 700,
+        background: config.bg,
+        color: config.color,
+        textTransform: 'uppercase',
+        letterSpacing: 0.5,
+      }}
+      title={percent ? `Predição: ${percent.toFixed(0)}% do tempo alvo` : config.label}
+    >
+      <span style={{ fontSize: 12 }}>{config.icon}</span>
+      {config.label}
+      {percent !== null && (
+        <span style={{ opacity: 0.7, fontWeight: 500 }}>· {percent.toFixed(0)}%</span>
+      )}
+    </span>
+  );
+}
+
 function StreamStatusBadge({
   status,
   lastUpdate,

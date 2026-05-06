@@ -427,6 +427,13 @@ export interface WorkflowStage {
   timer?: StageTimer; // Configuração de timer para etapas de aguardo
   validationConfig?: ValidationConfig; // Configuração de validação para etapas de validação
   trigger?: WorkflowTrigger; // Configuração de trigger automático para etapas de execução
+  // ── SLA Preditivo ────────────────────────────────────────────────────
+  slaTargetMinutes?: number;          // Tempo alvo da etapa em minutos (0 = sem SLA)
+  slaWarnThreshold?: number;          // % do alvo p/ alerta amarelo (default 80)
+  slaCriticalThreshold?: number;      // % do alvo p/ alerta vermelho (default 100)
+  slaBreachThreshold?: number;        // % do alvo p/ marcar breach (default 150)
+  slaEscalateToRole?: string;         // Papel a notificar em escalation
+  slaEscalateToEmails?: string[];     // E-mails extras a notificar
   order: number;
   isFinalStage: boolean;
   isInitialStage: boolean;

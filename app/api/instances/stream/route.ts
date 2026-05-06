@@ -77,6 +77,11 @@ interface InstanceRow {
   rejectionReason: string | null;
   setorEntrega: string | null;
   enderecoEntrega: string | null;
+  // SLA fields (do recompute periódico)
+  slaStatus: string | null;
+  slaPredictedMinutes: number | null;
+  slaTargetMinutes: number | null;
+  slaPercentOfTarget: number | null;
 }
 
 async function fetchSnapshot(): Promise<InstanceRow[]> {
@@ -100,7 +105,15 @@ async function fetchSnapshot(): Promise<InstanceRow[]> {
         fr.approved_at            AS "approvedAt",
         fr.rejection_reason       AS "rejectionReason",
         fr.setor_entrega          AS "setorEntrega",
-        fr.endereco_entrega       AS "enderecoEntrega"
+        fr.endereco_entrega       AS "enderecoEntrega",
+        fr.sla_status             AS "slaStatus",
+        fr.sla_predicted_minutes  AS "slaPredictedMinutes",
+        fr.sla_target_minutes     AS "slaTargetMinutes",
+        CASE
+          WHEN fr.sla_target_minutes > 0 AND fr.sla_predicted_minutes IS NOT NULL
+          THEN (fr.sla_predicted_minutes / fr.sla_target_minutes * 100)::numeric(10,1)
+          ELSE NULL
+        END                       AS "slaPercentOfTarget"
       FROM fact_form_response fr
       LEFT JOIN dim_forms df ON df.form_key = fr.form_key
       WHERE fr.deleted_at IS NULL

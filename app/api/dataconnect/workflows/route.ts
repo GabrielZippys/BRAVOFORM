@@ -55,6 +55,13 @@ function buildWorkflowFromStages(rows: any[]): any {
         allowedUsers: r.allowed_users_list || [],
         autoNotifications: r.auto_notifications || { email: false, whatsapp: false },
         color: r.color || '#8b5cf6',
+        // SLA preditivo
+        slaTargetMinutes: r.sla_target_minutes ?? undefined,
+        slaWarnThreshold: r.sla_warn_threshold ?? 80,
+        slaCriticalThreshold: r.sla_critical_threshold ?? 100,
+        slaBreachThreshold: r.sla_breach_threshold ?? 150,
+        slaEscalateToRole: r.sla_escalate_to_role ?? undefined,
+        slaEscalateToEmails: r.sla_escalate_to_emails ?? [],
       })),
   };
 }
@@ -95,7 +102,13 @@ export async function GET(request: NextRequest) {
           require_comment,
           require_attachments,
           assigned_users,
-          color
+          color,
+          sla_target_minutes,
+          sla_warn_threshold,
+          sla_critical_threshold,
+          sla_breach_threshold,
+          sla_escalate_to_role,
+          sla_escalate_to_emails
         FROM dim_workflow_stages
         WHERE workflow_fb_id = $1
         ORDER BY stage_order ASC
@@ -198,6 +211,10 @@ export async function POST(request: NextRequest) {
       // Reordenar para garantir contiguidade (caso venha com gaps)
       const orderedStages = [...stages].sort((a: any, b: any) => (a.order ?? 0) - (b.order ?? 0));
 
+      // Garante colunas SLA antes do INSERT (idempotente)
+      const { ensureSlaSchema } = await import('@/lib/db/slaMigration');
+      await ensureSlaSchema(client);
+
       for (let idx = 0; idx < orderedStages.length; idx++) {
         const stage = orderedStages[idx];
         const isFirst = idx === 0;
@@ -209,8 +226,13 @@ export async function POST(request: NextRequest) {
             stage_name, stage_description, stage_type, stage_order,
             is_initial, is_final, require_comment, require_attachments,
             assigned_users, color, is_active,
-            created_by, created_by_name, companies, departments
-          ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19)
+            created_by, created_by_name, companies, departments,
+            sla_target_minutes, sla_warn_threshold, sla_critical_threshold, sla_breach_threshold,
+            sla_escalate_to_role, sla_escalate_to_emails
+          ) VALUES (
+            $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,
+            $20,$21,$22,$23,$24,$25
+          )
         `, [
           stage.id || `${workflowId}_stage_${idx}`,
           workflowId,
@@ -231,6 +253,12 @@ export async function POST(request: NextRequest) {
           createdByName || '',
           JSON.stringify(companies || []),
           JSON.stringify(departments || []),
+          stage.slaTargetMinutes || null,
+          stage.slaWarnThreshold ?? 80,
+          stage.slaCriticalThreshold ?? 100,
+          stage.slaBreachThreshold ?? 150,
+          stage.slaEscalateToRole || null,
+          JSON.stringify(stage.slaEscalateToEmails || []),
         ]);
       }
     } else {

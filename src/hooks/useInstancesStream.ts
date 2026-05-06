@@ -34,6 +34,11 @@ export interface StreamInstance {
   rejectionReason: string | null;
   setorEntrega: string | null;
   enderecoEntrega: string | null;
+  // SLA preditivo
+  slaStatus?: 'ok' | 'at_risk' | 'critical' | 'breached' | 'no_target' | null;
+  slaPredictedMinutes?: number | null;
+  slaTargetMinutes?: number | null;
+  slaPercentOfTarget?: number | null;
 }
 
 export type StreamStatus = 'connecting' | 'connected' | 'disconnected' | 'error' | 'fallback';
