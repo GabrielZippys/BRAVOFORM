@@ -2,12 +2,16 @@
 
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Plus, Edit, Trash2, Eye, Copy, BarChart3 } from 'lucide-react';
+import { Plus, Edit, Trash2, Eye, Copy, BarChart3, Workflow as WorkflowIcon, ListChecks } from 'lucide-react';
 import { WorkflowServicePg } from '@/services/workflowServicePg';
 import { useAuth } from '@/hooks/useAuth';
 import type { WorkflowStage } from '@/types';
 import WorkflowSetupModal from '@/components/WorkflowSetupModal';
+import WorkflowInstancesPanel from '@/components/WorkflowInstancesPanel';
+import WorkflowMetricsPanel from '@/components/WorkflowMetricsPanel';
 import styles from '../../styles/BravoFlow.module.css';
+
+type TabId = 'workflows' | 'instances' | 'metrics';
 
 interface WorkflowTemplate {
   id: string;
@@ -29,6 +33,7 @@ export default function BravoFlowPage() {
   const [editingWorkflow, setEditingWorkflow] = useState<WorkflowTemplate | null>(null);
   const [deleteConfirmModal, setDeleteConfirmModal] = useState<{ show: boolean; workflowId: string | null }>({ show: false, workflowId: null });
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState<TabId>('workflows');
 
   useEffect(() => {
     if (!loading && !user) {
@@ -151,36 +156,60 @@ export default function BravoFlowPage() {
     <div className={styles.container}>
       <div className={styles.header}>
         <h1>BravoFlow</h1>
-        <div style={{ display: 'flex', gap: 12 }}>
-          <button
-            onClick={() => router.push('/dashboard/bravoflow/metrics')}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 8,
-              padding: '10px 18px',
-              background: '#fff',
-              color: '#3b82f6',
-              border: '1.5px solid #3b82f6',
-              borderRadius: 8,
-              cursor: 'pointer',
-              fontWeight: 600,
-              fontSize: 14,
-              transition: 'all 0.15s',
-            }}
-            title="Ver métricas e estatísticas dos workflows"
-          >
-            <BarChart3 size={18} />
-            Métricas
-          </button>
+        {activeTab === 'workflows' && (
           <button onClick={handleCreateNew} className={styles.btnCreate}>
             <Plus size={20} />
             Novo Workflow
           </button>
-        </div>
+        )}
       </div>
 
-      {workflows.length === 0 ? (
+      {/* Tabs: Workflows | Instâncias | Métricas */}
+      <div style={{
+        display: 'flex',
+        gap: 4,
+        borderBottom: '2px solid #e5e7eb',
+        marginBottom: '1.5rem',
+        paddingLeft: '0.25rem',
+      }}>
+        {([
+          { id: 'workflows' as const, label: 'Workflows', icon: WorkflowIcon, hint: 'Templates de fluxo' },
+          { id: 'instances' as const, label: 'Instâncias', icon: ListChecks, hint: 'Fila de execução com ações' },
+          { id: 'metrics'   as const, label: 'Métricas',   icon: BarChart3,  hint: 'KPIs e SLA' },
+        ]).map(tab => {
+          const Icon = tab.icon;
+          const active = activeTab === tab.id;
+          return (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              title={tab.hint}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
+                padding: '12px 20px',
+                background: 'transparent',
+                color: active ? '#3b82f6' : '#6b7280',
+                border: 'none',
+                borderBottom: active ? '3px solid #3b82f6' : '3px solid transparent',
+                marginBottom: '-2px',
+                cursor: 'pointer',
+                fontWeight: active ? 600 : 500,
+                fontSize: 14,
+                transition: 'all 0.15s',
+              }}
+            >
+              <Icon size={16} /> {tab.label}
+            </button>
+          );
+        })}
+      </div>
+
+      {activeTab === 'instances' && <WorkflowInstancesPanel />}
+      {activeTab === 'metrics'   && <WorkflowMetricsPanel />}
+
+      {activeTab === 'workflows' && (workflows.length === 0 ? (
           <div className={styles.emptyState}>
             <div className={styles.emptyIcon}>📊</div>
             <h2>Nenhum workflow criado ainda</h2>
@@ -298,7 +327,7 @@ export default function BravoFlowPage() {
             </div>
           ))}
         </div>
-      )}
+      ))}
 
       {isEditModalOpen && editingWorkflow && (
         <WorkflowSetupModal
