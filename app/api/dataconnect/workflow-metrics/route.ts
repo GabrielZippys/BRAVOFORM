@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getPool } from '@/lib/db/postgresql';
+import { ensureWorkflowSchema } from '@/lib/db/workflowMigration';
 
 /**
  * GET /api/dataconnect/workflow-metrics
@@ -25,6 +26,9 @@ export async function GET(request: NextRequest) {
   const pool = getPool();
   const client = await pool.connect();
   try {
+    // Garante que as colunas do BravoFlow existam (idempotente)
+    await ensureWorkflowSchema(client);
+
     const { searchParams } = new URL(request.url);
     const formId    = searchParams.get('formId');
     const companyId = searchParams.get('companyId');

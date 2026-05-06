@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getPool } from '@/lib/db/postgresql';
+import { ensureWorkflowSchema } from '@/lib/db/workflowMigration';
 
 /**
  * POST /api/dataconnect/workflow-action
@@ -39,6 +40,9 @@ export async function POST(request: NextRequest) {
   const client = await pool.connect();
 
   try {
+    // Garante que as colunas do BravoFlow existam (idempotente)
+    await ensureWorkflowSchema(client);
+
     const body = await request.json();
     const {
       responseId,

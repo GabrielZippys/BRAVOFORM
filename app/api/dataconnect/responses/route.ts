@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getPool } from '@/lib/db/postgresql';
+import { ensureWorkflowSchema } from '@/lib/db/workflowMigration';
 
 /**
  * GET  /api/dataconnect/responses
@@ -40,6 +41,9 @@ export async function GET(request: NextRequest) {
         ADD COLUMN IF NOT EXISTS deleted_by_username VARCHAR(255)
     `);
 
+    // Garante schema do BravoFlow (motorista, placa, replica_count, etc.)
+    await ensureWorkflowSchema(client);
+
     if (id) {
       const r = await client.query(`
         SELECT
@@ -55,11 +59,28 @@ export async function GET(request: NextRequest) {
           COALESCE(dd.name, fr.department_name, '') AS "departmentName",
           dcol.firebase_id          AS "collaboratorId",
           fr.status,
+          fr.current_stage_fb_id,
           fr.submitted_at           AS "submittedAt",
           fr.created_at             AS "createdAt",
           fr.deleted_at             AS "deletedAt",
           fr.deleted_by             AS "deletedBy",
-          fr.deleted_by_username    AS "deletedByUsername"
+          fr.deleted_by_username    AS "deletedByUsername",
+          -- BravoFlow / workflow Retirada
+          fr.approved_at,
+          fr.rejected_at,
+          fr.rejection_reason,
+          fr.parent_response_fb_id,
+          fr.replica_count,
+          fr.motorista,
+          fr.placa,
+          fr.boletim,
+          fr.protocolo_cancelamento,
+          fr.motivo_cancelamento,
+          fr.setor_entrega,
+          fr.endereco_entrega,
+          fr.dias_entrega,
+          fr.produto_existe_nf,
+          fr.pdf_nota_fiscal_url
         FROM fact_form_response fr
         LEFT JOIN dim_forms         df   ON df.form_key         = fr.form_key
         LEFT JOIN dim_companies     dc   ON dc.company_key      = fr.company_key
@@ -193,11 +214,28 @@ export async function GET(request: NextRequest) {
         COALESCE(dd.name, fr.department_name, '')     AS "departmentName",
         dcol.firebase_id          AS "collaboratorId",
         fr.status,
+        fr.current_stage_fb_id,
         fr.submitted_at           AS "submittedAt",
         fr.created_at             AS "createdAt",
         fr.deleted_at             AS "deletedAt",
         fr.deleted_by             AS "deletedBy",
-        fr.deleted_by_username    AS "deletedByUsername"
+        fr.deleted_by_username    AS "deletedByUsername",
+        -- BravoFlow / workflow Retirada
+        fr.approved_at,
+        fr.rejected_at,
+        fr.rejection_reason,
+        fr.parent_response_fb_id,
+        fr.replica_count,
+        fr.motorista,
+        fr.placa,
+        fr.boletim,
+        fr.protocolo_cancelamento,
+        fr.motivo_cancelamento,
+        fr.setor_entrega,
+        fr.endereco_entrega,
+        fr.dias_entrega,
+        fr.produto_existe_nf,
+        fr.pdf_nota_fiscal_url
       FROM fact_form_response fr
       LEFT JOIN dim_forms         df   ON df.form_key         = fr.form_key
       LEFT JOIN dim_companies     dc   ON dc.company_key      = fr.company_key
