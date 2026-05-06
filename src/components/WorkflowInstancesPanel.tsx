@@ -74,7 +74,9 @@ export default function WorkflowInstancesPanel({ workflowId: _workflowId }: Prop
   const loadInstances = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch('/api/dataconnect/responses?limit=200');
+      // workflowOnly=true filtra no SQL: só respostas de forms com workflow
+      // habilitado, ou que já tenham dados de roteirização/aprovação.
+      const res = await fetch('/api/dataconnect/responses?workflowOnly=true&limit=500');
       const json = await res.json();
       if (!json.success) throw new Error(json.error);
       const mapped: Instance[] = (json.data || []).map((r: any) => ({
@@ -97,9 +99,7 @@ export default function WorkflowInstancesPanel({ workflowId: _workflowId }: Prop
         approvedAt: r.approved_at,
         rejectionReason: r.rejection_reason,
       }));
-      // Mostra apenas instâncias workflow-relevantes (com status do workflow)
-      const workflowStatuses = ['pending', 'approved', 'rejected', 'in_routing', 'in_pickup', 'completed', 'cancelled'];
-      setInstances(mapped.filter(i => workflowStatuses.includes(i.status)));
+      setInstances(mapped);
     } catch (e) {
       console.error('Erro ao carregar instâncias:', e);
     } finally {
@@ -188,7 +188,17 @@ export default function WorkflowInstancesPanel({ workflowId: _workflowId }: Prop
       ) : filtered.length === 0 ? (
         <div style={{ background: '#fff', padding: 60, borderRadius: 12, textAlign: 'center', color: '#9ca3af', border: '1px solid #e5e7eb' }}>
           <PackageCheck size={48} style={{ margin: '0 auto 12px', opacity: 0.5 }} />
-          <p style={{ margin: 0 }}>Nenhuma instância encontrada com os filtros atuais.</p>
+          <p style={{ margin: '0 0 6px', fontWeight: 500, color: '#6b7280' }}>
+            {instances.length === 0
+              ? 'Nenhuma instância de workflow ainda.'
+              : 'Nenhuma instância encontrada com os filtros atuais.'}
+          </p>
+          {instances.length === 0 && (
+            <p style={{ margin: 0, fontSize: 13, color: '#9ca3af', maxWidth: 480, marginInline: 'auto' }}>
+              Esta aba mostra apenas respostas de formulários que tenham um workflow vinculado
+              (campo "Workflow" habilitado nas configurações do formulário).
+            </p>
+          )}
         </div>
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(380px, 1fr))', gap: 16 }}>

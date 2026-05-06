@@ -32,6 +32,12 @@ export async function GET(request: NextRequest) {
     const userId      = searchParams.get('userId');
     const search      = searchParams.get('search');
     const lim         = parseInt(searchParams.get('limit') || '1000', 10);
+    // Filtra apenas instâncias de workflow (não respostas de forms simples).
+    // Uma instância qualifica se:
+    //   a) o form tem workflow habilitado (fields_json -> isWorkflowEnabled / defaultWorkflowId), OU
+    //   b) a resposta já entrou em algum estágio (current_stage_fb_id IS NOT NULL), OU
+    //   c) tem dados de roteirização/operação (motorista, placa, boletim, protocolo)
+    const workflowOnly = searchParams.get('workflowOnly') === 'true';
 
     // Ensure deleted_at column exists
     await client.query(`
@@ -198,6 +204,22 @@ export async function GET(request: NextRequest) {
       conditions.push(`(fr.form_title ILIKE $${p} OR fr.collaborator_username ILIKE $${p})`);
       params.push(`%${search}%`);
       p++;
+    }
+    if (workflowOnly) {
+      conditions.push(`(
+        fr.current_stage_fb_id IS NOT NULL
+        OR fr.motorista IS NOT NULL
+        OR fr.placa IS NOT NULL
+        OR fr.boletim IS NOT NULL
+        OR fr.protocolo_cancelamento IS NOT NULL
+        OR fr.approved_at IS NOT NULL
+        OR fr.rejected_at IS NOT NULL
+        OR (df.fields_json IS NOT NULL AND (
+              df.fields_json->>'isWorkflowEnabled' = 'true'
+              OR (df.fields_json->>'defaultWorkflowId' IS NOT NULL
+                  AND df.fields_json->>'defaultWorkflowId' <> '')
+            ))
+      )`);
     }
 
     const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
