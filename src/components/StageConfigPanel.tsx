@@ -5,7 +5,7 @@ import { X, Tag, Type, Palette, MessageSquare, Paperclip, CheckCircle, Users, Bu
 import { collection, getDocs, query, where } from 'firebase/firestore';
 import { db } from '../../firebase/config';
 import type { WorkflowStage, Department, Collaborator } from '@/types';
-import { STAGE_TYPES, getDefaultColorForType } from '@/utils/stageTypes';
+import { STAGE_TYPES, getDefaultColorForType, getStageTypeDefinition, getAdvanceLabel } from '@/utils/stageTypes';
 import FormSelectionModal from './FormSelectionModal';
 import TriggerConfigPanel from './TriggerConfigPanel';
 import styles from '../../app/styles/StageConfigPanel.module.css';
@@ -16,14 +16,26 @@ interface StageConfigPanelProps {
   onClose: () => void;
   workflowCompanies?: string[];
   workflowDepartments?: string[];
+  /** Posição da etapa no workflow (1-indexed). Usado para exibir "Etapa 1 de N". */
+  stagePosition?: number;
+  /** Total de etapas no workflow. */
+  totalStages?: number;
+  /** Indica se esta é a primeira etapa (entrada do workflow). */
+  isFirstStage?: boolean;
+  /** Indica se esta é a última etapa (sem saída). */
+  isLastStage?: boolean;
 }
 
-export default function StageConfigPanel({ 
-  stage, 
-  onUpdate, 
+export default function StageConfigPanel({
+  stage,
+  onUpdate,
   onClose,
   workflowCompanies = [],
-  workflowDepartments = []
+  workflowDepartments = [],
+  stagePosition,
+  totalStages,
+  isFirstStage,
+  isLastStage,
 }: StageConfigPanelProps) {
   const [forms, setForms] = useState<any[]>([]);
   const [departments, setDepartments] = useState<Department[]>([]);
@@ -193,40 +205,123 @@ export default function StageConfigPanel({
           height: '100%'
         }}
       >
-        <div className={styles.header}>
-          <h3>Configurar Etapa: {stage.name}</h3>
-          <button onClick={onClose} className={styles.btnClose}>
-            <X size={20} />
-          </button>
-        </div>
+        {(() => {
+          const currentDef = getStageTypeDefinition(stage.stageType);
+          const positionLabel = stagePosition && totalStages
+            ? `Etapa ${stagePosition} de ${totalStages}`
+            : 'Etapa';
+          return (
+            <>
+              <div className={styles.headerV2}>
+                <div className={styles.headerTopRow}>
+                  <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                    <span className={styles.positionBadge}>
+                      #{stagePosition ?? '?'} · {positionLabel}
+                    </span>
+                    {isFirstStage && (
+                      <span className={`${styles.positionBadge} ${styles.initial}`}>
+                        🏁 INÍCIO DO FLOW
+                      </span>
+                    )}
+                    {isLastStage && !isFirstStage && (
+                      <span className={`${styles.positionBadge} ${styles.final}`}>
+                        🎯 FIM
+                      </span>
+                    )}
+                  </div>
+                  <button onClick={onClose} className={styles.btnClose}>
+                    <X size={20} />
+                  </button>
+                </div>
+                <div className={styles.stageTitleRow}>
+                  <div
+                    className={styles.stageIconBox}
+                    style={{ background: `${stage.color}25`, color: stage.color }}
+                  >
+                    {currentDef.icon}
+                  </div>
+                  <h3 className={styles.stageNameInline}>
+                    {stage.name || 'Etapa sem nome'}
+                  </h3>
+                </div>
+              </div>
+
+              {/* Resumo técnico — o que esta etapa fará em runtime */}
+              <div className={styles.techSummary}>
+                <div className={styles.techSummaryTitle}>
+                  <AlertCircle size={12} />
+                  Como esta etapa funciona
+                </div>
+                <p className={styles.techSummaryBody}>{currentDef.behavior}</p>
+                <div className={styles.techSummaryGrid}>
+                  <div className={styles.techSummaryItem}>
+                    <strong>Avanço:</strong>
+                    <span>{getAdvanceLabel(currentDef.whoAdvances)}</span>
+                  </div>
+                  <div className={styles.techSummaryItem}>
+                    <strong>Recebe:</strong>
+                    <span>{currentDef.inputs.join(' · ')}</span>
+                  </div>
+                  <div className={styles.techSummaryItem}>
+                    <strong>Produz:</strong>
+                    <span>{currentDef.outputs.join(' · ')}</span>
+                  </div>
+                  {isFirstStage && (
+                    <div className={styles.techSummaryItem} style={{ marginTop: 4, color: '#065F46', fontWeight: 600 }}>
+                      <strong>⚡ Ponto de entrada:</strong>
+                      <span>Toda nova instância deste workflow começa aqui.</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </>
+          );
+        })()}
 
         <div className={styles.content}>
-          {/* Tipo de Etapa */}
-          <div className={styles.section}>
-            <div className={styles.labelWithIcon}>
-              <Tag size={18} />
-              <label>Tipo de Etapa</label>
+          {/* Tipo de Etapa — Cards técnicos em grid */}
+          <div className={styles.sectionGroup}>
+            <div className={styles.sectionGroupHeader}>
+              <Tag size={12} />
+              Tipo de Etapa (define o comportamento)
             </div>
-            <select
-              value={stage.stageType}
-              onChange={(e) => {
-                const newType = e.target.value as any;
-                onUpdate({ 
-                  stageType: newType,
-                  color: getDefaultColorForType(newType)
-                });
-              }}
-              className={styles.input}
-            >
-              {STAGE_TYPES.map((type) => (
-                <option key={type.type} value={type.type}>
-                  {type.icon} {type.label}
-                </option>
-              ))}
-            </select>
-            <p className={styles.hint}>
-              {STAGE_TYPES.find(t => t.type === stage.stageType)?.description}
-            </p>
+            <div className={styles.sectionGroupBody}>
+              <div className={styles.typeCardGrid}>
+                {STAGE_TYPES.map((type) => {
+                  const isActive = stage.stageType === type.type;
+                  return (
+                    <button
+                      key={type.type}
+                      type="button"
+                      className={`${styles.typeCard} ${isActive ? styles.active : ''}`}
+                      onClick={() => onUpdate({
+                        stageType: type.type,
+                        color: getDefaultColorForType(type.type),
+                      })}
+                      style={{
+                        ['--type-color' as any]: type.color,
+                        ['--type-bg' as any]: `${type.color}15`,
+                        ['--type-shadow' as any]: `${type.color}30`,
+                      }}
+                      title={type.behavior}
+                    >
+                      <div className={styles.typeCardHeader}>
+                        <span className={styles.typeCardIcon}>{type.icon}</span>
+                        <span className={styles.typeCardLabel}>{type.label}</span>
+                      </div>
+                      <div className={styles.typeCardDesc}>{type.description}</div>
+                    </button>
+                  );
+                })}
+              </div>
+              <div className={styles.techHint}>
+                <span>💡</span>
+                <span>
+                  Exemplos para <strong>{getStageTypeDefinition(stage.stageType).label}</strong>:{' '}
+                  <code>{getStageTypeDefinition(stage.stageType).examples}</code>
+                </span>
+              </div>
+            </div>
           </div>
 
           {/* Nome e Cor lado a lado */}

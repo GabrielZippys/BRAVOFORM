@@ -180,13 +180,29 @@ export async function POST(request: NextRequest) {
     await client.query('BEGIN');
 
     if (stages && stages.length > 0) {
-      // Substituição completa: deletar stages antigas e inserir novas
+      // ⚠️ INVARIANTES garantidas no backend:
+      //   1) `stage_order` é sempre um inteiro contíguo começando em 0
+      //   2) A etapa com `stage_order = 0` é SEMPRE marcada como inicial
+      //   3) A última etapa (sem aresta de saída no canvas) é marcada como final
+      //
+      // Mesmo que o frontend envie order/isInitialStage incorretos, o backend
+      // recalcula a ordem com base na posição no array recebido (que já vem
+      // ordenado por posição X do canvas).
+      //
+      // Substituição completa: deleta stages antigas e insere novas
       await client.query(
         'DELETE FROM dim_workflow_stages WHERE workflow_fb_id = $1',
         [workflowId]
       );
 
-      for (const stage of stages) {
+      // Reordenar para garantir contiguidade (caso venha com gaps)
+      const orderedStages = [...stages].sort((a: any, b: any) => (a.order ?? 0) - (b.order ?? 0));
+
+      for (let idx = 0; idx < orderedStages.length; idx++) {
+        const stage = orderedStages[idx];
+        const isFirst = idx === 0;
+        const isLast  = idx === orderedStages.length - 1;
+
         await client.query(`
           INSERT INTO dim_workflow_stages (
             firebase_id, workflow_fb_id, workflow_name, description,
@@ -196,16 +212,16 @@ export async function POST(request: NextRequest) {
             created_by, created_by_name, companies, departments
           ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19)
         `, [
-          stage.id || `${workflowId}_stage_${stage.order ?? 0}`,
+          stage.id || `${workflowId}_stage_${idx}`,
           workflowId,
           name,
           description || '',
           stage.name,
           stage.description || '',
           stage.stageType || stage.type || 'validation',
-          stage.order ?? 0,
-          stage.isInitialStage ?? stage.isInitial ?? false,
-          stage.isFinalStage ?? stage.isFinal ?? false,
+          idx,                                       // stage_order — SEMPRE contíguo de 0..N
+          isFirst,                                   // is_initial — SEMPRE a primeira
+          isLast || (stage.isFinalStage ?? false),   // is_final — última OU marcada
           stage.requireComment || false,
           stage.requireAttachments || false,
           JSON.stringify(stage.assignedUsers || []),

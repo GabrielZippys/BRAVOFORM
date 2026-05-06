@@ -17,7 +17,7 @@ import ReactFlow, {
   getBezierPath,
 } from 'reactflow';
 import 'reactflow/dist/style.css';
-import { Plus, Save, Settings, Trash2, GitBranch, Eye, Power, PowerOff } from 'lucide-react';
+import { Plus, Save, Settings, Trash2, GitBranch, Eye, Power, PowerOff, Sparkles, ArrowLeft, ArrowRight } from 'lucide-react';
 import type { WorkflowStage, RoutingCondition, ActivationSettings, ActivationMode } from '@/types';
 import { WorkflowServicePg as WorkflowService } from '@/services/workflowServicePg';
 import { useAuth } from '@/hooks/useAuth';
@@ -27,6 +27,7 @@ import ConfirmModal from './ConfirmModal';
 import RoutingConditionModal from './RoutingConditionModal';
 import CustomEdge from './CustomEdge';
 import ActivationSettingsModal from './ActivationSettingsModal';
+import WorkflowPresetPicker from './WorkflowPresetPicker';
 import { useConfirm } from '@/hooks/useConfirm';
 import styles from '../../app/styles/WorkflowCanvas.module.css';
 
@@ -82,6 +83,7 @@ export default function WorkflowCanvas({
   const [selectedSourceStage, setSelectedSourceStage] = useState<string | null>(null);
   const [stageCounter, setStageCounter] = useState(1);
   const [showActivationSettings, setShowActivationSettings] = useState(false);
+  const [showPresetPicker, setShowPresetPicker] = useState(false);
   const { confirm, alert, confirmState } = useConfirm();
 
   // Inicializar com stages existentes
@@ -91,10 +93,11 @@ export default function WorkflowCanvas({
         id: stage.id,
         type: 'stageNode',
         position: { x: 100 + (index * 250), y: 100 },
-        data: { 
+        data: {
           stage,
           onDelete: handleDeleteNode,
-          onEdit: handleEditNode
+          onEdit: handleEditNode,
+          onReorder: handleReorderNode,
         },
       }));
 
@@ -148,22 +151,40 @@ export default function WorkflowCanvas({
   }, []);
 
   const handleDeleteNode = useCallback(async (nodeId: string, stageName: string) => {
-    const confirmed = await confirm({
-      title: 'Excluir Etapa',
-      message: `Tem certeza que deseja excluir a etapa "${stageName}"?`,
-      confirmText: 'Excluir',
-      cancelText: 'Cancelar',
-      isDanger: true
-    });
+    // Identifica se é a primeira etapa (entrada do workflow)
+    // Ordenação por posição X no canvas (mais à esquerda = mais cedo)
+    const sortedByX = [...nodes].sort((a, b) => a.position.x - b.position.x);
+    const isFirstStage = sortedByX.length > 0 && sortedByX[0].id === nodeId;
 
-    if (confirmed) {
-      setNodes((nds) => nds.filter((node) => node.id !== nodeId));
-      setEdges((eds) => eds.filter((edge) => edge.source !== nodeId && edge.target !== nodeId));
-      if (selectedNode?.id === nodeId) {
-        setSelectedNode(null);
-      }
+    if (isFirstStage && nodes.length > 1) {
+      const goAhead = await confirm({
+        title: '⚠️ Excluir etapa de ENTRADA do workflow',
+        message:
+          `"${stageName}" é a primeira etapa — todo novo flow começa por aqui.\n\n` +
+          `Se excluir, a próxima etapa à direita virará automaticamente a nova etapa inicial.\n\n` +
+          `Tem certeza?`,
+        confirmText: 'Sim, excluir mesmo assim',
+        cancelText: 'Cancelar',
+        isDanger: true,
+      });
+      if (!goAhead) return;
+    } else {
+      const confirmed = await confirm({
+        title: 'Excluir Etapa',
+        message: `Tem certeza que deseja excluir a etapa "${stageName}"?`,
+        confirmText: 'Excluir',
+        cancelText: 'Cancelar',
+        isDanger: true,
+      });
+      if (!confirmed) return;
     }
-  }, [selectedNode, confirm]);
+
+    setNodes((nds) => nds.filter((node) => node.id !== nodeId));
+    setEdges((eds) => eds.filter((edge) => edge.source !== nodeId && edge.target !== nodeId));
+    if (selectedNode?.id === nodeId) {
+      setSelectedNode(null);
+    }
+  }, [selectedNode, confirm, nodes]);
 
   const handleEditNode = useCallback((nodeId: string) => {
     console.log('handleEditNode called with:', nodeId);
@@ -178,6 +199,75 @@ export default function WorkflowCanvas({
     });
   }, []);
 
+  /**
+   * Reordena uma etapa no fluxo (move para esquerda ou direita).
+   * A ordem visual no canvas é definida pela posição X — etapa mais à
+   * esquerda = etapa mais cedo no fluxo. A primeira (esquerda) é sempre
+   * a etapa de entrada das novas instâncias.
+   */
+  const handleReorderNode = useCallback((nodeId: string, direction: 'left' | 'right') => {
+    setNodes((currentNodes) => {
+      const sorted = [...currentNodes].sort((a, b) => a.position.x - b.position.x);
+      const idx = sorted.findIndex(n => n.id === nodeId);
+      if (idx === -1) return currentNodes;
+
+      const swapWith = direction === 'left' ? idx - 1 : idx + 1;
+      if (swapWith < 0 || swapWith >= sorted.length) return currentNodes;
+
+      // Troca as posições X entre as duas etapas
+      const xA = sorted[idx].position.x;
+      const xB = sorted[swapWith].position.x;
+
+      return currentNodes.map(n => {
+        if (n.id === sorted[idx].id) return { ...n, position: { ...n.position, x: xB } };
+        if (n.id === sorted[swapWith].id) return { ...n, position: { ...n.position, x: xA } };
+        return n;
+      });
+    });
+  }, []);
+
+  /** Aplica um preset de workflow — substitui as etapas atuais */
+  const handleApplyPreset = useCallback((stages: WorkflowStage[]) => {
+    if (stages.length === 0) {
+      // "Em branco" — limpa o canvas
+      setNodes([]);
+      setEdges([]);
+      return;
+    }
+
+    // Cria nodes a partir das stages do preset, posicionados em sequência
+    const newNodes: Node[] = stages.map((stage, idx) => ({
+      id: stage.id,
+      type: 'stageNode',
+      position: { x: 100 + (idx * 250), y: 100 },
+      data: {
+        stage,
+        onDelete: handleDeleteNode,
+        onEdit: handleEditNode,
+        onReorder: handleReorderNode,
+      },
+    }));
+
+    // Cria edges sequenciais entre as etapas
+    const newEdges: Edge[] = [];
+    for (let i = 0; i < stages.length - 1; i++) {
+      newEdges.push({
+        id: `e${stages[i].id}-${stages[i + 1].id}`,
+        source: stages[i].id,
+        target: stages[i + 1].id,
+        type: 'custom',
+        animated: true,
+        markerEnd: { type: MarkerType.ArrowClosed, width: 20, height: 20, color: '#3B82F6' },
+        style: { strokeWidth: 2, stroke: '#3B82F6' },
+        data: { hasMultiplePaths: false },
+      });
+    }
+
+    setNodes(newNodes);
+    setEdges(newEdges);
+    setStageCounter(stages.length + 1);
+  }, [handleDeleteNode, handleEditNode]);
+
   // Detectar se uma etapa tem múltiplos caminhos de saída
   const getOutgoingEdges = useCallback((nodeId: string) => {
     return edges.filter(edge => edge.source === nodeId);
@@ -188,33 +278,47 @@ export default function WorkflowCanvas({
     setIsRoutingModalOpen(true);
   }, []);
 
-  // Atualizar marcação de etapa final e múltiplos caminhos sempre que nodes mudarem
+  // Atualizar marcação de etapa final, múltiplos caminhos, posição e flag de
+  // entrada do workflow sempre que nodes/edges mudarem.
+  // A ordem visual é determinada pela posição X — quem está mais à esquerda
+  // é a primeira etapa (entrada do workflow para novas instâncias).
   useEffect(() => {
     if (nodes.length > 0) {
-      setNodes((currentNodes) => 
-        currentNodes.map((node) => {
+      setNodes((currentNodes) => {
+        const sortedByX = [...currentNodes].sort((a, b) => a.position.x - b.position.x);
+        const total = sortedByX.length;
+
+        return currentNodes.map((node) => {
+          const position = sortedByX.findIndex(n => n.id === node.id) + 1; // 1-indexed
+          const isFirstStage = position === 1;
+
           const outgoingEdges = edges.filter(e => e.source === node.id);
           const hasMultiplePaths = outgoingEdges.length > 1;
-          
-          // Etapa é final se não tem conexões de saída (é uma folha)
           const isFinalStage = outgoingEdges.length === 0;
-          
+
           return {
             ...node,
             data: {
               ...node.data,
               stage: {
                 ...node.data.stage,
-                isFinalStage
+                isFinalStage,
+                isInitialStage: isFirstStage,
+                order: position - 1, // 0-indexed para o backend
               },
+              stagePosition: position,
+              totalStages: total,
+              isFirstStage,
+              isLastStage: isFinalStage,
               hasMultiplePaths,
-              onConfigureRouting: () => handleConfigureRouting(node.id)
-            }
+              onConfigureRouting: () => handleConfigureRouting(node.id),
+              onReorder: handleReorderNode,
+            },
           };
-        })
-      );
+        });
+      });
     }
-  }, [nodes.length, edges.length, handleConfigureRouting]);
+  }, [nodes.length, edges.length, handleConfigureRouting, handleReorderNode]);
 
   const handleAddStage = useCallback(() => {
     // Encontrar o maior número de etapa existente
@@ -252,19 +356,20 @@ export default function WorkflowCanvas({
     const newNode: Node = {
       id: newStage.id,
       type: 'stageNode',
-      position: { 
-        x: 100 + (nodes.length * 250), 
+      position: {
+        x: 100 + (nodes.length * 250),
         y: 100 + Math.floor(nodes.length / 4) * 150
       },
-      data: { 
+      data: {
         stage: newStage,
         onDelete: handleDeleteNode,
-        onEdit: handleEditNode
+        onEdit: handleEditNode,
+        onReorder: handleReorderNode,
       },
     };
 
     setNodes((nds) => [...nds, newNode]);
-  }, [nodes.length, handleDeleteNode, handleEditNode]);
+  }, [nodes.length, handleDeleteNode, handleEditNode, handleReorderNode]);
 
   const onConnect = useCallback(
     (params: Connection) => {
@@ -390,15 +495,19 @@ export default function WorkflowCanvas({
 
     setIsSaving(true);
     try {
-      const stages: WorkflowStage[] = nodes.map((node, index) => {
-        // Verificar se esta etapa tem conexões de saída
+      // ⚠️ CRÍTICO: a ordem das etapas é determinada pela posição X no canvas.
+      // Etapa mais à esquerda = order 0 = entrada do workflow (primeira etapa).
+      // Etapa sem aresta de saída = etapa final.
+      const sortedByX = [...nodes].sort((a, b) => a.position.x - b.position.x);
+
+      const stages: WorkflowStage[] = sortedByX.map((node, index) => {
         const hasOutgoingEdges = edges.some(e => e.source === node.id);
-        
+
         return {
           ...node.data.stage,
           order: index,
-          // Marcar como final se não tem conexões de saída (é folha)
-          isFinalStage: !hasOutgoingEdges
+          isInitialStage: index === 0,                       // primeira sempre é a inicial
+          isFinalStage: !hasOutgoingEdges,                   // sem saída = final
         };
       });
 
@@ -471,8 +580,17 @@ export default function WorkflowCanvas({
               <Plus size={20} />
               Adicionar Etapa
             </button>
-            <button 
-              onClick={handleSave} 
+            <button
+              onClick={() => setShowPresetPicker(true)}
+              className={styles.btnAdd}
+              style={{ background: '#8B5CF6' }}
+              title="Aplicar um preset técnico de workflow"
+            >
+              <Sparkles size={20} />
+              Usar Preset
+            </button>
+            <button
+              onClick={handleSave}
               disabled={isSaving || nodes.length === 0}
               className={styles.btnSave}
             >
@@ -515,9 +633,20 @@ export default function WorkflowCanvas({
             onClose={() => setSelectedNode(null)}
             workflowCompanies={workflowCompanies}
             workflowDepartments={workflowDepartments}
+            stagePosition={selectedNode.data.stagePosition}
+            totalStages={selectedNode.data.totalStages}
+            isFirstStage={selectedNode.data.isFirstStage}
+            isLastStage={selectedNode.data.isLastStage}
           />
         </>
       )}
+
+      <WorkflowPresetPicker
+        isOpen={showPresetPicker}
+        onClose={() => setShowPresetPicker(false)}
+        onSelect={handleApplyPreset}
+        willOverwrite={nodes.length > 0}
+      />
 
       {isRoutingModalOpen && selectedSourceStage && (
         <RoutingConditionModal

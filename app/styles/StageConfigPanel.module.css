@@ -345,3 +345,222 @@ select.input {
   font-weight: 600;
   color: #374151;
 }
+
+/* ─── v2: UX/UI técnica e explícita ─────────────────────────────── */
+
+/* Header redesenhado */
+.headerV2 {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 1.25rem 1.5rem;
+  border-bottom: 2px solid #E5E7EB;
+  background: linear-gradient(180deg, #F9FAFB 0%, #FFFFFF 100%);
+}
+
+.headerTopRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.positionBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  background: #E0E7FF;
+  color: #3730A3;
+  letter-spacing: 0.3px;
+}
+
+.positionBadge.initial {
+  background: #D1FAE5;
+  color: #065F46;
+}
+
+.positionBadge.final {
+  background: #DBEAFE;
+  color: #1E40AF;
+}
+
+.stageTitleRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.stageIconBox {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  font-size: 1.25rem;
+  flex-shrink: 0;
+}
+
+.stageNameInline {
+  flex: 1;
+  font-size: 1rem;
+  font-weight: 700;
+  color: #111827;
+  margin: 0;
+}
+
+/* Resumo técnico (o que esta etapa fará) */
+.techSummary {
+  margin: 0.75rem 1.5rem 0;
+  padding: 0.875rem;
+  background: #F0F9FF;
+  border: 1px solid #BAE6FD;
+  border-left: 4px solid #0EA5E9;
+  border-radius: 8px;
+}
+
+.techSummaryTitle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: #0369A1;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 6px;
+}
+
+.techSummaryBody {
+  font-size: 0.825rem;
+  color: #0C4A6E;
+  line-height: 1.5;
+  margin: 0;
+}
+
+.techSummaryGrid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 6px;
+  margin-top: 8px;
+  font-size: 0.75rem;
+  color: #075985;
+}
+
+.techSummaryItem {
+  display: flex;
+  gap: 6px;
+}
+
+.techSummaryItem strong {
+  color: #0C4A6E;
+  font-weight: 700;
+  min-width: 76px;
+}
+
+/* Cards de tipo de etapa (substituem o dropdown) */
+.typeCardGrid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.typeCard {
+  background: #fff;
+  border: 2px solid #E5E7EB;
+  border-radius: 8px;
+  padding: 0.75rem;
+  cursor: pointer;
+  transition: all 0.15s;
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.typeCard:hover {
+  border-color: #9CA3AF;
+  background: #F9FAFB;
+}
+
+.typeCard.active {
+  border-color: var(--type-color, #3B82F6);
+  background: var(--type-bg, #EFF6FF);
+  box-shadow: 0 0 0 3px var(--type-shadow, rgba(59, 130, 246, 0.15));
+}
+
+.typeCardHeader {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.typeCardIcon {
+  font-size: 1.1rem;
+}
+
+.typeCardLabel {
+  font-size: 0.825rem;
+  font-weight: 700;
+  color: #111827;
+}
+
+.typeCardDesc {
+  font-size: 0.7rem;
+  color: #6B7280;
+  line-height: 1.35;
+}
+
+/* Grupos de seções (Identificação, Comportamento, Permissões, Notificações) */
+.sectionGroup {
+  margin-bottom: 1.25rem;
+  background: #fff;
+  border: 1px solid #E5E7EB;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.sectionGroupHeader {
+  padding: 0.625rem 0.875rem;
+  background: #F9FAFB;
+  border-bottom: 1px solid #E5E7EB;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #6B7280;
+}
+
+.sectionGroupBody {
+  padding: 0.875rem;
+}
+
+/* Hint técnico (com contraste maior) */
+.techHint {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  margin-top: 8px;
+  padding: 8px 10px;
+  background: #F9FAFB;
+  border-radius: 6px;
+  font-size: 0.7rem;
+  color: #4B5563;
+  line-height: 1.4;
+}
+
+.techHint code {
+  background: #E5E7EB;
+  padding: 1px 5px;
+  border-radius: 3px;
+  font-family: 'Courier New', monospace;
+  font-size: 0.7rem;
+  color: #111827;
+}
