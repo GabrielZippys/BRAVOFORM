@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getPool } from '@/lib/db/postgresql';
 import { ensureWorkflowSchema } from '@/lib/db/workflowMigration';
+import { auditLog, AuditEventType } from '@/lib/audit';
+import { rateLimitMutation, rateLimitRead } from '@/lib/rateLimit';
+import { logger } from '@/lib/logger';
 
 /**
  * GET  /api/dataconnect/responses
@@ -278,6 +281,9 @@ export async function GET(request: NextRequest) {
 }
 
 export async function PATCH(request: NextRequest) {
+  const rl = await rateLimitMutation(request);
+  if (!rl.ok) return rl.response;
+
   const pool = getPool();
   const client = await pool.connect();
   try {
@@ -291,6 +297,12 @@ export async function PATCH(request: NextRequest) {
         'UPDATE fact_form_response SET deleted_at=NULL, deleted_by=NULL, deleted_by_username=NULL WHERE firebase_id=$1',
         [id]
       );
+      await auditLog({
+        eventType: AuditEventType.RESPONSE_RESTORED,
+        actor: { id: deletedBy || 'unknown', username: deletedByUsername },
+        target: { type: 'response', id },
+        request,
+      });
     } else {
       // soft-delete — aceita data customizada (para migração) ou usa NOW()
       const ts = deletedAt ? new Date(deletedAt) : new Date();
@@ -298,11 +310,19 @@ export async function PATCH(request: NextRequest) {
         'UPDATE fact_form_response SET deleted_at=$2, deleted_by=$3, deleted_by_username=$4 WHERE firebase_id=$1',
         [id, ts, deletedBy || 'admin', deletedByUsername || 'Administrador']
       );
+      await auditLog({
+        eventType: AuditEventType.RESPONSE_DELETED,
+        severity: 'warn',
+        actor: { id: deletedBy || 'admin', username: deletedByUsername },
+        target: { type: 'response', id },
+        payload: { softDelete: true, deletedAt: ts.toISOString() },
+        request,
+      });
     }
 
     return NextResponse.json({ success: true });
   } catch (error: any) {
-    console.error('❌ Erro ao atualizar resposta:', error.message);
+    logger.error('Erro ao atualizar resposta', error);
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   } finally {
     client.release();
@@ -310,6 +330,10 @@ export async function PATCH(request: NextRequest) {
 }
 
 export async function DELETE(request: NextRequest) {
+  // Rate limit MUITO agressivo em deleção permanente
+  const rl = await rateLimitMutation(request);
+  if (!rl.ok) return rl.response;
+
   const pool = getPool();
   const client = await pool.connect();
   try {
@@ -319,8 +343,9 @@ export async function DELETE(request: NextRequest) {
 
     await client.query('BEGIN');
     // Buscar response_key
-    const r = await client.query('SELECT response_key FROM fact_form_response WHERE firebase_id=$1', [id]);
-    const rk = r.rows[0]?.response_key;
+    const r = await client.query('SELECT response_key, form_title, collaborator_username FROM fact_form_response WHERE firebase_id=$1', [id]);
+    const row = r.rows[0];
+    const rk = row?.response_key;
     if (rk) {
       await client.query('DELETE FROM fact_answers          WHERE response_key=$1', [rk]);
       await client.query('DELETE FROM fact_order_items      WHERE response_key=$1', [rk]);
@@ -330,10 +355,25 @@ export async function DELETE(request: NextRequest) {
       await client.query('DELETE FROM fact_form_response    WHERE response_key=$1', [rk]);
     }
     await client.query('COMMIT');
+
+    // Audit CRÍTICO: deleção permanente
+    await auditLog({
+      eventType: AuditEventType.RESPONSE_DELETED,
+      severity: 'critical',
+      target: { type: 'response', id, label: row?.form_title },
+      payload: {
+        permanent: true,
+        responseKey: rk,
+        formTitle: row?.form_title,
+        solicitante: row?.collaborator_username,
+      },
+      request,
+    });
+
     return NextResponse.json({ success: true });
   } catch (error: any) {
     await client.query('ROLLBACK').catch(() => {});
-    console.error('❌ Erro ao deletar resposta:', error.message);
+    logger.error('Erro ao deletar resposta', error);
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   } finally {
     client.release();

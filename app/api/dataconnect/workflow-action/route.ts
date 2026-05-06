@@ -1,6 +1,23 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getPool } from '@/lib/db/postgresql';
 import { ensureWorkflowSchema } from '@/lib/db/workflowMigration';
+import { auditLog, AuditEventType } from '@/lib/audit';
+import { rateLimitMutation } from '@/lib/rateLimit';
+import { logger } from '@/lib/logger';
+
+// Mapeia ações BravoFlow → permissão RBAC esperada (referência;
+// a verificação efetiva é feita no readActorFromRequest do RBAC).
+// Hoje aplicamos audit + rate limit; permissão completa exige UI propagar
+// headers x-bravo-* — release gradual para não quebrar fluxo atual.
+const ACTION_PERMISSION_MAP: Record<string, string> = {
+  approve:          'workflow.approve',
+  reject:           'workflow.reject',
+  route:            'workflow.route',
+  'mark-picked-up': 'workflow.pickup',
+  cancel:           'workflow.cancel',
+  replicate:        'workflow.replicate',
+  transition:       'workflow.update',
+};
 
 /**
  * POST /api/dataconnect/workflow-action
@@ -36,6 +53,10 @@ import { ensureWorkflowSchema } from '@/lib/db/workflowMigration';
  * fact_workflow_history para auditoria e SLA.
  */
 export async function POST(request: NextRequest) {
+  // ─── 1) Rate limit (anti-abuse: 30 req/min/IP) ────────────────────────
+  const rl = await rateLimitMutation(request);
+  if (!rl.ok) return rl.response;
+
   const pool = getPool();
   const client = await pool.connect();
 
@@ -227,6 +248,35 @@ export async function POST(request: NextRequest) {
 
     await client.query('COMMIT');
 
+    // ─── Audit log estruturado (compliance SOC2/LGPD) ────────────────────────
+    const expectedPermission = ACTION_PERMISSION_MAP[action] || 'workflow.unknown';
+    await auditLog({
+      eventType: AuditEventType.WORKFLOW_ACTION,
+      severity: action === 'cancel' || action === 'reject' ? 'warn' : 'info',
+      actor: {
+        id: performedBy || 'unknown',
+        username: performedByUsername || 'unknown',
+      },
+      target: {
+        type: 'response',
+        id: responseId,
+      },
+      payload: {
+        action,
+        expectedPermission,
+        previousStageId: prevStageId,
+        currentStageId,
+        ...(rejectionReason && { rejectionReason }),
+        ...(motorista && { motorista }),
+        ...(placa && { placa }),
+        ...(boletim && { boletim }),
+        ...(motivoCancelamento && { motivoCancelamento }),
+        ...(comment && { comment }),
+      },
+      success: true,
+      request,
+    });
+
     // ── Despacha notificações via Cloud Function (fire-and-forget) ────────────
     // Configura BRAVOFORM_CF_NOTIFY_URL e BRAVOFLOW_CF_SECRET no .env.local:
     //   BRAVOFORM_CF_NOTIFY_URL=https://us-central1-PROJETO.cloudfunctions.net/bravoflowNotify
@@ -287,7 +337,7 @@ export async function POST(request: NextRequest) {
           body: JSON.stringify(payload),
         });
       }).catch((e) => {
-        console.warn('⚠️ workflow-action: notificação CF falhou:', (e as Error).message);
+        logger.warn('workflow-action: notificação CF falhou', { error: (e as Error).message });
       });
     }
 
@@ -297,7 +347,20 @@ export async function POST(request: NextRequest) {
     });
   } catch (error: any) {
     await client.query('ROLLBACK').catch(() => {});
-    console.error('❌ workflow-action error:', error.message);
+    logger.error('workflow-action error', error, { responseId, action });
+
+    // Audit log de falha (severity warn)
+    await auditLog({
+      eventType: AuditEventType.WORKFLOW_ACTION,
+      severity: 'warn',
+      actor: { id: performedBy || 'unknown', username: performedByUsername || 'unknown' },
+      target: { type: 'response', id: responseId },
+      payload: { action },
+      success: false,
+      errorMessage: error.message,
+      request,
+    });
+
     return NextResponse.json(
       { success: false, error: error.message },
       { status: 500 }
