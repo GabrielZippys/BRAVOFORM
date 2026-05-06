@@ -20,7 +20,7 @@
 
 .panel {
   width: 100%;
-  max-width: 500px;
+  max-width: 680px;
   height: 100%;
   background: white;
   box-shadow: -4px 0 12px rgba(0, 0, 0, 0.1);
@@ -464,9 +464,15 @@ select.input {
 /* Cards de tipo de etapa (substituem o dropdown) */
 .typeCardGrid {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
+  grid-template-columns: repeat(3, 1fr);
   gap: 8px;
   margin-top: 8px;
+}
+
+@media (max-width: 600px) {
+  .typeCardGrid {
+    grid-template-columns: repeat(2, 1fr);
+  }
 }
 
 .typeCard {

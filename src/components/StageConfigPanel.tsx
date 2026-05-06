@@ -193,14 +193,14 @@ export default function StageConfigPanel({
         display: 'flex'
       }}
     >
-      <div 
-        className={styles.panel} 
+      <div
+        className={styles.panel}
         onClick={(e) => e.stopPropagation()}
         style={{
           position: 'relative',
           zIndex: 100000,
           background: 'white',
-          maxWidth: '500px',
+          maxWidth: '680px',
           width: '100%',
           height: '100%'
         }}
@@ -303,7 +303,6 @@ export default function StageConfigPanel({
                         ['--type-bg' as any]: `${type.color}15`,
                         ['--type-shadow' as any]: `${type.color}30`,
                       }}
-                      title={type.behavior}
                     >
                       <div className={styles.typeCardHeader}>
                         <span className={styles.typeCardIcon}>{type.icon}</span>
