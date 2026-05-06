@@ -9,6 +9,9 @@ import { Request, Response } from "express";
 // Importar triggers de workflow
 export * from "./workflowTriggers";
 
+// Importar funções agendadas (cron 19h30 + limpeza lixeira)
+export * from "./scheduledTriggers";
+
 admin.initializeApp();
 const db = admin.firestore();
 
