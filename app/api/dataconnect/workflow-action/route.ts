@@ -227,6 +227,70 @@ export async function POST(request: NextRequest) {
 
     await client.query('COMMIT');
 
+    // ── Despacha notificações via Cloud Function (fire-and-forget) ────────────
+    // Configura BRAVOFORM_CF_NOTIFY_URL e BRAVOFLOW_CF_SECRET no .env.local:
+    //   BRAVOFORM_CF_NOTIFY_URL=https://us-central1-PROJETO.cloudfunctions.net/bravoflowNotify
+    //   BRAVOFLOW_CF_SECRET=mesmo-valor-de-BRAVOFLOW_NOTIFY_SECRET-nas-functions
+    //
+    // Busca dados extras (formTitle, solicitante) para enriquecer a notificação
+    const cfNotifyUrl = process.env.BRAVOFORM_CF_NOTIFY_URL;
+    if (cfNotifyUrl) {
+      // Busca dados de exibição (best-effort, não bloqueia a resposta)
+      client.query(`
+        SELECT
+          COALESCE(fr.form_title, df.title, '') AS form_title,
+          fr.collaborator_username              AS solicitante_username,
+          dcol.firebase_id                      AS solicitante_id,
+          dc.firebase_id                        AS company_id,
+          fr.setor_entrega,
+          fr.endereco_entrega,
+          fr.motorista,
+          fr.placa,
+          fr.boletim,
+          fr.rejection_reason,
+          fr.protocolo_cancelamento,
+          fr.motivo_cancelamento
+        FROM fact_form_response fr
+        LEFT JOIN dim_forms         df   ON df.form_key        = fr.form_key
+        LEFT JOIN dim_companies     dc   ON dc.company_key     = fr.company_key
+        LEFT JOIN dim_collaborators dcol ON dcol.collaborator_key = fr.collaborator_key
+        WHERE fr.firebase_id = $1
+      `, [responseId]).then((r) => {
+        const row = r.rows[0] || {};
+        const payload = {
+          action,
+          responseId,
+          formTitle:             row.form_title,
+          companyId:             row.company_id,
+          solicitanteId:         row.solicitante_id,
+          solicitanteUsername:   row.solicitante_username,
+          performedByUsername:   performedByUsername || performedBy,
+          // Campos específicos por ação (do body original)
+          motorista:             motorista || row.motorista,
+          placa:                 placa || row.placa,
+          boletim:               boletim || row.boletim,
+          rejectionReason:       rejectionReason || row.rejection_reason,
+          protocoloCancelamento: protocoloCancelamento || row.protocolo_cancelamento,
+          motivoCancelamento:    motivoCancelamento || row.motivo_cancelamento,
+          setorEntrega:          setorEntrega || row.setor_entrega,
+          enderecoEntrega:       enderecoEntrega || row.endereco_entrega,
+          diasEntrega,
+          newStatus,
+          comment,
+        };
+        return fetch(cfNotifyUrl, {
+          method:  'POST',
+          headers: {
+            'Content-Type':          'application/json',
+            'x-bravoflow-secret':    process.env.BRAVOFLOW_CF_SECRET || '',
+          },
+          body: JSON.stringify(payload),
+        });
+      }).catch((e) => {
+        console.warn('⚠️ workflow-action: notificação CF falhou:', (e as Error).message);
+      });
+    }
+
     return NextResponse.json({
       success: true,
       data: { responseId, action, previousStageId: prevStageId },

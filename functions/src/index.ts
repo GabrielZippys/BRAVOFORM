@@ -6,13 +6,18 @@ import { Twilio } from "twilio";
 import { defineString } from "firebase-functions/params";
 import { Request, Response } from "express";
 
-// Importar triggers de workflow
+// ✅ CRÍTICO: initializeApp() ANTES dos re-exports.
+// Os módulos filhos (workflowTriggers, scheduledTriggers) usam acessores
+// lazy (getDb()), mas initializeApp() deve ser chamado antes de qualquer
+// execução de handler. Colocar aqui garante isso.
+admin.initializeApp();
+
+// Importar triggers de workflow (usa lazy getDb() — sem risco de ordem)
 export * from "./workflowTriggers";
 
 // Importar funções agendadas (cron 19h30 + limpeza lixeira)
 export * from "./scheduledTriggers";
 
-admin.initializeApp();
 const db = admin.firestore();
 
 // Define config parameters
