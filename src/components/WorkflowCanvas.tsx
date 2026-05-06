@@ -17,7 +17,7 @@ import ReactFlow, {
   getBezierPath,
 } from 'reactflow';
 import 'reactflow/dist/style.css';
-import { Plus, Save, Settings, Trash2, GitBranch, Eye, Power, PowerOff, Sparkles, ArrowLeft, ArrowRight } from 'lucide-react';
+import { Plus, Save, Settings, Trash2, GitBranch, Eye, Power, PowerOff, Sparkles, ArrowLeft, ArrowRight, Wand2 } from 'lucide-react';
 import type { WorkflowStage, RoutingCondition, ActivationSettings, ActivationMode } from '@/types';
 import { WorkflowServicePg as WorkflowService } from '@/services/workflowServicePg';
 import { useAuth } from '@/hooks/useAuth';
@@ -28,6 +28,7 @@ import RoutingConditionModal from './RoutingConditionModal';
 import CustomEdge from './CustomEdge';
 import ActivationSettingsModal from './ActivationSettingsModal';
 import WorkflowPresetPicker from './WorkflowPresetPicker';
+import WorkflowAIGenerator from './WorkflowAIGenerator';
 import { useConfirm } from '@/hooks/useConfirm';
 import styles from '../../app/styles/WorkflowCanvas.module.css';
 
@@ -84,6 +85,7 @@ export default function WorkflowCanvas({
   const [stageCounter, setStageCounter] = useState(1);
   const [showActivationSettings, setShowActivationSettings] = useState(false);
   const [showPresetPicker, setShowPresetPicker] = useState(false);
+  const [showAIGenerator, setShowAIGenerator] = useState(false);
   const { confirm, alert, confirmState } = useConfirm();
 
   // Inicializar com stages existentes
@@ -590,6 +592,18 @@ export default function WorkflowCanvas({
               Usar Preset
             </button>
             <button
+              onClick={() => setShowAIGenerator(true)}
+              className={styles.btnAdd}
+              style={{
+                background: 'linear-gradient(135deg, #3B82F6 0%, #8B5CF6 100%)',
+                fontWeight: 600,
+              }}
+              title="Descreva seu processo em português e a IA monta as etapas"
+            >
+              <Wand2 size={20} />
+              Gerar com IA
+            </button>
+            <button
               onClick={handleSave}
               disabled={isSaving || nodes.length === 0}
               className={styles.btnSave}
@@ -645,6 +659,13 @@ export default function WorkflowCanvas({
         isOpen={showPresetPicker}
         onClose={() => setShowPresetPicker(false)}
         onSelect={handleApplyPreset}
+        willOverwrite={nodes.length > 0}
+      />
+
+      <WorkflowAIGenerator
+        isOpen={showAIGenerator}
+        onClose={() => setShowAIGenerator(false)}
+        onApply={(stages) => handleApplyPreset(stages)}
         willOverwrite={nodes.length > 0}
       />
 

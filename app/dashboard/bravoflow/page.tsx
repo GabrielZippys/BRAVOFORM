@@ -9,6 +9,9 @@ import type { WorkflowStage } from '@/types';
 import WorkflowSetupModal from '@/components/WorkflowSetupModal';
 import WorkflowInstancesPanel from '@/components/WorkflowInstancesPanel';
 import WorkflowMetricsPanel from '@/components/WorkflowMetricsPanel';
+import ErrorBoundary from '@/components/ErrorBoundary';
+import { SkeletonList } from '@/components/Skeleton';
+import { logger } from '@/lib/logger';
 import styles from '../../styles/BravoFlow.module.css';
 
 type TabId = 'workflows' | 'instances' | 'metrics';
@@ -52,7 +55,7 @@ export default function BravoFlowPage() {
       const workflowsData = await WorkflowServicePg.listWorkflows();
       setWorkflows(workflowsData as WorkflowTemplate[]);
     } catch (error) {
-      console.error('Erro ao carregar workflows:', error);
+      logger.error('Erro ao carregar workflows', error);
     } finally {
       setIsLoading(false);
     }
@@ -83,7 +86,7 @@ export default function BravoFlowPage() {
       setEditingWorkflow(null);
       loadWorkflows();
     } catch (error) {
-      console.error('Erro ao atualizar workflow:', error);
+      logger.error('Erro ao atualizar workflow', error);
       alert('Erro ao atualizar workflow');
     }
   };
@@ -104,7 +107,7 @@ export default function BravoFlowPage() {
       setWorkflows(workflows.filter(w => w.id !== deleteConfirmModal.workflowId));
       setDeleteConfirmModal({ show: false, workflowId: null });
     } catch (error) {
-      console.error('Erro ao excluir workflow:', error);
+      logger.error('Erro ao excluir workflow', error);
       alert('Erro ao excluir workflow');
     }
   };
@@ -117,7 +120,7 @@ export default function BravoFlowPage() {
         w.id === workflowId ? { ...w, isActive: !currentStatus } : w
       ));
     } catch (error) {
-      console.error('Erro ao atualizar status:', error);
+      logger.error('Erro ao atualizar status do workflow', error);
       alert('Erro ao atualizar status do workflow');
     }
   };
@@ -138,19 +141,27 @@ export default function BravoFlowPage() {
       );
       loadWorkflows();
     } catch (error) {
-      console.error('Erro ao duplicar workflow:', error);
+      logger.error('Erro ao duplicar workflow', error);
       alert('Erro ao duplicar workflow');
     }
   };
 
-  if (loading || isLoading) {
+  if (loading) {
     return (
-      <div className={styles.loading}>
-        <div className={styles.spinner}></div>
-        <p>Carregando workflows...</p>
+      <div className={styles.container}>
+        <div className={styles.header}>
+          <h1>BravoFlow</h1>
+        </div>
+        <SkeletonList count={6} variant="card" />
       </div>
     );
   }
+
+  const TABS = [
+    { id: 'workflows' as const, label: 'Workflows', icon: WorkflowIcon, hint: 'Templates de fluxo' },
+    { id: 'instances' as const, label: 'Instâncias', icon: ListChecks, hint: 'Fila de execução com ações' },
+    { id: 'metrics'   as const, label: 'Métricas',   icon: BarChart3,  hint: 'KPIs e SLA' },
+  ];
 
   return (
     <div className={styles.container}>
@@ -165,40 +176,19 @@ export default function BravoFlowPage() {
       </div>
 
       {/* Tabs: Workflows | Instâncias | Métricas */}
-      <div style={{
-        display: 'flex',
-        gap: 4,
-        borderBottom: '2px solid #e5e7eb',
-        marginBottom: '1.5rem',
-        paddingLeft: '0.25rem',
-      }}>
-        {([
-          { id: 'workflows' as const, label: 'Workflows', icon: WorkflowIcon, hint: 'Templates de fluxo' },
-          { id: 'instances' as const, label: 'Instâncias', icon: ListChecks, hint: 'Fila de execução com ações' },
-          { id: 'metrics'   as const, label: 'Métricas',   icon: BarChart3,  hint: 'KPIs e SLA' },
-        ]).map(tab => {
+      <div className={styles.tabs} role="tablist" aria-label="Seções do BravoFlow">
+        {TABS.map(tab => {
           const Icon = tab.icon;
           const active = activeTab === tab.id;
           return (
             <button
               key={tab.id}
+              role="tab"
+              aria-selected={active}
+              aria-controls={`tabpanel-${tab.id}`}
               onClick={() => setActiveTab(tab.id)}
               title={tab.hint}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 8,
-                padding: '12px 20px',
-                background: 'transparent',
-                color: active ? '#3b82f6' : '#6b7280',
-                border: 'none',
-                borderBottom: active ? '3px solid #3b82f6' : '3px solid transparent',
-                marginBottom: '-2px',
-                cursor: 'pointer',
-                fontWeight: active ? 600 : 500,
-                fontSize: 14,
-                transition: 'all 0.15s',
-              }}
+              className={`${styles.tab} ${active ? styles.tabActive : ''}`}
             >
               <Icon size={16} /> {tab.label}
             </button>
@@ -206,8 +196,18 @@ export default function BravoFlowPage() {
         })}
       </div>
 
-      {activeTab === 'instances' && <WorkflowInstancesPanel />}
-      {activeTab === 'metrics'   && <WorkflowMetricsPanel />}
+      <ErrorBoundary>
+        {activeTab === 'instances' && (
+          <div role="tabpanel" id="tabpanel-instances">
+            <WorkflowInstancesPanel />
+          </div>
+        )}
+        {activeTab === 'metrics' && (
+          <div role="tabpanel" id="tabpanel-metrics">
+            <WorkflowMetricsPanel />
+          </div>
+        )}
+      </ErrorBoundary>
 
       {activeTab === 'workflows' && (workflows.length === 0 ? (
           <div className={styles.emptyState}>
@@ -235,14 +235,9 @@ export default function BravoFlowPage() {
                 <div className={styles.cardActions}>
                   <button
                     onClick={(e) => handleToggleActive(e, workflow.id, workflow.isActive)}
-                    className={styles.actionButton}
+                    className={`${styles.toggleActiveBtn} ${workflow.isActive ? styles.toggleActive : styles.toggleInactive}`}
                     title={workflow.isActive ? 'Desativar Workflow' : 'Ativar Workflow'}
-                    style={{
-                      background: workflow.isActive ? '#10B981' : '#6B7280',
-                      color: 'white',
-                      borderRadius: '0.375rem',
-                      padding: '0.5rem'
-                    }}
+                    aria-label={workflow.isActive ? 'Desativar Workflow' : 'Ativar Workflow'}
                   >
                     <Eye size={18} />
                   </button>
@@ -279,22 +274,15 @@ export default function BravoFlowPage() {
 
               {/* Resumo de Ativação */}
               {(workflow as any).activationSettings && (
-                <div style={{ 
-                  marginTop: '0.75rem', 
-                  padding: '0.75rem', 
-                  background: '#F9FAFB', 
-                  borderRadius: '0.5rem',
-                  fontSize: '0.875rem',
-                  color: '#6B7280'
-                }}>
+                <div className={styles.activationBox}>
                   {(workflow as any).activationSettings.mode === 'automatic' && (
                     <>
-                      <div style={{ fontWeight: 500, color: '#3B82F6', marginBottom: '0.25rem' }}>
+                      <div className={`${styles.activationLabel} ${styles.modeAuto}`}>
                         🕐 Automático
                       </div>
                       <div>
                         {(workflow as any).activationSettings.automaticSchedule?.time || '09:00'} • {
-                          ((workflow as any).activationSettings.automaticSchedule?.daysOfWeek || []).length === 7 
+                          ((workflow as any).activationSettings.automaticSchedule?.daysOfWeek || []).length === 7
                             ? 'Todos os dias'
                             : ((workflow as any).activationSettings.automaticSchedule?.daysOfWeek || []).length === 5
                             ? 'Dias úteis'
@@ -304,12 +292,12 @@ export default function BravoFlowPage() {
                     </>
                   )}
                   {(workflow as any).activationSettings.mode === 'manual' && (
-                    <div style={{ fontWeight: 500, color: '#6B7280' }}>
+                    <div className={`${styles.activationLabel} ${styles.modeManual}`}>
                       👤 Criação Manual
                     </div>
                   )}
                   {(workflow as any).activationSettings.mode === 'on_request' && (
-                    <div style={{ fontWeight: 500, color: '#F59E0B' }}>
+                    <div className={`${styles.activationLabel} ${styles.modeOnRequest}`}>
                       📋 Por Requisição
                     </div>
                   )}
@@ -349,68 +337,31 @@ export default function BravoFlowPage() {
 
       {/* Modal de confirmação de exclusão */}
       {deleteConfirmModal.show && (
-        <div style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          background: 'rgba(0, 0, 0, 0.7)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 9999
-        }}>
-          <div style={{
-            background: '#1F2937',
-            borderRadius: '1rem',
-            padding: '2rem',
-            maxWidth: '400px',
-            width: '90%',
-            boxShadow: '0 20px 60px rgba(0, 0, 0, 0.5)'
-          }}>
-            <p style={{
-              margin: '0 0 2rem 0',
-              color: '#D1D5DB',
-              fontSize: '1rem',
-              lineHeight: '1.5'
-            }}>
-              Tem certeza que deseja excluir este workflow?
+        <div
+          className={styles.modalOverlay}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="delete-modal-title"
+          onClick={() => setDeleteConfirmModal({ show: false, workflowId: null })}
+        >
+          <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
+            <h2 id="delete-modal-title" className={styles.modalTitle}>
+              Excluir workflow?
+            </h2>
+            <p className={styles.modalBody}>
+              Tem certeza que deseja excluir este workflow? Todas as instâncias em
+              andamento serão preservadas no histórico, mas o template será removido
+              permanentemente.
             </p>
-            <div style={{
-              display: 'flex',
-              gap: '1rem',
-              justifyContent: 'flex-end'
-            }}>
+            <div className={styles.modalActions}>
               <button
                 onClick={() => setDeleteConfirmModal({ show: false, workflowId: null })}
-                style={{
-                  padding: '0.75rem 1.5rem',
-                  background: 'transparent',
-                  color: '#9CA3AF',
-                  border: 'none',
-                  borderRadius: '0.5rem',
-                  cursor: 'pointer',
-                  fontSize: '0.95rem',
-                  fontWeight: '500'
-                }}
+                className={styles.btnSecondary}
               >
                 Cancelar
               </button>
-              <button
-                onClick={confirmDelete}
-                style={{
-                  padding: '0.75rem 1.5rem',
-                  background: '#EC4899',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '0.5rem',
-                  cursor: 'pointer',
-                  fontSize: '0.95rem',
-                  fontWeight: '600'
-                }}
-              >
-                OK
+              <button onClick={confirmDelete} className={styles.btnDanger}>
+                Sim, excluir
               </button>
             </div>
           </div>

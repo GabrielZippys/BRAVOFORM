@@ -19,6 +19,8 @@ import {
   PackageCheck, Printer, User, Clock,
 } from 'lucide-react';
 import RetiradaActionModal from './RetiradaActionModal';
+import { SkeletonList } from './Skeleton';
+import { logger } from '@/lib/logger';
 
 interface Instance {
   id: string;
@@ -101,7 +103,7 @@ export default function WorkflowInstancesPanel({ workflowId: _workflowId }: Prop
       }));
       setInstances(mapped);
     } catch (e) {
-      console.error('Erro ao carregar instâncias:', e);
+      logger.error('Erro ao carregar instâncias', e);
     } finally {
       setLoading(false);
     }
@@ -184,7 +186,7 @@ export default function WorkflowInstancesPanel({ workflowId: _workflowId }: Prop
 
       {/* Lista */}
       {loading ? (
-        <div style={{ textAlign: 'center', padding: 60, color: '#6b7280' }}>Carregando...</div>
+        <SkeletonList count={6} variant="card" />
       ) : filtered.length === 0 ? (
         <div style={{ background: '#fff', padding: 60, borderRadius: 12, textAlign: 'center', color: '#9ca3af', border: '1px solid #e5e7eb' }}>
           <PackageCheck size={48} style={{ margin: '0 auto 12px', opacity: 0.5 }} />

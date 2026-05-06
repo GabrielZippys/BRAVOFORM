@@ -1,0 +1,49 @@
+/**
+ * Skeleton — animação shimmer.
+ *
+ * Usa um gradiente animado infinito para dar sensação de "carregando" suave,
+ * sem distração visual excessiva (não usa pulse — shimmer é mais profissional).
+ */
+
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    var(--color-gray-100) 0%,
+    var(--color-gray-200) 50%,
+    var(--color-gray-100) 100%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s var(--ease-in-out) infinite;
+  display: block;
+}
+
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+.card {
+  /* Wrapper para card skeleton — herda o estilo do card real */
+}
+
+/* Reduz movimento para usuários que preferem (acessibilidade) */
+@media (prefers-reduced-motion: reduce) {
+  .skeleton {
+    animation: none;
+    background: var(--color-gray-100);
+  }
+}
+
+/* Dark mode */
+@media (prefers-color-scheme: dark) {
+  :root[data-theme="auto"] .skeleton,
+  :root[data-theme="dark"] .skeleton {
+    background: linear-gradient(
+      90deg,
+      var(--color-gray-800) 0%,
+      var(--color-gray-700) 50%,
+      var(--color-gray-800) 100%
+    );
+    background-size: 200% 100%;
+  }
+}
