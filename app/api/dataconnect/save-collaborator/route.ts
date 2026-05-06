@@ -7,13 +7,15 @@ export async function POST(request: NextRequest) {
   
   try {
     const body = await request.json();
-    const { collaboratorId, uid, username, name, email, role, active,
-            companyId, departmentId, departmentName, 
+    const { collaboratorId, uid, username, name, email, role, roles, active,
+            companyId, departmentId, departmentName,
             isTemporaryPassword, canViewHistory, canEditHistory, permissions } = body;
 
     // permissions pode vir como objeto aninhado do Firestore
     const viewHistory = canViewHistory || permissions?.canViewHistory || false;
     const editHistory = canEditHistory || permissions?.canEditHistory || false;
+    // roles: lista opcional de papéis funcionais para o BravoFlow
+    const rolesArray = Array.isArray(roles) ? roles : (role ? [role] : []);
 
     // Resolver surrogate keys
     const companyRes = await client.query(
@@ -26,27 +28,35 @@ export async function POST(request: NextRequest) {
     );
     const deptKey = deptRes.rows[0]?.department_key || null;
 
+    // Garante que a coluna `roles` (JSONB) exista. Idempotente.
+    await client.query(`
+      ALTER TABLE dim_collaborators
+        ADD COLUMN IF NOT EXISTS roles JSONB DEFAULT '[]'::jsonb
+    `);
+
     await client.query(`
       INSERT INTO dim_collaborators (
-        firebase_id, uid, username, name, email, role, active,
+        firebase_id, uid, username, name, email, role, roles, active,
         company_key, department_key, department_name,
         can_view_history, can_edit_history, created_at
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, NOW())
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb, $8, $9, $10, $11, $12, $13, NOW())
       ON CONFLICT (firebase_id) DO UPDATE SET
         uid = COALESCE(EXCLUDED.uid, dim_collaborators.uid),
         username = EXCLUDED.username,
         name = EXCLUDED.name,
         email = EXCLUDED.email,
         role = EXCLUDED.role,
+        roles = EXCLUDED.roles,
         active = EXCLUDED.active,
         company_key = EXCLUDED.company_key,
         department_key = EXCLUDED.department_key,
         department_name = EXCLUDED.department_name,
         can_view_history = EXCLUDED.can_view_history,
         can_edit_history = EXCLUDED.can_edit_history
-    `, [collaboratorId, uid || null, username, name || username || '', 
-        email || null, role || 'collaborator', active !== false,
-        companyKey, deptKey, departmentName || '', 
+    `, [collaboratorId, uid || null, username, name || username || '',
+        email || null, role || 'Colaborador', JSON.stringify(rolesArray),
+        active !== false,
+        companyKey, deptKey, departmentName || '',
         viewHistory, editHistory]);
 
     console.log(`✅ PostgreSQL: colaborador ${collaboratorId} salvo (dim_collaborators)`);

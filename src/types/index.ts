@@ -12,6 +12,21 @@ export interface AppUser {
   createdAt?: Timestamp;
 }
 
+// --- ROLES DE COLABORADOR (BravoFlow) ---
+// Estes papéis controlam quem pode operar cada etapa de um workflow.
+// - Solicitante: abre solicitações (preenche formulário inicial)
+// - AprovadorQualidade: revisa e aprova/reprova solicitações
+// - Roteirizador: define motorista e placa, distribui retiradas
+// - OperadorRetirada: executa a retirada e digita boletim/protocolo
+// - Supervisor: papel genérico de revisor/aprovador (compatível com workflows não-Retirada)
+export type CollaboratorRole =
+  | 'Solicitante'
+  | 'AprovadorQualidade'
+  | 'Roteirizador'
+  | 'OperadorRetirada'
+  | 'Supervisor'
+  | 'Colaborador';
+
 // --- TIPO PARA COLABORADORES (GERENCIADOS NO FIRESTORE) ---
 export interface Collaborator {
   id: string;
@@ -23,6 +38,11 @@ export interface Collaborator {
   isTemporaryPassword?: boolean;
   canViewHistory?: boolean;
   canEditHistory?: boolean;
+  // Papel funcional dentro do BravoFlow (workflows). Default: 'Colaborador'.
+  role?: CollaboratorRole;
+  // Lista opcional de papéis adicionais — um colaborador pode ser
+  // simultaneamente Solicitante e AprovadorQualidade, por exemplo.
+  roles?: CollaboratorRole[];
   ref?: DocumentReference<DocumentData, DocumentData>;
 }
 
@@ -118,10 +138,26 @@ export interface FormResponse {
   collaboratorUsername: string; 
   answers: Record<string, any>;
   submittedAt: Timestamp;
-  status: 'pending' | 'approved' | 'rejected' | 'submitted';
+  status: 'pending' | 'approved' | 'rejected' | 'submitted' | 'cancelled' | 'in_routing' | 'in_pickup' | 'completed';
   deletedAt?: Timestamp | null;
   deletedBy?: string;
   deletedByUsername?: string;
+  // --- Aprovação / Réplica (BravoFlow) ---
+  rejectionReason?: string;          // Motivo da reprovação preenchido pelo aprovador
+  rejectedBy?: string;               // ID do colaborador que reprovou
+  rejectedByUsername?: string;       // Nome do colaborador que reprovou
+  rejectedAt?: Timestamp | null;     // Quando foi reprovado
+  parentResponseId?: string;         // Quando esta resposta é uma "réplica" (reenvio) de outra
+  replicaCount?: number;             // Quantas vezes foi reenviada (réplicas)
+  approvedBy?: string;
+  approvedByUsername?: string;
+  approvedAt?: Timestamp | null;
+  // --- Roteirização / Operação (workflow Retirada) ---
+  motorista?: string;
+  placa?: string;
+  boletim?: string;
+  protocoloCancelamento?: string;
+  motivoCancelamento?: string;
   // Workflow fields
   currentStageId?: string;
   previousStageId?: string;

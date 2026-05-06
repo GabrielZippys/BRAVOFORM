@@ -20,12 +20,23 @@ import { dualSave } from '@/services/dualSaveService';
 interface Company { id: string; name: string; }
 interface Department { id: string; name: string; companyId?: string; }
 interface AppUser { id: string; name: string; email: string; role: string; }
+type BravoFlowRole = 'Solicitante' | 'AprovadorQualidade' | 'Roteirizador' | 'OperadorRetirada' | 'Supervisor';
+const BRAVOFLOW_ROLES: { value: BravoFlowRole; label: string; color: string }[] = [
+  { value: 'Solicitante',        label: 'Solicitante',         color: '#3b82f6' },
+  { value: 'AprovadorQualidade', label: 'Aprovador Qualidade', color: '#8b5cf6' },
+  { value: 'Roteirizador',       label: 'Roteirizador',        color: '#f59e0b' },
+  { value: 'OperadorRetirada',   label: 'Operador Retirada',   color: '#10b981' },
+  { value: 'Supervisor',         label: 'Supervisor',          color: '#ef4444' },
+];
+
 interface Collaborator {
   id: string;
   username: string;
   canViewHistory?: boolean;
   canEditHistory?: boolean;
   isLeader?: boolean;
+  // BravoFlow: papéis funcionais (multi-seleção). Independente das permissões legadas.
+  bravoflowRoles?: BravoFlowRole[];
   permissions?: {
     canViewHistory?: boolean;
     canEditHistory?: boolean;
@@ -293,6 +304,39 @@ export default function UsersPage() {
     }
   };
 
+  // Alterna um papel BravoFlow (Solicitante / AprovadorQualidade / etc.)
+  const handleToggleBravoflowRole = async (collaborator: Collaborator, role: BravoFlowRole) => {
+    if (!selectedDepartment) return;
+    const collaboratorRef = doc(db, "collaborators", collaborator.id);
+    try {
+      const current = Array.isArray(collaborator.bravoflowRoles) ? collaborator.bravoflowRoles : [];
+      const next = current.includes(role)
+        ? current.filter(r => r !== role)
+        : [...current, role];
+      await updateDoc(collaboratorRef, { bravoflowRoles: next });
+      // Sincroniza com PostgreSQL para que workflows possam consultar quem tem cada papel.
+      try {
+        await fetch('/api/dataconnect/save-collaborator', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            collaboratorId: collaborator.id,
+            username: collaborator.username,
+            roles: next,
+            companyId: selectedDepartment.companyId,
+            departmentId: selectedDepartment.id,
+            departmentName: selectedDepartment.name,
+          }),
+        });
+      } catch (sqlErr) {
+        console.warn('⚠️ Falha ao sincronizar role com PG (Firestore foi salvo):', sqlErr);
+      }
+      console.log(`✅ BravoFlow role ${role} ${next.includes(role) ? 'ativado' : 'removido'}`);
+    } catch (error) {
+      console.error('Erro ao atualizar BravoFlow role:', error);
+    }
+  };
+
   const handleToggleLeader = async (collaborator: Collaborator) => {
     if (!selectedDepartment) return;
     const collaboratorRef = doc(db, "collaborators", collaborator.id);
@@ -475,6 +519,52 @@ export default function UsersPage() {
                         />
                         <span className={styles.slider}></span>
                       </label>
+                    </div>
+                  </div>
+
+                  {/* Papéis BravoFlow (multi-seleção) */}
+                  <div style={{
+                    marginTop: '0.75rem',
+                    padding: '0.6rem 0.75rem',
+                    background: 'rgba(99, 102, 241, 0.06)',
+                    border: '1px solid rgba(99, 102, 241, 0.2)',
+                    borderRadius: 8,
+                  }}>
+                    <div style={{
+                      fontSize: '0.7rem',
+                      fontWeight: 700,
+                      letterSpacing: '0.05em',
+                      color: '#6366f1',
+                      textTransform: 'uppercase',
+                      marginBottom: 6,
+                    }}>
+                      Papéis BravoFlow
+                    </div>
+                    <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                      {BRAVOFLOW_ROLES.map(({ value, label, color }) => {
+                        const active = Array.isArray(c.bravoflowRoles) && c.bravoflowRoles.includes(value);
+                        return (
+                          <button
+                            key={value}
+                            type="button"
+                            onClick={() => handleToggleBravoflowRole(c, value)}
+                            style={{
+                              fontSize: '0.72rem',
+                              fontWeight: 600,
+                              padding: '4px 10px',
+                              borderRadius: 999,
+                              border: `1.5px solid ${active ? color : '#cbd5e1'}`,
+                              background: active ? color : 'transparent',
+                              color: active ? '#fff' : '#64748b',
+                              cursor: 'pointer',
+                              transition: 'all 0.15s',
+                            }}
+                            title={active ? `Remover papel ${label}` : `Atribuir papel ${label}`}
+                          >
+                            {label}
+                          </button>
+                        );
+                      })}
                     </div>
                   </div>
 
