@@ -20,8 +20,10 @@ import {
 } from 'lucide-react';
 import RetiradaActionModal from './RetiradaActionModal';
 import { SkeletonList } from './Skeleton';
+import BulkActionsBar from './BulkActionsBar';
 import { logger } from '@/lib/logger';
 import { useInstancesStream, StreamStatus } from '@/hooks/useInstancesStream';
+import { useAuth } from '@/hooks/useAuth';
 
 interface Instance {
   id: string;
@@ -64,8 +66,10 @@ interface Props {
 
 export default function WorkflowInstancesPanel({ workflowId: _workflowId }: Props) {
   const router = useRouter();
+  const { user } = useAuth();
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [searchTerm, setSearchTerm] = useState('');
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [actionModal, setActionModal] = useState<{
     open: boolean;
     action: 'approve' | 'reject' | 'route' | 'pickup' | 'cancel' | null;
@@ -168,8 +172,40 @@ export default function WorkflowInstancesPanel({ workflowId: _workflowId }: Prop
           <RefreshCw size={16} /> Atualizar
         </button>
         <StreamStatusBadge status={streamStatus} lastUpdate={lastUpdate} />
-        <span style={{ marginLeft: 'auto', fontSize: 13, color: '#6b7280' }}>
-          {filtered.length} instância{filtered.length !== 1 ? 's' : ''}
+        <span style={{ marginLeft: 'auto', fontSize: 13, color: '#6b7280', display: 'flex', alignItems: 'center', gap: 12 }}>
+          {filtered.length > 0 && (
+            <button
+              onClick={() => {
+                const allVisible = filtered.every(r => selectedIds.has(r.id));
+                if (allVisible) {
+                  // Desmarca apenas os visíveis
+                  const next = new Set(selectedIds);
+                  filtered.forEach(r => next.delete(r.id));
+                  setSelectedIds(next);
+                } else {
+                  // Marca todos os visíveis
+                  const next = new Set(selectedIds);
+                  filtered.forEach(r => next.add(r.id));
+                  setSelectedIds(next);
+                }
+              }}
+              style={{
+                background: 'transparent',
+                border: '1px solid #d1d5db',
+                color: '#374151',
+                padding: '4px 10px',
+                borderRadius: 6,
+                cursor: 'pointer',
+                fontSize: 12,
+                fontWeight: 500,
+              }}
+            >
+              {filtered.every(r => selectedIds.has(r.id))
+                ? 'Desmarcar todos'
+                : `Selecionar ${filtered.length} visíveis`}
+            </button>
+          )}
+          <span>{filtered.length} instância{filtered.length !== 1 ? 's' : ''}</span>
         </span>
       </div>
 
@@ -196,17 +232,41 @@ export default function WorkflowInstancesPanel({ workflowId: _workflowId }: Prop
           {filtered.map(r => {
             const cfg = STATUS_CONFIG[r.status] || { label: r.status, color: '#64748b', icon: AlertCircle };
             const StatusIcon = cfg.icon;
+            const isSelected = selectedIds.has(r.id);
             return (
               <div key={r.id} style={{
                 background: '#fff',
                 borderRadius: 12,
                 padding: '1.25rem',
-                border: '1px solid #e5e7eb',
+                border: isSelected ? '2px solid #3b82f6' : '1px solid #e5e7eb',
                 borderLeft: `4px solid ${cfg.color}`,
-                boxShadow: '0 1px 3px rgba(0,0,0,.05)',
+                boxShadow: isSelected
+                  ? '0 0 0 3px rgba(59,130,246,0.15), 0 1px 3px rgba(0,0,0,.05)'
+                  : '0 1px 3px rgba(0,0,0,.05)',
+                transition: 'border 0.15s, box-shadow 0.15s',
               }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
-                  <div style={{ flex: 1 }}>
+                  <div style={{ display: 'flex', gap: 10, flex: 1 }}>
+                    <input
+                      type="checkbox"
+                      checked={isSelected}
+                      onChange={(e) => {
+                        const next = new Set(selectedIds);
+                        if (e.target.checked) next.add(r.id);
+                        else next.delete(r.id);
+                        setSelectedIds(next);
+                      }}
+                      onClick={(e) => e.stopPropagation()}
+                      title="Selecionar para ações em lote"
+                      aria-label={`Selecionar ${r.formTitle}`}
+                      style={{
+                        width: 18, height: 18,
+                        marginTop: 2,
+                        cursor: 'pointer',
+                        accentColor: '#3b82f6',
+                      }}
+                    />
+                    <div style={{ flex: 1 }}>
                     <h3 style={{ margin: '0 0 4px', fontSize: 15, fontWeight: 600, color: '#111827' }}>
                       {r.formTitle}
                     </h3>
@@ -217,6 +277,7 @@ export default function WorkflowInstancesPanel({ workflowId: _workflowId }: Prop
                           {r.replicaCount}ª réplica
                         </span>
                       )}
+                    </div>
                     </div>
                   </div>
                   <span style={{
@@ -305,6 +366,20 @@ export default function WorkflowInstancesPanel({ workflowId: _workflowId }: Prop
           action={actionModal.action}
           retirada={actionModal.instance}
           onClose={closeAction}
+        />
+      )}
+
+      {/* Bulk Actions Bar — aparece quando ≥1 selecionada */}
+      {user && (
+        <BulkActionsBar
+          selectedIds={Array.from(selectedIds)}
+          onClear={() => setSelectedIds(new Set())}
+          onComplete={() => reconnect()}
+          currentUser={{
+            id: user.uid,
+            username: user.email?.split('@')[0],
+            name: user.displayName || user.email || 'Admin',
+          }}
         />
       )}
     </div>

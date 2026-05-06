@@ -20,7 +20,7 @@ import ReactFlow, {
   ReactFlowProvider,
 } from 'reactflow';
 import 'reactflow/dist/style.css';
-import { Plus, Save, Settings, Trash2, GitBranch, Eye, Power, PowerOff, Sparkles, ArrowLeft, ArrowRight, Wand2 } from 'lucide-react';
+import { Plus, Save, Settings, Trash2, GitBranch, Eye, Power, PowerOff, Sparkles, ArrowLeft, ArrowRight, Wand2, History, Play } from 'lucide-react';
 import type { WorkflowStage, RoutingCondition, ActivationSettings, ActivationMode } from '@/types';
 import { WorkflowServicePg as WorkflowService } from '@/services/workflowServicePg';
 import { useAuth } from '@/hooks/useAuth';
@@ -32,6 +32,8 @@ import CustomEdge from './CustomEdge';
 import ActivationSettingsModal from './ActivationSettingsModal';
 import WorkflowPresetPicker from './WorkflowPresetPicker';
 import WorkflowAIGenerator from './WorkflowAIGenerator';
+import WorkflowVersionPanel from './WorkflowVersionPanel';
+import WorkflowSimulator from './WorkflowSimulator';
 import { useConfirm } from '@/hooks/useConfirm';
 import styles from '../../app/styles/WorkflowCanvas.module.css';
 
@@ -90,6 +92,8 @@ export default function WorkflowCanvas({
   const [showPresetPicker, setShowPresetPicker] = useState(false);
   const [showAIGenerator, setShowAIGenerator] = useState(false);
   const [showShortcuts, setShowShortcuts] = useState(false);
+  const [showVersions, setShowVersions] = useState(false);
+  const [showSimulator, setShowSimulator] = useState(false);
   const { confirm, alert, confirmState } = useConfirm();
 
   // Inicializar com stages existentes
@@ -591,7 +595,25 @@ export default function WorkflowCanvas({
 
       // Chamar callback onSave (a página pai é responsável por salvar no Firestore)
       await onSave(stages);
-      
+
+      // Cria versão draft automática (fire-and-forget) para audit + rollback futuro
+      if (workflowId && user) {
+        fetch('/api/dataconnect/workflow-versions', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            workflowId,
+            stages,
+            activationSettings,
+            createdBy: user.uid,
+            createdByName: user.displayName || user.email || 'Admin',
+            changeNotes: `Snapshot do save em ${new Date().toLocaleString('pt-BR')}`,
+          }),
+        }).catch(() => {
+          // Fail-soft — versão é histórico, não bloqueia o save principal
+        });
+      }
+
       await alert('Sucesso', workflowId ? 'Workflow atualizado com sucesso!' : 'Workflow criado com sucesso!');
     } catch (error) {
       console.error('Erro ao salvar workflow:', error);
@@ -692,6 +714,19 @@ export default function WorkflowCanvas({
               Gerar com IA
             </button>
             <button
+              onClick={() => setShowSimulator(true)}
+              className={styles.btnAdd}
+              disabled={nodes.length === 0}
+              style={{
+                background: 'linear-gradient(135deg, #1F2937 0%, #4B5563 100%)',
+                fontWeight: 600,
+              }}
+              title="Simular o workflow (dry-run) sem alterar dados reais"
+            >
+              <Play size={20} />
+              Simular
+            </button>
+            <button
               onClick={handleSave}
               disabled={isSaving || nodes.length === 0}
               className={styles.btnSave}
@@ -715,6 +750,16 @@ export default function WorkflowCanvas({
               <Settings size={20} />
               Configurações
             </button>
+            {workflowId && (
+              <button
+                onClick={() => setShowVersions(true)}
+                className={styles.btnSettings}
+                title="Histórico de versões"
+              >
+                <History size={20} />
+                Versões
+              </button>
+            )}
             <button
               onClick={() => setShowShortcuts(true)}
               className={styles.btnSettings}
@@ -771,6 +816,32 @@ export default function WorkflowCanvas({
         onClose={() => setShowAIGenerator(false)}
         onApply={(stages) => handleApplyPreset(stages)}
         willOverwrite={nodes.length > 0}
+      />
+
+      {workflowId && user && (
+        <WorkflowVersionPanel
+          isOpen={showVersions}
+          onClose={() => setShowVersions(false)}
+          workflowId={workflowId}
+          workflowName={workflowName}
+          currentUser={{
+            id: user.uid,
+            name: user.displayName || user.email || 'Admin',
+            username: user.email?.split('@')[0],
+          }}
+          onChange={() => {
+            // Após publicar/arquivar, força reload do canvas para refletir a nova active version
+            window.location.reload();
+          }}
+        />
+      )}
+
+      <WorkflowSimulator
+        isOpen={showSimulator}
+        onClose={() => setShowSimulator(false)}
+        stages={nodes.map((n) => n.data.stage)}
+        edges={edges.map((e) => ({ id: e.id, source: e.source, target: e.target }))}
+        workflowName={workflowName}
       />
 
       {/* Modal de atalhos de teclado */}
