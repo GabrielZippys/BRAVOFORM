@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Plus, Edit, Trash2, Eye, Copy } from 'lucide-react';
+import { Plus, Edit, Trash2, Eye, Copy, BarChart3 } from 'lucide-react';
 import { WorkflowServicePg } from '@/services/workflowServicePg';
 import { useAuth } from '@/hooks/useAuth';
 import type { WorkflowStage } from '@/types';
@@ -151,10 +151,33 @@ export default function BravoFlowPage() {
     <div className={styles.container}>
       <div className={styles.header}>
         <h1>BravoFlow</h1>
-        <button onClick={handleCreateNew} className={styles.btnCreate}>
-          <Plus size={20} />
-          Novo Workflow
-        </button>
+        <div style={{ display: 'flex', gap: 12 }}>
+          <button
+            onClick={() => router.push('/dashboard/bravoflow/metrics')}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+              padding: '10px 18px',
+              background: '#fff',
+              color: '#3b82f6',
+              border: '1.5px solid #3b82f6',
+              borderRadius: 8,
+              cursor: 'pointer',
+              fontWeight: 600,
+              fontSize: 14,
+              transition: 'all 0.15s',
+            }}
+            title="Ver métricas e estatísticas dos workflows"
+          >
+            <BarChart3 size={18} />
+            Métricas
+          </button>
+          <button onClick={handleCreateNew} className={styles.btnCreate}>
+            <Plus size={20} />
+            Novo Workflow
+          </button>
+        </div>
       </div>
 
       {workflows.length === 0 ? (
