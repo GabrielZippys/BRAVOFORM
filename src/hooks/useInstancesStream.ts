@@ -131,6 +131,8 @@ export function useInstancesStream(options: UseInstancesStreamOptions = {}) {
       if (mountedRef.current) {
         setStatus('connected');
         setError(null);
+        // Reseta contador de tentativas após conexão bem-sucedida
+        (esRef as any).__attempt = 0;
       }
     });
 
@@ -153,23 +155,48 @@ export function useInstancesStream(options: UseInstancesStreamOptions = {}) {
       }
     });
 
-    es.addEventListener('error', (e) => {
+    // Servidor sinaliza que está saturado/com erros e quer que o cliente
+    // migre pro polling fallback (que naturalmente espalha as requests
+    // no tempo, em vez de manter conexões SSE permanentes).
+    es.addEventListener('fallback', (e) => {
       if (!mountedRef.current) return;
-      logger.warn('SSE: error event', { readyState: es.readyState });
+      let reason = 'unknown';
+      try { reason = JSON.parse((e as MessageEvent).data).reason || 'unknown'; } catch { /* noop */ }
+      logger.info('SSE: server requested fallback to polling', { reason });
+      es.close();
+      esRef.current = null;
+      // Cancela qualquer reconnect agendado
+      if (reconnectRef.current) {
+        clearTimeout(reconnectRef.current);
+        reconnectRef.current = null;
+      }
+      // Inicia polling tradicional (sem SSE)
+      startPolling();
+    });
 
+    es.addEventListener('error', () => {
+      if (!mountedRef.current) return;
       // EventSource.CLOSED = 2 — servidor fechou ou erro fatal
       if (es.readyState === EventSource.CLOSED) {
         setStatus('disconnected');
         es.close();
         esRef.current = null;
 
-        // Backoff exponencial: tenta reconectar em 3s, depois 6s, depois 12s
+        // Backoff exponencial mais conservador: 5s, 10s, 20s.
+        // Após 3 tentativas falhas, cai pra polling permanentemente.
+        const attempt = (esRef as any).__attempt = ((esRef as any).__attempt || 0) + 1;
+        if (attempt >= 3) {
+          logger.warn('SSE: too many reconnect attempts, falling back to polling');
+          startPolling();
+          return;
+        }
+
         if (reconnectRef.current) clearTimeout(reconnectRef.current);
         reconnectRef.current = setTimeout(() => {
           if (mountedRef.current && !forcePolling) {
             connectSSE();
           }
-        }, 3_000);
+        }, 5_000 * attempt);
       }
     });
   }, [url, forcePolling, startPolling, status]);

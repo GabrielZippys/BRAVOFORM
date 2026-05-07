@@ -58,18 +58,34 @@ export const runtime = 'nodejs';
 // Sem cache — cada conexão é única
 export const dynamic = 'force-dynamic';
 
-// Em produção (Vercel + pool max=3), polling agressivo de 5s satura o pool
-// quando vários clientes estão conectados. 15s é o sweet spot entre UX
-// "real-time" e custo de DB.
-const POLL_INTERVAL_MS      = 15_000;
+// Em produção, mesmo com pool max=1, múltiplos clientes SSE simultâneos
+// pressionam o servidor Postgres (max_connections estourou). 30s é o
+// trade-off entre "tempo real" percebido e custo. Se ficar inviável,
+// desligar o SSE e cair pra polling client-side puro (já implementado
+// no useInstancesStream com forcePolling).
+const POLL_INTERVAL_MS      = 30_000;
 const HEARTBEAT_INTERVAL_MS = 25_000;
 const MAX_DURATION_MS       = 240_000;
-// Timeout específico para pegar conexão do pool dentro do SSE.
-// Se não pegar em 8s, pula o ciclo silenciosamente (evita 60s de espera).
-const POOL_ACQUIRE_TIMEOUT_MS = 8_000;
-// Circuit breaker: depois de N erros consecutivos, fecha a stream
-// para o cliente reconectar (recupera melhor que ficar em loop ruim).
-const MAX_CONSECUTIVE_ERRORS = 5;
+// Timeout pra pegar conexão do pool dentro do SSE — falha rápido pra
+// não travar o lambda e permitir que outros tentem.
+const POOL_ACQUIRE_TIMEOUT_MS = 4_000;
+// Circuit breaker bem agressivo: 2 erros consecutivos já fecha a stream
+// e o cliente cai automático no fallback de polling (mais resiliente
+// que ficar tentando no SSE com pool saturado).
+const MAX_CONSECUTIVE_ERRORS = 2;
+
+// Erros do Postgres que indicam saturação total — não adianta retry no
+// próximo ciclo, melhor fechar stream e deixar o cliente migrar pra
+// polling fallback que naturalmente espalha as requisições no tempo.
+function isFatalPoolError(err: any): boolean {
+  const msg = String(err?.message || err || '').toLowerCase();
+  return (
+    msg.includes('remaining connection slots') ||
+    msg.includes('too many clients') ||
+    msg.includes('max_connections') ||
+    msg.includes('pg_use_reserved_connections')
+  );
+}
 
 interface InstanceRow {
   id: string;
@@ -231,8 +247,17 @@ export async function GET(request: NextRequest) {
           count: rows.length,
         });
       } catch (e: any) {
-        // Não envia evento de erro pro cliente — UX fica sem flash de erro
-        // se o pool estiver temporariamente saturado. Loop tenta de novo.
+        // Erro fatal de saturação → fecha stream imediatamente.
+        // Cliente cai no fallback de polling que natural-spread as requests.
+        if (isFatalPoolError(e)) {
+          logger.warn('SSE: db saturated on initial snapshot — closing for polling fallback', {
+            clientId, error: e.message,
+          });
+          // Sinaliza ao cliente para usar fallback (status 503 implícito via close)
+          send('fallback', { reason: 'db_saturated' });
+          cleanup();
+          return;
+        }
         logger.warn('SSE: initial snapshot failed (will retry)', { clientId, error: e.message });
         consecutiveErrors = 1;
       }
@@ -254,6 +279,16 @@ export async function GET(request: NextRequest) {
             });
           }
         } catch (e: any) {
+          // Saturação total → fecha imediatamente (não conta no breaker)
+          if (isFatalPoolError(e)) {
+            logger.warn('SSE: db saturated mid-stream — closing for polling fallback', {
+              clientId, error: e.message,
+            });
+            send('fallback', { reason: 'db_saturated' });
+            cleanup();
+            return;
+          }
+
           consecutiveErrors++;
           logger.warn('SSE: poll cycle error', {
             clientId,
@@ -261,21 +296,17 @@ export async function GET(request: NextRequest) {
             consecutiveErrors,
           });
 
-          // Circuit breaker: depois de N erros seguidos, fecha a stream.
-          // O EventSource do cliente reconecta automaticamente — mais
-          // resiliente que ficar em loop ruim consumindo recursos.
+          // Circuit breaker mais agressivo: 2 erros já fecha
           if (consecutiveErrors >= MAX_CONSECUTIVE_ERRORS) {
-            logger.error('SSE: circuit breaker open — closing stream', undefined, {
+            logger.warn('SSE: circuit breaker open — closing stream', {
               clientId,
               consecutiveErrors,
             });
+            send('fallback', { reason: 'too_many_errors' });
             cleanup();
             return;
           }
-
-          // NÃO envia error event para o cliente em erros transitórios
-          // (timeout do pool em produção é comum quando muitos clients).
-          // O cliente continua mostrando dados antigos até o próximo update.
+          // NÃO envia error event ao cliente em erros transitórios isolados
         }
       }, POLL_INTERVAL_MS);
 
