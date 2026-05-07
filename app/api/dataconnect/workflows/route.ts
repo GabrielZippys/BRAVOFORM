@@ -1,8 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getPool } from '@/lib/db/postgresql';
 
-/** Garante que colunas extras existam na tabela de stages */
+/** Garante que colunas extras existam na tabela de stages.
+ *  Cache em memória — depois da primeira execução no lambda warm,
+ *  vira no-op (zero query). Importante quando max_connections está
+ *  apertado: 1 query de migration por lambda lifetime, não por request. */
+let columnsEnsured = false;
 async function ensureColumns(client: any) {
+  if (columnsEnsured) return;
   await client.query(`
     ALTER TABLE dim_workflow_stages
       ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT true,
@@ -20,6 +25,7 @@ async function ensureColumns(client: any) {
       ADD COLUMN IF NOT EXISTS allowed_users_list JSONB DEFAULT '[]',
       ADD COLUMN IF NOT EXISTS auto_notifications JSONB DEFAULT '{"email":false,"whatsapp":false}'
   `);
+  columnsEnsured = true;
 }
 
 /** Mapeia linhas de stages para o objeto WorkflowTemplate */

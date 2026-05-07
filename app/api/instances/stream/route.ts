@@ -111,17 +111,37 @@ interface InstanceRow {
 
 /**
  * Pega conexão do pool com timeout próprio.
- * Em vez de esperar 60s do connectionTimeoutMillis, abort em 8s e
- * retorna erro pra o caller pular o ciclo.
+ *
+ * ⚠️ LEAK FIX: Promise.race rejeita o caller mas a pool.connect() ORIGINAL
+ * continua pendente. Quando ela resolve depois do timeout, pega um client
+ * sem ninguém chamar release() — leak permanente. Para evitar:
+ *   • Aguardamos a Promise original sempre
+ *   • Se já passou do timeout, RELEASE o client imediatamente em vez
+ *     de retorná-lo
  */
 async function acquireClientWithTimeout(timeoutMs: number) {
   const pool = getPool();
-  return Promise.race<any>([
-    pool.connect(),
-    new Promise((_, reject) =>
-      setTimeout(() => reject(new Error('pool acquire timeout')), timeoutMs)
-    ),
-  ]);
+  let timedOut = false;
+  let timeoutHandle: NodeJS.Timeout | null = null;
+
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    timeoutHandle = setTimeout(() => {
+      timedOut = true;
+      reject(new Error('pool acquire timeout'));
+    }, timeoutMs);
+  });
+
+  const connectPromise = pool.connect().then((client) => {
+    if (timedOut) {
+      // Race perdeu — solta o client de volta no pool em vez de leak
+      try { client.release(); } catch { /* noop */ }
+      throw new Error('pool acquire timeout');
+    }
+    if (timeoutHandle) clearTimeout(timeoutHandle);
+    return client;
+  });
+
+  return Promise.race([connectPromise, timeoutPromise]);
 }
 
 async function fetchSnapshot(): Promise<InstanceRow[]> {
@@ -191,6 +211,31 @@ function hashSnapshot(rows: InstanceRow[]): string {
 export async function GET(request: NextRequest) {
   const clientId = crypto.randomBytes(8).toString('hex');
   const startedAt = Date.now();
+
+  // ⚡ KILL SWITCH: se BRAVOFORM_SSE_DISABLED=1, responde imediatamente com
+  // evento 'fallback' fazendo o cliente migrar pra polling sem nem tentar
+  // abrir conexão com o banco. Útil quando o servidor PG está saturado em
+  // produção e queremos aliviar a pressão sem novo deploy.
+  if (process.env.BRAVOFORM_SSE_DISABLED === '1') {
+    const stream = new ReadableStream({
+      start(controller) {
+        const encoder = new TextEncoder();
+        controller.enqueue(encoder.encode(
+          `event: connected\ndata: ${JSON.stringify({ clientId, intervalMs: 0 })}\n\n` +
+          `event: fallback\ndata: ${JSON.stringify({ reason: 'sse_disabled' })}\n\n`
+        ));
+        controller.close();
+      },
+    });
+    logger.info('SSE: kill switch active — instructing client to use polling', { clientId });
+    return new Response(stream, {
+      headers: {
+        'Content-Type': 'text/event-stream',
+        'Cache-Control': 'no-cache, no-transform',
+        'Connection': 'keep-alive',
+      },
+    });
+  }
 
   logger.info('SSE: client connected', { clientId });
 
