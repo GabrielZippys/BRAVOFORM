@@ -80,24 +80,58 @@ export async function GET(request: NextRequest) {
   try {
     await ensureColumns(client);
 
+    // Garante tabela master dim_workflows
+    const { ensureWorkflowsTable } = await import('@/lib/db/workflowsTableMigration');
+    await ensureWorkflowsTable(client);
+
     const { searchParams } = new URL(request.url);
     const isActiveParam = searchParams.get('isActive');
     const companyId = searchParams.get('companyId');
     const workflowId = searchParams.get('id');
 
     if (workflowId) {
-      // Carregar workflow específico com todas as suas stages
-      const result = await client.query(`
+      // ─── Carregar workflow específico ─────────────────────────────────────
+      // 1) Metadados vêm de dim_workflows (existe mesmo se não houver stages)
+      const wfMeta = await client.query(`
+        SELECT firebase_id, name, description, is_active,
+               companies, departments, activation_settings,
+               created_by, created_by_name, created_at
+        FROM dim_workflows
+        WHERE firebase_id = $1
+          AND deleted_at IS NULL
+      `, [workflowId]);
+
+      if (wfMeta.rows.length === 0) {
+        // Fallback para workflows legacy não migrados ainda
+        const legacy = await client.query(`
+          SELECT
+            workflow_fb_id, workflow_name, is_active, description,
+            created_by, created_by_name, companies, departments, activation_settings,
+            firebase_id   AS stage_firebase_id,
+            stage_name, stage_description, stage_type, stage_order,
+            is_initial, is_final, require_comment, require_attachments,
+            assigned_users, color,
+            sla_target_minutes, sla_warn_threshold, sla_critical_threshold,
+            sla_breach_threshold, sla_escalate_to_role, sla_escalate_to_emails,
+            sub_workflow_id, sub_workflow_mode, sub_workflow_input_mapping,
+            parallel_min_paths_to_complete, parallel_timeout_minutes
+          FROM dim_workflow_stages
+          WHERE workflow_fb_id = $1
+          ORDER BY stage_order ASC
+        `, [workflowId]);
+
+        const workflow = buildWorkflowFromStages(legacy.rows);
+        if (!workflow) {
+          return NextResponse.json({ success: false, error: 'Workflow not found' }, { status: 404 });
+        }
+        return NextResponse.json({ success: true, data: workflow });
+      }
+
+      const meta = wfMeta.rows[0];
+
+      // 2) Stages do workflow (pode estar vazio se workflow recém-criado)
+      const stagesRes = await client.query(`
         SELECT
-          workflow_fb_id,
-          workflow_name,
-          is_active,
-          description,
-          created_by,
-          created_by_name,
-          companies,
-          departments,
-          activation_settings,
           firebase_id   AS stage_firebase_id,
           stage_name,
           stage_description,
@@ -125,49 +159,86 @@ export async function GET(request: NextRequest) {
         ORDER BY stage_order ASC
       `, [workflowId]);
 
-      const workflow = buildWorkflowFromStages(result.rows);
-      if (!workflow) {
-        return NextResponse.json({ success: false, error: 'Workflow not found' }, { status: 404 });
-      }
+      // Constrói o workflow combinando metadados + stages
+      const workflow = {
+        id: meta.firebase_id,
+        name: meta.name,
+        description: meta.description || '',
+        isActive: meta.is_active ?? true,
+        createdAt: meta.created_at,
+        createdBy: meta.created_by,
+        createdByName: meta.created_by_name,
+        companies: meta.companies || [],
+        departments: meta.departments || [],
+        activationSettings: meta.activation_settings || {},
+        stages: stagesRes.rows
+          .filter(r => r.stage_firebase_id)
+          .sort((a, b) => (a.stage_order ?? 0) - (b.stage_order ?? 0))
+          .map(r => ({
+            id: r.stage_firebase_id,
+            name: r.stage_name,
+            description: r.stage_description || '',
+            stageType: r.stage_type || 'validation',
+            order: r.stage_order,
+            isInitialStage: r.is_initial ?? false,
+            isFinalStage: r.is_final ?? false,
+            requireComment: r.require_comment ?? false,
+            requireAttachments: r.require_attachments ?? false,
+            assignedUsers: r.assigned_users || [],
+            allowedRoles: r.allowed_roles || [],
+            allowedUsers: r.allowed_users_list || [],
+            autoNotifications: r.auto_notifications || { email: false, whatsapp: false },
+            color: r.color || '#8b5cf6',
+            slaTargetMinutes: r.sla_target_minutes ?? undefined,
+            slaWarnThreshold: r.sla_warn_threshold ?? 80,
+            slaCriticalThreshold: r.sla_critical_threshold ?? 100,
+            slaBreachThreshold: r.sla_breach_threshold ?? 150,
+            slaEscalateToRole: r.sla_escalate_to_role ?? undefined,
+            slaEscalateToEmails: r.sla_escalate_to_emails ?? [],
+            subWorkflowId: r.sub_workflow_id ?? undefined,
+            subWorkflowMode: r.sub_workflow_mode ?? 'wait',
+            subWorkflowInputMapping: r.sub_workflow_input_mapping ?? {},
+            parallelMinPathsToComplete: r.parallel_min_paths_to_complete ?? undefined,
+            parallelTimeoutMinutes: r.parallel_timeout_minutes ?? undefined,
+          })),
+      };
+
       return NextResponse.json({ success: true, data: workflow });
     }
 
-    // Listar todos os workflows (uma linha por workflow, pegando metadados da primeira stage)
-    let whereClause = 'WHERE 1=1';
+    // ─── Listar todos os workflows ───────────────────────────────────────
+    // Usa dim_workflows como base (workflow existe mesmo sem stages).
+    let whereClause = 'WHERE w.deleted_at IS NULL';
     const params: any[] = [];
     let paramIndex = 1;
 
     if (isActiveParam !== null) {
-      whereClause += ` AND is_active = $${paramIndex}`;
+      whereClause += ` AND w.is_active = $${paramIndex}`;
       params.push(isActiveParam === 'true');
       paramIndex++;
     }
 
     const result = await client.query(`
       SELECT
-        w.workflow_fb_id AS id,
-        w.workflow_name  AS name,
-        w.is_active      AS "isActive",
+        w.firebase_id      AS id,
+        w.name,
+        w.is_active        AS "isActive",
         w.description,
-        w.created_by     AS "createdBy",
-        w.created_by_name AS "createdByName",
+        w.created_by       AS "createdBy",
+        w.created_by_name  AS "createdByName",
         w.companies,
         w.departments,
-        cnt.stage_count  AS "stageCount"
-      FROM (
-        SELECT DISTINCT ON (workflow_fb_id)
-          workflow_fb_id, workflow_name, is_active, description,
-          created_by, created_by_name, companies, departments
-        FROM dim_workflow_stages
-        ${whereClause}
-        ORDER BY workflow_fb_id, stage_order ASC
-      ) w
-      JOIN (
+        w.activation_settings AS "activationSettings",
+        w.created_at       AS "createdAt",
+        COALESCE(cnt.stage_count, 0)::int AS "stageCount"
+      FROM dim_workflows w
+      LEFT JOIN (
         SELECT workflow_fb_id, COUNT(*) AS stage_count
         FROM dim_workflow_stages
         GROUP BY workflow_fb_id
-      ) cnt ON cnt.workflow_fb_id = w.workflow_fb_id
-      ORDER BY w.workflow_name
+      ) cnt ON cnt.workflow_fb_id = w.firebase_id
+      ${whereClause}
+      ORDER BY w.created_at DESC, w.name ASC
     `, params);
 
     return NextResponse.json({ success: true, data: result.rows });
@@ -188,6 +259,9 @@ export async function POST(request: NextRequest) {
   try {
     await ensureColumns(client);
 
+    // Garante tabela master dim_workflows (fonte de verdade dos metadados)
+    const { upsertWorkflow } = await import('@/lib/db/workflowsTableMigration');
+
     const body = await request.json();
     const {
       workflowId,
@@ -199,9 +273,31 @@ export async function POST(request: NextRequest) {
       isActive,
       createdBy,
       createdByName,
+      activationSettings,
     } = body;
 
+    if (!workflowId || !name) {
+      return NextResponse.json(
+        { success: false, error: 'workflowId e name são obrigatórios' },
+        { status: 400 }
+      );
+    }
+
     await client.query('BEGIN');
+
+    // ⚠️ Sempre faz UPSERT em dim_workflows, INDEPENDENTE de ter stages.
+    // Isso resolve o bug de "workflow criado sem etapas não aparece na lista".
+    await upsertWorkflow(client, {
+      workflowId,
+      name,
+      description,
+      isActive,
+      companies,
+      departments,
+      activationSettings,
+      createdBy,
+      createdByName,
+    });
 
     if (stages && stages.length > 0) {
       // ⚠️ INVARIANTES garantidas no backend:
@@ -322,21 +418,62 @@ export async function PATCH(request: NextRequest) {
 
   try {
     await ensureColumns(client);
+    const { ensureWorkflowsTable } = await import('@/lib/db/workflowsTableMigration');
+    await ensureWorkflowsTable(client);
 
     const body = await request.json();
-    const { workflowId, isActive, activationSettings } = body;
+    const { workflowId, isActive, activationSettings, name, description, companies, departments } = body;
 
     if (!workflowId) {
       return NextResponse.json({ success: false, error: 'Workflow ID required' }, { status: 400 });
     }
 
+    // Atualiza dim_workflows (master)
+    const updates: string[] = [];
+    const values: any[] = [];
+    let i = 1;
+
+    if (isActive !== undefined) {
+      updates.push(`is_active = $${i++}`);
+      values.push(isActive);
+    }
+    if (name !== undefined) {
+      updates.push(`name = $${i++}`);
+      values.push(name);
+    }
+    if (description !== undefined) {
+      updates.push(`description = $${i++}`);
+      values.push(description);
+    }
+    if (companies !== undefined) {
+      updates.push(`companies = $${i++}`);
+      values.push(JSON.stringify(companies));
+    }
+    if (departments !== undefined) {
+      updates.push(`departments = $${i++}`);
+      values.push(JSON.stringify(departments));
+    }
+    if (activationSettings !== undefined) {
+      updates.push(`activation_settings = $${i++}`);
+      values.push(JSON.stringify(activationSettings));
+    }
+
+    if (updates.length > 0) {
+      updates.push(`updated_at = NOW()`);
+      values.push(workflowId);
+      await client.query(
+        `UPDATE dim_workflows SET ${updates.join(', ')} WHERE firebase_id = $${i}`,
+        values
+      );
+    }
+
+    // Mantém compatibilidade com dim_workflow_stages (denormalização legacy)
     if (isActive !== undefined) {
       await client.query(
         'UPDATE dim_workflow_stages SET is_active = $1 WHERE workflow_fb_id = $2',
         [isActive, workflowId]
       );
     }
-
     if (activationSettings !== undefined) {
       await client.query(
         'UPDATE dim_workflow_stages SET activation_settings = $1 WHERE workflow_fb_id = $2',
@@ -344,7 +481,6 @@ export async function PATCH(request: NextRequest) {
       );
     }
 
-    console.log(`✅ PostgreSQL: workflow ${workflowId} atualizado`);
     return NextResponse.json({ success: true });
 
   } catch (error: any) {
@@ -355,12 +491,15 @@ export async function PATCH(request: NextRequest) {
   }
 }
 
-// DELETE - Deletar workflow
+// DELETE - Deletar workflow (soft delete em dim_workflows + hard delete em stages)
 export async function DELETE(request: NextRequest) {
   const pool = getPool();
   const client = await pool.connect();
 
   try {
+    const { ensureWorkflowsTable } = await import('@/lib/db/workflowsTableMigration');
+    await ensureWorkflowsTable(client);
+
     const { searchParams } = new URL(request.url);
     const workflowId = searchParams.get('id');
 
@@ -368,15 +507,27 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ success: false, error: 'Workflow ID required' }, { status: 400 });
     }
 
+    await client.query('BEGIN');
+
+    // Soft delete em dim_workflows (preserva trilha de auditoria)
+    await client.query(
+      `UPDATE dim_workflows
+       SET deleted_at = NOW()
+       WHERE firebase_id = $1`,
+      [workflowId]
+    );
+
+    // Hard delete em dim_workflow_stages (não tem auditoria — pode ir)
     await client.query(
       'DELETE FROM dim_workflow_stages WHERE workflow_fb_id = $1',
       [workflowId]
     );
 
-    console.log(`✅ PostgreSQL: workflow ${workflowId} deletado`);
+    await client.query('COMMIT');
     return NextResponse.json({ success: true });
 
   } catch (error: any) {
+    await client.query('ROLLBACK').catch(() => {});
     console.error('❌ Erro ao deletar workflow:', error.message);
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   } finally {

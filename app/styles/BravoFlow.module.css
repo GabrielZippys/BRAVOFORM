@@ -286,7 +286,7 @@
 .tabs {
   display: flex;
   gap: var(--space-1);
-  border-bottom: 2px solid var(--color-border-subtle);
+  border-bottom: 2px solid #E5E7EB;
   margin-bottom: var(--space-6);
   padding-left: var(--space-1);
   overflow-x: auto;
@@ -295,40 +295,51 @@
 
 .tabs::-webkit-scrollbar { display: none; }
 
+/* Cores explícitas (não-token) garantem contraste em qualquer tema do sistema */
 .tab {
   display: flex;
   align-items: center;
   gap: var(--space-2);
   padding: var(--space-3) var(--space-5);
   background: transparent;
-  color: var(--color-text-secondary);
+  color: #4B5563;             /* gray-600 — sempre legível em fundo claro */
   border: none;
   border-bottom: 3px solid transparent;
   margin-bottom: -2px;
   cursor: pointer;
-  font-weight: var(--font-weight-medium);
-  font-size: var(--font-size-sm);
-  transition: color var(--duration-fast) var(--ease-in-out),
-              border-color var(--duration-fast) var(--ease-in-out);
+  font-weight: 500;
+  font-size: 0.875rem;
+  transition: color 150ms ease, border-color 150ms ease, background 150ms ease;
   white-space: nowrap;
 }
 
 .tab:hover {
-  color: var(--color-text-primary);
-  background: var(--surface-hover);
+  color: #111827;             /* gray-900 — máximo contraste no hover */
+  background: #F3F4F6;        /* gray-100 — fundo sutil */
 }
 
 .tab.tabActive {
-  color: var(--color-brand-600);
-  border-bottom-color: var(--color-brand-500);
-  font-weight: var(--font-weight-semibold);
+  color: #2563EB;             /* brand-600 — azul vivo */
+  border-bottom-color: #3B82F6;
+  font-weight: 600;
+  background: rgba(59, 130, 246, 0.04);   /* glow sutil */
+}
+
+.tab.tabActive:hover {
+  color: #1D4ED8;             /* brand-700 — escurece levemente no hover */
+  background: rgba(59, 130, 246, 0.08);
 }
 
 .tab:focus-visible {
   outline: none;
-  box-shadow: var(--shadow-focus);
-  border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.25);
+  border-radius: 6px 6px 0 0;
 }
+
+/* Dark mode é tratado em globals.css (CSS regular).
+ * Não definir aqui — Turbopack/Lightning CSS otimiza errado seletores de
+ * tema dentro de CSS modules e descarta o ancestral, fazendo as cores dark
+ * vazarem para o tema light. */
 
 /* ─── Resumo de ativação no card ───────────────────────────────────── */
 .activationBox {

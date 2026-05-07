@@ -668,3 +668,20 @@ textarea.success {
   --stores-ink: #e8ecf3;
   --stores-accent: #C5A05C; /* dourado da sua paleta */
 }
+
+/* ─── BravoFlow tabs em dark mode ──────────────────────────────────────────
+ * Mantido em CSS regular (não em CSS module) porque o Lightning CSS do
+ * Turbopack otimiza errado os seletores [data-theme] dentro de modules,
+ * descartando o ancestral e fazendo cores dark vazarem para o light mode.
+ * Uso de seletor de atributo em classe parcial (resolve mesmo com hash). */
+[data-theme="dark"] [class*="BravoFlow-module__"][class*="__tab"]:not([class*="tabActive"]):not([class*="tabs"]) {
+  color: #D1D5DB;
+}
+[data-theme="dark"] [class*="BravoFlow-module__"][class*="__tab"]:not([class*="tabActive"]):not([class*="tabs"]):hover {
+  color: #F9FAFB;
+  background: rgba(255, 255, 255, 0.06);
+}
+[data-theme="dark"] [class*="BravoFlow-module__"][class*="__tabActive"] {
+  color: #60A5FA !important;
+  background: rgba(59, 130, 246, 0.12) !important;
+}
