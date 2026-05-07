@@ -58,9 +58,18 @@ export const runtime = 'nodejs';
 // Sem cache — cada conexão é única
 export const dynamic = 'force-dynamic';
 
-const POLL_INTERVAL_MS      = 5_000;
+// Em produção (Vercel + pool max=3), polling agressivo de 5s satura o pool
+// quando vários clientes estão conectados. 15s é o sweet spot entre UX
+// "real-time" e custo de DB.
+const POLL_INTERVAL_MS      = 15_000;
 const HEARTBEAT_INTERVAL_MS = 25_000;
 const MAX_DURATION_MS       = 240_000;
+// Timeout específico para pegar conexão do pool dentro do SSE.
+// Se não pegar em 8s, pula o ciclo silenciosamente (evita 60s de espera).
+const POOL_ACQUIRE_TIMEOUT_MS = 8_000;
+// Circuit breaker: depois de N erros consecutivos, fecha a stream
+// para o cliente reconectar (recupera melhor que ficar em loop ruim).
+const MAX_CONSECUTIVE_ERRORS = 5;
 
 interface InstanceRow {
   id: string;
@@ -84,9 +93,23 @@ interface InstanceRow {
   slaPercentOfTarget: number | null;
 }
 
-async function fetchSnapshot(): Promise<InstanceRow[]> {
+/**
+ * Pega conexão do pool com timeout próprio.
+ * Em vez de esperar 60s do connectionTimeoutMillis, abort em 8s e
+ * retorna erro pra o caller pular o ciclo.
+ */
+async function acquireClientWithTimeout(timeoutMs: number) {
   const pool = getPool();
-  const client = await pool.connect();
+  return Promise.race<any>([
+    pool.connect(),
+    new Promise((_, reject) =>
+      setTimeout(() => reject(new Error('pool acquire timeout')), timeoutMs)
+    ),
+  ]);
+}
+
+async function fetchSnapshot(): Promise<InstanceRow[]> {
+  const client = await acquireClientWithTimeout(POOL_ACQUIRE_TIMEOUT_MS);
   try {
     await ensureWorkflowSchema(client);
 
@@ -176,6 +199,7 @@ export async function GET(request: NextRequest) {
       let pollTimer: NodeJS.Timeout | null = null;
       let heartbeatTimer: NodeJS.Timeout | null = null;
       let closed = false;
+      let consecutiveErrors = 0;
 
       const cleanup = () => {
         if (closed) return;
@@ -196,7 +220,8 @@ export async function GET(request: NextRequest) {
       // Detecta desconexão do cliente (request abort)
       request.signal.addEventListener('abort', cleanup);
 
-      // Snapshot inicial imediato
+      // Snapshot inicial — se falhar, NÃO envia error (cliente vê conexão
+      // estabelecida mas sem dados; próximo ciclo tenta de novo).
       try {
         const rows = await fetchSnapshot();
         lastHash = hashSnapshot(rows);
@@ -206,15 +231,19 @@ export async function GET(request: NextRequest) {
           count: rows.length,
         });
       } catch (e: any) {
-        logger.error('SSE: initial snapshot failed', e, { clientId });
-        send('error', { error: e.message });
+        // Não envia evento de erro pro cliente — UX fica sem flash de erro
+        // se o pool estiver temporariamente saturado. Loop tenta de novo.
+        logger.warn('SSE: initial snapshot failed (will retry)', { clientId, error: e.message });
+        consecutiveErrors = 1;
       }
 
-      // Loop de polling
+      // Loop de polling com circuit breaker
       pollTimer = setInterval(async () => {
         if (closed) return;
         try {
           const rows = await fetchSnapshot();
+          consecutiveErrors = 0;  // reset no sucesso
+
           const hash = hashSnapshot(rows);
           if (hash !== lastHash) {
             lastHash = hash;
@@ -225,8 +254,28 @@ export async function GET(request: NextRequest) {
             });
           }
         } catch (e: any) {
-          logger.warn('SSE: poll cycle error', { clientId, error: e.message });
-          send('error', { error: e.message });
+          consecutiveErrors++;
+          logger.warn('SSE: poll cycle error', {
+            clientId,
+            error: e.message,
+            consecutiveErrors,
+          });
+
+          // Circuit breaker: depois de N erros seguidos, fecha a stream.
+          // O EventSource do cliente reconecta automaticamente — mais
+          // resiliente que ficar em loop ruim consumindo recursos.
+          if (consecutiveErrors >= MAX_CONSECUTIVE_ERRORS) {
+            logger.error('SSE: circuit breaker open — closing stream', undefined, {
+              clientId,
+              consecutiveErrors,
+            });
+            cleanup();
+            return;
+          }
+
+          // NÃO envia error event para o cliente em erros transitórios
+          // (timeout do pool em produção é comum quando muitos clients).
+          // O cliente continua mostrando dados antigos até o próximo update.
         }
       }, POLL_INTERVAL_MS);
 

@@ -80,9 +80,16 @@ export async function GET(request: NextRequest) {
   try {
     await ensureColumns(client);
 
-    // Garante tabela master dim_workflows
+    // ⚠️ TODAS as migrations precisam rodar antes do SELECT — o GET pode
+    // ser chamado em produção ANTES de qualquer POST que normalmente
+    // disparasse essas migrations. Sem isso, colunas como sub_workflow_id,
+    // sla_target_minutes etc. não existem e o SELECT quebra com 500.
     const { ensureWorkflowsTable } = await import('@/lib/db/workflowsTableMigration');
+    const { ensureSlaSchema } = await import('@/lib/db/slaMigration');
+    const { ensureAdvancedFlowSchema } = await import('@/lib/db/advancedFlowMigration');
     await ensureWorkflowsTable(client);
+    await ensureSlaSchema(client);
+    await ensureAdvancedFlowSchema(client);
 
     const { searchParams } = new URL(request.url);
     const isActiveParam = searchParams.get('isActive');
