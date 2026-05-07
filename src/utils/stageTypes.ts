@@ -36,6 +36,8 @@ export interface StageTypeDefinition {
     showValidation?: boolean;
     showTimer?: boolean;
     hideUserPermissions?: boolean;
+    showSubWorkflow?: boolean;
+    showParallelConfig?: boolean;
   };
 }
 
@@ -120,6 +122,55 @@ export const STAGE_TYPES: StageTypeDefinition[] = [
     fields: {
       requireComment: false,
       showValidation: true,
+    }
+  },
+  {
+    type: 'parallel-fork',
+    label: 'Bifurcação Paralela',
+    description: 'Divide o fluxo em N caminhos que executam ao mesmo tempo',
+    icon: '🔀',
+    color: '#0EA5E9',
+    examples: 'Pedido → [Aprovação Financeira ‖ Aprovação Técnica ‖ Aprovação Jurídica]',
+    behavior: 'Quando uma instância chega aqui, ela é replicada em N paths paralelos definidos pelas conexões de saída. Cada path executa de forma independente. Todos devem convergir em uma etapa do tipo "Junção Paralela" mais adiante.',
+    inputs: ['Conexões de saída no canvas (cada uma vira um path paralelo)'],
+    outputs: ['N "sub-instâncias" virtuais, uma por path'],
+    whoAdvances: 'sistema',
+    fields: {
+      hideUserPermissions: true,
+      showParallelConfig: true,
+    }
+  },
+  {
+    type: 'parallel-join',
+    label: 'Junção Paralela',
+    description: 'Aguarda todos paths paralelos chegarem aqui',
+    icon: '🔁',
+    color: '#0284C7',
+    examples: 'Após [Financeiro ‖ Técnico ‖ Jurídico] → todos aprovaram → seguir',
+    behavior: 'Espera N paths paralelos chegarem. Configure quantos paths devem completar antes de avançar (default = todos). Suporta timeout para forçar avanço mesmo se algum path não chegar.',
+    inputs: ['Sinais de conclusão dos paths paralelos'],
+    outputs: ['Avança para próxima etapa quando condição atendida'],
+    whoAdvances: 'sistema',
+    fields: {
+      hideUserPermissions: true,
+      showParallelConfig: true,
+      showTimer: true,
+    }
+  },
+  {
+    type: 'sub-workflow',
+    label: 'Sub-Workflow',
+    description: 'Invoca outro workflow como sub-rotina',
+    icon: '🔗',
+    color: '#7C3AED',
+    examples: 'Aprovação Compra → executa "Workflow de Cotação" → continua quando completo',
+    behavior: 'Spawnar uma nova instância de outro workflow vinculada por parent_response_id. Modo "wait" pausa o pai até o sub completar; "fire-and-forget" continua imediatamente.',
+    inputs: ['ID do workflow alvo + mapeamento de campos opcional'],
+    outputs: ['Nova instância do sub-workflow + retorno ao pai quando concluído'],
+    whoAdvances: 'evento_externo',
+    fields: {
+      showSubWorkflow: true,
+      hideUserPermissions: true,
     }
   },
   {

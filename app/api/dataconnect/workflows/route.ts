@@ -62,6 +62,12 @@ function buildWorkflowFromStages(rows: any[]): any {
         slaBreachThreshold: r.sla_breach_threshold ?? 150,
         slaEscalateToRole: r.sla_escalate_to_role ?? undefined,
         slaEscalateToEmails: r.sla_escalate_to_emails ?? [],
+        // Advanced flow (Sprint 6)
+        subWorkflowId: r.sub_workflow_id ?? undefined,
+        subWorkflowMode: r.sub_workflow_mode ?? 'wait',
+        subWorkflowInputMapping: r.sub_workflow_input_mapping ?? {},
+        parallelMinPathsToComplete: r.parallel_min_paths_to_complete ?? undefined,
+        parallelTimeoutMinutes: r.parallel_timeout_minutes ?? undefined,
       })),
   };
 }
@@ -108,7 +114,12 @@ export async function GET(request: NextRequest) {
           sla_critical_threshold,
           sla_breach_threshold,
           sla_escalate_to_role,
-          sla_escalate_to_emails
+          sla_escalate_to_emails,
+          sub_workflow_id,
+          sub_workflow_mode,
+          sub_workflow_input_mapping,
+          parallel_min_paths_to_complete,
+          parallel_timeout_minutes
         FROM dim_workflow_stages
         WHERE workflow_fb_id = $1
         ORDER BY stage_order ASC
@@ -211,9 +222,11 @@ export async function POST(request: NextRequest) {
       // Reordenar para garantir contiguidade (caso venha com gaps)
       const orderedStages = [...stages].sort((a: any, b: any) => (a.order ?? 0) - (b.order ?? 0));
 
-      // Garante colunas SLA antes do INSERT (idempotente)
+      // Garante colunas SLA + advanced flow antes do INSERT (idempotente)
       const { ensureSlaSchema } = await import('@/lib/db/slaMigration');
+      const { ensureAdvancedFlowSchema } = await import('@/lib/db/advancedFlowMigration');
       await ensureSlaSchema(client);
+      await ensureAdvancedFlowSchema(client);
 
       for (let idx = 0; idx < orderedStages.length; idx++) {
         const stage = orderedStages[idx];
@@ -228,10 +241,13 @@ export async function POST(request: NextRequest) {
             assigned_users, color, is_active,
             created_by, created_by_name, companies, departments,
             sla_target_minutes, sla_warn_threshold, sla_critical_threshold, sla_breach_threshold,
-            sla_escalate_to_role, sla_escalate_to_emails
+            sla_escalate_to_role, sla_escalate_to_emails,
+            sub_workflow_id, sub_workflow_mode, sub_workflow_input_mapping,
+            parallel_min_paths_to_complete, parallel_timeout_minutes
           ) VALUES (
             $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,
-            $20,$21,$22,$23,$24,$25
+            $20,$21,$22,$23,$24,$25,
+            $26,$27,$28,$29,$30
           )
         `, [
           stage.id || `${workflowId}_stage_${idx}`,
@@ -241,9 +257,9 @@ export async function POST(request: NextRequest) {
           stage.name,
           stage.description || '',
           stage.stageType || stage.type || 'validation',
-          idx,                                       // stage_order — SEMPRE contíguo de 0..N
-          isFirst,                                   // is_initial — SEMPRE a primeira
-          isLast || (stage.isFinalStage ?? false),   // is_final — última OU marcada
+          idx,
+          isFirst,
+          isLast || (stage.isFinalStage ?? false),
           stage.requireComment || false,
           stage.requireAttachments || false,
           JSON.stringify(stage.assignedUsers || []),
@@ -259,6 +275,11 @@ export async function POST(request: NextRequest) {
           stage.slaBreachThreshold ?? 150,
           stage.slaEscalateToRole || null,
           JSON.stringify(stage.slaEscalateToEmails || []),
+          stage.subWorkflowId || null,
+          stage.subWorkflowMode || 'wait',
+          JSON.stringify(stage.subWorkflowInputMapping || {}),
+          stage.parallelMinPathsToComplete ?? null,
+          stage.parallelTimeoutMinutes ?? null,
         ]);
       }
     } else {

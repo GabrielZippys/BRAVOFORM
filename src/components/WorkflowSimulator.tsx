@@ -155,6 +155,97 @@ export default function WorkflowSimulator({
         return;
       }
 
+      case 'parallel-fork': {
+        // Conta paths de saída (edges com source = stage.id)
+        const outgoing = edges.filter((e) => e.source === stage.id);
+        setTrace((t) => [...t, {
+          timestamp: elapsedMs + 800,
+          stageId: stage.id,
+          stageName: stage.name,
+          action: 'advance',
+          decision: `Bifurca em ${outgoing.length} caminho(s) paralelo(s)`,
+          note: outgoing.length === 0
+            ? 'Sem conexões de saída — nenhum path bifurcado'
+            : `Cada path executa simultaneamente. Aguarda Junção Paralela mais adiante.`,
+        }]);
+        await sleep(800);
+        return simulateFromIdx(idx + 1, elapsedMs + 1600);
+      }
+
+      case 'parallel-join': {
+        const minPaths = (stage as any).parallelMinPathsToComplete;
+        const timeout = (stage as any).parallelTimeoutMinutes;
+        setTrace((t) => [...t, {
+          timestamp: elapsedMs + 800,
+          stageId: stage.id,
+          stageName: stage.name,
+          action: 'wait',
+          decision: minPaths
+            ? `Aguarda ${minPaths} path(s) completarem`
+            : 'Aguarda TODOS os paths',
+          note: timeout ? `Timeout: ${timeout}min` : 'Sem timeout — pode esperar indefinidamente',
+        }]);
+        await sleep(1200);
+        setTrace((t) => [...t, {
+          timestamp: elapsedMs + 2000,
+          stageId: stage.id,
+          stageName: stage.name,
+          action: 'advance',
+          decision: 'Paths convergiram — avança',
+        }]);
+        await sleep(600);
+        return simulateFromIdx(idx + 1, elapsedMs + 2600);
+      }
+
+      case 'sub-workflow': {
+        const subId = (stage as any).subWorkflowId;
+        const mode = (stage as any).subWorkflowMode || 'wait';
+        if (!subId) {
+          setTrace((t) => [...t, {
+            timestamp: elapsedMs + 800,
+            stageId: stage.id,
+            stageName: stage.name,
+            action: 'advance',
+            decision: 'Sub-workflow não configurado — pulando',
+          }]);
+          await sleep(600);
+          return simulateFromIdx(idx + 1, elapsedMs + 1400);
+        }
+        setTrace((t) => [...t, {
+          timestamp: elapsedMs + 800,
+          stageId: stage.id,
+          stageName: stage.name,
+          action: 'notify',
+          decision: `Spawnou sub-workflow ${subId.slice(0, 12)}…`,
+          note: mode === 'wait'
+            ? 'Modo wait: pai pausa até sub completar'
+            : 'Modo fire-and-forget: continua imediatamente',
+        }]);
+        await sleep(1500);
+        if (mode === 'wait') {
+          setTrace((t) => [...t, {
+            timestamp: elapsedMs + 2300,
+            stageId: stage.id,
+            stageName: stage.name,
+            action: 'wait',
+            note: 'Aguardando conclusão do sub-workflow…',
+            durationMs: 5 * 60_000,  // simulado: 5min
+          }]);
+          await sleep(800);
+          setTrace((t) => [...t, {
+            timestamp: elapsedMs + 5 * 60_000 + 3100,
+            stageId: stage.id,
+            stageName: stage.name,
+            action: 'advance',
+            decision: 'Sub-workflow concluiu — pai retomado',
+          }]);
+          await sleep(600);
+          return simulateFromIdx(idx + 1, elapsedMs + 5 * 60_000 + 3700);
+        }
+        await sleep(400);
+        return simulateFromIdx(idx + 1, elapsedMs + 2700);
+      }
+
       case 'documentation':
       case 'execution':
       case 'custom':

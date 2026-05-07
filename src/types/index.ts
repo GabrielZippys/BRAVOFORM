@@ -323,7 +323,7 @@ export interface OrderGridField extends FormField {
 // --- WORKFLOW SYSTEM INTERFACES ---
 
 // Tipos de etapas disponíveis
-export type StageType = 
+export type StageType =
   | 'start'           // Início do processo
   | 'approval'        // Aprovação/Validação
   | 'review'          // Revisão/Análise
@@ -334,6 +334,9 @@ export type StageType =
   | 'documentation'   // Documentação/Registro
   | 'validation'      // Validação/Verificação
   | 'completion'      // Finalização/Conclusão
+  | 'parallel-fork'   // Bifurca em N caminhos paralelos
+  | 'parallel-join'   // Aguarda todos caminhos paralelos completarem
+  | 'sub-workflow'    // Invoca outro workflow como sub-rotina
   | 'custom';         // Personalizada
 
 // Tipo de condição para roteamento
@@ -434,6 +437,16 @@ export interface WorkflowStage {
   slaBreachThreshold?: number;        // % do alvo p/ marcar breach (default 150)
   slaEscalateToRole?: string;         // Papel a notificar em escalation
   slaEscalateToEmails?: string[];     // E-mails extras a notificar
+
+  // ── Sub-Workflow (engine de chamada) ─────────────────────────────────
+  subWorkflowId?: string;             // firebase_id do workflow a invocar
+  subWorkflowMode?: 'wait' | 'fire-and-forget';  // espera o sub completar (default) ou só dispara
+  subWorkflowInputMapping?: Record<string, string>; // mapeamento de campos pai → sub
+
+  // ── Branches Paralelos ───────────────────────────────────────────────
+  parallelMinPathsToComplete?: number;  // Quantos paths precisam completar p/ join avançar (default = todos)
+  parallelTimeoutMinutes?: number;      // Timeout do join — se passar, força avançar mesmo incompleto
+
   order: number;
   isFinalStage: boolean;
   isInitialStage: boolean;

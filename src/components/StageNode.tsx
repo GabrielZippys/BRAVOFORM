@@ -146,6 +146,21 @@ function StageNode({ data, selected }: StageNodeProps) {
               Formulários
             </span>
           )}
+          {stage.stageType === 'parallel-fork' && (
+            <span className={styles.badge} style={{ background: '#E0F2FE', color: '#075985', fontWeight: 700 }}>
+              🔀 Bifurca
+            </span>
+          )}
+          {stage.stageType === 'parallel-join' && (
+            <span className={styles.badge} style={{ background: '#E0F2FE', color: '#0C4A6E', fontWeight: 700 }}>
+              🔁 Junta
+            </span>
+          )}
+          {stage.stageType === 'sub-workflow' && (
+            <span className={styles.badge} style={{ background: '#EDE9FE', color: '#5B21B6', fontWeight: 700 }}>
+              🔗 Sub-flow
+            </span>
+          )}
         </div>
 
         <div className={styles.info}>

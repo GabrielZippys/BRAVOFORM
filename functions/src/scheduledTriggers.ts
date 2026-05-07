@@ -440,3 +440,46 @@ export const recomputeSlaPredictions = onSchedule(
     }
   }
 );
+
+// ─────────────────────────────────────────────────────────────────────────────
+// CRON 4 — A cada 2 minutos — Retoma parents de sub-workflows concluídos
+//
+// Detecta instances pausadas (sub_workflow_paused_at IS NOT NULL) cujos
+// sub-workflows já completaram, e avança o pai para a próxima etapa.
+// Necessário porque o sub-workflow não tem como notificar o pai de forma
+// síncrona — então polling assíncrono é a solução pragmática.
+// ─────────────────────────────────────────────────────────────────────────────
+export const resumeSubWorkflowParents = onSchedule(
+  {
+    schedule:       "every 2 minutes",
+    timeZone:       "America/Sao_Paulo",
+    memory:         "256MiB",
+    timeoutSeconds: 120,
+  },
+  async (_event) => {
+    const apiBase = bravoformApiUrl.value();
+    if (!apiBase) return;
+
+    try {
+      const res = await fetch(`${apiBase}/api/sub-workflow/resume-parents`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({}),
+      });
+
+      if (!res.ok) {
+        logger.warn(`⚠️ Sub-workflow resume HTTP ${res.status}`);
+        return;
+      }
+
+      const json = await res.json();
+      if (json.resumed > 0) {
+        logger.info(`✅ ${json.resumed} pai(s) retomado(s) após conclusão de sub-workflow`, {
+          detail: json.detail?.slice(0, 10),
+        });
+      }
+    } catch (error) {
+      logger.error("❌ Erro no sub-workflow resume:", error);
+    }
+  }
+);

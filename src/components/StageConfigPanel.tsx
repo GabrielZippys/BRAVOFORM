@@ -9,6 +9,7 @@ import { STAGE_TYPES, getDefaultColorForType, getStageTypeDefinition, getAdvance
 import FormSelectionModal from './FormSelectionModal';
 import TriggerConfigPanel from './TriggerConfigPanel';
 import StageCommentsPanel from './StageCommentsPanel';
+import SubWorkflowSelector from './SubWorkflowSelector';
 import { useAuth } from '@/hooks/useAuth';
 import styles from '../../app/styles/StageConfigPanel.module.css';
 
@@ -1092,6 +1093,124 @@ export default function StageConfigPanel({
                     </div>
                   </div>
                 )}
+              </div>
+            </>
+          )}
+
+          {/* ─── Sub-Workflow Config ─── */}
+          {STAGE_TYPES.find(t => t.type === stage.stageType)?.fields.showSubWorkflow && (
+            <>
+              <div className={styles.divider}></div>
+              <div className={styles.sectionGroup}>
+                <div className={styles.sectionGroupHeader}>
+                  🔗 Configuração do Sub-Workflow
+                </div>
+                <div className={styles.sectionGroupBody}>
+                  <p className={styles.hint} style={{ margin: '0 0 var(--space-3)' }}>
+                    Quando uma instância chegar nesta etapa, ela invocará outro workflow
+                    como sub-rotina. O fluxo só avança quando o sub-workflow concluir
+                    (modo "wait") ou imediatamente (modo "fire-and-forget").
+                  </p>
+
+                  <SubWorkflowSelector
+                    value={stage.subWorkflowId}
+                    onChange={(id) => onUpdate({ subWorkflowId: id || undefined })}
+                  />
+
+                  <label className={styles.label} style={{ marginTop: 'var(--space-3)' }}>
+                    <span>Modo de execução</span>
+                  </label>
+                  <select
+                    value={stage.subWorkflowMode || 'wait'}
+                    onChange={(e) => onUpdate({ subWorkflowMode: e.target.value as 'wait' | 'fire-and-forget' })}
+                    className={styles.select}
+                  >
+                    <option value="wait">⏸️ Wait — pausa o pai até o sub completar</option>
+                    <option value="fire-and-forget">▶️ Fire-and-forget — dispara e continua</option>
+                  </select>
+
+                  <div className={styles.techHint} style={{ marginTop: 'var(--space-3)' }}>
+                    <span>💡</span>
+                    <span>
+                      Modo <code>wait</code>: ideal para validações em série (ex.: chamar
+                      "Workflow de Cotação" e esperar o orçamento vir).<br />
+                      Modo <code>fire-and-forget</code>: ideal para notificações ou processos
+                      assíncronos (ex.: "Workflow de Backup" rodando em background).
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </>
+          )}
+
+          {/* ─── Parallel Config ─── */}
+          {STAGE_TYPES.find(t => t.type === stage.stageType)?.fields.showParallelConfig && (
+            <>
+              <div className={styles.divider}></div>
+              <div className={styles.sectionGroup}>
+                <div className={styles.sectionGroupHeader}>
+                  {stage.stageType === 'parallel-fork' ? '🔀 Bifurcação Paralela' : '🔁 Junção Paralela'}
+                </div>
+                <div className={styles.sectionGroupBody}>
+                  {stage.stageType === 'parallel-fork' ? (
+                    <p className={styles.hint} style={{ margin: 0 }}>
+                      Cada conexão de saída desta etapa no canvas vira um caminho paralelo.
+                      Conecte esta etapa a quantas etapas quiser — todas serão executadas
+                      simultaneamente. Use uma "Junção Paralela" mais adiante para
+                      reagrupá-las.
+                    </p>
+                  ) : (
+                    <>
+                      <p className={styles.hint} style={{ margin: '0 0 var(--space-3)' }}>
+                        Esta etapa aguarda múltiplos caminhos paralelos chegarem antes
+                        de avançar. Configure quantos paths devem completar.
+                      </p>
+
+                      <label className={styles.label}>
+                        <span>Mínimo de paths para avançar</span>
+                      </label>
+                      <input
+                        type="number"
+                        min="1"
+                        value={stage.parallelMinPathsToComplete ?? ''}
+                        onChange={(e) => {
+                          const v = parseInt(e.target.value, 10);
+                          onUpdate({
+                            parallelMinPathsToComplete: isFinite(v) && v > 0 ? v : undefined,
+                          });
+                        }}
+                        placeholder="Vazio = exigir TODOS os paths"
+                        className={styles.input}
+                      />
+
+                      <label className={styles.label} style={{ marginTop: 'var(--space-3)' }}>
+                        <span>Timeout (em minutos) — força avanço se exceder</span>
+                      </label>
+                      <input
+                        type="number"
+                        min="0"
+                        value={stage.parallelTimeoutMinutes ?? ''}
+                        onChange={(e) => {
+                          const v = parseInt(e.target.value, 10);
+                          onUpdate({
+                            parallelTimeoutMinutes: isFinite(v) && v > 0 ? v : undefined,
+                          });
+                        }}
+                        placeholder="Vazio = sem timeout"
+                        className={styles.input}
+                      />
+
+                      <div className={styles.techHint} style={{ marginTop: 'var(--space-3)' }}>
+                        <span>💡</span>
+                        <span>
+                          Exemplo: 3 paths paralelos (Financeiro, Técnico, Jurídico).
+                          Mínimo = 2 → avança quando 2 dos 3 aprovarem (consenso parcial).
+                          Mínimo vazio + Timeout 1440min → exige todos OU 24h limite.
+                        </span>
+                      </div>
+                    </>
+                  )}
+                </div>
               </div>
             </>
           )}
