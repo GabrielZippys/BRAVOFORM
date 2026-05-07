@@ -50,7 +50,8 @@ export async function GET(request: NextRequest) {
     const filterStatuses = searchParams.get('status')?.split(',').filter(Boolean);
     const limit = Math.min(parseInt(searchParams.get('limit') || '100', 10), 500);
 
-    // Carrega todas instances ativas (não-deleted, não-finalizadas) com SLA target da etapa atual
+    // Carrega APENAS instâncias de workflow ativas (não respostas de
+    // formulários simples) com SLA target da etapa atual.
     const result = await client.query(`
       SELECT
         fr.firebase_id            AS response_id,
@@ -70,8 +71,24 @@ export async function GET(request: NextRequest) {
       FROM fact_form_response fr
       LEFT JOIN dim_workflow_stages ws
         ON ws.firebase_id = fr.current_stage_fb_id
+      LEFT JOIN dim_forms df
+        ON df.form_key = fr.form_key
       WHERE fr.deleted_at IS NULL
         AND fr.status NOT IN ('completed', 'cancelled', 'rejected')
+        AND (
+          fr.current_stage_fb_id IS NOT NULL
+          OR fr.motorista IS NOT NULL
+          OR fr.placa IS NOT NULL
+          OR fr.boletim IS NOT NULL
+          OR fr.protocolo_cancelamento IS NOT NULL
+          OR fr.approved_at IS NOT NULL
+          OR fr.rejected_at IS NOT NULL
+          OR (df.fields_json IS NOT NULL AND (
+                df.fields_json->>'isWorkflowEnabled' = 'true'
+                OR (df.fields_json->>'defaultWorkflowId' IS NOT NULL
+                    AND df.fields_json->>'defaultWorkflowId' <> '')
+              ))
+        )
       ORDER BY fr.submitted_at DESC NULLS LAST
       LIMIT $1
     `, [limit]);
@@ -181,8 +198,24 @@ export async function POST(request: NextRequest) {
       FROM fact_form_response fr
       LEFT JOIN dim_workflow_stages ws
         ON ws.firebase_id = fr.current_stage_fb_id
+      LEFT JOIN dim_forms df
+        ON df.form_key = fr.form_key
       WHERE fr.deleted_at IS NULL
         AND fr.status NOT IN ('completed', 'cancelled', 'rejected')
+        AND (
+          fr.current_stage_fb_id IS NOT NULL
+          OR fr.motorista IS NOT NULL
+          OR fr.placa IS NOT NULL
+          OR fr.boletim IS NOT NULL
+          OR fr.protocolo_cancelamento IS NOT NULL
+          OR fr.approved_at IS NOT NULL
+          OR fr.rejected_at IS NOT NULL
+          OR (df.fields_json IS NOT NULL AND (
+                df.fields_json->>'isWorkflowEnabled' = 'true'
+                OR (df.fields_json->>'defaultWorkflowId' IS NOT NULL
+                    AND df.fields_json->>'defaultWorkflowId' <> '')
+              ))
+        )
         ${whereClause}
     `, params);
 

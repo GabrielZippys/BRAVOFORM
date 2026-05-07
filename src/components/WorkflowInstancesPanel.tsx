@@ -109,8 +109,12 @@ export default function WorkflowInstancesPanel({ workflowId: _workflowId }: Prop
     [streamInstances]
   );
 
-  // Loading: enquanto não recebemos primeiro snapshot
-  const loading = streamStatus === 'connecting' && instances.length === 0;
+  // Loading APENAS no primeiro carregamento — antes de qualquer snapshot.
+  // Depois disso, mesmo se SSE reconectar, mantemos a tela atual (lista
+  // vazia ou com dados antigos) e mostramos só o badge de status.
+  // Isso evita o "piscar" de skeletons toda vez que a stream reconecta
+  // (o que acontece a cada 4min por design + circuit breaker).
+  const loading = lastUpdate === null && streamStatus === 'connecting';
 
   const filtered = instances.filter(r => {
     if (statusFilter !== 'all' && r.status !== statusFilter) return false;

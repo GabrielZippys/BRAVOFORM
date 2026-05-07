@@ -685,3 +685,17 @@ textarea.success {
   color: #60A5FA !important;
   background: rgba(59, 130, 246, 0.12) !important;
 }
+
+/* ─── Skeleton em dark mode (mesmo workaround do Lightning CSS) ──────────
+ * Aplica gradiente escuro APENAS se data-theme=dark estiver explícito —
+ * NUNCA via prefers-color-scheme do sistema, porque o app ainda é
+ * predominantemente light mode. */
+[data-theme="dark"] [class*="Skeleton-module__"][class*="__skeleton"] {
+  background: linear-gradient(
+    90deg,
+    #1F2937 0%,
+    #374151 50%,
+    #1F2937 100%
+  ) !important;
+  background-size: 200% 100% !important;
+}

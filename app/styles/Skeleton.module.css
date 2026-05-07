@@ -34,16 +34,7 @@
   }
 }
 
-/* Dark mode */
-@media (prefers-color-scheme: dark) {
-  :root[data-theme="auto"] .skeleton,
-  :root[data-theme="dark"] .skeleton {
-    background: linear-gradient(
-      90deg,
-      var(--color-gray-800) 0%,
-      var(--color-gray-700) 50%,
-      var(--color-gray-800) 100%
-    );
-    background-size: 200% 100%;
-  }
-}
+/* Dark mode é tratado em globals.css.
+ * Lightning CSS / Turbopack desconsidera o ancestral [data-theme] dentro de
+ * CSS modules combinado com @media, fazendo o gradient dark vazar para o
+ * tema light em sistemas com prefers-color-scheme: dark. */

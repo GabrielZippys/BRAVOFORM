@@ -35,7 +35,33 @@ export async function GET(request: NextRequest) {
     const from      = searchParams.get('from');
     const to        = searchParams.get('to');
 
-    const conds: string[] = ['fr.deleted_at IS NULL'];
+    // ⚠️ Filtro SEMPRE-aplicado: a métrica é de workflow, então só conta
+    // respostas que sejam INSTÂNCIAS de workflow — não respostas de
+    // formulários simples. Sem este filtro, em ambientes com formulários
+    // tradicionais, os números ficam inflados (3.842 pendentes etc.).
+    //
+    // Uma resposta é workflow-instance se:
+    //   • já entrou em algum estágio (current_stage_fb_id != null), OU
+    //   • tem dados operacionais (motorista, placa, boletim, protocolo), OU
+    //   • foi aprovada/reprovada por algum workflow, OU
+    //   • o formulário tem workflow habilitado nas configs (fields_json)
+    const conds: string[] = [
+      'fr.deleted_at IS NULL',
+      `(
+        fr.current_stage_fb_id IS NOT NULL
+        OR fr.motorista IS NOT NULL
+        OR fr.placa IS NOT NULL
+        OR fr.boletim IS NOT NULL
+        OR fr.protocolo_cancelamento IS NOT NULL
+        OR fr.approved_at IS NOT NULL
+        OR fr.rejected_at IS NOT NULL
+        OR (f.fields_json IS NOT NULL AND (
+              f.fields_json->>'isWorkflowEnabled' = 'true'
+              OR (f.fields_json->>'defaultWorkflowId' IS NOT NULL
+                  AND f.fields_json->>'defaultWorkflowId' <> '')
+            ))
+      )`,
+    ];
     const params: any[] = [];
     let p = 1;
 
