@@ -110,11 +110,21 @@ export function useInstancesStream(options: UseInstancesStreamOptions = {}) {
   }, []);
 
   // ─── SSE ───────────────────────────────────────────────────────────────
+  // ⚠️ NÃO incluir `status` nas deps deste useCallback. Se incluir, cada
+  // setStatus() recria connectSSE → useEffect re-executa → novo EventSource
+  // criado em cima do antigo → loop visual de reconexão (skeletons piscando).
+  // Para acessar o status atual usamos functional updates `setStatus(prev=>...)`.
   const connectSSE = useCallback(() => {
     if (typeof window === 'undefined' || typeof EventSource === 'undefined') {
       logger.info('useInstancesStream: EventSource não disponível, usando polling');
       startPolling();
       return;
+    }
+
+    // Fecha qualquer EventSource antigo antes de criar novo (defensivo)
+    if (esRef.current) {
+      try { esRef.current.close(); } catch { /* noop */ }
+      esRef.current = null;
     }
 
     setStatus('connecting');
@@ -131,7 +141,6 @@ export function useInstancesStream(options: UseInstancesStreamOptions = {}) {
       if (mountedRef.current) {
         setStatus('connected');
         setError(null);
-        // Reseta contador de tentativas após conexão bem-sucedida
         (esRef as any).__attempt = 0;
       }
     });
@@ -150,14 +159,13 @@ export function useInstancesStream(options: UseInstancesStreamOptions = {}) {
     });
 
     es.addEventListener('heartbeat', () => {
-      if (mountedRef.current && status !== 'connected') {
-        setStatus('connected');
-      }
+      if (!mountedRef.current) return;
+      // Functional update — não captura `status` por closure (que ficaria stale)
+      setStatus((prev) => (prev !== 'connected' ? 'connected' : prev));
     });
 
-    // Servidor sinaliza que está saturado/com erros e quer que o cliente
-    // migre pro polling fallback (que naturalmente espalha as requests
-    // no tempo, em vez de manter conexões SSE permanentes).
+    // Servidor sinaliza saturação/erros e quer que o cliente migre pra
+    // polling fallback (que naturalmente espalha as requests no tempo).
     es.addEventListener('fallback', (e) => {
       if (!mountedRef.current) return;
       let reason = 'unknown';
@@ -165,25 +173,20 @@ export function useInstancesStream(options: UseInstancesStreamOptions = {}) {
       logger.info('SSE: server requested fallback to polling', { reason });
       es.close();
       esRef.current = null;
-      // Cancela qualquer reconnect agendado
       if (reconnectRef.current) {
         clearTimeout(reconnectRef.current);
         reconnectRef.current = null;
       }
-      // Inicia polling tradicional (sem SSE)
       startPolling();
     });
 
     es.addEventListener('error', () => {
       if (!mountedRef.current) return;
-      // EventSource.CLOSED = 2 — servidor fechou ou erro fatal
       if (es.readyState === EventSource.CLOSED) {
         setStatus('disconnected');
         es.close();
-        esRef.current = null;
+        if (esRef.current === es) esRef.current = null;
 
-        // Backoff exponencial mais conservador: 5s, 10s, 20s.
-        // Após 3 tentativas falhas, cai pra polling permanentemente.
         const attempt = (esRef as any).__attempt = ((esRef as any).__attempt || 0) + 1;
         if (attempt >= 3) {
           logger.warn('SSE: too many reconnect attempts, falling back to polling');
@@ -199,7 +202,9 @@ export function useInstancesStream(options: UseInstancesStreamOptions = {}) {
         }, 5_000 * attempt);
       }
     });
-  }, [url, forcePolling, startPolling, status]);
+    // ⚠️ deps INTENCIONALMENTE estáveis — `status` removido para evitar loop.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [url, forcePolling, startPolling]);
 
   // ─── Public API ────────────────────────────────────────────────────────
   const reconnect = useCallback(() => {
