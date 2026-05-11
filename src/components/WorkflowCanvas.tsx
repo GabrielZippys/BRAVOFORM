@@ -20,7 +20,7 @@ import ReactFlow, {
   ReactFlowProvider,
 } from 'reactflow';
 import 'reactflow/dist/style.css';
-import { Plus, Save, Settings, Trash2, GitBranch, Eye, Power, PowerOff, Sparkles, ArrowLeft, ArrowRight, Wand2, History, Play } from 'lucide-react';
+import { Plus, Save, Settings, Trash2, GitBranch, Eye, Power, PowerOff, Sparkles, ArrowLeft, ArrowRight, Wand2, History, Play, Link2 } from 'lucide-react';
 import type { WorkflowStage, RoutingCondition, ActivationSettings, ActivationMode } from '@/types';
 import { WorkflowServicePg as WorkflowService } from '@/services/workflowServicePg';
 import { useAuth } from '@/hooks/useAuth';
@@ -34,6 +34,7 @@ import WorkflowPresetPicker from './WorkflowPresetPicker';
 import WorkflowAIGenerator from './WorkflowAIGenerator';
 import WorkflowVersionPanel from './WorkflowVersionPanel';
 import WorkflowSimulator from './WorkflowSimulator';
+import WorkflowPublicLinkModal from './WorkflowPublicLinkModal';
 import { useConfirm } from '@/hooks/useConfirm';
 import styles from '../../app/styles/WorkflowCanvas.module.css';
 
@@ -94,6 +95,7 @@ export default function WorkflowCanvas({
   const [showShortcuts, setShowShortcuts] = useState(false);
   const [showVersions, setShowVersions] = useState(false);
   const [showSimulator, setShowSimulator] = useState(false);
+  const [showPublicLink, setShowPublicLink] = useState(false);
   const { confirm, alert, confirmState } = useConfirm();
 
   // Inicializar com stages existentes
@@ -760,6 +762,21 @@ export default function WorkflowCanvas({
                 Versões
               </button>
             )}
+            {workflowId && (
+              <button
+                onClick={() => setShowPublicLink(true)}
+                className={styles.btnSettings}
+                style={{
+                  background: 'linear-gradient(135deg, #06B6D4 0%, #3B82F6 100%)',
+                  color: '#fff',
+                  fontWeight: 600,
+                }}
+                title="Gerar/copiar link público para acesso sem login"
+              >
+                <Link2 size={20} />
+                Link Público
+              </button>
+            )}
             <button
               onClick={() => setShowShortcuts(true)}
               className={styles.btnSettings}
@@ -843,6 +860,20 @@ export default function WorkflowCanvas({
         edges={edges.map((e) => ({ id: e.id, source: e.source, target: e.target }))}
         workflowName={workflowName}
       />
+
+      {workflowId && user && (
+        <WorkflowPublicLinkModal
+          isOpen={showPublicLink}
+          onClose={() => setShowPublicLink(false)}
+          workflowId={workflowId}
+          workflowName={workflowName}
+          currentUser={{
+            id: user.uid,
+            name: user.displayName || user.email || 'Admin',
+            username: user.email?.split('@')[0],
+          }}
+        />
+      )}
 
       {/* Modal de atalhos de teclado */}
       {showShortcuts && (

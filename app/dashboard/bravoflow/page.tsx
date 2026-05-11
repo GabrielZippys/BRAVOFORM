@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Plus, Edit, Trash2, Eye, Copy, BarChart3, Workflow as WorkflowIcon, ListChecks, TrendingUp } from 'lucide-react';
+import { Plus, Edit, Trash2, Eye, Copy, BarChart3, Workflow as WorkflowIcon, ListChecks, TrendingUp, Link2 } from 'lucide-react';
 import { WorkflowServicePg } from '@/services/workflowServicePg';
 import { useAuth } from '@/hooks/useAuth';
 import type { WorkflowStage } from '@/types';
@@ -10,6 +10,7 @@ import WorkflowSetupModal from '@/components/WorkflowSetupModal';
 import WorkflowInstancesPanel from '@/components/WorkflowInstancesPanel';
 import WorkflowMetricsPanel from '@/components/WorkflowMetricsPanel';
 import SLAInsightsPanel from '@/components/SLAInsightsPanel';
+import WorkflowPublicLinkModal from '@/components/WorkflowPublicLinkModal';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import { SkeletonList } from '@/components/Skeleton';
 import { logger } from '@/lib/logger';
@@ -38,6 +39,7 @@ export default function BravoFlowPage() {
   const [deleteConfirmModal, setDeleteConfirmModal] = useState<{ show: boolean; workflowId: string | null }>({ show: false, workflowId: null });
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<TabId>('workflows');
+  const [publicLinkModal, setPublicLinkModal] = useState<{ open: boolean; workflowId: string; workflowName: string } | null>(null);
 
   useEffect(() => {
     if (!loading && !user) {
@@ -265,6 +267,21 @@ export default function BravoFlowPage() {
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
+                      setPublicLinkModal({
+                        open: true,
+                        workflowId: workflow.id,
+                        workflowName: workflow.name,
+                      });
+                    }}
+                    className={styles.actionButton}
+                    title="Compartilhar link público (acesso sem login)"
+                    style={{ color: '#06B6D4' }}
+                  >
+                    <Link2 size={18} />
+                  </button>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
                       handleDelete(workflow.id);
                     }}
                     className={styles.actionButton}
@@ -339,6 +356,20 @@ export default function BravoFlowPage() {
             departments: editingWorkflow.departments || []
           }}
           isEditMode={true}
+        />
+      )}
+
+      {publicLinkModal?.open && user && (
+        <WorkflowPublicLinkModal
+          isOpen={publicLinkModal.open}
+          onClose={() => setPublicLinkModal(null)}
+          workflowId={publicLinkModal.workflowId}
+          workflowName={publicLinkModal.workflowName}
+          currentUser={{
+            id: user.uid,
+            name: user.displayName || user.email || 'Admin',
+            username: user.email?.split('@')[0],
+          }}
         />
       )}
 
