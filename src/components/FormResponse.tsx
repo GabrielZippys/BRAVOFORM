@@ -1467,8 +1467,12 @@ case 'Data':
         );
 
       case 'Lookup': {
-        const sourceId = (field as any).lookupSourceId;
-        if (!sourceId) {
+        const table = (field as any).lookupTable;
+        const searchColumn = (field as any).lookupSearchColumn;
+        const displayColumns = (field as any).lookupDisplayColumns;
+        const cfgOk = table && searchColumn && Array.isArray(displayColumns) && displayColumns.length > 0;
+
+        if (!cfgOk) {
           return (
             <div style={{
               padding: 12, background: '#FEF3C7', border: '1px solid #FDE68A',
@@ -1484,7 +1488,9 @@ case 'Data':
             : undefined;
         return (
           <LookupField
-            sourceId={sourceId}
+            table={table}
+            searchColumn={searchColumn}
+            displayColumns={displayColumns}
             label=""
             placeholder={field.placeholder}
             requireMatch={(field as any).lookupRequireMatch}

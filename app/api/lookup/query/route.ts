@@ -1,32 +1,64 @@
 /**
- * GET /api/lookup/query?sourceId=xxx&value=yyy
+ * GET /api/lookup/query
+ *   ?table=dim_apetito_motoristas
+ *   &searchColumn=matricula
+ *   &value=1234
+ *   &displayColumns=nome,empresa,setor              (CSV)
+ *   &displayLabels=Nome,Empresa,Setor               (CSV, opcional, alinhado a displayColumns)
  *
- * Endpoint público (workflow sem login) que executa o lookup.
+ * Endpoint público (workflow sem login) que faz o lookup direto na
+ * tabela apontada pelo formulário. Não há camada intermediária de
+ * "Lookup Source" cadastrada — a configuração vive no próprio campo
+ * do formulário.
  *
- * Segurança em CAMADAS:
- *   1. Aceita apenas sourceId cadastrado pelo admin (whitelist)
- *   2. Usa table_name + search_column do registro da source — colaborador
- *      NÃO pode injetar tabela/coluna arbitrária
- *   3. Retorna APENAS as colunas declaradas em display_columns
- *   4. Rate limit agressivo (30/min/IP) — anti-enumeração
- *   5. Audit log de cada lookup pra forensics
- *
- * Resposta:
- *   { match: true,  data: { name: '...', email: '...' } }
- *   { match: false }
+ * Segurança em CAMADAS (essencial — endpoint é público):
+ *   1. HIDDEN_TABLES (whitelist negativa) — bloqueia tabelas internas
+ *      do BravoForm (fact_*, audit, etc.)
+ *   2. Regex SQL_IDENT_RE em TODOS identificadores (table, search,
+ *      display columns) — impede SQL injection via parâmetros
+ *   3. Verificação server-side de que a tabela EXISTE em information_schema
+ *   4. Verificação server-side de que TODAS as colunas existem na tabela
+ *   5. HIDDEN_COLUMNS bloqueia colunas sensíveis (password, auth_token)
+ *   6. Rate limit agressivo 30/min/IP — anti-enumeração por força bruta
+ *   7. Cache em memória de "tabela → colunas válidas" — não faz query
+ *      de validação em toda request
  */
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getPool } from '@/lib/db/postgresql';
-import { ensureLookupSchema } from '@/lib/db/lookupMigration';
 import { rateLimit } from '@/lib/rateLimit';
 import { logger } from '@/lib/logger';
 
 const SQL_IDENT_RE = /^[a-zA-Z_][a-zA-Z0-9_]{0,62}$/;
 
-interface DisplayColumn {
-  column: string;
-  label?: string;
+const HIDDEN_TABLES = new Set([
+  'fact_answers', 'fact_attachments', 'fact_audit_events',
+  'fact_checkbox_answers', 'fact_form_response', 'fact_order_items',
+  'fact_stage_comments', 'fact_table_answers', 'fact_workflow_history',
+  'dim_workflow_stages', 'dim_workflow_versions',
+]);
+
+const HIDDEN_COLUMNS = new Set([
+  'password', 'password_hash', 'auth_token', 'reset_token',
+  'api_key', 'secret', 'secret_key',
+]);
+
+// Cache em memória: tabela → Set de colunas válidas
+// Evita query em information_schema a cada request. TTL implícito = vida do lambda warm.
+const tableColumnsCache = new Map<string, Set<string>>();
+
+async function getValidColumns(client: any, tableName: string): Promise<Set<string>> {
+  const cached = tableColumnsCache.get(tableName);
+  if (cached) return cached;
+
+  const r = await client.query(
+    `SELECT column_name FROM information_schema.columns
+     WHERE table_schema = 'public' AND table_name = $1`,
+    [tableName]
+  );
+  const cols = new Set<string>(r.rows.map((row: any) => row.column_name));
+  tableColumnsCache.set(tableName, cols);
+  return cols;
 }
 
 export async function GET(request: NextRequest) {
@@ -35,12 +67,16 @@ export async function GET(request: NextRequest) {
   if (!rl.ok) return rl.response;
 
   const { searchParams } = new URL(request.url);
-  const sourceId = searchParams.get('sourceId');
+  const tableName = searchParams.get('table');
+  const searchColumn = searchParams.get('searchColumn');
   const value = searchParams.get('value');
+  const displayColsCsv = searchParams.get('displayColumns') || '';
+  const displayLabelsCsv = searchParams.get('displayLabels') || '';
 
-  if (!sourceId || !value) {
+  // ─── Validação básica ──────────────────────────────────────────────────
+  if (!tableName || !searchColumn || !value) {
     return NextResponse.json(
-      { success: false, error: 'sourceId e value são obrigatórios' },
+      { success: false, error: 'table, searchColumn e value são obrigatórios' },
       { status: 400 }
     );
   }
@@ -52,63 +88,81 @@ export async function GET(request: NextRequest) {
     );
   }
 
+  if (!SQL_IDENT_RE.test(tableName) || !SQL_IDENT_RE.test(searchColumn)) {
+    return NextResponse.json(
+      { success: false, error: 'Identificador SQL inválido' },
+      { status: 400 }
+    );
+  }
+
+  if (HIDDEN_TABLES.has(tableName)) {
+    return NextResponse.json(
+      { success: false, error: 'Tabela não disponível para lookup' },
+      { status: 403 }
+    );
+  }
+
+  const displayColumns = displayColsCsv
+    .split(',')
+    .map((c) => c.trim())
+    .filter(Boolean);
+
+  if (displayColumns.length === 0) {
+    return NextResponse.json(
+      { success: false, error: 'displayColumns é obrigatório (CSV)' },
+      { status: 400 }
+    );
+  }
+
+  if (displayColumns.length > 30) {
+    return NextResponse.json(
+      { success: false, error: 'Máximo de 30 colunas de exibição' },
+      { status: 400 }
+    );
+  }
+
+  for (const col of displayColumns) {
+    if (!SQL_IDENT_RE.test(col) || HIDDEN_COLUMNS.has(col)) {
+      return NextResponse.json(
+        { success: false, error: `Coluna inválida ou não permitida: ${col}` },
+        { status: 400 }
+      );
+    }
+  }
+
+  const displayLabels = displayLabelsCsv.split(',').map((l) => l.trim());
+
   const pool = getPool();
   const client = await pool.connect();
   try {
-    await ensureLookupSchema(client);
+    // ─── Validação server-side: colunas existem na tabela ─────────────────
+    const validCols = await getValidColumns(client, tableName);
 
-    // 1) Busca config da source
-    const srcRes = await client.query(
-      `SELECT table_name, search_column, search_column_type, display_columns, is_active
-       FROM dim_lookup_sources
-       WHERE firebase_id = $1 AND deleted_at IS NULL`,
-      [sourceId]
-    );
-
-    if (srcRes.rows.length === 0) {
+    if (validCols.size === 0) {
       return NextResponse.json(
-        { success: false, error: 'Fonte de lookup não encontrada' },
+        { success: false, error: 'Tabela não encontrada' },
         { status: 404 }
       );
     }
 
-    const src = srcRes.rows[0];
-    if (!src.is_active) {
+    if (!validCols.has(searchColumn)) {
       return NextResponse.json(
-        { success: false, error: 'Fonte de lookup desativada' },
-        { status: 403 }
+        { success: false, error: `Coluna de busca "${searchColumn}" não existe em "${tableName}"` },
+        { status: 400 }
       );
     }
 
-    const tableName: string = src.table_name;
-    const searchColumn: string = src.search_column;
-    const displayColumns: DisplayColumn[] = src.display_columns || [];
-
-    // 2) Re-validação de identificadores (defesa em profundidade)
-    if (!SQL_IDENT_RE.test(tableName) || !SQL_IDENT_RE.test(searchColumn)) {
-      logger.error('Lookup source com identificadores inválidos', undefined, { sourceId, tableName, searchColumn });
-      return NextResponse.json(
-        { success: false, error: 'Configuração inválida (contate o suporte)' },
-        { status: 500 }
-      );
+    for (const col of displayColumns) {
+      if (!validCols.has(col)) {
+        return NextResponse.json(
+          { success: false, error: `Coluna de exibição "${col}" não existe em "${tableName}"` },
+          { status: 400 }
+        );
+      }
     }
 
-    const safeDisplayCols = displayColumns
-      .map((d) => d.column)
-      .filter((c) => SQL_IDENT_RE.test(c));
-
-    if (safeDisplayCols.length === 0) {
-      return NextResponse.json(
-        { success: false, error: 'Source sem colunas de exibição válidas' },
-        { status: 500 }
-      );
-    }
-
-    // 3) Monta a query com cast no value para comparar com a coluna
-    // (identificadores já foram validados pelos regex acima)
-    const colList = safeDisplayCols.map((c) => `"${c}"`).join(', ');
-    const castValue = src.search_column_type === 'number' ? `($1::text)::numeric` : `$1::text`;
-
+    // ─── Query (identificadores já validados duas vezes — regex + existência) ──
+    const colList = displayColumns.map((c) => `"${c}"`).join(', ');
     const queryText = `
       SELECT ${colList}
       FROM "${tableName}"
@@ -121,7 +175,7 @@ export async function GET(request: NextRequest) {
     try {
       result = await client.query(queryText, [value.trim()]);
     } catch (qErr: any) {
-      logger.warn('Lookup query failed', { sourceId, error: qErr.message });
+      logger.warn('Lookup query failed', { tableName, searchColumn, error: qErr.message });
       return NextResponse.json(
         { success: false, error: 'Erro ao consultar a fonte de dados' },
         { status: 500 }
@@ -129,21 +183,17 @@ export async function GET(request: NextRequest) {
     }
 
     if (result.rowCount === 0) {
-      return NextResponse.json({
-        success: true,
-        match: false,
-      });
+      return NextResponse.json({ success: true, match: false });
     }
 
-    // 4) Monta o objeto de retorno com labels amigáveis
+    // ─── Monta resposta com labels alinhados a displayColumns ─────────────
     const row = result.rows[0];
     const data: Record<string, { value: any; label: string }> = {};
-    for (const dc of displayColumns) {
-      const safeCol = SQL_IDENT_RE.test(dc.column) ? dc.column : null;
-      if (!safeCol) continue;
-      data[dc.column] = {
-        value: row[dc.column] ?? null,
-        label: dc.label || dc.column,
+    for (let i = 0; i < displayColumns.length; i++) {
+      const col = displayColumns[i];
+      data[col] = {
+        value: row[col] ?? null,
+        label: displayLabels[i] || col,
       };
     }
 
@@ -153,7 +203,7 @@ export async function GET(request: NextRequest) {
       data,
     });
   } catch (error: any) {
-    logger.error('lookup/query error', error, { sourceId });
+    logger.error('lookup/query error', error, { tableName });
     return NextResponse.json(
       { success: false, error: 'Erro interno na consulta' },
       { status: 500 }

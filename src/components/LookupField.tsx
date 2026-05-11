@@ -29,15 +29,26 @@ export interface LookupResolved {
   [column: string]: { value: any; label: string };
 }
 
+export interface LookupDisplayColumn {
+  column: string;
+  label: string;
+}
+
 export interface LookupValue {
   inputValue: string;
   resolved: LookupResolved | null;
-  sourceId: string;
+  /** Snapshot da config no momento do match (auditável) */
+  table?: string;
+  searchColumn?: string;
 }
 
 interface Props {
-  /** ID da Source cadastrada pelo admin */
-  sourceId: string;
+  /** Tabela do PG configurada no campo */
+  table: string;
+  /** Coluna onde buscar */
+  searchColumn: string;
+  /** Colunas a exibir após match */
+  displayColumns: LookupDisplayColumn[];
   /** Label do campo */
   label?: string;
   /** Placeholder do input */
@@ -57,7 +68,9 @@ interface Props {
 type Status = 'idle' | 'searching' | 'match' | 'no-match' | 'error';
 
 export default function LookupField({
-  sourceId,
+  table,
+  searchColumn,
+  displayColumns,
   label = 'Digite seu ID',
   placeholder = 'Ex: matrícula, CPF, código...',
   value,
@@ -73,20 +86,36 @@ export default function LookupField({
   const [showNotFoundModal, setShowNotFoundModal] = useState(false);
 
   const emit = useCallback((nextInput: string, nextResolved: LookupResolved | null) => {
-    onChange?.({ inputValue: nextInput, resolved: nextResolved, sourceId });
-  }, [onChange, sourceId]);
+    onChange?.({
+      inputValue: nextInput,
+      resolved: nextResolved,
+      table,
+      searchColumn,
+    });
+  }, [onChange, table, searchColumn]);
 
   const handleSearch = async () => {
     const v = inputValue.trim();
     if (!v) return;
 
+    if (!table || !searchColumn || !displayColumns || displayColumns.length === 0) {
+      setStatus('error');
+      setErrorMsg('Campo não configurado corretamente. Contate o administrador.');
+      return;
+    }
+
     setStatus('searching');
     setErrorMsg(null);
 
     try {
-      const r = await fetch(
-        `/api/lookup/query?sourceId=${encodeURIComponent(sourceId)}&value=${encodeURIComponent(v)}`
-      );
+      const params = new URLSearchParams({
+        table,
+        searchColumn,
+        value: v,
+        displayColumns: displayColumns.map((d) => d.column).join(','),
+        displayLabels: displayColumns.map((d) => d.label || d.column).join(','),
+      });
+      const r = await fetch(`/api/lookup/query?${params.toString()}`);
       const j = await r.json();
 
       if (!j.success) {
