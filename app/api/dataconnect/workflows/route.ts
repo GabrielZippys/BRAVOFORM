@@ -97,13 +97,18 @@ export async function GET(request: NextRequest) {
     // ⚠️ TODAS as migrations precisam rodar antes do SELECT — o GET pode
     // ser chamado em produção ANTES de qualquer POST que normalmente
     // disparasse essas migrations. Sem isso, colunas como sub_workflow_id,
-    // sla_target_minutes etc. não existem e o SELECT quebra com 500.
+    // sla_target_minutes, lookup_table etc. não existem e o SELECT quebra
+    // com 500.
     const { ensureWorkflowsTable } = await import('@/lib/db/workflowsTableMigration');
     const { ensureSlaSchema } = await import('@/lib/db/slaMigration');
     const { ensureAdvancedFlowSchema } = await import('@/lib/db/advancedFlowMigration');
+    const { ensureIdentityValidationSchema } = await import('@/lib/db/identityValidationMigration');
+    const { ensurePublicLinkSchema } = await import('@/lib/db/publicLinkMigration');
     await ensureWorkflowsTable(client);
     await ensureSlaSchema(client);
     await ensureAdvancedFlowSchema(client);
+    await ensureIdentityValidationSchema(client);
+    await ensurePublicLinkSchema(client);
 
     const { searchParams } = new URL(request.url);
     const isActiveParam = searchParams.get('isActive');
@@ -356,13 +361,15 @@ export async function POST(request: NextRequest) {
       // Reordenar para garantir contiguidade (caso venha com gaps)
       const orderedStages = [...stages].sort((a: any, b: any) => (a.order ?? 0) - (b.order ?? 0));
 
-      // Garante colunas SLA + advanced flow + identity validation antes do INSERT
+      // Garante TODAS as migrations idempotentes antes do INSERT/SELECT
       const { ensureSlaSchema } = await import('@/lib/db/slaMigration');
       const { ensureAdvancedFlowSchema } = await import('@/lib/db/advancedFlowMigration');
       const { ensureIdentityValidationSchema } = await import('@/lib/db/identityValidationMigration');
+      const { ensurePublicLinkSchema } = await import('@/lib/db/publicLinkMigration');
       await ensureSlaSchema(client);
       await ensureAdvancedFlowSchema(client);
       await ensureIdentityValidationSchema(client);
+      await ensurePublicLinkSchema(client);
 
       for (let idx = 0; idx < orderedStages.length; idx++) {
         const stage = orderedStages[idx];
