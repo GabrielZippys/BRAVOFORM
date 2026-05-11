@@ -198,7 +198,8 @@ export default function PublicWorkflowPage() {
           />
         )}
 
-        {state.kind === 'started' && state.workflow.firstStage.stageType === 'identity-validation' && (
+        {state.kind === 'started' && state.currentStageId === state.workflow.firstStage.id &&
+         state.workflow.firstStage.stageType === 'identity-validation' && (
           <IdentityValidationStage
             responseId={state.responseId}
             stage={state.workflow.firstStage as WorkflowStage}
@@ -206,8 +207,19 @@ export default function PublicWorkflowPage() {
           />
         )}
 
-        {state.kind === 'started' && state.workflow.firstStage.stageType !== 'identity-validation' && (
+        {state.kind === 'started' && state.currentStageId === state.workflow.firstStage.id &&
+         state.workflow.firstStage.stageType !== 'identity-validation' && (
           <PlaceholderStageView stageType={state.workflow.firstStage.stageType} />
+        )}
+
+        {state.kind === 'started' && state.currentStageId !== state.workflow.firstStage.id && (
+          <NextStageView
+            workflowName={state.workflow.workflowName}
+            onRestart={() => {
+              try { localStorage.removeItem(storageKey); } catch {}
+              loadWorkflow();
+            }}
+          />
         )}
 
         {state.kind === 'completed' && <CompletedView />}
@@ -365,6 +377,61 @@ function PlaceholderStageView({ stageType }: { stageType: string }) {
         Esta etapa (tipo <code>{stageType}</code>) ainda não está disponível no
         link público. Contate o administrador.
       </p>
+    </div>
+  );
+}
+
+function NextStageView({
+  workflowName,
+  onRestart,
+}: {
+  workflowName: string;
+  onRestart: () => void;
+}) {
+  return (
+    <div style={{
+      background: '#fff',
+      borderRadius: 16,
+      padding: 40,
+      textAlign: 'center',
+      boxShadow: '0 4px 12px rgba(0,0,0,0.06)',
+    }}>
+      <div style={{
+        width: 56, height: 56,
+        borderRadius: '50%',
+        background: '#FEF3C7',
+        display: 'inline-flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginBottom: 16,
+      }}>
+        <span style={{ fontSize: 28 }}>⏳</span>
+      </div>
+      <h1 style={{ margin: 0, fontSize: 22, fontWeight: 700, color: '#111827' }}>
+        Identidade confirmada
+      </h1>
+      <p style={{ margin: '12px 0 0', fontSize: 14, color: '#6B7280', lineHeight: 1.5 }}>
+        Sua identidade foi registrada com sucesso no workflow <strong>{workflowName}</strong>.
+        <br /><br />
+        As próximas etapas serão processadas internamente.
+        Você já pode fechar esta página.
+      </p>
+      <button
+        onClick={onRestart}
+        style={{
+          marginTop: 24,
+          padding: '10px 18px',
+          background: 'transparent',
+          color: '#6B7280',
+          border: '1px solid #D1D5DB',
+          borderRadius: 8,
+          fontSize: 13,
+          fontWeight: 500,
+          cursor: 'pointer',
+        }}
+      >
+        Iniciar nova execução
+      </button>
     </div>
   );
 }

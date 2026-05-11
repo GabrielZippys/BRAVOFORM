@@ -485,44 +485,64 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ success: false, error: 'Workflow ID required' }, { status: 400 });
     }
 
-    // Atualiza dim_workflows (master)
-    const updates: string[] = [];
-    const values: any[] = [];
-    let i = 1;
+    // ⚠️ Pode ser que o workflow não exista ainda em dim_workflows (workflows
+    // criados antes da migration). Faz UPSERT pra garantir que sempre exista.
+    // Primeiro busca dados atuais (se houver) pra preservar fields não enviados.
+    const existing = await client.query(
+      `SELECT name, description, is_active, companies, departments, activation_settings
+       FROM dim_workflows
+       WHERE firebase_id = $1`,
+      [workflowId]
+    );
 
-    if (isActive !== undefined) {
-      updates.push(`is_active = $${i++}`);
-      values.push(isActive);
-    }
-    if (name !== undefined) {
-      updates.push(`name = $${i++}`);
-      values.push(name);
-    }
-    if (description !== undefined) {
-      updates.push(`description = $${i++}`);
-      values.push(description);
-    }
-    if (companies !== undefined) {
-      updates.push(`companies = $${i++}`);
-      values.push(JSON.stringify(companies));
-    }
-    if (departments !== undefined) {
-      updates.push(`departments = $${i++}`);
-      values.push(JSON.stringify(departments));
-    }
-    if (activationSettings !== undefined) {
-      updates.push(`activation_settings = $${i++}`);
-      values.push(JSON.stringify(activationSettings));
-    }
+    const cur = existing.rows[0] || {};
 
-    if (updates.length > 0) {
-      updates.push(`updated_at = NOW()`);
-      values.push(workflowId);
-      await client.query(
-        `UPDATE dim_workflows SET ${updates.join(', ')} WHERE firebase_id = $${i}`,
-        values
+    // Se não existe em dim_workflows, tenta pegar do legacy (dim_workflow_stages)
+    let fallback: any = {};
+    if (!cur.name) {
+      const legacy = await client.query(
+        `SELECT DISTINCT ON (workflow_fb_id)
+           workflow_name AS name, description, is_active, companies, departments, activation_settings
+         FROM dim_workflow_stages
+         WHERE workflow_fb_id = $1
+         LIMIT 1`,
+        [workflowId]
       );
+      fallback = legacy.rows[0] || {};
     }
+
+    const upsertValues = {
+      name:                name !== undefined ? name : (cur.name ?? fallback.name ?? 'Workflow sem nome'),
+      description:         description !== undefined ? description : (cur.description ?? fallback.description ?? ''),
+      isActive:            isActive !== undefined ? isActive : (cur.is_active ?? fallback.is_active ?? true),
+      companies:           companies !== undefined ? companies : (cur.companies ?? fallback.companies ?? []),
+      departments:         departments !== undefined ? departments : (cur.departments ?? fallback.departments ?? []),
+      activationSettings:  activationSettings !== undefined ? activationSettings : (cur.activation_settings ?? fallback.activation_settings ?? {}),
+    };
+
+    await client.query(
+      `INSERT INTO dim_workflows (
+        firebase_id, name, description, is_active,
+        companies, departments, activation_settings, updated_at
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())
+      ON CONFLICT (firebase_id) DO UPDATE SET
+        name = EXCLUDED.name,
+        description = EXCLUDED.description,
+        is_active = EXCLUDED.is_active,
+        companies = EXCLUDED.companies,
+        departments = EXCLUDED.departments,
+        activation_settings = EXCLUDED.activation_settings,
+        updated_at = NOW()`,
+      [
+        workflowId,
+        upsertValues.name,
+        upsertValues.description,
+        upsertValues.isActive,
+        JSON.stringify(upsertValues.companies),
+        JSON.stringify(upsertValues.departments),
+        JSON.stringify(upsertValues.activationSettings),
+      ]
+    );
 
     // Mantém compatibilidade com dim_workflow_stages (denormalização legacy)
     if (isActive !== undefined) {
