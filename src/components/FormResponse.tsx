@@ -8,6 +8,7 @@ import { type Form, type FormResponse as FormResponseType } from '@/types';
 import { X, Send, Eraser, CheckCircle2, AlertTriangle } from 'lucide-react';
 import { ref as sRef, uploadBytes, getDownloadURL } from 'firebase/storage';
 import OrderGridFieldResponse from './OrderGridFieldResponse';
+import LookupField, { LookupValue } from './LookupField';
 import { dualSave } from '@/services/dualSaveService';
 
 // Campo aprimorado para tipos
@@ -1464,6 +1465,36 @@ case 'Data':
             disabled={disabled}
           />
         );
+
+      case 'Lookup': {
+        const sourceId = (field as any).lookupSourceId;
+        if (!sourceId) {
+          return (
+            <div style={{
+              padding: 12, background: '#FEF3C7', border: '1px solid #FDE68A',
+              borderRadius: 6, fontSize: 13, color: '#92400E',
+            }}>
+              Campo Lookup não configurado. Contate o administrador.
+            </div>
+          );
+        }
+        const currentValue: LookupValue | undefined =
+          responses[fieldId] && typeof responses[fieldId] === 'object'
+            ? (responses[fieldId] as LookupValue)
+            : undefined;
+        return (
+          <LookupField
+            sourceId={sourceId}
+            label=""
+            placeholder={field.placeholder}
+            requireMatch={(field as any).lookupRequireMatch}
+            displayLayout={(field as any).lookupDisplayLayout}
+            value={currentValue}
+            onChange={(v) => handleInputChange(fieldId, v as any)}
+            readOnly={disabled}
+          />
+        );
+      }
 
       default:
         return (

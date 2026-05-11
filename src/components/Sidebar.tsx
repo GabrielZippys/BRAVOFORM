@@ -4,7 +4,7 @@ import React from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
-import { LayoutDashboard, FileText, Users, PlugZap, DatabaseBackup, LogOut, Workflow, History, Shield } from 'lucide-react';
+import { LayoutDashboard, FileText, Users, PlugZap, DatabaseBackup, LogOut, Workflow, History, Shield, Database } from 'lucide-react';
 import { auth } from '../../firebase/config';
 import { signOut } from 'firebase/auth';
 import ThemeToggle from './ThemeToggle';
@@ -20,6 +20,7 @@ const mainLinks = [
 const settingsLinks = [
   { href: '/dashboard/users', label: 'Deptos & Usuários', icon: Users },
   { href: '/dashboard/integrations', label: 'Integrações', icon: PlugZap },
+  { href: '/dashboard/lookup-sources', label: 'Fontes de Lookup', icon: Database },
   { href: '/dashboard/backups', label: 'Banco de Dados', icon: DatabaseBackup },
   { href: '/dashboard/audit', label: 'Audit Log', icon: Shield },
 ];

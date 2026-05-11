@@ -8,14 +8,15 @@ import { CSS } from '@dnd-kit/utilities';
 import {
   Plus, Trash2, GripVertical, Save, ChevronLeft, Type, CheckSquare,
   List, Calendar, PenTool, Paperclip, Table, Heading, Eye, Settings, MoreVertical,
-  Download, Sun, Moon, RefreshCcw, Mail, MessageCircle
+  Download, Sun, Moon, RefreshCcw, Mail, MessageCircle, Search
 } from 'lucide-react';
+import LookupField from './LookupField';
 import { db } from '../../firebase/config';
 import { doc, getDoc, setDoc, addDoc, collection, serverTimestamp, query, onSnapshot } from 'firebase/firestore';
 import styles from '../../app/styles/FormBuilder.module.css';
 import type { Form } from "@/types";
 // Tipos principais
-type FieldType = 'Texto' | 'Caixa de Seleção' | 'Múltipla Escolha' | 'Data' | 'Assinatura' | 'Anexo' | 'Tabela' | 'Cabeçalho';
+type FieldType = 'Texto' | 'Caixa de Seleção' | 'Múltipla Escolha' | 'Data' | 'Assinatura' | 'Anexo' | 'Tabela' | 'Cabeçalho' | 'Lookup';
 
 interface TableColumn {
   id: string;
@@ -38,6 +39,10 @@ interface EnhancedFormField {
   columns?: TableColumn[];
   rows?: TableRow[];
   style?: { width?: 'full' | 'half' | 'third'; alignment?: 'left' | 'center' | 'right'; };
+  // ── Lookup ────────────────────────────────────────────────────
+  lookupSourceId?: string;          // referência à dim_lookup_sources.firebase_id
+  lookupRequireMatch?: boolean;     // se true, bloqueia submit sem match
+  lookupDisplayLayout?: 'card-below' | 'inline-right';
 }
 
 interface FormTheme {
@@ -84,7 +89,8 @@ const FIELD_TYPES: Array<{
   { type: 'Assinatura', label: 'Assinatura', icon: PenTool, description: 'Campo para assinatura digital' },
   { type: 'Anexo', label: 'Anexo', icon: Paperclip, description: 'Upload de arquivos' },
   { type: 'Tabela', label: 'Tabela', icon: Table, description: 'Tabela editável' },
-  { type: 'Cabeçalho', label: 'Cabeçalho', icon: Heading, description: 'Título ou seção' }
+  { type: 'Cabeçalho', label: 'Cabeçalho', icon: Heading, description: 'Título ou seção' },
+  { type: 'Lookup', label: 'Busca por ID', icon: Search, description: 'Consulta dados de uma fonte cadastrada (ex: ID do colaborador)' },
 ];
 
 // Utils
@@ -360,6 +366,11 @@ function FieldProperties({ field, updateField }: {
             </button>
           </div>
         </div>
+      )}
+
+      {/* LOOKUP */}
+      {field.type === 'Lookup' && (
+        <LookupFieldConfig field={field} updateField={updateField} />
       )}
 
       {/* TABELA */}
@@ -648,6 +659,33 @@ function PreviewFields({ fields }: { fields: EnhancedFormField[] }) {
                 }
               </div>
             );
+          case 'Lookup':
+            return (
+              <div key={field.id} style={{ margin: '12px 0' }}>
+                {field.lookupSourceId ? (
+                  <LookupField
+                    sourceId={field.lookupSourceId}
+                    label={field.label + (field.required || field.lookupRequireMatch ? ' *' : '')}
+                    placeholder={field.placeholder}
+                    requireMatch={field.lookupRequireMatch}
+                    displayLayout={field.lookupDisplayLayout}
+                  />
+                ) : (
+                  <div style={{
+                    padding: 14,
+                    background: '#FEF3C7',
+                    border: '1px dashed #FBBF24',
+                    borderRadius: 8,
+                    color: '#92400E',
+                    fontSize: 13,
+                    lineHeight: 1.5,
+                  }}>
+                    ⚠️ Campo Lookup sem fonte selecionada — clique no campo na lista
+                    e escolha uma Fonte de Lookup na barra lateral.
+                  </div>
+                )}
+              </div>
+            );
           default:
             return null;
         }
@@ -806,6 +844,12 @@ const EnhancedFormBuilderPage: React.FC<FormEditorProps> = ({
         break;
       case 'Cabeçalho':
         baseField.label = 'Título da Seção';
+        break;
+      case 'Lookup':
+        baseField.label = 'Digite seu ID';
+        baseField.placeholder = 'Ex: matrícula, CPF, código...';
+        baseField.lookupRequireMatch = true;
+        baseField.lookupDisplayLayout = 'card-below';
         break;
     }
     return baseField;
@@ -1350,6 +1394,116 @@ const EnhancedFormBuilderPage: React.FC<FormEditorProps> = ({
         </DndContext>
       </div>
     </div>
+  );
+}
+
+// ─── LookupFieldConfig (subcomponente do FieldEditor) ────────────────────
+function LookupFieldConfig({
+  field,
+  updateField,
+}: {
+  field: EnhancedFormField;
+  updateField: (changes: Partial<EnhancedFormField>) => void;
+}) {
+  const [sources, setSources] = useState<Array<{ firebase_id: string; name: string; table_name: string; search_column: string; display_columns: any[] }>>([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshKey, setRefreshKey] = useState(0);
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    fetch('/api/lookup/sources')
+      .then((r) => r.json())
+      .then((j) => {
+        if (cancelled) return;
+        if (j.success) setSources(j.data.filter((s: any) => s.is_active));
+      })
+      .finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
+  }, [refreshKey]);
+
+  const selected = sources.find((s) => s.firebase_id === field.lookupSourceId);
+
+  return (
+    <>
+      <div className={styles.propertyGroup}>
+        <label>Fonte de Lookup *</label>
+        {loading ? (
+          <div style={{ fontSize: 13, color: '#9CA3AF', padding: 8 }}>Carregando fontes…</div>
+        ) : sources.length === 0 ? (
+          <div style={{
+            padding: 12, background: '#FEF3C7', border: '1px solid #FDE68A',
+            borderRadius: 6, fontSize: 12, color: '#92400E', lineHeight: 1.4,
+          }}>
+            Nenhuma fonte de lookup cadastrada ainda.<br />
+            <a href="/dashboard/lookup-sources" target="_blank" style={{ color: '#B45309', fontWeight: 600 }}>
+              → Criar fonte agora
+            </a>
+          </div>
+        ) : (
+          <>
+            <select
+              value={field.lookupSourceId || ''}
+              onChange={(e) => updateField({ lookupSourceId: e.target.value || undefined })}
+              className={styles.propertyInput}
+            >
+              <option value="">— Selecione uma fonte —</option>
+              {sources.map((s) => (
+                <option key={s.firebase_id} value={s.firebase_id}>
+                  {s.name} ({s.table_name}.{s.search_column})
+                </option>
+              ))}
+            </select>
+            <button
+              type="button"
+              onClick={() => setRefreshKey((k) => k + 1)}
+              style={{
+                marginTop: 6, fontSize: 11, color: '#6B7280',
+                background: 'transparent', border: 'none', cursor: 'pointer',
+                textDecoration: 'underline',
+              }}
+            >
+              Recarregar lista
+            </button>
+          </>
+        )}
+      </div>
+
+      {selected && (
+        <div style={{
+          padding: 10, background: '#1E293B', borderRadius: 6, fontSize: 12, color: '#94A3B8',
+          marginBottom: 8, lineHeight: 1.5,
+        }}>
+          <strong style={{ color: '#E2E8F0' }}>{selected.name}</strong><br />
+          Busca: <code style={{ color: '#7DD3FC' }}>{selected.table_name}.{selected.search_column}</code><br />
+          Exibe: {selected.display_columns.length} coluna(s)
+        </div>
+      )}
+
+      <div className={styles.propertyGroup}>
+        <label>
+          <input
+            type="checkbox"
+            checked={field.lookupRequireMatch ?? true}
+            onChange={(e) => updateField({ lookupRequireMatch: e.target.checked })}
+            style={{ marginRight: 8 }}
+          />
+          Exigir que o ID exista na base (bloqueia envio se não bater)
+        </label>
+      </div>
+
+      <div className={styles.propertyGroup}>
+        <label>Layout do card de resultado</label>
+        <select
+          value={field.lookupDisplayLayout || 'card-below'}
+          onChange={(e) => updateField({ lookupDisplayLayout: e.target.value as any })}
+          className={styles.propertyInput}
+        >
+          <option value="card-below">Card abaixo do campo</option>
+          <option value="inline-right">Card ao lado direito (inline)</option>
+        </select>
+      </div>
+    </>
   );
 }
 
