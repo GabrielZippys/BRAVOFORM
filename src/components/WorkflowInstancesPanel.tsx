@@ -16,9 +16,10 @@ import { useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   Truck, CheckCircle2, XCircle, AlertCircle, RefreshCw, Filter,
-  PackageCheck, Printer, User, Clock, Wifi, WifiOff,
+  PackageCheck, Printer, User, Clock, Wifi, WifiOff, Eye,
 } from 'lucide-react';
 import RetiradaActionModal from './RetiradaActionModal';
+import InstanceDetailsModal from './InstanceDetailsModal';
 import { SkeletonList } from './Skeleton';
 import BulkActionsBar from './BulkActionsBar';
 import { logger } from '@/lib/logger';
@@ -79,6 +80,7 @@ export default function WorkflowInstancesPanel({ workflowId: _workflowId }: Prop
     action: 'approve' | 'reject' | 'route' | 'pickup' | 'cancel' | null;
     instance: Instance | null;
   }>({ open: false, action: null, instance: null });
+  const [detailsId, setDetailsId] = useState<string | null>(null);
 
   // ─── Stream em tempo real (SSE) com fallback automático ────────────────
   const { instances: streamInstances, status: streamStatus, lastUpdate, reconnect } =
@@ -336,6 +338,13 @@ export default function WorkflowInstancesPanel({ workflowId: _workflowId }: Prop
                 </div>
 
                 <div style={{ display: 'flex', gap: 6, marginTop: 12, flexWrap: 'wrap' }}>
+                  <button
+                    onClick={() => setDetailsId(r.id)}
+                    style={btnStyle('#64748B')}
+                    title="Ver conteúdo completo, identidade, histórico e comentários"
+                  >
+                    <Eye size={14} /> Ver detalhes
+                  </button>
                   {r.status === 'pending' && (
                     <>
                       <button onClick={() => openAction('approve', r)} style={btnStyle('#10b981')}>
@@ -382,6 +391,13 @@ export default function WorkflowInstancesPanel({ workflowId: _workflowId }: Prop
           action={actionModal.action}
           retirada={actionModal.instance}
           onClose={closeAction}
+        />
+      )}
+
+      {detailsId && (
+        <InstanceDetailsModal
+          instanceId={detailsId}
+          onClose={() => setDetailsId(null)}
         />
       )}
 
