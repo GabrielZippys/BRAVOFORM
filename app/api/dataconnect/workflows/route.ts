@@ -74,6 +74,14 @@ function buildWorkflowFromStages(rows: any[]): any {
         subWorkflowInputMapping: r.sub_workflow_input_mapping ?? {},
         parallelMinPathsToComplete: r.parallel_min_paths_to_complete ?? undefined,
         parallelTimeoutMinutes: r.parallel_timeout_minutes ?? undefined,
+        // Identity validation
+        lookupTable: r.lookup_table ?? undefined,
+        lookupSearchColumn: r.lookup_search_column ?? undefined,
+        lookupDisplayColumns: r.lookup_display_columns ?? [],
+        lookupInputLabel: r.lookup_input_label ?? undefined,
+        lookupInputPlaceholder: r.lookup_input_placeholder ?? undefined,
+        lookupConfirmText: r.lookup_confirm_text ?? undefined,
+        lookupRequireMatch: r.lookup_require_match ?? true,
       })),
   };
 }
@@ -127,7 +135,9 @@ export async function GET(request: NextRequest) {
             sla_target_minutes, sla_warn_threshold, sla_critical_threshold,
             sla_breach_threshold, sla_escalate_to_role, sla_escalate_to_emails,
             sub_workflow_id, sub_workflow_mode, sub_workflow_input_mapping,
-            parallel_min_paths_to_complete, parallel_timeout_minutes
+            parallel_min_paths_to_complete, parallel_timeout_minutes,
+            lookup_table, lookup_search_column, lookup_display_columns,
+            lookup_input_label, lookup_input_placeholder, lookup_confirm_text, lookup_require_match
           FROM dim_workflow_stages
           WHERE workflow_fb_id = $1
           ORDER BY stage_order ASC
@@ -166,7 +176,14 @@ export async function GET(request: NextRequest) {
           sub_workflow_mode,
           sub_workflow_input_mapping,
           parallel_min_paths_to_complete,
-          parallel_timeout_minutes
+          parallel_timeout_minutes,
+          lookup_table,
+          lookup_search_column,
+          lookup_display_columns,
+          lookup_input_label,
+          lookup_input_placeholder,
+          lookup_confirm_text,
+          lookup_require_match
         FROM dim_workflow_stages
         WHERE workflow_fb_id = $1
         ORDER BY stage_order ASC
@@ -213,6 +230,14 @@ export async function GET(request: NextRequest) {
             subWorkflowInputMapping: r.sub_workflow_input_mapping ?? {},
             parallelMinPathsToComplete: r.parallel_min_paths_to_complete ?? undefined,
             parallelTimeoutMinutes: r.parallel_timeout_minutes ?? undefined,
+            // Identity validation
+            lookupTable: r.lookup_table ?? undefined,
+            lookupSearchColumn: r.lookup_search_column ?? undefined,
+            lookupDisplayColumns: r.lookup_display_columns ?? [],
+            lookupInputLabel: r.lookup_input_label ?? undefined,
+            lookupInputPlaceholder: r.lookup_input_placeholder ?? undefined,
+            lookupConfirmText: r.lookup_confirm_text ?? undefined,
+            lookupRequireMatch: r.lookup_require_match ?? true,
           })),
       };
 
@@ -331,11 +356,13 @@ export async function POST(request: NextRequest) {
       // Reordenar para garantir contiguidade (caso venha com gaps)
       const orderedStages = [...stages].sort((a: any, b: any) => (a.order ?? 0) - (b.order ?? 0));
 
-      // Garante colunas SLA + advanced flow antes do INSERT (idempotente)
+      // Garante colunas SLA + advanced flow + identity validation antes do INSERT
       const { ensureSlaSchema } = await import('@/lib/db/slaMigration');
       const { ensureAdvancedFlowSchema } = await import('@/lib/db/advancedFlowMigration');
+      const { ensureIdentityValidationSchema } = await import('@/lib/db/identityValidationMigration');
       await ensureSlaSchema(client);
       await ensureAdvancedFlowSchema(client);
+      await ensureIdentityValidationSchema(client);
 
       for (let idx = 0; idx < orderedStages.length; idx++) {
         const stage = orderedStages[idx];
@@ -352,11 +379,14 @@ export async function POST(request: NextRequest) {
             sla_target_minutes, sla_warn_threshold, sla_critical_threshold, sla_breach_threshold,
             sla_escalate_to_role, sla_escalate_to_emails,
             sub_workflow_id, sub_workflow_mode, sub_workflow_input_mapping,
-            parallel_min_paths_to_complete, parallel_timeout_minutes
+            parallel_min_paths_to_complete, parallel_timeout_minutes,
+            lookup_table, lookup_search_column, lookup_display_columns,
+            lookup_input_label, lookup_input_placeholder, lookup_confirm_text, lookup_require_match
           ) VALUES (
             $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,
             $20,$21,$22,$23,$24,$25,
-            $26,$27,$28,$29,$30
+            $26,$27,$28,$29,$30,
+            $31,$32,$33,$34,$35,$36,$37
           )
         `, [
           stage.id || `${workflowId}_stage_${idx}`,
@@ -389,6 +419,13 @@ export async function POST(request: NextRequest) {
           JSON.stringify(stage.subWorkflowInputMapping || {}),
           stage.parallelMinPathsToComplete ?? null,
           stage.parallelTimeoutMinutes ?? null,
+          stage.lookupTable || null,
+          stage.lookupSearchColumn || null,
+          JSON.stringify(stage.lookupDisplayColumns || []),
+          stage.lookupInputLabel || null,
+          stage.lookupInputPlaceholder || null,
+          stage.lookupConfirmText || null,
+          stage.lookupRequireMatch ?? true,
         ]);
       }
     } else {

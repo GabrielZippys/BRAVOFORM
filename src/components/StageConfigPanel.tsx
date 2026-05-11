@@ -10,6 +10,7 @@ import FormSelectionModal from './FormSelectionModal';
 import TriggerConfigPanel from './TriggerConfigPanel';
 import StageCommentsPanel from './StageCommentsPanel';
 import SubWorkflowSelector from './SubWorkflowSelector';
+import IdentityLookupConfig from './IdentityLookupConfig';
 import { useAuth } from '@/hooks/useAuth';
 import styles from '../../app/styles/StageConfigPanel.module.css';
 
@@ -1093,6 +1094,27 @@ export default function StageConfigPanel({
                     </div>
                   </div>
                 )}
+              </div>
+            </>
+          )}
+
+          {/* ─── Identity Validation Config ─── */}
+          {STAGE_TYPES.find(t => t.type === stage.stageType)?.fields.showIdentityLookup && (
+            <>
+              <div className={styles.divider}></div>
+              <div className={styles.sectionGroup}>
+                <div className={styles.sectionGroupHeader}>
+                  🪪 Validação de Identidade
+                </div>
+                <div className={styles.sectionGroupBody}>
+                  <p className={styles.hint} style={{ margin: '0 0 var(--space-3)' }}>
+                    Nesta etapa, o colaborador digita um identificador (matrícula, CPF, etc.)
+                    e o sistema busca os dados em uma tabela do banco para ele confirmar
+                    "Sou eu, prosseguir". A identidade fica vinculada à instância do workflow
+                    e aparece no histórico.
+                  </p>
+                  <IdentityLookupConfig stage={stage} onUpdate={onUpdate} />
+                </div>
               </div>
             </>
           )}

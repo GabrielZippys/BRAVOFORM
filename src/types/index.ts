@@ -324,20 +324,21 @@ export interface OrderGridField extends FormField {
 
 // Tipos de etapas disponíveis
 export type StageType =
-  | 'start'           // Início do processo
-  | 'approval'        // Aprovação/Validação
-  | 'review'          // Revisão/Análise
-  | 'execution'       // Execução/Trabalho
-  | 'waiting'         // Aguardando/Pendente
-  | 'decision'        // Decisão/Gateway
-  | 'notification'    // Notificação/Comunicação
-  | 'documentation'   // Documentação/Registro
-  | 'validation'      // Validação/Verificação
-  | 'completion'      // Finalização/Conclusão
-  | 'parallel-fork'   // Bifurca em N caminhos paralelos
-  | 'parallel-join'   // Aguarda todos caminhos paralelos completarem
-  | 'sub-workflow'    // Invoca outro workflow como sub-rotina
-  | 'custom';         // Personalizada
+  | 'start'              // Início do processo
+  | 'identity-validation' // Valida identidade do executor (busca em tabela externa)
+  | 'approval'           // Aprovação/Validação
+  | 'review'             // Revisão/Análise
+  | 'execution'          // Execução/Trabalho
+  | 'waiting'            // Aguardando/Pendente
+  | 'decision'           // Decisão/Gateway
+  | 'notification'       // Notificação/Comunicação
+  | 'documentation'      // Documentação/Registro
+  | 'validation'         // Validação/Verificação
+  | 'completion'         // Finalização/Conclusão
+  | 'parallel-fork'      // Bifurca em N caminhos paralelos
+  | 'parallel-join'      // Aguarda todos caminhos paralelos completarem
+  | 'sub-workflow'       // Invoca outro workflow como sub-rotina
+  | 'custom';            // Personalizada
 
 // Tipo de condição para roteamento
 export type RoutingConditionType = 'user' | 'company' | 'department' | 'custom';
@@ -442,6 +443,15 @@ export interface WorkflowStage {
   subWorkflowId?: string;             // firebase_id do workflow a invocar
   subWorkflowMode?: 'wait' | 'fire-and-forget';  // espera o sub completar (default) ou só dispara
   subWorkflowInputMapping?: Record<string, string>; // mapeamento de campos pai → sub
+
+  // ── Identity Validation (etapa de busca/confirmação de identidade) ───
+  lookupTable?: string;               // tabela do PG onde buscar
+  lookupSearchColumn?: string;        // coluna usada para localizar o ID
+  lookupDisplayColumns?: Array<{ column: string; label: string }>; // colunas exibidas
+  lookupInputLabel?: string;          // ex: "Digite sua matrícula"
+  lookupInputPlaceholder?: string;    // ex: "Ex: 12345"
+  lookupConfirmText?: string;         // ex: "Sou eu, prosseguir"
+  lookupRequireMatch?: boolean;       // default true — bloqueia avanço sem match
 
   // ── Branches Paralelos ───────────────────────────────────────────────
   parallelMinPathsToComplete?: number;  // Quantos paths precisam completar p/ join avançar (default = todos)

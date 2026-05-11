@@ -155,6 +155,32 @@ export default function WorkflowSimulator({
         return;
       }
 
+      case 'identity-validation': {
+        const cfgOk = !!(stage.lookupTable && stage.lookupSearchColumn && (stage.lookupDisplayColumns?.length ?? 0) > 0);
+        setTrace((t) => [...t, {
+          timestamp: elapsedMs + 800,
+          stageId: stage.id,
+          stageName: stage.name,
+          action: 'enter',
+          decision: cfgOk
+            ? `Aguarda colaborador digitar ID e confirmar identidade`
+            : '⚠️ Etapa não configurada (falta tabela/coluna)',
+          note: cfgOk
+            ? `Tabela: ${stage.lookupTable} · Coluna: ${stage.lookupSearchColumn} · Exibe: ${stage.lookupDisplayColumns!.length} coluna(s)`
+            : undefined,
+        }]);
+        await sleep(1000);
+        setTrace((t) => [...t, {
+          timestamp: elapsedMs + 1800,
+          stageId: stage.id,
+          stageName: stage.name,
+          action: 'advance',
+          decision: 'Identidade confirmada — avança',
+        }]);
+        await sleep(600);
+        return simulateFromIdx(idx + 1, elapsedMs + 2400);
+      }
+
       case 'parallel-fork': {
         // Conta paths de saída (edges com source = stage.id)
         const outgoing = edges.filter((e) => e.source === stage.id);

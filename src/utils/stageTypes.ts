@@ -38,10 +38,27 @@ export interface StageTypeDefinition {
     hideUserPermissions?: boolean;
     showSubWorkflow?: boolean;
     showParallelConfig?: boolean;
+    showIdentityLookup?: boolean;
   };
 }
 
 export const STAGE_TYPES: StageTypeDefinition[] = [
+  {
+    type: 'identity-validation',
+    label: 'Validação de Identidade',
+    description: 'Colaborador digita seu ID e confirma identidade antes de seguir',
+    icon: '🪪',
+    color: '#0EA5E9',
+    examples: 'Digite sua matrícula, Identifique-se com seu CPF, Confirme seus dados',
+    behavior: 'O colaborador digita um identificador (matrícula, CPF, etc.) e o sistema busca em uma tabela externa (ex: cadastro do RH alimentado por Pentaho). Os dados encontrados são exibidos para o colaborador confirmar "Sou eu, prosseguir". A identidade fica vinculada à instância do workflow para uso nas etapas seguintes e no histórico.',
+    inputs: ['ID digitado pelo colaborador', 'Configuração de tabela/coluna pelo admin'],
+    outputs: ['Identidade validada gravada na instância (identity_table, identity_value, identity_data)', 'Avança para a próxima etapa'],
+    whoAdvances: 'usuario',
+    fields: {
+      hideUserPermissions: true,
+      showIdentityLookup: true,
+    }
+  },
   {
     type: 'execution',
     label: 'Execução',

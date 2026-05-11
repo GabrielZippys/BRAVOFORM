@@ -8,15 +8,14 @@ import { CSS } from '@dnd-kit/utilities';
 import {
   Plus, Trash2, GripVertical, Save, ChevronLeft, Type, CheckSquare,
   List, Calendar, PenTool, Paperclip, Table, Heading, Eye, Settings, MoreVertical,
-  Download, Sun, Moon, RefreshCcw, Mail, MessageCircle, Search
+  Download, Sun, Moon, RefreshCcw, Mail, MessageCircle
 } from 'lucide-react';
-import LookupField from './LookupField';
 import { db } from '../../firebase/config';
 import { doc, getDoc, setDoc, addDoc, collection, serverTimestamp, query, onSnapshot } from 'firebase/firestore';
 import styles from '../../app/styles/FormBuilder.module.css';
 import type { Form } from "@/types";
 // Tipos principais
-type FieldType = 'Texto' | 'Caixa de Seleção' | 'Múltipla Escolha' | 'Data' | 'Assinatura' | 'Anexo' | 'Tabela' | 'Cabeçalho' | 'Lookup';
+type FieldType = 'Texto' | 'Caixa de Seleção' | 'Múltipla Escolha' | 'Data' | 'Assinatura' | 'Anexo' | 'Tabela' | 'Cabeçalho';
 
 interface TableColumn {
   id: string;
@@ -39,12 +38,6 @@ interface EnhancedFormField {
   columns?: TableColumn[];
   rows?: TableRow[];
   style?: { width?: 'full' | 'half' | 'third'; alignment?: 'left' | 'center' | 'right'; };
-  // ── Lookup (config direta no campo, sem camada de "source") ───
-  lookupTable?: string;                                                 // tabela do PG
-  lookupSearchColumn?: string;                                          // coluna usada para buscar
-  lookupDisplayColumns?: Array<{ column: string; label: string }>;      // colunas a exibir
-  lookupRequireMatch?: boolean;                                         // bloqueia submit sem match
-  lookupDisplayLayout?: 'card-below' | 'inline-right';
 }
 
 interface FormTheme {
@@ -92,7 +85,6 @@ const FIELD_TYPES: Array<{
   { type: 'Anexo', label: 'Anexo', icon: Paperclip, description: 'Upload de arquivos' },
   { type: 'Tabela', label: 'Tabela', icon: Table, description: 'Tabela editável' },
   { type: 'Cabeçalho', label: 'Cabeçalho', icon: Heading, description: 'Título ou seção' },
-  { type: 'Lookup', label: 'Busca por ID', icon: Search, description: 'Consulta dados de uma fonte cadastrada (ex: ID do colaborador)' },
 ];
 
 // Utils
@@ -368,11 +360,6 @@ function FieldProperties({ field, updateField }: {
             </button>
           </div>
         </div>
-      )}
-
-      {/* LOOKUP */}
-      {field.type === 'Lookup' && (
-        <LookupFieldConfig field={field} updateField={updateField} />
       )}
 
       {/* TABELA */}
@@ -661,37 +648,6 @@ function PreviewFields({ fields }: { fields: EnhancedFormField[] }) {
                 }
               </div>
             );
-          case 'Lookup': {
-            const cfgOk = !!(field.lookupTable && field.lookupSearchColumn && field.lookupDisplayColumns && field.lookupDisplayColumns.length > 0);
-            return (
-              <div key={field.id} style={{ margin: '12px 0' }}>
-                {cfgOk ? (
-                  <LookupField
-                    table={field.lookupTable!}
-                    searchColumn={field.lookupSearchColumn!}
-                    displayColumns={field.lookupDisplayColumns!}
-                    label={field.label + (field.required || field.lookupRequireMatch ? ' *' : '')}
-                    placeholder={field.placeholder}
-                    requireMatch={field.lookupRequireMatch}
-                    displayLayout={field.lookupDisplayLayout}
-                  />
-                ) : (
-                  <div style={{
-                    padding: 14,
-                    background: '#FEF3C7',
-                    border: '1px dashed #FBBF24',
-                    borderRadius: 8,
-                    color: '#92400E',
-                    fontSize: 13,
-                    lineHeight: 1.5,
-                  }}>
-                    ⚠️ Campo Lookup incompleto — selecione tabela, coluna de busca e
-                    pelo menos uma coluna a exibir na barra lateral.
-                  </div>
-                )}
-              </div>
-            );
-          }
           default:
             return null;
         }
@@ -850,13 +806,6 @@ const EnhancedFormBuilderPage: React.FC<FormEditorProps> = ({
         break;
       case 'Cabeçalho':
         baseField.label = 'Título da Seção';
-        break;
-      case 'Lookup':
-        baseField.label = 'Digite seu ID';
-        baseField.placeholder = 'Ex: matrícula, CPF, código...';
-        baseField.lookupRequireMatch = true;
-        baseField.lookupDisplayLayout = 'card-below';
-        baseField.lookupDisplayColumns = [];
         break;
     }
     return baseField;
@@ -1401,237 +1350,6 @@ const EnhancedFormBuilderPage: React.FC<FormEditorProps> = ({
         </DndContext>
       </div>
     </div>
-  );
-}
-
-// ─── LookupFieldConfig (subcomponente do FieldEditor) ────────────────────
-function LookupFieldConfig({
-  field,
-  updateField,
-}: {
-  field: EnhancedFormField;
-  updateField: (changes: Partial<EnhancedFormField>) => void;
-}) {
-  const [tables, setTables] = useState<Array<{ name: string; estimatedRows: number }>>([]);
-  const [columns, setColumns] = useState<Array<{ name: string; type: string; category: string }>>([]);
-  const [loadingTables, setLoadingTables] = useState(false);
-  const [loadingColumns, setLoadingColumns] = useState(false);
-  const [tableSearch, setTableSearch] = useState('');
-
-  // Carrega tabelas disponíveis ao montar
-  useEffect(() => {
-    setLoadingTables(true);
-    fetch('/api/lookup/tables')
-      .then((r) => r.json())
-      .then((j) => { if (j.success) setTables(j.data); })
-      .finally(() => setLoadingTables(false));
-  }, []);
-
-  // Carrega colunas quando muda a tabela
-  useEffect(() => {
-    if (!field.lookupTable) {
-      setColumns([]);
-      return;
-    }
-    setLoadingColumns(true);
-    fetch(`/api/lookup/columns?table=${encodeURIComponent(field.lookupTable)}`)
-      .then((r) => r.json())
-      .then((j) => { if (j.success) setColumns(j.data); })
-      .finally(() => setLoadingColumns(false));
-  }, [field.lookupTable]);
-
-  const displayColumns = field.lookupDisplayColumns || [];
-
-  const toggleDisplayColumn = (colName: string) => {
-    const idx = displayColumns.findIndex((d) => d.column === colName);
-    if (idx >= 0) {
-      updateField({
-        lookupDisplayColumns: displayColumns.filter((_, i) => i !== idx),
-      });
-    } else {
-      updateField({
-        lookupDisplayColumns: [...displayColumns, { column: colName, label: colName }],
-      });
-    }
-  };
-
-  const updateDisplayLabel = (colName: string, newLabel: string) => {
-    updateField({
-      lookupDisplayColumns: displayColumns.map((d) =>
-        d.column === colName ? { ...d, label: newLabel } : d
-      ),
-    });
-  };
-
-  const filteredTables = tableSearch.trim()
-    ? tables.filter((t) => t.name.toLowerCase().includes(tableSearch.toLowerCase()))
-    : tables;
-
-  return (
-    <>
-      {/* ─── Tabela ─────────────────────────────────────────────── */}
-      <div className={styles.propertyGroup}>
-        <label>Tabela do banco *</label>
-        {loadingTables ? (
-          <div style={{ fontSize: 13, color: '#9CA3AF', padding: 8 }}>Carregando tabelas…</div>
-        ) : (
-          <>
-            <input
-              type="text"
-              value={tableSearch}
-              onChange={(e) => setTableSearch(e.target.value)}
-              placeholder="Buscar tabela..."
-              className={styles.propertyInput}
-              style={{ marginBottom: 6 }}
-            />
-            <select
-              value={field.lookupTable || ''}
-              onChange={(e) => updateField({
-                lookupTable: e.target.value || undefined,
-                lookupSearchColumn: undefined,
-                lookupDisplayColumns: [],
-              })}
-              className={styles.propertyInput}
-              size={Math.min(8, Math.max(3, filteredTables.length))}
-              style={{ height: 'auto' }}
-            >
-              <option value="">— Selecione uma tabela —</option>
-              {filteredTables.map((t) => (
-                <option key={t.name} value={t.name}>
-                  {t.name} (~{t.estimatedRows.toLocaleString('pt-BR')} reg)
-                </option>
-              ))}
-            </select>
-          </>
-        )}
-      </div>
-
-      {/* ─── Coluna de busca ────────────────────────────────────── */}
-      {field.lookupTable && (
-        <div className={styles.propertyGroup}>
-          <label>Coluna de busca *</label>
-          {loadingColumns ? (
-            <div style={{ fontSize: 13, color: '#9CA3AF', padding: 8 }}>Carregando colunas…</div>
-          ) : (
-            <select
-              value={field.lookupSearchColumn || ''}
-              onChange={(e) => updateField({ lookupSearchColumn: e.target.value || undefined })}
-              className={styles.propertyInput}
-            >
-              <option value="">— Selecione a coluna onde buscar —</option>
-              {columns.map((c) => (
-                <option key={c.name} value={c.name}>
-                  {c.name} ({c.type})
-                </option>
-              ))}
-            </select>
-          )}
-          <p style={{ fontSize: 11, color: '#94A3B8', marginTop: 4 }}>
-            Coluna onde o ID digitado pelo colaborador será buscado.
-          </p>
-        </div>
-      )}
-
-      {/* ─── Colunas de exibição ───────────────────────────────── */}
-      {field.lookupTable && columns.length > 0 && (
-        <div className={styles.propertyGroup}>
-          <label>Colunas a exibir após match *</label>
-          <p style={{ fontSize: 11, color: '#94A3B8', margin: '0 0 6px' }}>
-            Marque as colunas que aparecerão para o colaborador conferir.
-          </p>
-          <div style={{
-            maxHeight: 240,
-            overflowY: 'auto',
-            border: '1px solid #334155',
-            borderRadius: 6,
-            padding: 6,
-            background: '#0F172A',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: 4,
-          }}>
-            {columns.map((c) => {
-              const dc = displayColumns.find((d) => d.column === c.name);
-              const isSelected = !!dc;
-              return (
-                <div
-                  key={c.name}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 6,
-                    padding: '4px 6px',
-                    borderRadius: 4,
-                    background: isSelected ? '#1E40AF22' : 'transparent',
-                  }}
-                >
-                  <input
-                    type="checkbox"
-                    checked={isSelected}
-                    onChange={() => toggleDisplayColumn(c.name)}
-                    style={{ cursor: 'pointer', flexShrink: 0 }}
-                  />
-                  <span style={{
-                    fontSize: 12,
-                    color: '#E2E8F0',
-                    minWidth: 110,
-                    flexShrink: 0,
-                  }}>
-                    {c.name}
-                  </span>
-                  {isSelected && (
-                    <input
-                      type="text"
-                      value={dc.label}
-                      onChange={(e) => updateDisplayLabel(c.name, e.target.value)}
-                      placeholder="Rótulo exibido"
-                      style={{
-                        flex: 1,
-                        padding: '2px 6px',
-                        background: '#1E293B',
-                        border: '1px solid #475569',
-                        borderRadius: 4,
-                        color: '#fff',
-                        fontSize: 11,
-                      }}
-                    />
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
-
-      {/* ─── Opções extras ──────────────────────────────────────── */}
-      {field.lookupTable && (
-        <>
-          <div className={styles.propertyGroup}>
-            <label>
-              <input
-                type="checkbox"
-                checked={field.lookupRequireMatch ?? true}
-                onChange={(e) => updateField({ lookupRequireMatch: e.target.checked })}
-                style={{ marginRight: 8 }}
-              />
-              Exigir que o ID exista (bloqueia envio se não bater)
-            </label>
-          </div>
-
-          <div className={styles.propertyGroup}>
-            <label>Layout do card de resultado</label>
-            <select
-              value={field.lookupDisplayLayout || 'card-below'}
-              onChange={(e) => updateField({ lookupDisplayLayout: e.target.value as any })}
-              className={styles.propertyInput}
-            >
-              <option value="card-below">Card abaixo do campo</option>
-              <option value="inline-right">Card ao lado direito (inline)</option>
-            </select>
-          </div>
-        </>
-      )}
-    </>
   );
 }
 
