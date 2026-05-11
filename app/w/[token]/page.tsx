@@ -7,34 +7,42 @@
  * colaborador executar.
  *
  * Fluxo:
- *   1. Página carrega → GET /api/public/workflow/[token]
+ *   1. Página carrega → GET /api/public/workflow/[token] (retorna stages[])
  *   2. Verifica em localStorage se há instância pendente desse token
  *   3. Se NÃO há → mostra tela inicial com botão "Começar"
- *   4. Clica "Começar" → POST /start → recebe responseId → salva em localStorage
- *   5. Renderiza a etapa atual (atualmente: identity-validation)
- *   6. Após confirmar identidade → workflow avança (próximas etapas: roadmap)
+ *   4. Clica "Começar" → POST /start → recebe responseId + currentStageId
+ *   5. Renderiza a etapa atual com base em currentStageId + stages[]
+ *   6. Cada etapa avança chamando /advance-stage ou /identity-validation/confirm
  */
 
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { useParams } from 'next/navigation';
-import { ArrowRight, Loader2, AlertCircle, RefreshCw, Workflow as WorkflowIcon } from 'lucide-react';
+import {
+  ArrowRight, Loader2, AlertCircle, RefreshCw,
+  Workflow as WorkflowIcon, CheckCircle2, XCircle, FileText, Play,
+} from 'lucide-react';
 import IdentityValidationStage from '@/components/IdentityValidationStage';
 import type { WorkflowStage } from '@/types';
 import { logger } from '@/lib/logger';
+
+interface PublicStage extends WorkflowStage {
+  stageType: string;
+}
 
 interface PublicWorkflowData {
   workflowId: string;
   workflowName: string;
   workflowDescription: string;
-  firstStage: WorkflowStage & { stageType: string };
+  firstStage: PublicStage;
+  stages: PublicStage[];
 }
 
 type PageState =
   | { kind: 'loading' }
   | { kind: 'error'; message: string }
   | { kind: 'ready'; workflow: PublicWorkflowData }
-  | { kind: 'started'; workflow: PublicWorkflowData; responseId: string; currentStageId: string }
-  | { kind: 'completed' };
+  | { kind: 'started'; workflow: PublicWorkflowData; responseId: string; currentStageId: string; identityLabel?: string }
+  | { kind: 'completed'; reason?: 'approved' | 'rejected' };
 
 export default function PublicWorkflowPage() {
   const params = useParams();
@@ -57,7 +65,7 @@ export default function PublicWorkflowPage() {
 
       const wf = j.data as PublicWorkflowData;
 
-      // Retoma instância anterior se existir (mesmo token, mesma session)
+      // Retoma instância anterior se existir
       try {
         const saved = typeof window !== 'undefined' ? localStorage.getItem(storageKey) : null;
         if (saved) {
@@ -68,11 +76,12 @@ export default function PublicWorkflowPage() {
               workflow: wf,
               responseId: parsed.responseId,
               currentStageId: parsed.currentStageId,
+              identityLabel: parsed.identityLabel,
             });
             return;
           }
         }
-      } catch (e) { /* ignora — começa do zero */ }
+      } catch (e) { /* ignora */ }
 
       setState({ kind: 'ready', workflow: wf });
     } catch (e: any) {
@@ -101,7 +110,6 @@ export default function PublicWorkflowPage() {
       const responseId = j.data.responseId;
       const currentStageId = j.data.currentStageId;
 
-      // Salva em localStorage para resumir caso recarregue
       try {
         localStorage.setItem(storageKey, JSON.stringify({ responseId, currentStageId }));
       } catch {}
@@ -120,28 +128,60 @@ export default function PublicWorkflowPage() {
     }
   };
 
+  const persistStarted = (next: { responseId: string; currentStageId: string; identityLabel?: string }) => {
+    try { localStorage.setItem(storageKey, JSON.stringify(next)); } catch {}
+  };
+
+  const clearStored = () => {
+    try { localStorage.removeItem(storageKey); } catch {}
+  };
+
   const handleIdentityConfirmed = (data: { nextStageId: string | null; identityLabel: string }) => {
     if (state.kind !== 'started') return;
     if (!data.nextStageId) {
-      // Workflow completo
-      try { localStorage.removeItem(storageKey); } catch {}
+      clearStored();
       setState({ kind: 'completed' });
       return;
     }
-    // Avança para próxima etapa
-    try {
-      localStorage.setItem(storageKey, JSON.stringify({
-        responseId: state.responseId,
-        currentStageId: data.nextStageId,
-      }));
-    } catch {}
+    persistStarted({
+      responseId: state.responseId,
+      currentStageId: data.nextStageId,
+      identityLabel: data.identityLabel,
+    });
     setState({
       kind: 'started',
       workflow: state.workflow,
       responseId: state.responseId,
       currentStageId: data.nextStageId,
+      identityLabel: data.identityLabel,
     });
   };
+
+  const handleStageAdvanced = (result: { nextStageId: string | null; completed: boolean; rejected?: boolean }) => {
+    if (state.kind !== 'started') return;
+    if (result.completed || !result.nextStageId) {
+      clearStored();
+      setState({ kind: 'completed', reason: result.rejected ? 'rejected' : 'approved' });
+      return;
+    }
+    persistStarted({
+      responseId: state.responseId,
+      currentStageId: result.nextStageId,
+      identityLabel: state.identityLabel,
+    });
+    setState({
+      kind: 'started',
+      workflow: state.workflow,
+      responseId: state.responseId,
+      currentStageId: result.nextStageId,
+      identityLabel: state.identityLabel,
+    });
+  };
+
+  const currentStage = useMemo(() => {
+    if (state.kind !== 'started') return null;
+    return state.workflow.stages.find((s) => s.id === state.currentStageId) || null;
+  }, [state]);
 
   return (
     <div
@@ -152,7 +192,6 @@ export default function PublicWorkflowPage() {
       }}
     >
       <div style={{ maxWidth: 720, margin: '0 auto', paddingTop: 40 }}>
-        {/* Cabeçalho */}
         <header style={{ textAlign: 'center', marginBottom: 32 }}>
           <div
             style={{
@@ -172,7 +211,6 @@ export default function PublicWorkflowPage() {
           </div>
         </header>
 
-        {/* Conteúdo por estado */}
         {state.kind === 'loading' && (
           <div style={{
             textAlign: 'center',
@@ -198,31 +236,28 @@ export default function PublicWorkflowPage() {
           />
         )}
 
-        {state.kind === 'started' && state.currentStageId === state.workflow.firstStage.id &&
-         state.workflow.firstStage.stageType === 'identity-validation' && (
-          <IdentityValidationStage
+        {state.kind === 'started' && currentStage && (
+          <StageRenderer
+            token={token}
+            stage={currentStage}
             responseId={state.responseId}
-            stage={state.workflow.firstStage as WorkflowStage}
-            onConfirmed={handleIdentityConfirmed}
+            identityLabel={state.identityLabel}
+            onIdentityConfirmed={handleIdentityConfirmed}
+            onStageAdvanced={handleStageAdvanced}
           />
         )}
 
-        {state.kind === 'started' && state.currentStageId === state.workflow.firstStage.id &&
-         state.workflow.firstStage.stageType !== 'identity-validation' && (
-          <PlaceholderStageView stageType={state.workflow.firstStage.stageType} />
-        )}
-
-        {state.kind === 'started' && state.currentStageId !== state.workflow.firstStage.id && (
-          <NextStageView
-            workflowName={state.workflow.workflowName}
-            onRestart={() => {
-              try { localStorage.removeItem(storageKey); } catch {}
+        {state.kind === 'started' && !currentStage && (
+          <ErrorView
+            message="Etapa atual não encontrada. O workflow pode ter sido reconfigurado."
+            onRetry={() => {
+              clearStored();
               loadWorkflow();
             }}
           />
         )}
 
-        {state.kind === 'completed' && <CompletedView />}
+        {state.kind === 'completed' && <CompletedView reason={state.reason} />}
       </div>
 
       <style jsx>{`
@@ -232,31 +267,444 @@ export default function PublicWorkflowPage() {
   );
 }
 
-// ─── Subviews ──────────────────────────────────────────────────────────
+// ─── StageRenderer: roteador de tipos ───────────────────────────────────
+
+function StageRenderer({
+  token,
+  stage,
+  responseId,
+  identityLabel,
+  onIdentityConfirmed,
+  onStageAdvanced,
+}: {
+  token: string;
+  stage: PublicStage;
+  responseId: string;
+  identityLabel?: string;
+  onIdentityConfirmed: (data: { nextStageId: string | null; identityLabel: string }) => void;
+  onStageAdvanced: (result: { nextStageId: string | null; completed: boolean; rejected?: boolean }) => void;
+}) {
+  switch (stage.stageType) {
+    case 'identity-validation':
+      return (
+        <IdentityValidationStage
+          responseId={responseId}
+          stage={stage as WorkflowStage}
+          onConfirmed={onIdentityConfirmed}
+        />
+      );
+    case 'documentation':
+      return (
+        <DocumentationStage
+          token={token}
+          responseId={responseId}
+          stage={stage}
+          identityLabel={identityLabel}
+          onAdvanced={onStageAdvanced}
+        />
+      );
+    case 'approval':
+      return (
+        <ApprovalStage
+          token={token}
+          responseId={responseId}
+          stage={stage}
+          identityLabel={identityLabel}
+          onAdvanced={onStageAdvanced}
+        />
+      );
+    case 'execution':
+    case 'custom':
+    case 'review':
+      return (
+        <ExecutionStage
+          token={token}
+          responseId={responseId}
+          stage={stage}
+          identityLabel={identityLabel}
+          onAdvanced={onStageAdvanced}
+        />
+      );
+    case 'completion':
+      return (
+        <CompletionStage
+          token={token}
+          responseId={responseId}
+          stage={stage}
+          identityLabel={identityLabel}
+          onAdvanced={onStageAdvanced}
+        />
+      );
+    default:
+      return <PlaceholderStageView stageType={stage.stageType} stageName={stage.name} />;
+  }
+}
+
+// ─── Hook genérico de avanço ────────────────────────────────────────────
+
+function useAdvance(token: string, responseId: string, stageId: string, identityLabel?: string) {
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const advance = useCallback(async (
+    payload: { action?: 'approve' | 'reject'; comment?: string },
+    onResult: (result: { nextStageId: string | null; completed: boolean; rejected?: boolean }) => void
+  ) => {
+    setSubmitting(true);
+    setError(null);
+    try {
+      const r = await fetch(`/api/public/workflow/${encodeURIComponent(token)}/advance-stage`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          responseId,
+          stageId,
+          identityLabel,
+          ...payload,
+        }),
+      });
+      const j = await r.json();
+      if (!j.success) {
+        setError(j.error || 'Erro ao avançar etapa');
+        return;
+      }
+      onResult({
+        nextStageId: j.data.nextStageId,
+        completed: !!j.data.completed,
+        rejected: payload.action === 'reject',
+      });
+    } catch (e: any) {
+      logger.error('advance-stage failed', e);
+      setError('Falha de rede. Tente novamente.');
+    } finally {
+      setSubmitting(false);
+    }
+  }, [token, responseId, stageId, identityLabel]);
+
+  return { advance, submitting, error };
+}
+
+// ─── DocumentationStage ─────────────────────────────────────────────────
+
+function DocumentationStage({
+  token, responseId, stage, identityLabel, onAdvanced,
+}: {
+  token: string;
+  responseId: string;
+  stage: PublicStage;
+  identityLabel?: string;
+  onAdvanced: (r: { nextStageId: string | null; completed: boolean }) => void;
+}) {
+  const { advance, submitting, error } = useAdvance(token, responseId, stage.id, identityLabel);
+
+  return (
+    <div style={cardStyle}>
+      <IconBubble bg="#DBEAFE">
+        <FileText size={28} color="#1E40AF" />
+      </IconBubble>
+      <h1 style={{ margin: 0, fontSize: 22, fontWeight: 700, color: '#111827' }}>
+        {stage.name}
+      </h1>
+      {stage.description && (
+        <p style={{ margin: '12px 0 0', fontSize: 14, color: '#6B7280', lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>
+          {stage.description}
+        </p>
+      )}
+      {error && <InlineError message={error} />}
+      <button
+        onClick={() => advance({}, onAdvanced)}
+        disabled={submitting}
+        style={primaryButton(submitting)}
+      >
+        {submitting ? (
+          <><Loader2 size={16} style={{ animation: 'spin 1s linear infinite' }} /> Enviando…</>
+        ) : (
+          <>Entendi, prosseguir <ArrowRight size={16} /></>
+        )}
+      </button>
+    </div>
+  );
+}
+
+// ─── ApprovalStage ──────────────────────────────────────────────────────
+
+function ApprovalStage({
+  token, responseId, stage, identityLabel, onAdvanced,
+}: {
+  token: string;
+  responseId: string;
+  stage: PublicStage;
+  identityLabel?: string;
+  onAdvanced: (r: { nextStageId: string | null; completed: boolean; rejected?: boolean }) => void;
+}) {
+  const [comment, setComment] = useState('');
+  const [confirmReject, setConfirmReject] = useState(false);
+  const { advance, submitting, error } = useAdvance(token, responseId, stage.id, identityLabel);
+
+  const onApprove = () => advance({ action: 'approve', comment: comment.trim() || undefined }, onAdvanced);
+  const onReject = () => {
+    if (!confirmReject) { setConfirmReject(true); return; }
+    advance({ action: 'reject', comment: comment.trim() || undefined }, onAdvanced);
+  };
+
+  return (
+    <div style={cardStyle}>
+      <IconBubble bg="#FEF3C7">
+        <CheckCircle2 size={28} color="#B45309" />
+      </IconBubble>
+      <h1 style={{ margin: 0, fontSize: 22, fontWeight: 700, color: '#111827' }}>
+        {stage.name}
+      </h1>
+      {stage.description && (
+        <p style={{ margin: '12px 0 0', fontSize: 14, color: '#6B7280', lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>
+          {stage.description}
+        </p>
+      )}
+
+      <label style={labelStyle}>
+        Comentário {confirmReject ? '(obrigatório para reprovar)' : '(opcional)'}
+      </label>
+      <textarea
+        value={comment}
+        onChange={(e) => setComment(e.target.value)}
+        placeholder={confirmReject ? 'Explique o motivo da reprovação' : 'Adicione uma observação…'}
+        rows={3}
+        style={textareaStyle}
+        maxLength={2000}
+      />
+
+      {error && <InlineError message={error} />}
+
+      <div style={{ display: 'flex', gap: 12, marginTop: 16, flexWrap: 'wrap' }}>
+        <button
+          onClick={onApprove}
+          disabled={submitting}
+          style={{ ...primaryButton(submitting), flex: 1, minWidth: 160 }}
+        >
+          {submitting ? <Loader2 size={16} style={{ animation: 'spin 1s linear infinite' }} />
+                      : <><CheckCircle2 size={16} /> Aprovar</>}
+        </button>
+        <button
+          onClick={onReject}
+          disabled={submitting || (confirmReject && !comment.trim())}
+          style={{
+            ...secondaryDangerButton,
+            flex: 1, minWidth: 160,
+            opacity: submitting ? 0.6 : 1,
+          }}
+        >
+          <XCircle size={16} /> {confirmReject ? 'Confirmar reprovação' : 'Reprovar'}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ─── ExecutionStage ─────────────────────────────────────────────────────
+
+function ExecutionStage({
+  token, responseId, stage, identityLabel, onAdvanced,
+}: {
+  token: string;
+  responseId: string;
+  stage: PublicStage;
+  identityLabel?: string;
+  onAdvanced: (r: { nextStageId: string | null; completed: boolean }) => void;
+}) {
+  const [comment, setComment] = useState('');
+  const { advance, submitting, error } = useAdvance(token, responseId, stage.id, identityLabel);
+
+  return (
+    <div style={cardStyle}>
+      <IconBubble bg="#D1FAE5">
+        <Play size={28} color="#047857" />
+      </IconBubble>
+      <h1 style={{ margin: 0, fontSize: 22, fontWeight: 700, color: '#111827' }}>
+        {stage.name}
+      </h1>
+      {stage.description && (
+        <p style={{ margin: '12px 0 0', fontSize: 14, color: '#6B7280', lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>
+          {stage.description}
+        </p>
+      )}
+
+      <label style={labelStyle}>Comentário (opcional)</label>
+      <textarea
+        value={comment}
+        onChange={(e) => setComment(e.target.value)}
+        placeholder="Detalhes da execução…"
+        rows={3}
+        style={textareaStyle}
+        maxLength={2000}
+      />
+
+      {error && <InlineError message={error} />}
+
+      <button
+        onClick={() => advance({ comment: comment.trim() || undefined }, onAdvanced)}
+        disabled={submitting}
+        style={primaryButton(submitting)}
+      >
+        {submitting ? (
+          <><Loader2 size={16} style={{ animation: 'spin 1s linear infinite' }} /> Enviando…</>
+        ) : (
+          <>Marcar como concluído <ArrowRight size={16} /></>
+        )}
+      </button>
+    </div>
+  );
+}
+
+// ─── CompletionStage ────────────────────────────────────────────────────
+
+function CompletionStage({
+  token, responseId, stage, identityLabel, onAdvanced,
+}: {
+  token: string;
+  responseId: string;
+  stage: PublicStage;
+  identityLabel?: string;
+  onAdvanced: (r: { nextStageId: string | null; completed: boolean }) => void;
+}) {
+  const { advance, submitting, error } = useAdvance(token, responseId, stage.id, identityLabel);
+
+  return (
+    <div style={cardStyle}>
+      <IconBubble bg="#D1FAE5">
+        <CheckCircle2 size={28} color="#047857" />
+      </IconBubble>
+      <h1 style={{ margin: 0, fontSize: 22, fontWeight: 700, color: '#111827' }}>
+        {stage.name}
+      </h1>
+      {stage.description && (
+        <p style={{ margin: '12px 0 0', fontSize: 14, color: '#6B7280', lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>
+          {stage.description}
+        </p>
+      )}
+      {error && <InlineError message={error} />}
+      <button
+        onClick={() => advance({}, onAdvanced)}
+        disabled={submitting}
+        style={primaryButton(submitting)}
+      >
+        {submitting ? (
+          <><Loader2 size={16} style={{ animation: 'spin 1s linear infinite' }} /> Finalizando…</>
+        ) : (
+          <>Finalizar workflow <CheckCircle2 size={16} /></>
+        )}
+      </button>
+    </div>
+  );
+}
+
+// ─── Subviews / utilitários ─────────────────────────────────────────────
+
+const cardStyle: React.CSSProperties = {
+  background: '#fff',
+  borderRadius: 16,
+  padding: 40,
+  textAlign: 'center',
+  boxShadow: '0 4px 12px rgba(0,0,0,0.06)',
+};
+
+const labelStyle: React.CSSProperties = {
+  display: 'block',
+  textAlign: 'left',
+  marginTop: 24,
+  marginBottom: 6,
+  fontSize: 12,
+  fontWeight: 600,
+  color: '#374151',
+  textTransform: 'uppercase',
+  letterSpacing: '0.04em',
+};
+
+const textareaStyle: React.CSSProperties = {
+  width: '100%',
+  padding: '10px 12px',
+  border: '1px solid #D1D5DB',
+  borderRadius: 8,
+  fontSize: 14,
+  fontFamily: 'inherit',
+  resize: 'vertical',
+  outline: 'none',
+  background: '#F9FAFB',
+  color: '#111827',
+};
+
+const secondaryDangerButton: React.CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  gap: 8,
+  padding: '12px 18px',
+  background: '#fff',
+  color: '#B91C1C',
+  border: '1px solid #FCA5A5',
+  borderRadius: 10,
+  fontSize: 14,
+  fontWeight: 600,
+  cursor: 'pointer',
+};
+
+function primaryButton(disabled: boolean): React.CSSProperties {
+  return {
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    marginTop: 24,
+    padding: '12px 24px',
+    background: disabled ? '#9CA3AF' : 'linear-gradient(135deg, #3B82F6 0%, #1E40AF 100%)',
+    color: '#fff',
+    border: 'none',
+    borderRadius: 10,
+    fontSize: 15,
+    fontWeight: 700,
+    cursor: disabled ? 'wait' : 'pointer',
+    boxShadow: disabled ? 'none' : '0 4px 12px rgba(59,130,246,0.4)',
+  };
+}
+
+function IconBubble({ bg, children }: { bg: string; children: React.ReactNode }) {
+  return (
+    <div style={{
+      width: 56, height: 56,
+      borderRadius: '50%',
+      background: bg,
+      display: 'inline-flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginBottom: 16,
+    }}>
+      {children}
+    </div>
+  );
+}
+
+function InlineError({ message }: { message: string }) {
+  return (
+    <div style={{
+      marginTop: 16,
+      padding: '10px 12px',
+      background: '#FEF2F2',
+      border: '1px solid #FCA5A5',
+      borderRadius: 8,
+      fontSize: 13,
+      color: '#991B1B',
+      textAlign: 'left',
+    }}>
+      {message}
+    </div>
+  );
+}
 
 function ErrorView({ message, onRetry }: { message: string; onRetry: () => void }) {
   return (
-    <div
-      role="alert"
-      style={{
-        background: '#fff',
-        borderRadius: 16,
-        padding: 40,
-        textAlign: 'center',
-        boxShadow: '0 4px 12px rgba(0,0,0,0.06)',
-      }}
-    >
-      <div style={{
-        width: 56, height: 56,
-        borderRadius: '50%',
-        background: '#FEE2E2',
-        display: 'inline-flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        marginBottom: 16,
-      }}>
+    <div role="alert" style={cardStyle}>
+      <IconBubble bg="#FEE2E2">
         <AlertCircle size={28} color="#DC2626" />
-      </div>
+      </IconBubble>
       <h1 style={{ margin: 0, fontSize: 22, fontWeight: 700, color: '#111827' }}>
         Workflow indisponível
       </h1>
@@ -296,14 +744,9 @@ function ReadyView({
   onStart: () => void;
   starting: boolean;
 }) {
+  const firstNeedsIdentity = workflow.firstStage?.stageType === 'identity-validation';
   return (
-    <div style={{
-      background: '#fff',
-      borderRadius: 16,
-      padding: 40,
-      textAlign: 'center',
-      boxShadow: '0 4px 12px rgba(0,0,0,0.06)',
-    }}>
+    <div style={cardStyle}>
       <h1 style={{ margin: 0, fontSize: 26, fontWeight: 700, color: '#111827' }}>
         {workflow.workflowName}
       </h1>
@@ -328,7 +771,7 @@ function ReadyView({
         lineHeight: 1.5,
       }}>
         Clique em <strong>Começar</strong> abaixo para iniciar.
-        Você será solicitado a se identificar antes de prosseguir.
+        {firstNeedsIdentity && ' Você será solicitado a se identificar antes de prosseguir.'}
       </div>
       <button
         onClick={onStart}
@@ -361,106 +804,37 @@ function ReadyView({
   );
 }
 
-function PlaceholderStageView({ stageType }: { stageType: string }) {
+function PlaceholderStageView({ stageType, stageName }: { stageType: string; stageName?: string }) {
   return (
-    <div style={{
-      background: '#fff',
-      borderRadius: 16,
-      padding: 40,
-      textAlign: 'center',
-      boxShadow: '0 4px 12px rgba(0,0,0,0.06)',
-    }}>
-      <h2 style={{ margin: 0, fontSize: 18, color: '#111827' }}>
-        Etapa em desenvolvimento
-      </h2>
-      <p style={{ margin: '10px 0 0', fontSize: 14, color: '#6B7280' }}>
-        Esta etapa (tipo <code>{stageType}</code>) ainda não está disponível no
-        link público. Contate o administrador.
-      </p>
-    </div>
-  );
-}
-
-function NextStageView({
-  workflowName,
-  onRestart,
-}: {
-  workflowName: string;
-  onRestart: () => void;
-}) {
-  return (
-    <div style={{
-      background: '#fff',
-      borderRadius: 16,
-      padding: 40,
-      textAlign: 'center',
-      boxShadow: '0 4px 12px rgba(0,0,0,0.06)',
-    }}>
-      <div style={{
-        width: 56, height: 56,
-        borderRadius: '50%',
-        background: '#FEF3C7',
-        display: 'inline-flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        marginBottom: 16,
-      }}>
+    <div style={cardStyle}>
+      <IconBubble bg="#FEF3C7">
         <span style={{ fontSize: 28 }}>⏳</span>
-      </div>
-      <h1 style={{ margin: 0, fontSize: 22, fontWeight: 700, color: '#111827' }}>
-        Identidade confirmada
-      </h1>
-      <p style={{ margin: '12px 0 0', fontSize: 14, color: '#6B7280', lineHeight: 1.5 }}>
-        Sua identidade foi registrada com sucesso no workflow <strong>{workflowName}</strong>.
-        <br /><br />
-        As próximas etapas serão processadas internamente.
-        Você já pode fechar esta página.
+      </IconBubble>
+      <h2 style={{ margin: 0, fontSize: 18, color: '#111827' }}>
+        {stageName || 'Etapa em processamento interno'}
+      </h2>
+      <p style={{ margin: '10px 0 0', fontSize: 14, color: '#6B7280', lineHeight: 1.5 }}>
+        Esta etapa (tipo <code>{stageType}</code>) é processada pelo sistema.
+        Você já pode fechar esta página — não há ação manual necessária.
       </p>
-      <button
-        onClick={onRestart}
-        style={{
-          marginTop: 24,
-          padding: '10px 18px',
-          background: 'transparent',
-          color: '#6B7280',
-          border: '1px solid #D1D5DB',
-          borderRadius: 8,
-          fontSize: 13,
-          fontWeight: 500,
-          cursor: 'pointer',
-        }}
-      >
-        Iniciar nova execução
-      </button>
     </div>
   );
 }
 
-function CompletedView() {
+function CompletedView({ reason }: { reason?: 'approved' | 'rejected' }) {
+  const rejected = reason === 'rejected';
   return (
-    <div style={{
-      background: '#fff',
-      borderRadius: 16,
-      padding: 40,
-      textAlign: 'center',
-      boxShadow: '0 4px 12px rgba(0,0,0,0.06)',
-    }}>
-      <div style={{
-        width: 64, height: 64,
-        borderRadius: '50%',
-        background: '#D1FAE5',
-        display: 'inline-flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        marginBottom: 16,
-      }}>
-        <span style={{ fontSize: 32 }}>✅</span>
-      </div>
+    <div style={cardStyle}>
+      <IconBubble bg={rejected ? '#FEE2E2' : '#D1FAE5'}>
+        <span style={{ fontSize: 32 }}>{rejected ? '❌' : '✅'}</span>
+      </IconBubble>
       <h1 style={{ margin: 0, fontSize: 24, fontWeight: 700, color: '#111827' }}>
-        Workflow concluído!
+        {rejected ? 'Solicitação reprovada' : 'Workflow concluído!'}
       </h1>
       <p style={{ margin: '12px 0 0', fontSize: 14, color: '#6B7280', lineHeight: 1.5 }}>
-        Obrigado por participar. Você já pode fechar esta página.
+        {rejected
+          ? 'Sua reprovação foi registrada. Obrigado por participar.'
+          : 'Obrigado por participar. Você já pode fechar esta página.'}
       </p>
     </div>
   );

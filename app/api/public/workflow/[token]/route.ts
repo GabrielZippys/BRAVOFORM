@@ -75,7 +75,8 @@ export async function GET(
       );
     }
 
-    // 2) Busca a primeira etapa (stage_order = 0)
+    // 2) Busca TODAS as etapas (ordenadas) — cliente vai renderizar a stage
+    //    correspondente ao currentStageId da instância.
     const stageRes = await client.query(
       `SELECT firebase_id, stage_name, stage_description, stage_type, stage_order,
               lookup_table, lookup_search_column, lookup_display_columns,
@@ -83,8 +84,7 @@ export async function GET(
               lookup_require_match
        FROM dim_workflow_stages
        WHERE workflow_fb_id = $1
-       ORDER BY stage_order ASC
-       LIMIT 1`,
+       ORDER BY stage_order ASC`,
       [wf.firebase_id]
     );
 
@@ -95,7 +95,20 @@ export async function GET(
       );
     }
 
-    const firstStage = stageRes.rows[0];
+    const stages = stageRes.rows.map((s) => ({
+      id: s.firebase_id,
+      name: s.stage_name,
+      description: s.stage_description || '',
+      stageType: s.stage_type,
+      order: s.stage_order,
+      lookupTable: s.lookup_table || undefined,
+      lookupSearchColumn: s.lookup_search_column || undefined,
+      lookupDisplayColumns: s.lookup_display_columns || [],
+      lookupInputLabel: s.lookup_input_label || undefined,
+      lookupInputPlaceholder: s.lookup_input_placeholder || undefined,
+      lookupConfirmText: s.lookup_confirm_text || undefined,
+      lookupRequireMatch: s.lookup_require_match ?? true,
+    }));
 
     return NextResponse.json({
       success: true,
@@ -103,20 +116,8 @@ export async function GET(
         workflowId: wf.firebase_id,
         workflowName: wf.name,
         workflowDescription: wf.description || '',
-        firstStage: {
-          id: firstStage.firebase_id,
-          name: firstStage.stage_name,
-          description: firstStage.stage_description || '',
-          stageType: firstStage.stage_type,
-          // Config do identity-validation (se for o caso)
-          lookupTable: firstStage.lookup_table || undefined,
-          lookupSearchColumn: firstStage.lookup_search_column || undefined,
-          lookupDisplayColumns: firstStage.lookup_display_columns || [],
-          lookupInputLabel: firstStage.lookup_input_label || undefined,
-          lookupInputPlaceholder: firstStage.lookup_input_placeholder || undefined,
-          lookupConfirmText: firstStage.lookup_confirm_text || undefined,
-          lookupRequireMatch: firstStage.lookup_require_match ?? true,
-        },
+        firstStage: stages[0], // compat
+        stages,
       },
     });
   } catch (error: any) {
