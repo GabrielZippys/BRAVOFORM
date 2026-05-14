@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { Suspense, useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Plus, Edit, Trash2, Eye, Copy, BarChart3, Workflow as WorkflowIcon, ListChecks, TrendingUp, Link2, Users } from 'lucide-react';
 import { WorkflowServicePg } from '@/services/workflowServicePg';
@@ -32,6 +32,15 @@ interface WorkflowTemplate {
 }
 
 export default function BravoFlowPage() {
+  // useSearchParams() exige Suspense boundary no pre-render do Next 16.
+  return (
+    <Suspense fallback={<SkeletonList count={6} variant="card" />}>
+      <BravoFlowPageInner />
+    </Suspense>
+  );
+}
+
+function BravoFlowPageInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { user, appUser, loading } = useAuth();
