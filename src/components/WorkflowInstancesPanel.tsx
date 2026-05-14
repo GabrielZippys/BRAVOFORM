@@ -69,7 +69,7 @@ interface Props {
   workflowId?: string;
 }
 
-export default function WorkflowInstancesPanel({ workflowId: _workflowId }: Props) {
+export default function WorkflowInstancesPanel({ workflowId }: Props) {
   const router = useRouter();
   const { user } = useAuth();
   const [statusFilter, setStatusFilter] = useState<string>('all');
@@ -86,10 +86,14 @@ export default function WorkflowInstancesPanel({ workflowId: _workflowId }: Prop
   const { instances: streamInstances, status: streamStatus, lastUpdate, reconnect } =
     useInstancesStream();
 
-  // Mapeia o formato do stream para o Instance esperado pelo componente
+  // Mapeia o formato do stream para o Instance esperado pelo componente.
+  // Quando a prop `workflowId` está definida, filtra apenas as instâncias
+  // do workflow específico (útil quando vem do widget "Meus workflows").
   const instances: Instance[] = useMemo(
     () =>
-      streamInstances.map((r) => ({
+      streamInstances
+        .filter((r) => !workflowId || (r as any).workflowFbId === workflowId)
+        .map((r) => ({
         id: r.id,
         formTitle: r.formTitle || '',
         solicitante: r.collaboratorUsername || '',
@@ -108,7 +112,7 @@ export default function WorkflowInstancesPanel({ workflowId: _workflowId }: Prop
         slaPercentOfTarget: r.slaPercentOfTarget || undefined,
         slaTargetMinutes: r.slaTargetMinutes || undefined,
       })),
-    [streamInstances]
+    [streamInstances, workflowId]
   );
 
   // Loading APENAS no primeiro carregamento — antes de qualquer snapshot.

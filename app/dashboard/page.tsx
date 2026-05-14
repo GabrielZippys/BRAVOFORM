@@ -4,6 +4,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { FileText, Users, Target, TrendingUp } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { useAuth } from '@/hooks/useAuth';
+import MyWorkflowsWidget from '@/components/MyWorkflowsWidget';
 import styles from '../styles/Dashboard.module.css';
 
 // --- Utils ---
@@ -246,6 +247,8 @@ export default function DashboardPage() {
                     subtitle="Respostas por usuário"
                 />
             </div>
+
+            <MyWorkflowsWidget />
 
             <div className={styles.filtersContainer}>
                 <div className={styles.filterGroup}>

@@ -1,8 +1,8 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
-import { Plus, Edit, Trash2, Eye, Copy, BarChart3, Workflow as WorkflowIcon, ListChecks, TrendingUp, Link2 } from 'lucide-react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { Plus, Edit, Trash2, Eye, Copy, BarChart3, Workflow as WorkflowIcon, ListChecks, TrendingUp, Link2, Users } from 'lucide-react';
 import { WorkflowServicePg } from '@/services/workflowServicePg';
 import { useAuth } from '@/hooks/useAuth';
 import type { WorkflowStage } from '@/types';
@@ -11,6 +11,7 @@ import WorkflowInstancesPanel from '@/components/WorkflowInstancesPanel';
 import WorkflowMetricsPanel from '@/components/WorkflowMetricsPanel';
 import SLAInsightsPanel from '@/components/SLAInsightsPanel';
 import WorkflowPublicLinkModal from '@/components/WorkflowPublicLinkModal';
+import WorkflowViewersModal from '@/components/WorkflowViewersModal';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import { SkeletonList } from '@/components/Skeleton';
 import { logger } from '@/lib/logger';
@@ -32,14 +33,20 @@ interface WorkflowTemplate {
 
 export default function BravoFlowPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { user, appUser, loading } = useAuth();
   const [workflows, setWorkflows] = useState<WorkflowTemplate[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [editingWorkflow, setEditingWorkflow] = useState<WorkflowTemplate | null>(null);
   const [deleteConfirmModal, setDeleteConfirmModal] = useState<{ show: boolean; workflowId: string | null }>({ show: false, workflowId: null });
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState<TabId>('workflows');
+  const [activeTab, setActiveTab] = useState<TabId>(() => {
+    const t = searchParams?.get('tab');
+    return (t === 'instances' || t === 'sla' || t === 'metrics') ? t as TabId : 'workflows';
+  });
+  const initialWorkflowFilter = searchParams?.get('workflow') || undefined;
   const [publicLinkModal, setPublicLinkModal] = useState<{ open: boolean; workflowId: string; workflowName: string } | null>(null);
+  const [viewersModal, setViewersModal] = useState<{ open: boolean; workflowId: string; workflowName: string; viewers: Array<{ id: string; username: string; name: string }> } | null>(null);
 
   useEffect(() => {
     if (!loading && !user) {
@@ -203,7 +210,7 @@ export default function BravoFlowPage() {
       <ErrorBoundary>
         {activeTab === 'instances' && (
           <div role="tabpanel" id="tabpanel-instances">
-            <WorkflowInstancesPanel />
+            <WorkflowInstancesPanel workflowId={initialWorkflowFilter} />
           </div>
         )}
         {activeTab === 'sla' && (
@@ -278,6 +285,22 @@ export default function BravoFlowPage() {
                     style={{ color: '#06B6D4' }}
                   >
                     <Link2 size={18} />
+                  </button>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setViewersModal({
+                        open: true,
+                        workflowId: workflow.id,
+                        workflowName: workflow.name,
+                        viewers: (workflow as any).viewers || [],
+                      });
+                    }}
+                    className={styles.actionButton}
+                    title="Quem pode acompanhar este workflow"
+                    style={{ color: '#3B82F6' }}
+                  >
+                    <Users size={18} />
                   </button>
                   <button
                     onClick={(e) => {
@@ -370,6 +393,26 @@ export default function BravoFlowPage() {
             name: user.displayName || user.email || 'Admin',
             username: user.email?.split('@')[0],
           }}
+        />
+      )}
+
+      {viewersModal?.open && (
+        <WorkflowViewersModal
+          isOpen={viewersModal.open}
+          onClose={() => {
+            setViewersModal(null);
+            // Refresca lista para refletir mudanças
+            (async () => {
+              try {
+                const r = await fetch('/api/dataconnect/workflows');
+                const j = await r.json();
+                if (j.success) setWorkflows(j.data);
+              } catch {}
+            })();
+          }}
+          workflowId={viewersModal.workflowId}
+          workflowName={viewersModal.workflowName}
+          initialViewers={viewersModal.viewers}
         />
       )}
 

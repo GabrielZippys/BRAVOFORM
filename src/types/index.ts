@@ -446,12 +446,19 @@ export interface WorkflowStage {
 
   // ── Identity Validation (etapa de busca/confirmação de identidade) ───
   lookupTable?: string;               // tabela do PG onde buscar
-  lookupSearchColumn?: string;        // coluna usada para localizar o ID
-  lookupDisplayColumns?: Array<{ column: string; label: string }>; // colunas exibidas
-  lookupInputLabel?: string;          // ex: "Digite sua matrícula"
-  lookupInputPlaceholder?: string;    // ex: "Ex: 12345"
-  lookupConfirmText?: string;         // ex: "Sou eu, prosseguir"
+  lookupSearchColumn?: string;        // [legacy] coluna usada quando lookupMatchFields está vazio
+  lookupDisplayColumns?: Array<{ column: string; label: string }>; // colunas exibidas no card
+  lookupInputLabel?: string;          // [legacy] ex: "Digite sua matrícula"
+  lookupInputPlaceholder?: string;    // [legacy] ex: "Ex: 12345"
+  lookupConfirmText?: string;         // [legacy] ex: "Sou eu, prosseguir"
   lookupRequireMatch?: boolean;       // default true — bloqueia avanço sem match
+  // Novo modelo: N campos obrigatórios. Usuário preenche TODOS e o sistema
+  // valida cada um contra a tabela. Sem botão "Sou eu" — auto-avança.
+  lookupMatchFields?: Array<{
+    column: string;       // nome da coluna na tabela
+    label: string;        // rótulo do input
+    placeholder?: string; // placeholder do input
+  }>;
 
   // ── Branches Paralelos ───────────────────────────────────────────────
   parallelMinPathsToComplete?: number;  // Quantos paths precisam completar p/ join avançar (default = todos)

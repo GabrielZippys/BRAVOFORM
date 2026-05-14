@@ -157,31 +157,46 @@ export default function IdentityLookupConfig({ stage, onUpdate }: Props) {
         )}
       </div>
 
-      {/* ─── Coluna de busca ──────────────────────────────────── */}
+      {/* ─── Campos de identificação obrigatórios (N campos) ──────── */}
       {stage.lookupTable && (
         <div style={groupStyle}>
-          <label style={labelStyle}>Coluna usada para buscar *</label>
+          <label style={labelStyle}>Campos de identificação obrigatórios *</label>
+          <p style={hintStyle}>
+            Adicione 1 ou mais colunas. O colaborador precisará preencher
+            <strong> todas</strong> e cada valor precisa bater com a mesma linha da tabela.
+            Quanto mais campos, mais difícil burlar.
+          </p>
           {loadingColumns ? (
             <div style={{ fontSize: 12, color: 'var(--color-text-tertiary)', padding: 6 }}>
               Carregando colunas…
             </div>
           ) : (
-            <select
-              value={stage.lookupSearchColumn || ''}
-              onChange={(e) => onUpdate({ lookupSearchColumn: e.target.value || undefined })}
-              style={inputStyle}
-            >
-              <option value="">— Selecione a coluna onde buscar —</option>
-              {columns.map((c) => (
-                <option key={c.name} value={c.name}>
-                  {c.name} ({c.type})
-                </option>
-              ))}
-            </select>
+            <>
+              <MatchFieldsEditor
+                fields={
+                  (stage.lookupMatchFields || []).length > 0
+                    ? stage.lookupMatchFields!
+                    : (stage.lookupSearchColumn
+                        ? [{
+                            column: stage.lookupSearchColumn,
+                            label: stage.lookupInputLabel || stage.lookupSearchColumn,
+                            placeholder: stage.lookupInputPlaceholder || '',
+                          }]
+                        : [])
+                }
+                columns={columns}
+                onChange={(next) => {
+                  onUpdate({
+                    lookupMatchFields: next,
+                    // sincroniza o legacy para compat com /api/lookup/query
+                    lookupSearchColumn: next[0]?.column || undefined,
+                    lookupInputLabel: next[0]?.label || undefined,
+                    lookupInputPlaceholder: next[0]?.placeholder || undefined,
+                  });
+                }}
+              />
+            </>
           )}
-          <p style={hintStyle}>
-            O colaborador vai digitar um valor que será comparado contra esta coluna.
-          </p>
         </div>
       )}
 
@@ -257,54 +272,164 @@ export default function IdentityLookupConfig({ stage, onUpdate }: Props) {
         </div>
       )}
 
-      {/* ─── Textos customizáveis ──────────────────────────────── */}
+      {/* ─── Comportamento ──────────────────────────────────────── */}
       {stage.lookupTable && (
-        <>
-          <div style={groupStyle}>
-            <label style={labelStyle}>Texto do label (acima do campo)</label>
-            <input
-              type="text"
-              value={stage.lookupInputLabel || ''}
-              onChange={(e) => onUpdate({ lookupInputLabel: e.target.value || undefined })}
-              placeholder="Ex: Digite sua matrícula"
-              style={inputStyle}
-            />
-          </div>
-
-          <div style={groupStyle}>
-            <label style={labelStyle}>Placeholder do campo</label>
-            <input
-              type="text"
-              value={stage.lookupInputPlaceholder || ''}
-              onChange={(e) => onUpdate({ lookupInputPlaceholder: e.target.value || undefined })}
-              placeholder="Ex: Ex: 12345"
-              style={inputStyle}
-            />
-          </div>
-
-          <div style={groupStyle}>
-            <label style={labelStyle}>Texto do botão de confirmação</label>
-            <input
-              type="text"
-              value={stage.lookupConfirmText || ''}
-              onChange={(e) => onUpdate({ lookupConfirmText: e.target.value || undefined })}
-              placeholder="Ex: Sou eu, prosseguir"
-              style={inputStyle}
-            />
-          </div>
-
-          <div style={groupStyle}>
-            <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--color-text-primary)' }}>
-              <input
-                type="checkbox"
-                checked={stage.lookupRequireMatch ?? true}
-                onChange={(e) => onUpdate({ lookupRequireMatch: e.target.checked })}
-              />
-              Bloquear avanço se o ID não for encontrado
-            </label>
-          </div>
-        </>
+        <div style={{
+          padding: 10,
+          background: 'var(--surface-page)',
+          border: '1px solid var(--color-border-subtle)',
+          borderRadius: 'var(--radius-sm)',
+          fontSize: 11,
+          color: 'var(--color-text-tertiary)',
+          lineHeight: 1.5,
+        }}>
+          ℹ️ <strong>Sem botão de confirmação:</strong> quando o colaborador preencher todos
+          os campos e clicar em <em>Validar identidade</em>, o sistema verifica e — se tudo
+          bater — avança automaticamente para a próxima etapa. Caso contrário, o acesso é
+          negado com mensagem clara, sem permitir retry.
+        </div>
       )}
+    </div>
+  );
+}
+
+// ─── Editor de N campos de match ─────────────────────────────────────
+
+function MatchFieldsEditor({
+  fields,
+  columns,
+  onChange,
+}: {
+  fields: Array<{ column: string; label: string; placeholder?: string }>;
+  columns: PgColumn[];
+  onChange: (next: Array<{ column: string; label: string; placeholder?: string }>) => void;
+}) {
+  const update = (i: number, patch: Partial<{ column: string; label: string; placeholder?: string }>) => {
+    const next = fields.map((f, idx) => (idx === i ? { ...f, ...patch } : f));
+    onChange(next);
+  };
+  const remove = (i: number) => onChange(fields.filter((_, idx) => idx !== i));
+  const add = () => {
+    const available = columns.filter((c) => !fields.some((f) => f.column === c.name));
+    const first = available[0];
+    onChange([
+      ...fields,
+      first ? { column: first.name, label: first.name, placeholder: '' } : { column: '', label: '', placeholder: '' },
+    ]);
+  };
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+      {fields.length === 0 && (
+        <div style={{
+          padding: 10,
+          background: 'var(--surface-page)',
+          border: '1px dashed var(--color-border-default)',
+          borderRadius: 'var(--radius-sm)',
+          fontSize: 12,
+          color: 'var(--color-text-tertiary)',
+          textAlign: 'center',
+        }}>
+          Nenhum campo configurado. Clique em "Adicionar campo" abaixo.
+        </div>
+      )}
+      {fields.map((f, i) => (
+        <div
+          key={i}
+          style={{
+            border: '1px solid var(--color-border-subtle)',
+            borderRadius: 'var(--radius-sm)',
+            padding: 8,
+            background: 'var(--surface-card)',
+            display: 'grid',
+            gridTemplateColumns: '32px 1fr 1fr 1fr 28px',
+            gap: 6,
+            alignItems: 'center',
+          }}
+        >
+          <span style={{
+            fontSize: 10,
+            fontWeight: 700,
+            color: 'var(--color-text-tertiary)',
+            textAlign: 'center',
+          }}>
+            #{i + 1}
+          </span>
+          <select
+            value={f.column}
+            onChange={(e) => update(i, { column: e.target.value, label: f.label || e.target.value })}
+            style={{
+              padding: '6px 8px',
+              background: 'var(--surface-card)',
+              border: '1px solid var(--color-border-default)',
+              borderRadius: 4,
+              fontSize: 11,
+              color: 'var(--color-text-primary)',
+            }}
+          >
+            <option value="">— coluna —</option>
+            {columns.map((c) => (
+              <option key={c.name} value={c.name}>{c.name}</option>
+            ))}
+          </select>
+          <input
+            type="text"
+            value={f.label}
+            onChange={(e) => update(i, { label: e.target.value })}
+            placeholder="Rótulo (ex: E-mail)"
+            style={{
+              padding: '6px 8px',
+              background: 'var(--surface-card)',
+              border: '1px solid var(--color-border-default)',
+              borderRadius: 4,
+              fontSize: 11,
+              color: 'var(--color-text-primary)',
+            }}
+          />
+          <input
+            type="text"
+            value={f.placeholder || ''}
+            onChange={(e) => update(i, { placeholder: e.target.value })}
+            placeholder="Placeholder (ex: nome@ex.com)"
+            style={{
+              padding: '6px 8px',
+              background: 'var(--surface-card)',
+              border: '1px solid var(--color-border-default)',
+              borderRadius: 4,
+              fontSize: 11,
+              color: 'var(--color-text-primary)',
+            }}
+          />
+          <button
+            type="button"
+            onClick={() => remove(i)}
+            title="Remover campo"
+            aria-label={`Remover campo ${i + 1}`}
+            style={{
+              border: 'none', background: 'transparent', cursor: 'pointer',
+              color: 'var(--color-text-tertiary)', fontSize: 16, padding: 0,
+            }}
+          >
+            ×
+          </button>
+        </div>
+      ))}
+      <button
+        type="button"
+        onClick={add}
+        style={{
+          padding: '6px 10px',
+          background: 'var(--surface-page)',
+          border: '1px dashed var(--color-border-default)',
+          borderRadius: 'var(--radius-sm)',
+          fontSize: 12,
+          fontWeight: 500,
+          color: 'var(--color-text-secondary)',
+          cursor: 'pointer',
+        }}
+      >
+        + Adicionar campo de identificação
+      </button>
     </div>
   );
 }

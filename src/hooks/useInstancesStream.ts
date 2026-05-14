@@ -24,6 +24,7 @@ export interface StreamInstance {
   formTitle: string | null;
   collaboratorUsername: string | null;
   status: string;
+  workflowFbId: string | null;
   currentStageId: string | null;
   motorista: string | null;
   placa: string | null;

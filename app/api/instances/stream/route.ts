@@ -92,6 +92,7 @@ interface InstanceRow {
   formTitle: string | null;
   collaboratorUsername: string | null;
   status: string;
+  workflowFbId: string | null;
   currentStageId: string | null;
   motorista: string | null;
   placa: string | null;
@@ -155,6 +156,7 @@ async function fetchSnapshot(): Promise<InstanceRow[]> {
         COALESCE(fr.form_title, df.title, '') AS "formTitle",
         fr.collaborator_username  AS "collaboratorUsername",
         fr.status,
+        fr.workflow_fb_id         AS "workflowFbId",
         fr.current_stage_fb_id    AS "currentStageId",
         fr.motorista,
         fr.placa,

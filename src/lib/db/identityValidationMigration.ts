@@ -25,8 +25,13 @@ export async function ensureIdentityValidationSchema(client: any): Promise<void>
       ADD COLUMN IF NOT EXISTS lookup_input_label        VARCHAR(255),
       ADD COLUMN IF NOT EXISTS lookup_input_placeholder  VARCHAR(255),
       ADD COLUMN IF NOT EXISTS lookup_confirm_text       VARCHAR(255),
-      ADD COLUMN IF NOT EXISTS lookup_require_match      BOOLEAN DEFAULT TRUE;
+      ADD COLUMN IF NOT EXISTS lookup_require_match      BOOLEAN DEFAULT TRUE,
+      ADD COLUMN IF NOT EXISTS lookup_match_fields       JSONB DEFAULT '[]'::jsonb;
   `);
+  // lookup_match_fields: array de { column, label, placeholder }
+  //   - Quando vazio: usa lookup_search_column (modo legacy, 1 campo)
+  //   - Quando tem N: o user precisa preencher N campos e TODOS precisam
+  //     bater com a mesma linha da tabela.
 
   // Identidade validada — fica na resposta/instância
   await client.query(`

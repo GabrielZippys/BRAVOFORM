@@ -3,292 +3,294 @@
 /**
  * IdentityValidationStage
  *
- * Renderiza uma etapa do tipo "identity-validation" para o colaborador
- * em workflow sem login.
+ * Renderiza uma etapa "identity-validation" do workflow público.
  *
- * Fluxo:
- *   1. Colaborador vê título da etapa + label customizado
- *   2. Digita seu ID/matrícula no input
- *   3. Clica em "Buscar"
- *   4. Se encontrar → mostra card com dados + 2 botões:
- *        ✓ "Sou eu, prosseguir"  → confirma e avança workflow
- *        ✗ "Não sou eu"          → limpa e permite buscar de novo
- *   5. Se não encontrar → modal "ID não encontrado, contate o suporte"
+ * Modelo NOVO (lookupMatchFields):
+ *   • Admin define N campos obrigatórios (ex: username + email + matrícula)
+ *   • User preenche TODOS e clica "Validar identidade"
+ *   • Servidor valida tudo de uma vez em /api/identity-validation/multi-check
+ *   • Bate → workflow avança automaticamente (sem botão "Sou eu")
+ *   • Erra → mensagem "Identidade não localizada — acesso negado", inputs bloqueados
  *
- * Quando o usuário confirma, chama POST /api/identity-validation/confirm
- * que persiste a identidade e avança a etapa do workflow.
+ * Modelo LEGACY (lookupSearchColumn sem lookupMatchFields):
+ *   • Compatibilidade: deriva 1 único campo a partir de lookupSearchColumn
+ *     e renderiza igual ao multi-field com 1 input.
  */
 
-import React, { useState } from 'react';
-import { Search, Loader2, CheckCircle2, AlertCircle, ArrowRight, X, User } from 'lucide-react';
+import React, { useMemo, useState } from 'react';
+import { Loader2, AlertCircle, ShieldCheck, User, Lock } from 'lucide-react';
 import { logger } from '@/lib/logger';
 import type { WorkflowStage } from '@/types';
 
 interface Props {
-  /** Instância do workflow (firebase_id) — para registro */
   responseId: string;
-  /** Stage atual com as configs de lookup */
   stage: WorkflowStage;
-  /** Callback após confirmação (workflow avançou) */
   onConfirmed?: (data: { nextStageId: string | null; identityLabel: string }) => void;
 }
 
-type Status = 'idle' | 'searching' | 'match' | 'no-match' | 'error' | 'confirming';
+type Status = 'idle' | 'validating' | 'blocked' | 'error';
+
+interface MatchField {
+  column: string;
+  label: string;
+  placeholder?: string;
+}
 
 export default function IdentityValidationStage({ responseId, stage, onConfirmed }: Props) {
-  const [inputValue, setInputValue] = useState('');
-  const [resolved, setResolved] = useState<Record<string, { value: any; label: string }> | null>(null);
+  const fields: MatchField[] = useMemo(() => {
+    const configured = stage.lookupMatchFields || [];
+    if (configured.length > 0) {
+      return configured.map((f) => ({
+        column: f.column,
+        label: f.label || f.column,
+        placeholder: f.placeholder,
+      }));
+    }
+    // Fallback legacy: 1 campo derivado de lookupSearchColumn
+    if (stage.lookupSearchColumn) {
+      return [{
+        column: stage.lookupSearchColumn,
+        label: stage.lookupInputLabel || stage.lookupSearchColumn,
+        placeholder: stage.lookupInputPlaceholder,
+      }];
+    }
+    return [];
+  }, [stage]);
+
+  const [values, setValues] = useState<Record<string, string>>({});
   const [status, setStatus] = useState<Status>('idle');
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
-  const [showNotFoundModal, setShowNotFoundModal] = useState(false);
 
-  const cfg = {
-    table: stage.lookupTable || '',
-    searchColumn: stage.lookupSearchColumn || '',
-    displayColumns: stage.lookupDisplayColumns || [],
-    inputLabel: stage.lookupInputLabel || 'Digite seu identificador',
-    inputPlaceholder: stage.lookupInputPlaceholder || 'Ex: matrícula, CPF, código...',
-    confirmText: stage.lookupConfirmText || 'Sou eu, prosseguir',
-    requireMatch: stage.lookupRequireMatch ?? true,
+  const isConfigured = !!stage.lookupTable && fields.length > 0;
+  const allFilled = fields.every((f) => (values[f.column] || '').trim().length > 0);
+
+  const setField = (col: string, v: string) => {
+    setValues((p) => ({ ...p, [col]: v }));
+    if (status === 'error') {
+      setStatus('idle');
+      setErrorMsg(null);
+    }
   };
 
-  const isConfigured = !!(cfg.table && cfg.searchColumn && cfg.displayColumns.length > 0);
-
-  // Label amigável: junta os 2 primeiros valores resolvidos com hífen
-  const computeLabel = (data: Record<string, { value: any; label: string }>) => {
-    const vals = Object.values(data).slice(0, 2).map((d) => d.value).filter(Boolean);
-    return vals.join(' — ') || inputValue.trim();
-  };
-
-  const handleSearch = async () => {
-    const v = inputValue.trim();
-    if (!v) return;
+  const handleValidate = async () => {
     if (!isConfigured) {
       setStatus('error');
       setErrorMsg('Etapa não configurada. Contate o administrador.');
       return;
     }
+    if (!allFilled) return;
 
-    setStatus('searching');
+    setStatus('validating');
     setErrorMsg(null);
 
     try {
-      const params = new URLSearchParams({
-        table: cfg.table,
-        searchColumn: cfg.searchColumn,
-        value: v,
-        displayColumns: cfg.displayColumns.map((d) => d.column).join(','),
-        displayLabels: cfg.displayColumns.map((d) => d.label || d.column).join(','),
-      });
-      const r = await fetch(`/api/lookup/query?${params.toString()}`);
-      const j = await r.json();
+      const inputs: Record<string, string> = {};
+      for (const f of fields) inputs[f.column] = (values[f.column] || '').trim();
 
-      if (!j.success) {
-        setStatus('error');
-        setErrorMsg(j.error || 'Erro ao buscar');
-        return;
-      }
-
-      if (!j.match) {
-        setStatus('no-match');
-        setResolved(null);
-        setShowNotFoundModal(true);
-        return;
-      }
-
-      setResolved(j.data);
-      setStatus('match');
-    } catch (e: any) {
-      logger.error('Identity lookup failed', e);
-      setStatus('error');
-      setErrorMsg('Erro de rede. Tente novamente.');
-    }
-  };
-
-  const handleConfirm = async () => {
-    if (!resolved) return;
-    setStatus('confirming');
-    setErrorMsg(null);
-    try {
-      const r = await fetch('/api/identity-validation/confirm', {
+      const r = await fetch('/api/identity-validation/multi-check', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           responseId,
           stageId: stage.id,
-          inputValue: inputValue.trim(),
-          resolved,
-          label: computeLabel(resolved),
+          inputs,
         }),
       });
       const j = await r.json();
+
       if (!j.success) {
-        setStatus('error');
-        setErrorMsg(j.error || 'Erro ao confirmar identidade');
+        // 404 = não localizada → barrar
+        if (r.status === 404) {
+          setStatus('blocked');
+          setErrorMsg(j.error || 'Identidade não localizada — acesso negado.');
+        } else {
+          setStatus('error');
+          setErrorMsg(j.error || 'Erro ao validar identidade.');
+        }
         return;
       }
+
+      // Sucesso — avança automaticamente
       onConfirmed?.({
         nextStageId: j.data?.nextStageId || null,
-        identityLabel: computeLabel(resolved),
+        identityLabel: j.data?.identityLabel || '',
       });
     } catch (e: any) {
-      logger.error('Identity confirm failed', e);
+      logger.error('Identity multi-check failed', e);
       setStatus('error');
       setErrorMsg('Erro de rede. Tente novamente.');
     }
   };
 
-  const handleRetry = () => {
-    setInputValue('');
-    setResolved(null);
-    setStatus('idle');
-    setErrorMsg(null);
-  };
+  const blocked = status === 'blocked';
 
-  return (
-    <>
+  // ─── UI de barragem (sem possibilidade de retry) ─────────────────────
+  if (blocked) {
+    return (
       <div
+        role="alert"
         style={{
           maxWidth: 560,
           margin: '0 auto',
-          padding: 28,
+          padding: 36,
           background: '#fff',
           borderRadius: 16,
-          border: '1px solid #E5E7EB',
+          border: '1px solid #FCA5A5',
           boxShadow: '0 4px 12px rgba(0,0,0,0.06)',
+          textAlign: 'center',
         }}
       >
-        {/* Cabeçalho */}
-        <div style={{ textAlign: 'center', marginBottom: 24 }}>
-          <div
-            style={{
-              width: 64,
-              height: 64,
-              borderRadius: '50%',
-              background: 'linear-gradient(135deg, #DBEAFE 0%, #BFDBFE 100%)',
-              display: 'inline-flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              marginBottom: 12,
-            }}
-          >
-            <User size={32} color="#1E40AF" />
-          </div>
-          <h1
-            style={{
-              margin: 0,
-              fontSize: 22,
-              fontWeight: 700,
-              color: '#111827',
-            }}
-          >
-            {stage.name || 'Identifique-se'}
-          </h1>
-          {stage.description && (
-            <p style={{ margin: '6px 0 0', fontSize: 14, color: '#6B7280' }}>
-              {stage.description}
-            </p>
-          )}
+        <div style={{
+          width: 64, height: 64,
+          borderRadius: '50%',
+          background: '#FEE2E2',
+          display: 'inline-flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          marginBottom: 14,
+        }}>
+          <Lock size={32} color="#B91C1C" />
         </div>
+        <h1 style={{ margin: 0, fontSize: 22, fontWeight: 700, color: '#111827' }}>
+          Acesso negado
+        </h1>
+        <p style={{ margin: '10px 0 0', fontSize: 14, color: '#6B7280', lineHeight: 1.6 }}>
+          {errorMsg}
+          <br /><br />
+          Verifique se preencheu os dados exatamente como cadastrados no sistema.
+          Se persistir, entre em contato com o <strong>suporte</strong>.
+        </p>
+      </div>
+    );
+  }
 
-        {/* Input + botão buscar */}
-        <div style={{ marginBottom: 14 }}>
-          <label
-            style={{
-              display: 'block',
-              fontSize: 13,
-              fontWeight: 600,
-              color: '#374151',
-              marginBottom: 6,
-            }}
-          >
-            {cfg.inputLabel}
-            {cfg.requireMatch && <span style={{ color: '#EF4444', marginLeft: 4 }}>*</span>}
-          </label>
+  // ─── UI normal ───────────────────────────────────────────────────────
+  return (
+    <div
+      style={{
+        maxWidth: 560,
+        margin: '0 auto',
+        padding: 28,
+        background: '#fff',
+        borderRadius: 16,
+        border: '1px solid #E5E7EB',
+        boxShadow: '0 4px 12px rgba(0,0,0,0.06)',
+      }}
+    >
+      <div style={{ textAlign: 'center', marginBottom: 24 }}>
+        <div style={{
+          width: 64, height: 64,
+          borderRadius: '50%',
+          background: 'linear-gradient(135deg, #DBEAFE 0%, #BFDBFE 100%)',
+          display: 'inline-flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          marginBottom: 12,
+        }}>
+          <User size={32} color="#1E40AF" />
+        </div>
+        <h1 style={{ margin: 0, fontSize: 22, fontWeight: 700, color: '#111827' }}>
+          {stage.name || 'Identifique-se'}
+        </h1>
+        {stage.description && (
+          <p style={{ margin: '6px 0 0', fontSize: 14, color: '#6B7280', whiteSpace: 'pre-wrap' }}>
+            {stage.description}
+          </p>
+        )}
+        {fields.length > 1 && (
+          <p style={{
+            margin: '14px auto 0',
+            display: 'inline-block',
+            padding: '4px 10px',
+            background: '#FEF3C7',
+            color: '#92400E',
+            fontSize: 11,
+            fontWeight: 600,
+            borderRadius: 999,
+            textTransform: 'uppercase',
+            letterSpacing: 0.5,
+          }}>
+            Identificação reforçada — {fields.length} campos obrigatórios
+          </p>
+        )}
+      </div>
 
-          <div style={{ display: 'flex', gap: 8 }}>
-            <input
-              type="text"
-              value={inputValue}
-              onChange={(e) => {
-                setInputValue(e.target.value);
-                if (resolved) {
-                  setResolved(null);
-                  setStatus('idle');
-                }
-              }}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' && status === 'idle') {
-                  e.preventDefault();
-                  handleSearch();
-                }
-              }}
-              placeholder={cfg.inputPlaceholder}
-              disabled={status === 'searching' || status === 'confirming' || status === 'match'}
-              autoFocus
-              style={{
-                flex: 1,
-                padding: '12px 14px',
-                border: `2px solid ${
-                  status === 'match' ? '#10B981' :
-                  status === 'error' || status === 'no-match' ? '#EF4444' :
-                  '#D1D5DB'
-                }`,
-                borderRadius: 10,
-                fontSize: 16,
-                color: '#111827',
-                background: status === 'match' ? '#F0FDF4' : '#fff',
-                outline: 'none',
-                transition: 'border-color 150ms',
-              }}
-            />
-            {status !== 'match' && (
-              <button
-                type="button"
-                onClick={handleSearch}
-                disabled={!inputValue.trim() || status === 'searching'}
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: 6,
-                  padding: '12px 20px',
-                  background: !inputValue.trim() || status === 'searching' ? '#9CA3AF' : '#3B82F6',
-                  color: '#fff',
-                  border: 'none',
-                  borderRadius: 10,
-                  fontSize: 14,
-                  fontWeight: 600,
-                  cursor: !inputValue.trim() || status === 'searching' ? 'not-allowed' : 'pointer',
-                }}
-              >
-                {status === 'searching' ? (
-                  <>
-                    <Loader2 size={16} style={{ animation: 'spin 1s linear infinite' }} />
-                    Buscando…
-                  </>
-                ) : (
-                  <>
-                    <Search size={16} />
-                    Buscar
-                  </>
-                )}
-              </button>
-            )}
+      {/* N inputs */}
+      {!isConfigured ? (
+        <div style={{
+          padding: 14,
+          background: '#FEE2E2',
+          border: '1px solid #FCA5A5',
+          borderRadius: 8,
+          fontSize: 13,
+          color: '#991B1B',
+        }}>
+          <AlertCircle size={14} style={{ display: 'inline', verticalAlign: 'middle', marginRight: 6 }} />
+          Etapa não configurada pelo administrador.
+        </div>
+      ) : (
+        <>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 14, marginBottom: 16 }}>
+            {fields.map((f, i) => (
+              <div key={f.column}>
+                <label
+                  htmlFor={`id-field-${f.column}`}
+                  style={{
+                    display: 'block',
+                    fontSize: 13,
+                    fontWeight: 600,
+                    color: '#374151',
+                    marginBottom: 6,
+                  }}
+                >
+                  {f.label}
+                  <span style={{ color: '#EF4444', marginLeft: 4 }}>*</span>
+                </label>
+                <input
+                  id={`id-field-${f.column}`}
+                  type="text"
+                  value={values[f.column] || ''}
+                  onChange={(e) => setField(f.column, e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && allFilled && status !== 'validating') {
+                      e.preventDefault();
+                      handleValidate();
+                    }
+                  }}
+                  placeholder={f.placeholder || ''}
+                  disabled={status === 'validating'}
+                  autoFocus={i === 0}
+                  autoComplete="off"
+                  style={{
+                    width: '100%',
+                    padding: '12px 14px',
+                    border: `2px solid ${status === 'error' ? '#FCA5A5' : '#D1D5DB'}`,
+                    borderRadius: 10,
+                    fontSize: 15,
+                    color: '#111827',
+                    background: '#fff',
+                    outline: 'none',
+                    transition: 'border-color 150ms',
+                    boxSizing: 'border-box',
+                  }}
+                />
+              </div>
+            ))}
           </div>
 
-          {errorMsg && (status === 'error') && (
+          {errorMsg && status === 'error' && (
             <div
               role="alert"
               style={{
-                marginTop: 10,
+                marginBottom: 14,
                 padding: 10,
                 background: '#FEE2E2',
                 border: '1px solid #FECACA',
-                borderRadius: 6,
+                borderRadius: 8,
                 fontSize: 13,
                 color: '#991B1B',
                 display: 'flex',
-                gap: 6,
+                gap: 8,
                 alignItems: 'flex-start',
               }}
             >
@@ -296,199 +298,60 @@ export default function IdentityValidationStage({ responseId, stage, onConfirmed
               {errorMsg}
             </div>
           )}
-        </div>
 
-        {/* Card de dados encontrados */}
-        {resolved && (
-          <div
+          <button
+            type="button"
+            onClick={handleValidate}
+            disabled={!allFilled || status === 'validating'}
             style={{
-              background: '#F0FDF4',
-              border: '1px solid #BBF7D0',
-              borderLeft: '4px solid #10B981',
-              borderRadius: 10,
-              padding: 16,
-              marginBottom: 16,
-            }}
-          >
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 6,
-                fontSize: 12,
-                fontWeight: 700,
-                color: '#047857',
-                textTransform: 'uppercase',
-                letterSpacing: 0.5,
-                marginBottom: 10,
-              }}
-            >
-              <CheckCircle2 size={14} /> Identificação encontrada
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-              {Object.entries(resolved).map(([col, info]) => (
-                <div key={col} style={{ display: 'flex', gap: 10, fontSize: 14 }}>
-                  <span style={{ minWidth: 120, color: '#047857', fontWeight: 500 }}>
-                    {info.label}:
-                  </span>
-                  <strong style={{ color: '#111827' }}>
-                    {info.value === null || info.value === undefined ? '—' : String(info.value)}
-                  </strong>
-                </div>
-              ))}
-            </div>
-
-            <p
-              style={{
-                margin: '14px 0 0',
-                fontSize: 13,
-                color: '#065F46',
-                fontStyle: 'italic',
-                textAlign: 'center',
-              }}
-            >
-              Confirme se essas são as suas informações
-            </p>
-          </div>
-        )}
-
-        {/* Botões de confirmação */}
-        {resolved && status === 'match' && (
-          <div style={{ display: 'flex', gap: 10 }}>
-            <button
-              type="button"
-              onClick={handleRetry}
-              style={{
-                flex: 1,
-                display: 'inline-flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: 6,
-                padding: '12px 18px',
-                background: 'transparent',
-                color: '#6B7280',
-                border: '1px solid #D1D5DB',
-                borderRadius: 10,
-                fontSize: 14,
-                fontWeight: 500,
-                cursor: 'pointer',
-              }}
-            >
-              <X size={14} /> Não sou eu
-            </button>
-            <button
-              type="button"
-              onClick={handleConfirm}
-              disabled={status === 'confirming'}
-              style={{
-                flex: 2,
-                display: 'inline-flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: 6,
-                padding: '12px 18px',
-                background: status === 'confirming'
-                  ? '#9CA3AF'
-                  : 'linear-gradient(135deg, #10B981 0%, #059669 100%)',
-                color: '#fff',
-                border: 'none',
-                borderRadius: 10,
-                fontSize: 14,
-                fontWeight: 700,
-                cursor: status === 'confirming' ? 'wait' : 'pointer',
-                boxShadow: status === 'confirming' ? 'none' : '0 4px 12px rgba(16,185,129,0.3)',
-              }}
-            >
-              {status === 'confirming' ? (
-                <>
-                  <Loader2 size={16} style={{ animation: 'spin 1s linear infinite' }} />
-                  Confirmando…
-                </>
-              ) : (
-                <>
-                  <CheckCircle2 size={16} />
-                  {cfg.confirmText}
-                  <ArrowRight size={16} />
-                </>
-              )}
-            </button>
-          </div>
-        )}
-      </div>
-
-      {/* Modal "ID não encontrado" */}
-      {showNotFoundModal && (
-        <div
-          role="dialog"
-          aria-modal="true"
-          onClick={() => setShowNotFoundModal(false)}
-          style={{
-            position: 'fixed',
-            inset: 0,
-            background: 'rgba(0,0,0,0.6)',
-            zIndex: 99999,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            padding: 24,
-          }}
-        >
-          <div
-            onClick={(e) => e.stopPropagation()}
-            style={{
-              background: '#fff',
-              borderRadius: 16,
-              maxWidth: 460,
               width: '100%',
-              padding: 28,
-              boxShadow: '0 24px 64px rgba(0,0,0,0.25)',
-              textAlign: 'center',
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 8,
+              padding: '14px 20px',
+              background: (!allFilled || status === 'validating')
+                ? '#9CA3AF'
+                : 'linear-gradient(135deg, #3B82F6 0%, #1E40AF 100%)',
+              color: '#fff',
+              border: 'none',
+              borderRadius: 10,
+              fontSize: 15,
+              fontWeight: 700,
+              cursor: (!allFilled || status === 'validating') ? 'not-allowed' : 'pointer',
+              boxShadow: (!allFilled || status === 'validating') ? 'none' : '0 4px 12px rgba(59,130,246,0.4)',
             }}
           >
-            <div
-              style={{
-                width: 56,
-                height: 56,
-                borderRadius: '50%',
-                background: '#FEE2E2',
-                display: 'inline-flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                marginBottom: 16,
-              }}
-            >
-              <AlertCircle size={28} color="#DC2626" />
-            </div>
-            <h2 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: '#111827' }}>
-              ID não encontrado
-            </h2>
-            <p style={{ margin: '8px 0 20px', fontSize: 14, color: '#6B7280', lineHeight: 1.5 }}>
-              O ID <strong style={{ color: '#111827' }}>"{inputValue}"</strong> não foi encontrado em nossa base.
-              <br /><br />
-              Verifique se digitou corretamente. Se persistir, entre em contato com o{' '}
-              <strong>suporte do sistema</strong>.
-            </p>
-            <button
-              onClick={() => setShowNotFoundModal(false)}
-              style={{
-                width: '100%',
-                padding: '12px 18px',
-                background: '#3B82F6',
-                color: '#fff',
-                border: 'none',
-                borderRadius: 10,
-                fontSize: 14,
-                fontWeight: 600,
-                cursor: 'pointer',
-              }}
-            >
-              Entendi
-            </button>
-          </div>
-        </div>
+            {status === 'validating' ? (
+              <>
+                <Loader2 size={16} style={{ animation: 'spin 1s linear infinite' }} />
+                Validando…
+              </>
+            ) : (
+              <>
+                <ShieldCheck size={16} />
+                Validar identidade
+              </>
+            )}
+          </button>
+
+          <p style={{
+            margin: '12px 0 0',
+            fontSize: 11,
+            color: '#9CA3AF',
+            textAlign: 'center',
+            lineHeight: 1.5,
+          }}>
+            {fields.length === 1
+              ? 'Preencha o campo acima para continuar.'
+              : `Todos os ${fields.length} campos precisam estar corretos para prosseguir.`}
+          </p>
+        </>
       )}
 
-      <style jsx>{`@keyframes spin { from { transform: rotate(0); } to { transform: rotate(360deg); } }`}</style>
-    </>
+      <style jsx>{`
+        @keyframes spin { from { transform: rotate(0); } to { transform: rotate(360deg); } }
+      `}</style>
+    </div>
   );
 }

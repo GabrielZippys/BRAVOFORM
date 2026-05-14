@@ -82,6 +82,7 @@ function buildWorkflowFromStages(rows: any[]): any {
         lookupInputPlaceholder: r.lookup_input_placeholder ?? undefined,
         lookupConfirmText: r.lookup_confirm_text ?? undefined,
         lookupRequireMatch: r.lookup_require_match ?? true,
+        lookupMatchFields: Array.isArray(r.lookup_match_fields) ? r.lookup_match_fields : [],
       })),
   };
 }
@@ -239,6 +240,7 @@ export async function GET(request: NextRequest) {
             lookupTable: r.lookup_table ?? undefined,
             lookupSearchColumn: r.lookup_search_column ?? undefined,
             lookupDisplayColumns: r.lookup_display_columns ?? [],
+            lookupMatchFields: Array.isArray(r.lookup_match_fields) ? r.lookup_match_fields : [],
             lookupInputLabel: r.lookup_input_label ?? undefined,
             lookupInputPlaceholder: r.lookup_input_placeholder ?? undefined,
             lookupConfirmText: r.lookup_confirm_text ?? undefined,
@@ -272,6 +274,7 @@ export async function GET(request: NextRequest) {
         w.companies,
         w.departments,
         w.activation_settings AS "activationSettings",
+        w.viewers,
         w.created_at       AS "createdAt",
         COALESCE(cnt.stage_count, 0)::int AS "stageCount"
       FROM dim_workflows w
@@ -388,12 +391,14 @@ export async function POST(request: NextRequest) {
             sub_workflow_id, sub_workflow_mode, sub_workflow_input_mapping,
             parallel_min_paths_to_complete, parallel_timeout_minutes,
             lookup_table, lookup_search_column, lookup_display_columns,
-            lookup_input_label, lookup_input_placeholder, lookup_confirm_text, lookup_require_match
+            lookup_input_label, lookup_input_placeholder, lookup_confirm_text, lookup_require_match,
+            lookup_match_fields
           ) VALUES (
             $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,
             $20,$21,$22,$23,$24,$25,
             $26,$27,$28,$29,$30,
-            $31,$32,$33,$34,$35,$36,$37
+            $31,$32,$33,$34,$35,$36,$37,
+            $38
           )
         `, [
           stage.id || `${workflowId}_stage_${idx}`,
@@ -433,6 +438,7 @@ export async function POST(request: NextRequest) {
           stage.lookupInputPlaceholder || null,
           stage.lookupConfirmText || null,
           stage.lookupRequireMatch ?? true,
+          JSON.stringify(stage.lookupMatchFields || []),
         ]);
       }
     } else {
@@ -479,7 +485,7 @@ export async function PATCH(request: NextRequest) {
     await ensureWorkflowsTable(client);
 
     const body = await request.json();
-    const { workflowId, isActive, activationSettings, name, description, companies, departments } = body;
+    const { workflowId, isActive, activationSettings, name, description, companies, departments, viewers } = body;
 
     if (!workflowId) {
       return NextResponse.json({ success: false, error: 'Workflow ID required' }, { status: 400 });
@@ -489,7 +495,7 @@ export async function PATCH(request: NextRequest) {
     // criados antes da migration). Faz UPSERT pra garantir que sempre exista.
     // Primeiro busca dados atuais (se houver) pra preservar fields não enviados.
     const existing = await client.query(
-      `SELECT name, description, is_active, companies, departments, activation_settings
+      `SELECT name, description, is_active, companies, departments, activation_settings, viewers
        FROM dim_workflows
        WHERE firebase_id = $1`,
       [workflowId]
@@ -518,13 +524,14 @@ export async function PATCH(request: NextRequest) {
       companies:           companies !== undefined ? companies : (cur.companies ?? fallback.companies ?? []),
       departments:         departments !== undefined ? departments : (cur.departments ?? fallback.departments ?? []),
       activationSettings:  activationSettings !== undefined ? activationSettings : (cur.activation_settings ?? fallback.activation_settings ?? {}),
+      viewers:             viewers !== undefined ? viewers : (cur.viewers ?? []),
     };
 
     await client.query(
       `INSERT INTO dim_workflows (
         firebase_id, name, description, is_active,
-        companies, departments, activation_settings, updated_at
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())
+        companies, departments, activation_settings, viewers, updated_at
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW())
       ON CONFLICT (firebase_id) DO UPDATE SET
         name = EXCLUDED.name,
         description = EXCLUDED.description,
@@ -532,6 +539,7 @@ export async function PATCH(request: NextRequest) {
         companies = EXCLUDED.companies,
         departments = EXCLUDED.departments,
         activation_settings = EXCLUDED.activation_settings,
+        viewers = EXCLUDED.viewers,
         updated_at = NOW()`,
       [
         workflowId,
@@ -541,6 +549,7 @@ export async function PATCH(request: NextRequest) {
         JSON.stringify(upsertValues.companies),
         JSON.stringify(upsertValues.departments),
         JSON.stringify(upsertValues.activationSettings),
+        JSON.stringify(upsertValues.viewers),
       ]
     );
 

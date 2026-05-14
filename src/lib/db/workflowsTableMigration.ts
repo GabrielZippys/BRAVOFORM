@@ -56,6 +56,18 @@ export async function ensureWorkflowsTable(client: any): Promise<void> {
       ON dim_workflows USING GIN(companies);
   `);
 
+  // viewers: JSONB array de { id, username, name } — usuários que podem
+  // acompanhar o histórico das instâncias desse workflow (read-only).
+  // Idempotente — ADD COLUMN IF NOT EXISTS.
+  await client.query(`
+    ALTER TABLE dim_workflows
+      ADD COLUMN IF NOT EXISTS viewers JSONB DEFAULT '[]'::jsonb;
+  `);
+  await client.query(`
+    CREATE INDEX IF NOT EXISTS idx_dim_workflows_viewers
+      ON dim_workflows USING GIN(viewers);
+  `);
+
   // Backfill: popula dim_workflows com workflows existentes em dim_workflow_stages
   // (apenas se a tabela master estiver vazia — primeira execução)
   const countRes = await client.query(`SELECT COUNT(*)::int AS c FROM dim_workflows`);
