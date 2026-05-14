@@ -459,6 +459,22 @@ export interface WorkflowStage {
     label: string;        // rótulo do input
     placeholder?: string; // placeholder do input
   }>;
+  // Pré-seleção contextual: ANTES dos match_fields, o usuário escolhe uma
+  // opção em um dropdown manual. Cada opção pode sobrescrever a tabela e os
+  // match_fields. Caso de uso típico: "Selecione sua unidade" onde cada
+  // unidade tem cadastro em tabela/colunas diferentes.
+  lookupPreSelect?: {
+    enabled: boolean;
+    label: string;          // ex: "Selecione sua unidade"
+    placeholder?: string;   // ex: "Escolha uma unidade..."
+    required?: boolean;     // default true
+    options: Array<{
+      value: string;        // valor enviado ao backend (ex: "SP")
+      label: string;        // rótulo exibido (ex: "São Paulo — Matriz")
+      lookupTable?: string; // sobrescreve a tabela base se preenchido
+      matchFields?: Array<{ column: string; label: string; placeholder?: string }>;
+    }>;
+  };
 
   // ── Branches Paralelos ───────────────────────────────────────────────
   parallelMinPathsToComplete?: number;  // Quantos paths precisam completar p/ join avançar (default = todos)

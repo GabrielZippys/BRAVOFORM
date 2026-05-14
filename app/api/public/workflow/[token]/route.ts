@@ -81,7 +81,7 @@ export async function GET(
       `SELECT firebase_id, stage_name, stage_description, stage_type, stage_order,
               lookup_table, lookup_search_column, lookup_display_columns,
               lookup_input_label, lookup_input_placeholder, lookup_confirm_text,
-              lookup_require_match, lookup_match_fields
+              lookup_require_match, lookup_match_fields, lookup_pre_select
        FROM dim_workflow_stages
        WHERE workflow_fb_id = $1
        ORDER BY stage_order ASC`,
@@ -109,6 +109,8 @@ export async function GET(
       lookupConfirmText: s.lookup_confirm_text || undefined,
       lookupRequireMatch: s.lookup_require_match ?? true,
       lookupMatchFields: Array.isArray(s.lookup_match_fields) ? s.lookup_match_fields : [],
+      lookupPreSelect: s.lookup_pre_select && typeof s.lookup_pre_select === 'object'
+        ? s.lookup_pre_select : undefined,
     }));
 
     return NextResponse.json({

@@ -41,6 +41,7 @@ interface IdentityInfo {
   searchValue: string;
   data: Record<string, { value: any; label: string }>;
   validatedAt: string | null;
+  preSelectValue: string | null;
 }
 
 interface InstanceDetail {
@@ -227,6 +228,9 @@ export default function InstanceDetailsModal({ instanceId, onClose }: Props) {
                     <div style={{ fontSize: 12, color: '#0C4A6E', opacity: 0.8 }}>
                       Tabela: <code>{data.identity.table}</code> · Buscado:{' '}
                       <code>{data.identity.searchValue}</code>
+                      {data.identity.preSelectValue && (
+                        <> · Pré-seleção: <code>{data.identity.preSelectValue}</code></>
+                      )}
                     </div>
                     {Object.keys(data.identity.data).length > 0 && (
                       <div style={{

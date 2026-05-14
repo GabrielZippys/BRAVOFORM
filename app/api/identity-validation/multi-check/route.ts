@@ -54,7 +54,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { responseId, stageId, inputs } = body;
+    const { responseId, stageId, inputs, preSelectValue } = body;
 
     if (!responseId || !stageId || !inputs || typeof inputs !== 'object') {
       return NextResponse.json(
@@ -62,6 +62,10 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
+
+    const cleanPreSelect: string | null = preSelectValue !== undefined && preSelectValue !== null
+      ? String(preSelectValue).trim().slice(0, 120)
+      : null;
 
     const inputKeys = Object.keys(inputs);
     if (inputKeys.length === 0 || inputKeys.length > MAX_FIELDS) {
@@ -102,7 +106,7 @@ export async function POST(request: NextRequest) {
          fr.response_key, fr.form_key, fr.current_stage_fb_id,
          ws.workflow_fb_id,
          ws.lookup_table, ws.lookup_search_column, ws.lookup_display_columns,
-         ws.lookup_match_fields, ws.lookup_require_match,
+         ws.lookup_match_fields, ws.lookup_require_match, ws.lookup_pre_select,
          ws.stage_order, ws.stage_type
        FROM fact_form_response fr
        LEFT JOIN dim_workflow_stages ws
@@ -138,19 +142,58 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const tableName: string = ctx.lookup_table;
-    if (!tableName || !SQL_IDENT_RE.test(tableName)) {
+    // 2) Resolve a config efetiva: se a etapa tem pré-seleção e o cliente
+    //    enviou preSelectValue, procura a option correspondente e usa
+    //    seu override de lookupTable/matchFields (se houver).
+    const preSelect = ctx.lookup_pre_select && typeof ctx.lookup_pre_select === 'object'
+      ? ctx.lookup_pre_select : null;
+    const preSelectEnabled = !!(preSelect?.enabled);
+
+    let resolvedTable: string = ctx.lookup_table || '';
+    let resolvedMatchFields: any[] = Array.isArray(ctx.lookup_match_fields) ? ctx.lookup_match_fields : [];
+
+    if (preSelectEnabled) {
+      // Pré-seleção é obrigatória se enabled=true e required≠false
+      const required = preSelect.required !== false;
+      if (required && !cleanPreSelect) {
+        await client.query('ROLLBACK');
+        return NextResponse.json(
+          { success: false, error: `Pré-seleção obrigatória: ${preSelect.label || 'selecione uma opção'}` },
+          { status: 400 }
+        );
+      }
+      if (cleanPreSelect) {
+        const opts: any[] = Array.isArray(preSelect.options) ? preSelect.options : [];
+        const opt = opts.find((o) => String(o?.value) === cleanPreSelect);
+        if (!opt) {
+          await client.query('ROLLBACK');
+          return NextResponse.json(
+            { success: false, error: 'Opção de pré-seleção inválida' },
+            { status: 400 }
+          );
+        }
+        if (opt.lookupTable && typeof opt.lookupTable === 'string') {
+          resolvedTable = opt.lookupTable;
+        }
+        if (Array.isArray(opt.matchFields) && opt.matchFields.length > 0) {
+          resolvedMatchFields = opt.matchFields;
+        }
+      }
+    }
+
+    if (!resolvedTable || !SQL_IDENT_RE.test(resolvedTable)) {
       await client.query('ROLLBACK');
       return NextResponse.json(
         { success: false, error: 'Etapa mal configurada (admin)' },
         { status: 500 }
       );
     }
+    const tableName = resolvedTable;
 
-    // 2) Determina as colunas que precisam ser validadas
+    // Determina as colunas que precisam ser validadas
     type MatchField = { column: string; label?: string };
-    const configuredFields: MatchField[] = Array.isArray(ctx.lookup_match_fields) && ctx.lookup_match_fields.length > 0
-      ? ctx.lookup_match_fields
+    const configuredFields: MatchField[] = resolvedMatchFields.length > 0
+      ? resolvedMatchFields
       : (ctx.lookup_search_column
           ? [{ column: ctx.lookup_search_column, label: ctx.lookup_search_column }]
           : []);
@@ -264,12 +307,13 @@ export async function POST(request: NextRequest) {
     const firstFieldValue = cleanInputs[firstFieldCol];
     await client.query(
       `UPDATE fact_form_response SET
-         identity_validated_at = NOW(),
-         identity_table         = $2,
-         identity_search_column = $3,
-         identity_search_value  = $4,
-         identity_data          = $5,
-         identity_label         = $6
+         identity_validated_at     = NOW(),
+         identity_table            = $2,
+         identity_search_column    = $3,
+         identity_search_value     = $4,
+         identity_data             = $5,
+         identity_label            = $6,
+         identity_pre_select_value = $7
        WHERE firebase_id = $1`,
       [
         responseId,
@@ -278,6 +322,7 @@ export async function POST(request: NextRequest) {
         firstFieldValue,
         JSON.stringify(identityData),
         identityLabel || null,
+        cleanPreSelect,
       ]
     );
 
@@ -324,7 +369,8 @@ export async function POST(request: NextRequest) {
         'Validação de Identidade',
         'identity_confirmed',
         identityLabel || firstFieldValue,
-        `Identidade validada via ${safeFields.length} campo(s): ${safeFields.map((f) => f.column).join(', ')}`,
+        `Identidade validada via ${safeFields.length} campo(s): ${safeFields.map((f) => f.column).join(', ')}` +
+          (cleanPreSelect ? ` · pré-seleção: ${cleanPreSelect}` : ''),
       ]
     );
 

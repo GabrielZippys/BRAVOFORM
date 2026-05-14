@@ -117,7 +117,14 @@ export default function IdentityLookupConfig({ stage, onUpdate }: Props) {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-      {/* ─── Tabela ─────────────────────────────────────────────── */}
+      {/* ─── Pré-seleção contextual (opcional) ────────────────────── */}
+      <PreSelectEditor
+        value={stage.lookupPreSelect}
+        defaultColumns={columns}
+        onChange={(next) => onUpdate({ lookupPreSelect: next })}
+      />
+
+      {/* ─── Tabela (default da etapa) ────────────────────────────── */}
       <div style={groupStyle}>
         <label style={labelStyle}>Tabela do banco *</label>
         {loadingTables ? (
@@ -430,6 +437,454 @@ function MatchFieldsEditor({
       >
         + Adicionar campo de identificação
       </button>
+    </div>
+  );
+}
+
+// ─── Pré-seleção: dropdown manual antes dos match_fields ─────────────────
+
+type PreSelect = NonNullable<WorkflowStage['lookupPreSelect']>;
+
+function PreSelectEditor({
+  value,
+  defaultColumns,
+  onChange,
+}: {
+  value: WorkflowStage['lookupPreSelect'];
+  defaultColumns: PgColumn[];
+  onChange: (next: WorkflowStage['lookupPreSelect']) => void;
+}) {
+  const enabled = !!value?.enabled;
+  const current: PreSelect = value || { enabled: false, label: '', options: [] };
+
+  const patch = (changes: Partial<PreSelect>) => {
+    onChange({ ...current, ...changes });
+  };
+
+  const addOption = () => {
+    patch({
+      options: [
+        ...(current.options || []),
+        { value: '', label: '', lookupTable: '', matchFields: [] },
+      ],
+    });
+  };
+  const updateOption = (i: number, changes: Partial<PreSelect['options'][number]>) => {
+    patch({
+      options: (current.options || []).map((o, idx) => idx === i ? { ...o, ...changes } : o),
+    });
+  };
+  const removeOption = (i: number) => {
+    patch({ options: (current.options || []).filter((_, idx) => idx !== i) });
+  };
+
+  return (
+    <div style={{
+      marginBottom: 14,
+      padding: 10,
+      background: enabled ? 'var(--color-brand-50, #EFF6FF)' : 'var(--surface-page)',
+      border: '1px solid var(--color-border-subtle)',
+      borderRadius: 'var(--radius-sm)',
+    }}>
+      <label style={{
+        display: 'flex', alignItems: 'center', gap: 8,
+        fontSize: 12, fontWeight: 600,
+        color: 'var(--color-text-primary)',
+        cursor: 'pointer',
+      }}>
+        <input
+          type="checkbox"
+          checked={enabled}
+          onChange={(e) => patch({ enabled: e.target.checked })}
+        />
+        Pré-seleção contextual antes da identidade
+        <span style={{ fontWeight: 400, color: 'var(--color-text-tertiary)', fontSize: 11 }}>
+          (ex: escolher unidade)
+        </span>
+      </label>
+
+      {!enabled && (
+        <p style={{
+          margin: '6px 0 0 24px',
+          fontSize: 11,
+          color: 'var(--color-text-tertiary)',
+          lineHeight: 1.5,
+        }}>
+          Habilite para exibir um dropdown manual antes dos campos de identificação.
+          Cada opção pode usar tabela e campos diferentes.
+        </p>
+      )}
+
+      {enabled && (
+        <div style={{ marginTop: 10, display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+            <div>
+              <label style={{
+                display: 'block', fontSize: 11, fontWeight: 600,
+                color: 'var(--color-text-primary)', marginBottom: 2,
+              }}>
+                Rótulo do dropdown *
+              </label>
+              <input
+                type="text"
+                value={current.label || ''}
+                onChange={(e) => patch({ label: e.target.value })}
+                placeholder="Ex: Selecione sua unidade"
+                style={{
+                  width: '100%', padding: '6px 8px',
+                  background: 'var(--surface-card)',
+                  border: '1px solid var(--color-border-default)',
+                  borderRadius: 4, fontSize: 11,
+                  color: 'var(--color-text-primary)',
+                  boxSizing: 'border-box',
+                }}
+              />
+            </div>
+            <div>
+              <label style={{
+                display: 'block', fontSize: 11, fontWeight: 600,
+                color: 'var(--color-text-primary)', marginBottom: 2,
+              }}>
+                Placeholder
+              </label>
+              <input
+                type="text"
+                value={current.placeholder || ''}
+                onChange={(e) => patch({ placeholder: e.target.value })}
+                placeholder="Ex: Escolha uma unidade..."
+                style={{
+                  width: '100%', padding: '6px 8px',
+                  background: 'var(--surface-card)',
+                  border: '1px solid var(--color-border-default)',
+                  borderRadius: 4, fontSize: 11,
+                  color: 'var(--color-text-primary)',
+                  boxSizing: 'border-box',
+                }}
+              />
+            </div>
+          </div>
+
+          <label style={{
+            display: 'flex', alignItems: 'center', gap: 6,
+            fontSize: 11, color: 'var(--color-text-primary)',
+          }}>
+            <input
+              type="checkbox"
+              checked={current.required !== false}
+              onChange={(e) => patch({ required: e.target.checked })}
+            />
+            Obrigatório (sem escolher, o colaborador não avança)
+          </label>
+
+          <div>
+            <div style={{
+              fontSize: 11, fontWeight: 700,
+              textTransform: 'uppercase', letterSpacing: 0.5,
+              color: 'var(--color-text-secondary)',
+              marginBottom: 6,
+            }}>
+              Opções do dropdown
+            </div>
+            <p style={{
+              margin: '0 0 8px', fontSize: 11,
+              color: 'var(--color-text-tertiary)', lineHeight: 1.5,
+            }}>
+              Para cada opção, você pode deixar em branco para usar a tabela/campos default
+              da etapa, OU sobrescrever com uma tabela e campos específicos.
+            </p>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              {(current.options || []).length === 0 && (
+                <div style={{
+                  padding: 10,
+                  background: 'var(--surface-card)',
+                  border: '1px dashed var(--color-border-default)',
+                  borderRadius: 'var(--radius-sm)',
+                  fontSize: 11, color: 'var(--color-text-tertiary)',
+                  textAlign: 'center',
+                }}>
+                  Nenhuma opção. Clique em "+ Adicionar opção" abaixo.
+                </div>
+              )}
+              {(current.options || []).map((opt, i) => (
+                <PreSelectOptionEditor
+                  key={i}
+                  index={i}
+                  option={opt}
+                  defaultColumns={defaultColumns}
+                  onChange={(changes) => updateOption(i, changes)}
+                  onRemove={() => removeOption(i)}
+                />
+              ))}
+            </div>
+
+            <button
+              type="button"
+              onClick={addOption}
+              style={{
+                marginTop: 8,
+                padding: '6px 10px',
+                background: 'var(--surface-page)',
+                border: '1px dashed var(--color-border-default)',
+                borderRadius: 'var(--radius-sm)',
+                fontSize: 11, fontWeight: 500,
+                color: 'var(--color-text-secondary)',
+                cursor: 'pointer',
+              }}
+            >
+              + Adicionar opção
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function PreSelectOptionEditor({
+  index, option, defaultColumns, onChange, onRemove,
+}: {
+  index: number;
+  option: PreSelect['options'][number];
+  defaultColumns: PgColumn[];
+  onChange: (changes: Partial<PreSelect['options'][number]>) => void;
+  onRemove: () => void;
+}) {
+  const [expanded, setExpanded] = React.useState(!!(option.lookupTable || (option.matchFields || []).length > 0));
+  const [optColumns, setOptColumns] = React.useState<PgColumn[]>([]);
+  const [loadingOptCols, setLoadingOptCols] = React.useState(false);
+
+  // Quando a opção tem tabela override, carrega as colunas dela
+  React.useEffect(() => {
+    if (!option.lookupTable) {
+      setOptColumns([]);
+      return;
+    }
+    setLoadingOptCols(true);
+    fetch(`/api/lookup/columns?table=${encodeURIComponent(option.lookupTable)}`)
+      .then((r) => r.json())
+      .then((j) => { if (j.success) setOptColumns(j.data); })
+      .finally(() => setLoadingOptCols(false));
+  }, [option.lookupTable]);
+
+  const columnsForFields = optColumns.length > 0 ? optColumns : defaultColumns;
+
+  const updateMatchField = (i: number, patch: Partial<{ column: string; label: string; placeholder?: string }>) => {
+    const next = (option.matchFields || []).map((f, idx) => idx === i ? { ...f, ...patch } : f);
+    onChange({ matchFields: next });
+  };
+  const addMatchField = () => {
+    onChange({
+      matchFields: [...(option.matchFields || []), { column: '', label: '', placeholder: '' }],
+    });
+  };
+  const removeMatchField = (i: number) => {
+    onChange({ matchFields: (option.matchFields || []).filter((_, idx) => idx !== i) });
+  };
+
+  return (
+    <div style={{
+      border: '1px solid var(--color-border-subtle)',
+      borderRadius: 'var(--radius-sm)',
+      background: 'var(--surface-card)',
+      padding: 8,
+    }}>
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: '32px 1fr 1fr 28px',
+        gap: 6,
+        alignItems: 'center',
+        marginBottom: 6,
+      }}>
+        <span style={{
+          fontSize: 10, fontWeight: 700,
+          color: 'var(--color-text-tertiary)', textAlign: 'center',
+        }}>
+          #{index + 1}
+        </span>
+        <input
+          type="text"
+          value={option.value || ''}
+          onChange={(e) => onChange({ value: e.target.value })}
+          placeholder="Valor (ex: SP)"
+          style={{
+            padding: '6px 8px',
+            background: 'var(--surface-page)',
+            border: '1px solid var(--color-border-default)',
+            borderRadius: 4, fontSize: 11,
+            color: 'var(--color-text-primary)',
+          }}
+        />
+        <input
+          type="text"
+          value={option.label || ''}
+          onChange={(e) => onChange({ label: e.target.value })}
+          placeholder="Rótulo (ex: São Paulo — Matriz)"
+          style={{
+            padding: '6px 8px',
+            background: 'var(--surface-page)',
+            border: '1px solid var(--color-border-default)',
+            borderRadius: 4, fontSize: 11,
+            color: 'var(--color-text-primary)',
+          }}
+        />
+        <button
+          type="button"
+          onClick={onRemove}
+          aria-label="Remover opção"
+          title="Remover opção"
+          style={{
+            border: 'none', background: 'transparent', cursor: 'pointer',
+            color: 'var(--color-text-tertiary)', fontSize: 16, padding: 0,
+          }}
+        >
+          ×
+        </button>
+      </div>
+
+      <button
+        type="button"
+        onClick={() => setExpanded((p) => !p)}
+        style={{
+          background: 'transparent', border: 'none',
+          padding: '2px 0', cursor: 'pointer',
+          fontSize: 11, fontWeight: 500,
+          color: 'var(--color-text-secondary)',
+        }}
+      >
+        {expanded ? '▾' : '▸'} Sobrescrever tabela/campos desta opção (avançado)
+      </button>
+
+      {expanded && (
+        <div style={{
+          marginTop: 6, paddingTop: 6,
+          borderTop: '1px dashed var(--color-border-subtle)',
+          display: 'flex', flexDirection: 'column', gap: 6,
+        }}>
+          <div>
+            <label style={{
+              display: 'block', fontSize: 10, fontWeight: 600,
+              color: 'var(--color-text-tertiary)',
+              textTransform: 'uppercase', letterSpacing: 0.4,
+              marginBottom: 2,
+            }}>
+              Tabela override (em branco = usa default da etapa)
+            </label>
+            <input
+              type="text"
+              value={option.lookupTable || ''}
+              onChange={(e) => onChange({ lookupTable: e.target.value })}
+              placeholder="Ex: dim_colaboradores_sp"
+              style={{
+                width: '100%', padding: '6px 8px',
+                background: 'var(--surface-page)',
+                border: '1px solid var(--color-border-default)',
+                borderRadius: 4, fontSize: 11,
+                color: 'var(--color-text-primary)',
+                boxSizing: 'border-box',
+              }}
+            />
+          </div>
+
+          <div>
+            <label style={{
+              display: 'block', fontSize: 10, fontWeight: 600,
+              color: 'var(--color-text-tertiary)',
+              textTransform: 'uppercase', letterSpacing: 0.4,
+              marginBottom: 4,
+            }}>
+              Campos de identidade desta opção (em branco = usa default da etapa)
+            </label>
+            {loadingOptCols && (
+              <div style={{ fontSize: 11, color: 'var(--color-text-tertiary)', padding: 4 }}>
+                Carregando colunas…
+              </div>
+            )}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+              {(option.matchFields || []).map((mf, i) => (
+                <div
+                  key={i}
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns: '1fr 1fr 1fr 24px',
+                    gap: 4,
+                  }}
+                >
+                  <select
+                    value={mf.column}
+                    onChange={(e) => updateMatchField(i, { column: e.target.value, label: mf.label || e.target.value })}
+                    style={{
+                      padding: '4px 6px',
+                      background: 'var(--surface-page)',
+                      border: '1px solid var(--color-border-default)',
+                      borderRadius: 4, fontSize: 10,
+                      color: 'var(--color-text-primary)',
+                    }}
+                  >
+                    <option value="">— coluna —</option>
+                    {columnsForFields.map((c) => (
+                      <option key={c.name} value={c.name}>{c.name}</option>
+                    ))}
+                  </select>
+                  <input
+                    type="text"
+                    value={mf.label}
+                    onChange={(e) => updateMatchField(i, { label: e.target.value })}
+                    placeholder="Rótulo"
+                    style={{
+                      padding: '4px 6px',
+                      background: 'var(--surface-page)',
+                      border: '1px solid var(--color-border-default)',
+                      borderRadius: 4, fontSize: 10,
+                      color: 'var(--color-text-primary)',
+                    }}
+                  />
+                  <input
+                    type="text"
+                    value={mf.placeholder || ''}
+                    onChange={(e) => updateMatchField(i, { placeholder: e.target.value })}
+                    placeholder="Placeholder"
+                    style={{
+                      padding: '4px 6px',
+                      background: 'var(--surface-page)',
+                      border: '1px solid var(--color-border-default)',
+                      borderRadius: 4, fontSize: 10,
+                      color: 'var(--color-text-primary)',
+                    }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => removeMatchField(i)}
+                    aria-label="Remover campo"
+                    style={{
+                      border: 'none', background: 'transparent', cursor: 'pointer',
+                      color: 'var(--color-text-tertiary)', fontSize: 14,
+                    }}
+                  >
+                    ×
+                  </button>
+                </div>
+              ))}
+            </div>
+            <button
+              type="button"
+              onClick={addMatchField}
+              style={{
+                marginTop: 4,
+                padding: '4px 8px',
+                background: 'transparent',
+                border: '1px dashed var(--color-border-default)',
+                borderRadius: 4,
+                fontSize: 10, fontWeight: 500,
+                color: 'var(--color-text-secondary)',
+                cursor: 'pointer',
+              }}
+            >
+              + Campo
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

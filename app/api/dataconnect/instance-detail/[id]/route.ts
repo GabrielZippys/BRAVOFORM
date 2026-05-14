@@ -34,6 +34,7 @@ export async function GET(
          fr.workflow_fb_id, fr.public_link_token, fr.collaborator_username,
          fr.identity_label, fr.identity_data, fr.identity_table,
          fr.identity_search_value, fr.identity_validated_at,
+         fr.identity_pre_select_value,
          fr.motorista, fr.placa, fr.boletim,
          fr.setor_entrega, fr.endereco_entrega, fr.dias_entrega,
          fr.protocolo_cancelamento, fr.motivo_cancelamento,
@@ -122,6 +123,7 @@ export async function GET(
               searchValue: inst.identity_search_value,
               data: inst.identity_data || {},
               validatedAt: inst.identity_validated_at,
+              preSelectValue: inst.identity_pre_select_value || null,
             }
           : null,
         operational: {
