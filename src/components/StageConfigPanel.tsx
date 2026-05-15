@@ -11,6 +11,7 @@ import TriggerConfigPanel from './TriggerConfigPanel';
 import StageCommentsPanel from './StageCommentsPanel';
 import SubWorkflowSelector from './SubWorkflowSelector';
 import IdentityLookupConfig from './IdentityLookupConfig';
+import ExecutionFormBuilder from './ExecutionFormBuilder';
 import { useAuth } from '@/hooks/useAuth';
 import styles from '../../app/styles/StageConfigPanel.module.css';
 
@@ -1094,6 +1095,26 @@ export default function StageConfigPanel({
                     </div>
                   </div>
                 )}
+              </div>
+            </>
+          )}
+
+          {/* ─── Execution Form Builder (execution/custom/review) ─── */}
+          {(stage.stageType === 'execution' || stage.stageType === 'custom' || stage.stageType === 'review') && (
+            <>
+              <div className={styles.divider}></div>
+              <div className={styles.sectionGroup}>
+                <div className={styles.sectionGroupHeader}>
+                  📝 Formulário customizado da etapa
+                </div>
+                <div className={styles.sectionGroupBody}>
+                  <p className={styles.hint} style={{ margin: '0 0 var(--space-3)' }}>
+                    Construa um formulário rico com cascading lookups (ex: digite código do cliente
+                    → mostra o nome; depois selecione a NF → carrega produtos daquela NF), upload
+                    de fotos com câmera, dropdowns filtrados, etc.
+                  </p>
+                  <ExecutionFormBuilder stage={stage} onUpdate={onUpdate} />
+                </div>
               </div>
             </>
           )}

@@ -85,6 +85,8 @@ function buildWorkflowFromStages(rows: any[]): any {
         lookupMatchFields: Array.isArray(r.lookup_match_fields) ? r.lookup_match_fields : [],
         lookupPreSelect: r.lookup_pre_select && typeof r.lookup_pre_select === 'object' && Object.keys(r.lookup_pre_select).length > 0
           ? r.lookup_pre_select : undefined,
+        executionForm: r.execution_form && typeof r.execution_form === 'object' && r.execution_form.enabled
+          ? r.execution_form : undefined,
       })),
   };
 }
@@ -146,7 +148,7 @@ export async function GET(request: NextRequest) {
             parallel_min_paths_to_complete, parallel_timeout_minutes,
             lookup_table, lookup_search_column, lookup_display_columns,
             lookup_input_label, lookup_input_placeholder, lookup_confirm_text, lookup_require_match,
-            lookup_match_fields, lookup_pre_select
+            lookup_match_fields, lookup_pre_select, execution_form
           FROM dim_workflow_stages
           WHERE workflow_fb_id = $1
           ORDER BY stage_order ASC
@@ -194,7 +196,8 @@ export async function GET(request: NextRequest) {
           lookup_confirm_text,
           lookup_require_match,
           lookup_match_fields,
-          lookup_pre_select
+          lookup_pre_select,
+          execution_form
         FROM dim_workflow_stages
         WHERE workflow_fb_id = $1
         ORDER BY stage_order ASC
@@ -248,6 +251,8 @@ export async function GET(request: NextRequest) {
             lookupMatchFields: Array.isArray(r.lookup_match_fields) ? r.lookup_match_fields : [],
             lookupPreSelect: r.lookup_pre_select && typeof r.lookup_pre_select === 'object' && Object.keys(r.lookup_pre_select).length > 0
               ? r.lookup_pre_select : undefined,
+            executionForm: r.execution_form && typeof r.execution_form === 'object' && r.execution_form.enabled
+              ? r.execution_form : undefined,
             lookupInputLabel: r.lookup_input_label ?? undefined,
             lookupInputPlaceholder: r.lookup_input_placeholder ?? undefined,
             lookupConfirmText: r.lookup_confirm_text ?? undefined,
@@ -399,13 +404,13 @@ export async function POST(request: NextRequest) {
             parallel_min_paths_to_complete, parallel_timeout_minutes,
             lookup_table, lookup_search_column, lookup_display_columns,
             lookup_input_label, lookup_input_placeholder, lookup_confirm_text, lookup_require_match,
-            lookup_match_fields, lookup_pre_select
+            lookup_match_fields, lookup_pre_select, execution_form
           ) VALUES (
             $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,
             $20,$21,$22,$23,$24,$25,
             $26,$27,$28,$29,$30,
             $31,$32,$33,$34,$35,$36,$37,
-            $38, $39
+            $38, $39, $40
           )
         `, [
           stage.id || `${workflowId}_stage_${idx}`,
@@ -447,6 +452,7 @@ export async function POST(request: NextRequest) {
           stage.lookupRequireMatch ?? true,
           JSON.stringify(stage.lookupMatchFields || []),
           JSON.stringify(stage.lookupPreSelect || {}),
+          JSON.stringify(stage.executionForm || {}),
         ]);
       }
     } else {

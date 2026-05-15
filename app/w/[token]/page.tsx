@@ -22,6 +22,7 @@ import {
   Workflow as WorkflowIcon, CheckCircle2, XCircle, FileText, Play,
 } from 'lucide-react';
 import IdentityValidationStage from '@/components/IdentityValidationStage';
+import ExecutionFormStage from '@/components/ExecutionFormStage';
 import type { WorkflowStage } from '@/types';
 import { logger } from '@/lib/logger';
 
@@ -315,7 +316,20 @@ function StageRenderer({
       );
     case 'execution':
     case 'custom':
-    case 'review':
+    case 'review': {
+      // Se tem formulário customizado configurado, renderiza o builder rico
+      const exForm = (stage as any).executionForm;
+      if (exForm && exForm.enabled && Array.isArray(exForm.fields) && exForm.fields.length > 0) {
+        return (
+          <ExecutionFormStage
+            token={token}
+            responseId={responseId}
+            stage={stage}
+            onSubmitted={(r) => onStageAdvanced({ ...r })}
+          />
+        );
+      }
+      // Senão, fallback pra ExecutionStage simples (textarea + concluir)
       return (
         <ExecutionStage
           token={token}
@@ -325,6 +339,7 @@ function StageRenderer({
           onAdvanced={onStageAdvanced}
         />
       );
+    }
     case 'completion':
       return (
         <CompletionStage

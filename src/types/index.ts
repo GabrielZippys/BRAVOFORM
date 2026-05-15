@@ -476,6 +476,16 @@ export interface WorkflowStage {
     }>;
   };
 
+  // ── Execution Form (formulário customizado em etapas execution) ─────
+  // Permite construir um formulário com cascading lookups, displays
+  // auto-preenchidos, dropdowns filtrados, etc.
+  executionForm?: {
+    enabled: boolean;
+    title?: string;
+    description?: string;
+    fields: ExecutionFormField[];
+  };
+
   // ── Branches Paralelos ───────────────────────────────────────────────
   parallelMinPathsToComplete?: number;  // Quantos paths precisam completar p/ join avançar (default = todos)
   parallelTimeoutMinutes?: number;      // Timeout do join — se passar, força avançar mesmo incompleto
@@ -483,6 +493,50 @@ export interface WorkflowStage {
   order: number;
   isFinalStage: boolean;
   isInitialStage: boolean;
+}
+
+// ── Execution Form: tipos de campo ─────────────────────────────────────
+
+export type ExecutionFormFieldType =
+  | 'text'              // input simples
+  | 'number'            // input numérico
+  | 'textarea'          // texto livre multilinha
+  | 'lookup-input'      // input que resolve dados de uma linha ao digitar
+  | 'display'           // read-only auto-preenchido de outro field
+  | 'lookup-dropdown'   // dropdown cuja lista vem de uma query (com filtros)
+  | 'file';             // upload de arquivo (com suporte a câmera)
+
+export interface LookupConfig {
+  table: string;             // tabela a consultar
+  searchColumn?: string;     // coluna onde buscar (para lookup-input)
+  selectColumn?: string;     // coluna do VALOR retornado (para dropdown)
+  labelColumn?: string;      // coluna do LABEL exibido (para dropdown)
+  resolveColumns?: string[]; // colunas extras a retornar (para display refs)
+  distinct?: boolean;        // SELECT DISTINCT (para dropdown)
+  orderBy?: string;          // ORDER BY
+  limit?: number;            // LIMIT (default 200)
+  where?: Array<{
+    column: string;          // coluna da tabela
+    fromField?: string;      // pega valor de outro field do formulário
+    value?: string | number; // valor literal (se não tiver fromField)
+  }>;
+}
+
+export interface ExecutionFormField {
+  id: string;
+  type: ExecutionFormFieldType;
+  label: string;
+  placeholder?: string;
+  required?: boolean;
+  helpText?: string;
+  // Específicos por tipo:
+  lookup?: LookupConfig;            // lookup-input, lookup-dropdown
+  from?: string;                    // display: ex "cliente_codigo.cliente"
+  multiple?: boolean;               // file: aceita múltiplos
+  capture?: 'camera' | 'none';      // file: capture="environment" no mobile
+  accept?: string;                  // file: mime types ex "image/*"
+  min?: number;                     // number
+  max?: number;                     // number
 }
 
 // Entrada no histórico de movimentações do workflow
